@@ -1,0 +1,145 @@
+# Card — GENOMIC EVENT MODEL MATCH (patient↔model genomic-event correspondence)
+#
+# The GENOMIC sibling of recommended-models. Which DepMap models carry the SAME functional
+# genomic event in the target as the indication's tumors — and of those genotype-matched models,
+# which are the positive / resistance screen lines by Chronos dependency?
+#
+# SCOPE: the FUNCTIONAL-GENOTYPE-IDENTITY correspondence — matches models to the tumor cohort's
+# dominant functional gene state (functional_gene_state: biallelic-genetic for a two-hit TSG,
+# monoallelic for a single-hit activating oncogene), then classifies screen role from Chronos. This
+# is the genomic slice of the shared patient↔model primitive, complementary to
+# the expression-similarity slice (recommended-models). It is NOT:
+#   - the EXPRESSION-similarity join (recommended-models — that ranks by target TPM fit), nor
+#   - full-transcriptome Celligner alignment.
+#
+# WHY IT ADDS OVER EXPRESSION MATCHING: a model can be expression-matched yet GENOTYPE-mismatched
+# (highly expressing the target but WILD-TYPE where the tumor is biallelically inactivated). For a
+# loss-of-function-driven dependency that line is a poor model even though recommended-models ranks
+# it well. This card catches the genotype mismatch the expression join cannot see.
+#
+# ZERO new ingestion — reuses functional_gene_state (both arms) + the DepMap Chronos/lineage
+# loader (same as recommended-models).
+#
+# ROUTES INTO GATES: primary = Patient↔model correspondence; also
+# corroborates Required (C) — a target with in-lineage genotype-matched + dependent models has a
+# genotype-backed dependency basis stronger than expression-match alone.
+
+card_id: genomic-event-model-match
+version: 0.2.0   # 0.2.0 (2026-09-18): DECLARE the already-emitted `indication` echo (see summary_fields).
+                #        Additive + already-true; no method change, no grain change (already target_indication).
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
+question: "Which DepMap models carry the same functional genomic event in {target.symbol} as {indication.label} tumors, and which of those genotype-matched models are dependent (positive screen lines)?"
+
+tier: indication
+
+applies_when:
+  # needs BOTH a patient functional-state distribution (indication mapped in functional-gene-state's TCGA map) AND a DepMap lineage.
+  - "context.indication in ['COADREAD', 'COAD', 'READ', 'LUAD', 'LUSC', 'NSCLC', 'BRCA', 'PAAD', 'PDAC', 'SKCM', 'STAD', 'GC', 'PRAD', 'OV', 'KIRC', 'HNSC', 'BLCA', 'LIHC', 'ESCA', 'UCEC']"
+
+required_inputs:
+  # This is a DERIVED join; its inputs are the functional-gene-state substrate + DepMap dependency
+  # (declared here as the underlying products the derived read touches).
+  - product_id: tcga-mc3-public-v0-2-8       # patient mutation (functional-gene-state patient arm)
+  - product_id: gdc-pancanatlas-cnv-2018     # patient ABSOLUTE allele-specific LOH + GISTIC (functional-gene-state patient arm)
+  - product_id: depmap-consortium-26q1       # model functional state (functional-gene-state model arm) + Chronos + lineage
+
+methods:
+  - call: genomic-event-model-match
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - event_correspondence_class             # PRIMARY categorical (drives Tier-2 rules)
+    - patient_event_state                     # the tumor cohort's dominant functional event being matched
+    - patient_event_fraction                  # fraction of tumors carrying it
+    - patient_functional_state_class          # functional-gene-state headline for context
+    - matched_models                          # the ranked genotype-matched table (record schema below)
+    - n_models_considered
+    - n_event_matched
+    - n_event_matched_in_lineage
+    - n_matched_dependent
+    - n_matched_dependent_in_lineage
+    - n_patient_samples
+    # `indication` DECLARES A FIELD THE PRODUCER ALREADY EMITS (v0.2.0) — genomic_event_model_match/
+    # read.py:107 has always echoed the queried indication CODE into the summary, and FR's
+    # run.py::_infer_indication has always read it as an UNDECLARED key. Declared here as the SECOND
+    # supplier for the dependency card preprocessor: it is not redundant with recommended-models,
+    # because the two cards' `applies_when` indication sets DIFFER (this one adds NSCLC/GC/UCEC), so a
+    # run scoped to one of those three has this card and NOT the expression sibling. See the fuller
+    # note in cards/recommended-models.card.yaml for why the code — not depmap_lineage — is the field
+    # the preprocessor needs, and why no new `queried_indication` field was minted.
+    - indication                              # queried indication CODE, echoed by the method (see above)
+    - depmap_lineage
+    - dependency_available
+    - release_pin
+  summary_fields_record_schemas:
+    matched_models:
+      model_id: string
+      cell_line: string
+      lineage: string
+      lineage_match: boolean
+      model_state: {enum: [wt, monoallelic, biallelic-genetic, uncertain], type: string}
+      event_match: boolean
+      cn_class: string
+      chronos: number
+      screen_role: {enum: [positive_model, resistance_model, indeterminate], type: string}
+  summary_fields_vocabulary:
+    event_correspondence_class: [event_matched_dependent_in_lineage, event_matched_dependent_off_lineage, event_matched_not_dependent, no_event_match, no_target_event, data_unavailable]
+    patient_event_state: [biallelic-genetic, monoallelic, activating_mutation]
+    # Re-emitted verbatim from functional-gene-state's headline (genomic_event_model_match/read.py:135
+    # → fgs.get("functional_state_class")); identical closed set to functional-gene-state.card.yaml
+    # functional_state_class. Declared so the #1644 fleet vocab-exhaustiveness guard is non-vacuous for
+    # the panels that bind this field (functional-requirement / genomic-alteration-profile). See #948.
+    patient_functional_state_class: [recurrent_biallelic_inactivation, sporadic_biallelic_inactivation, predominantly_monoallelic, rarely_altered, data_unavailable]
+  figure: genomic_event_model_match_card       # tumor event + correspondence class + top matched models
+
+thresholds:
+  dominant_event_min_fraction: 0.10   # fraction of tumors of a state for it to be the matched event
+  dependent_chronos: -0.5             # model DEPENDENT on target (positive_model gate)
+  not_dependent_chronos: -0.2         # model NOT dependent (resistance_model gate)
+  # Sample-size discipline (existence-power): event_matched_not_dependent fires when >=1 model carries
+  # the tumor's functional event (n_event_matched > 0) but NONE are Chronos-dependent
+  # (read.py _classify_event_correspondence). Below this floor that negative rests on a handful of
+  # matched models — absence of dependency across few genotype-matched lines is weak evidence of
+  # non-dependency, not a measured negative. Keyed on n_event_matched (often 1-5 for a specific
+  # event, so the warning is non-vacuous).
+  min_event_matched_models: 5
+
+# The first three are applied by the method (never a card predicate): it emits the already-derived
+# event_correspondence_class, applying each cutoff itself. Verified consumed in
+# genomic_event_model_match/read.py:35-38 (DEPENDENT_CHRONOS / NOT_DEPENDENT_CHRONOS and the
+# dominant-event fraction gate). min_event_matched_models is compared by a warning predicate on this
+# card, so it is deliberately NOT declared in threshold_roles (that would trip MISDECLARED_THRESHOLD_ROLE).
+threshold_roles:
+  dominant_event_min_fraction:
+    role: method_parameter
+    consumed_by: genomic-event-model-match
+  dependent_chronos:
+    role: method_parameter
+    consumed_by: genomic-event-model-match
+  not_dependent_chronos:
+    role: method_parameter
+    consumed_by: genomic-event-model-match
+
+warning_predicates:
+  - warning_id: few_event_matched_models
+    if: "n_event_matched < THRESHOLD.min_event_matched_models"
+    message: "Fewer than 5 genotype-matched DepMap models carry the tumor's functional event. An event_matched_not_dependent call rests on a small matched set — absence of dependency across few matched models is weak evidence of non-dependency. Read alongside the pan-cancer and lineage dependency cards."
+
+caveats:
+  - "GENOTYPE-identity correspondence, NOT expression-similarity (recommended-models) and NOT full-transcriptome Celligner. The two patient↔model joins are complementary — a model can match on one axis and mismatch on the other; that disagreement is the signal (expression-matched but genotype-mismatched = poor model for a LoF-driven dependency)."
+  - "The tumor EVENT matched is the dominant ALTERED state (biallelic-genetic preferred over monoallelic; ≥10% of tumors). When tumors are rarely altered there is no recurrent genotype to match → event_correspondence_class = no_target_event (an honest 'no target event', not forced to wild-type)."
+  - "Model genotype inherits functional-gene-state's model-arm caveat: DepMap has relative per-gene CN + genome-wide LoH only, so copy-neutral per-gene LOH resolves `uncertain` (not biallelic). A model that is truly copy-neutral-LOH biallelic may read `uncertain` and miss an event_match — a false-negative-leaning bias, documented."
+  - "event_match is STRICT genotype identity on the dominant event; a model with a DIFFERENT alteration (e.g. monoallelic where the tumor is biallelic) is not counted as matched even though it is altered."
+  - "Chronos is pan-lineage per-model dependency; a positive_model is genotype-matched + dependent but the dependency may be context-driven. Screen role is a starting panel, not a validated model set."
+
+# (no `measurement:` — this is a genomic-event join, not an expression/protein layer; genomic cards
+#  omit measurement, matching alteration-role / functional-gene-state / mutation-* / copy-number.)
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — NEW measurement_type: the genomic patient↔model event-match join.
+measurement_type: genomic_event_model_match
+entity_grains: [target_indication]
+schema_version: 1

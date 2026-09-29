@@ -1,0 +1,352 @@
+# genomic-alteration-profile (genomic gate) verdict resolver.
+#
+# Produces the multi-class genomic-alteration verdict from the set of fired rule IDs. The engine is
+# first-match over the ordered `resolve:` ladder, emitting exactly ONE verdict (default: insufficient).
+# It pattern-matches fired rule IDs only — no arithmetic (numeric labels live in the cards).
+#
+# The verdict spans three alteration classes (SNV/indel, copy-number, fusion) plus a typed driver
+# ROLE and a genotype×drug-response biomarker. The ladder is ordered by how load-bearing each signal
+# is for a nomination, NOT by alteration class:
+#
+#   1. Stratified-dependency family (Chronos KO dependency, any class) — TOP of the ladder.
+#      A functional dependency test is the strongest signal, and biomarker_stratified_dependency is
+#      the nomination gate's veto-suppressor + dominant positive_signal, so it must win first-match
+#      over the (nomination-inert) confirmed_driver / multi_class_driver verdicts. Ordered
+#      strong-before-moderate (precedence by effect strength); within a tier the class tie-break is
+#      mut > cn > fusion > amp-expr.
+#   2. multi_class_driver — a mutation-class driver AND a copy-number driver, gated on a typed driver
+#      role, so a passenger with a driver-shaped spectrum + a CN-shape signal does not read multi_class.
+#   3. confirmed_driver — a single-class driver (one altered class) corroborated by a typed driver role.
+#   4. drug_response_biomarker — genotype-selective drug sensitivity (a distinct verdict; drug
+#      sensitivity is not KO dependency).
+#   5. Variant-class pattern (lof/missense-dominant) — mutation-spectrum SHAPE, no functional test.
+#   6. CN-only and fusion-landscape recurrent drivers — landscape recurrence with no dependency line.
+#   7. mixed / passenger fallback, guarded so a double data-gap reads insufficient, not passenger.
+gate: genomic_alteration
+version: 1.12.0  # 2026-09-23: PR-C2 CONSUME THE `underpowered` COVERAGE-GAP TOKEN (genomic n-honesty vertical,
+                 # backtest-gated). An underpowered CN/fusion classifier axis (looked but too few samples cleared
+                 # the recurrence power floor) must read UNMEASURED, never a driver and never passenger via silent
+                 # fall-through — this resolver has NO clamp layer, so an unhandled new token changes fall-through.
+                 # ADDITIVE, two arms: (1) cn-data-unavailable-insufficient's matcher widened equals:data_unavailable
+                 # → in:[data_unavailable, underpowered] (rule_id UNCHANGED — no verdict-identity erasure, no golden
+                 # rule_id churn), so an underpowered CN fires no driver rung AND joins the existing double-data-gap
+                 # guard @56; (2) a NEW fusion-underpowered-insufficient rule (fusion had NO non-driver rule) + a NEW
+                 # guard rung @57 pairing it with mut-no-mutations-neutral → insufficient, the fusion analog of the CN
+                 # guard. Priorities MUST be unique integers (validate_fold_migration), so the tail renumbered
+                 # mixed_pattern 57→58 and passenger_pattern 58→59; RELATIVE order preserved so existing fixtures are
+                 # byte-stable. [CORRECTED 2026-09-29, #1763 — the earlier "no live target emits underpowered until
+                 # PR-C3 lands the classifier emitters" claim is STALE/FALSE: the emitters HAVE shipped —
+                 # analysis-methods depmap_cn_distribution/cli.py + tcga_patient_cn/read.py (copy_number_class /
+                 # patient_copy_number_class) and tcga_fusion_consensus/read.py (fusion_class) all return
+                 # `underpowered` live. Goldens stay byte-stable NOT because the token is unemitted but because the
+                 # FROZEN target-archetype corpus-20260914 predates the emitters: a 2026-09-29 re-measure of all 504
+                 # packages found 0 `underpowered` on copy_number_class/fusion_class/patient_copy_number_class.
+                 # Routing (underpowered → cn-data-unavailable-insufficient / fusion-underpowered-insufficient → the
+                 # double-data-gap guard → insufficient, never passenger/driver) is now proven deterministically by
+                 # tests/validators/test_genomic_resolver_ordering.py, not by the byte-inert premise.] No new
+                 # verdict token (insufficient pre-exists). Coverage regenerated (card_resolver_consumption.yaml,
+                 # rule_role_partition.yaml — fusion-underpowered-insufficient is GATING).
+                 # 2026-09-21: #8 HYBRID-SCOPE FAIL-OPEN DEMOTION (content-audit arc, backtest-gated). The four
+                 # *-indication-scoped-context gates admit within_indication AND the hybrid
+                 # within_indication_mut_vs_pan_wt scope, so BEFORE this change a STRONG dependency at the hybrid
+                 # scope earned the full biomarker_stratified_dependency dominant band off a pooled-pan-lineage WT
+                 # comparator. FIX (additive; the existing within-gates and dependency rungs are UNCHANGED): four
+                 # new *-indication-scoped-fallback-context gate rules match the hybrid scope ONLY, and four hybrid-
+                 # demotion rungs (priority 0-3) pair each strong *-dependent-supportive rule with BOTH its within
+                 # gate and its fallback gate → moderate_biomarker_dependency. At hybrid scope both gates fire, so
+                 # the demotion rung (min priority) wins over the strong biomarker rung it shadows @4-7; a fully
+                 # within_indication strong dependency lacks the fallback gate → biomarker_stratified_dependency
+                 # @4-7 stands. The MODERATE band is deliberately UNTOUCHED (its within-gate still admits the hybrid
+                 # scope), so a moderate dependency at hybrid scope stays moderate_biomarker_dependency @8-11 — no
+                 # silent erasure / fall-open of a valid moderate signal. Inserting the 0-3 demotion band shifted
+                 # the entire pre-existing ladder (former priorities 0-54) DOWN by 4 to 4-58. Fail-open guarded: the
+                 # 0-3 rungs outrank every driver rung (12+). No new verdict token (moderate_biomarker_dependency
+                 # pre-exists).
+                 # NOTE: the v1.9.0–v1.10.0 changelog entries BELOW cite pre-v1.11.0 absolute priorities (before the
+                 # +4 shift); add 4 to any priority there to map to the live ladder. Inline comments in the
+                 # resolve: body below have been updated to the live numbers.
+                 # 2026-09-13: COMPOSITION of two independently-measured precedence passes that both rewrote the
+                 # deletion arm. 1.9.0 (CASE-028, on main) established the ROLE asymmetry: a CN deletion is a
+                 # driver class only for a LoF/neutral role. This branch's specificity pass established the
+                 # PREDICATE restriction: the shallow-inclusive cn-recurrently-deleted-supportive is 60.1% null
+                 # genome-wide and fires no rung at all. The two are orthogonal (one picks the role, the other
+                 # picks the predicate) and BOTH are kept: the deletion arm now keys ONLY on
+                 # cn-patient-focal-deleted-supportive / cn-recurrent-homozygous-deletion-supportive, and for
+                 # each of those a GoF role reads mixed_pattern rather than a driver verdict.
+                 # ★ ONE RUNG IS IN NEITHER ORIGINAL PASS: GoF + cn-recurrent-homozygous-deletion-supportive →
+                 # mixed_pattern (priority 34). 1.9.0/CASE-028 never saw that predicate (this branch introduces
+                 # it), so the asymmetry is EXTENDED to it here by the same argument — a biallelic deep deletion
+                 # is even less an activating mechanism for an oncogene than a shallow one. Flagged because it
+                 # is a merge-time judgement, not a measured panel delta from either branch.
+                 # ★ IT IS A SHIELD, NOT A CLAIM. Priority 43 is a BARE single-predicate rung
+                 # (when_fired: cn-recurrent-homozygous-deletion-supportive → recurrent_deletion_driver) with no
+                 # role gate. Since priority == first-match list order, rung 34 is the ONLY thing keeping a GoF
+                 # oncogene with a passenger homozygous deletion off rung 43. Deleting 34 does not yield "no
+                 # verdict for GoF+deletion" — it hands the target straight to recurrent_deletion_driver and
+                 # reinstates the CASE-028 false positive under a different label. Same relation on the focal
+                 # arm: priority 30 shields priority 41. So the rung asserts nothing about GoF+deletion biology;
+                 # it exists to pre-empt 43. test_gof_shield_rung_precedes_the_bare_deletion_driver_rung now
+                 # pins that ordering, which nothing in the repo asserted before 1.10.0.
+                 # 1.9.0-b 2026-09-12: SPECIFICITY pass on the landscape-recurrence rungs — three MEASURED precedence
+                 # defects, no threshold re-tuning, no new verdict tokens. (a) DELETION arm: the
+                 # shallow-inclusive copy_number_class==recurrently_deleted clears its cut for 60.1% of ALL
+                 # genes genome-wide (vs 2.9% amp / 1.5% deep-del; 1433 sampled genes, see the CN card
+                 # header), so it is REMOVED from every driver-establishing rung — the deletion rungs now
+                 # key on the indication-native cn-patient-focal-deleted-supportive (GISTIC -2, leading) or
+                 # the biallelic cn-recurrent-homozygous-deletion-supportive. Falsifying panel case:
+                 # FGFR2/STAD, a focal-AMPLIFICATION target in gastric, read `confirmed_driver` driven by
+                 # cn-recurrently-deleted-supportive. (b) FUSION arm: the TOP fusion rung now requires
+                 # fusion-recurrence-high-partner-context, so a moderate_promiscuous call (the card's own
+                 # self-declared MIXED bucket) no longer outranks top-1% patient SNV recurrence — it falls
+                 # to a DEMOTED bare-fusion rung (49) below the SNV-recurrence rungs. Panel case:
+                 # STK11/LUAD, 3/632 fusion samples with ZERO recurrent partners, was reading a fusion
+                 # driver instead of its real mechanism (top-1% recurrent SNV in a TSG). (c) VARIANT-CLASS
+                 # SHAPE rungs (lof/missense_dominant_pattern) MOVED from 38/39 to 50/51, i.e. BELOW tier-6
+                 # landscape recurrence. The tier-5 comment already concedes these "measure the SHAPE of the
+                 # spectrum, not patient recurrence", and missense_dominant fires for 62% of the panel
+                 # including the GAPDH/ACTB negative controls (>=0.70 missense is the no-selection
+                 # expectation of the genetic code), so it must not pre-empt a real landscape event. Panel
+                 # case: ROS1/LUAD, a textbook fusion-driven target, read `missense_dominant_pattern`.
+                 # Panel deltas (26 targets): 7 moved, 0 regressions — FGFR2/STAD confirmed_driver→
+                 # mixed_pattern, STK11/LUAD confirmed_lof_driver→recurrent_snv_driver, ROS1/LUAD
+                 # missense_dominant_pattern→recurrent_fusion_driver, APC/RB1 multi_class_lof_driver→
+                 # confirmed_lof_driver (the multi_class claim rested on the 60%-null deletion arm),
+                 # CD19/TACSTD2 multi_class_driver→confirmed_driver. ALK/LUAD (high_recurrent_partner
+                 # EML4-ALK) and all 6 controls are unchanged. Those deltas were measured against 1.8.0,
+                 # i.e. BEFORE the CASE-028 role asymmetry landed; see the 1.10.0 note for the composed set.
+                 # 1.9.0-a 2026-09-12: a CN DELETION is a driver class only for a LoF/neutral role (CASE-028,
+                 # genomic-20 panel). GoF+deletion multi_class rungs removed (fall to single-class
+                 # confirmed_driver); GoF+deletion confirmed_driver rungs → mixed_pattern (a deletion is not a
+                 # GoF mechanism — IDH2/AML read a false confirmed_driver off a passenger cell-line deletion
+                 # while SNV was blind).
+                 # 1.8.0 2026-09-02: splice_exon_skip_driver rung (CASE-002) — a curated exon-skip driver (METex14)
+                 # oncogenic in-indication + live DepMap carriers fires splice-exon-skip-driver-supportive →
+                 # splice_exon_skip_driver (priority 36, above drug_response + the variant-class-shape rungs), so a splice-
+                 # skipping oncogene reads a driver-class call not a neutral missense_dominant_pattern.
+                 # Surgical blast radius (only genes w/ a registered exon-skip event in curated oncogenic scope).
+                 # 1.7.0 2026-08-28: subclonal-recurrence guard (distillation assessment change-3, backtest-gated) —
+                 # a MEASURED predominantly-subclonal top-1% recurrent SNV with no other corroboration demotes
+                 # recurrent_snv_driver → recurrent_snv_subclonal_uncertain (new rung priority 47, via
+                 # snv-clonality-subclonal-opposing + snv-recurrence-top-driver-supportive). Clonal/unavailable unaffected.
+description: |
+  Multi-class genomic-alteration verdict. A Chronos stratified-dependency (any alteration class) is
+  the strongest signal and leads the ladder; copy-number and fusion landscape recurrence keep an
+  amplification/deletion/fusion-driven target (few mutations) from collapsing to passenger; a typed
+  driver role corroborates single- and multi-class driver calls.
+
+resolve:
+  # ── 1. Stratified-dependency family (Chronos KO dependency) ──────────────────────────────────────
+  #    Leads the ladder so a dependency signal wins first-match over confirmed_driver / multi_class
+  #    (both nomination-inert). All four classes reuse the same verdicts; the distinct driving_rule_id
+  #    preserves the audit trail of which class drove.
+  #    ALL FOUR classes are indication-scope-GATED (scope-coherence Phase 1): each biomarker rung requires
+  #    the matching *-indication-scoped-context gate (evidence_scope in {within_indication,
+  #    within_indication_mut_vs_pan_wt}), so a pan-lineage-only dependency in a lineage the queried indication
+  #    does not belong to no longer earns a biomarker verdict — it falls through to confirmed_driver /
+  #    *_dominant_pattern / recurrent_* below.
+  #    Every rung lists the gate(s) LAST in when_all_fired and MUST keep driving_rule set explicitly, else the
+  #    interpreter's rids[-1] fallback would name the scope gate (not the dependency rule) as the driver.
+  #
+  #    #8 HYBRID-SCOPE FAIL-OPEN DEMOTION (v1.11.0, content-audit arc, backtest-gated 2026-09-21). The four
+  #    *-indication-scoped-context gates admit BOTH within_indication AND the hybrid within_indication_mut_vs_
+  #    pan_wt scope (mutant arm indication-native, WT comparator pooled pan-lineage), so BEFORE this change a
+  #    STRONG dependency measured at the hybrid scope earned the full biomarker_stratified_dependency dominant
+  #    band off weaker (pooled-WT) evidence. FIX (additive — the within-gates and every pre-existing rung are
+  #    UNCHANGED): add a matching *-indication-scoped-fallback-context gate per class (fires ONLY on the hybrid
+  #    scope) and, ABOVE the strong biomarker rung, a dedicated hybrid-demotion rung {strong dep rule, within
+  #    gate, fallback gate} → moderate_biomarker_dependency at priorities 0-3. At hybrid scope BOTH the within
+  #    gate and the fallback gate fire, so the demotion rung (min priority) wins over the strong biomarker rung
+  #    @4-7 it shadows. A fully within_indication strong dependency lacks the fallback gate, so the demotion
+  #    rung misses and the biomarker rung @4-7 stands → keeps biomarker_stratified_dependency. The MODERATE
+  #    band @8-11 is UNTOUCHED (its within-gate still admits the hybrid scope), so a moderate dependency at
+  #    hybrid scope stays moderate_biomarker_dependency — the fix does NOT silently erase a valid moderate
+  #    signal. Inserting the 0-3 demotion band shifted the entire pre-existing ladder (former priorities 0-54)
+  #    DOWN by 4 to 4-58; the changelog priority references were updated in step. driving_rule stays the strong
+  #    dependency rule (not a scope gate). class tie-break mut>cn>fusion>amp.
+  #    #8 HYBRID-SCOPE DEMOTION rungs (priorities 0-3): a STRONG dependency at the hybrid within_indication_
+  #    mut_vs_pan_wt scope. Both scope gates fire; this rung outranks the strong biomarker rung @4-7
+  #    (min-priority-wins) AND every driver rung @12+ (so a hybrid dependency target that also carries a full
+  #    driver signature cannot fail-open UP to confirmed_driver — no clamp layer exists). driving_rule = the
+  #    strong dependency rule.
+  - {verdict: moderate_biomarker_dependency, when_all_fired: [mutant-strongly-dependent-supportive, mutant-indication-scoped-context, mutant-indication-scoped-fallback-context], driving_rule: mutant-strongly-dependent-supportive, priority: 0}
+  - {verdict: moderate_biomarker_dependency, when_all_fired: [cn-amplified-strongly-dependent-supportive, cn-amplified-indication-scoped-context, cn-amplified-indication-scoped-fallback-context], driving_rule: cn-amplified-strongly-dependent-supportive, priority: 1}
+  - {verdict: moderate_biomarker_dependency, when_all_fired: [fusion-positive-strongly-dependent-supportive, fusion-positive-indication-scoped-context, fusion-positive-indication-scoped-fallback-context], driving_rule: fusion-positive-strongly-dependent-supportive, priority: 2}
+  - {verdict: moderate_biomarker_dependency, when_all_fired: [amp-expr-strongly-dependent-supportive, amp-expr-indication-scoped-context, amp-expr-indication-scoped-fallback-context], driving_rule: amp-expr-strongly-dependent-supportive, priority: 3}
+  #    STRONG tier (|delta| >= 0.5) → biomarker_stratified_dependency. A full within_indication strong
+  #    dependency (fallback gate absent) lands here; a hybrid strong dependency is intercepted by the 0-3
+  #    demotion rung above. Priorities 4-7.
+  - {verdict: biomarker_stratified_dependency, when_all_fired: [mutant-strongly-dependent-supportive, mutant-indication-scoped-context], driving_rule: mutant-strongly-dependent-supportive, priority: 4}
+  - {verdict: biomarker_stratified_dependency, when_all_fired: [cn-amplified-strongly-dependent-supportive, cn-amplified-indication-scoped-context], driving_rule: cn-amplified-strongly-dependent-supportive, priority: 5}
+  - {verdict: biomarker_stratified_dependency, when_all_fired: [fusion-positive-strongly-dependent-supportive, fusion-positive-indication-scoped-context], driving_rule: fusion-positive-strongly-dependent-supportive, priority: 6}
+  - {verdict: biomarker_stratified_dependency, when_all_fired: [amp-expr-strongly-dependent-supportive, amp-expr-indication-scoped-context], driving_rule: amp-expr-strongly-dependent-supportive, priority: 7}
+  #    MODERATE tier (|delta| 0.2-0.5) → moderate_biomarker_dependency. The within-gate admits the hybrid
+  #    scope, so a moderate dependency at EITHER within or hybrid scope resolves here (untouched by #8).
+  #    Priorities 8-11.
+  - {verdict: moderate_biomarker_dependency, when_all_fired: [mutant-moderately-dependent-supportive, mutant-indication-scoped-context], driving_rule: mutant-moderately-dependent-supportive, priority: 8}
+  - {verdict: moderate_biomarker_dependency, when_all_fired: [cn-amplified-moderately-dependent-supportive, cn-amplified-indication-scoped-context], driving_rule: cn-amplified-moderately-dependent-supportive, priority: 9}
+  - {verdict: moderate_biomarker_dependency, when_all_fired: [fusion-positive-moderately-dependent-supportive, fusion-positive-indication-scoped-context], driving_rule: fusion-positive-moderately-dependent-supportive, priority: 10}
+  - {verdict: moderate_biomarker_dependency, when_all_fired: [amp-expr-moderately-dependent-supportive, amp-expr-indication-scoped-context], driving_rule: amp-expr-moderately-dependent-supportive, priority: 11}
+
+  # ── 2. multi_class_driver — a mutation-class driver AND a copy-number driver ─────────────────────
+  #    Requires an alteration-role DRIVER co-signal (gof-supportive OR lof-neutral) so a passenger with
+  #    a driver-shaped spectrum + a CN-shape signal falls through to passenger_pattern rather than
+  #    reading multi_class. driving_rule = the mutation rule. Both cell-line CN and patient-focal CN
+  #    count as the CN driver. Recurrence is deliberately NOT gated on (mutation-hotspot-frequency has a
+  #    data_unavailable bin that would demote genuine drivers wherever recurrence is merely unmeasured).
+  #    NOTE: multi_class rungs keyed on a mutant-*-dependent rule are intentionally absent — the
+  #    stratified-dependency rungs above are a subset of their condition and always win first-match, so
+  #    a mutation-DEPENDENCY + CN gene resolves to the biomarker verdict (the nomination-load-bearing one).
+  #    A DELETION is a driver CLASS only for a LoF/neutral role (a TSG's mechanism). For a GoF/activating
+  #    oncogene the activating mechanism is amplification / mutation / fusion, so a co-occurring
+  #    patient-focal or biallelic DELETION is a PASSENGER, not a second driver class — the four GoF+deletion
+  #    multi_class rungs are therefore ABSENT (a GoF gene with a mutation driver + a deletion falls through
+  #    to the single-class confirmed_driver rung below, crediting only the real class). The GoF+AMPLIFICATION
+  #    multi_class rungs remain (amplification IS a GoF mechanism); the LoF+deletion multi_class rungs remain
+  #    (deletion IS the TSG mechanism). Surfaced by the genomic-20 panel: FGFR3/BLCA read multi_class_driver
+  #    off [missense + a cell-line deletion + GoF role], over-crediting the passenger deletion as a class.
+  #    See eval/CASE_LOG CASE-028.
+  - {verdict: multi_class_driver, when_all_fired: [mut-lof-dominant-supportive, cn-recurrently-amplified-supportive, alteration-role-gof-driver-supportive], driving_rule: mut-lof-dominant-supportive, priority: 12}
+  - {verdict: multi_class_lof_driver, when_all_fired: [mut-lof-dominant-supportive, cn-recurrently-amplified-supportive, alteration-role-lof-driver-neutral], driving_rule: mut-lof-dominant-supportive, priority: 13}
+  #    COMPOSED (1.10.0): the deletion twin here is cn-patient-focal-deleted-supportive (the shallow
+  #    cn-recurrently-deleted-supportive rung is GONE — 60.1% genome-wide null), and only its LoF form
+  #    exists (the GoF form is absent per CASE-028, priority 14/18 deliberately unused).
+  - {verdict: multi_class_lof_driver, when_all_fired: [mut-lof-dominant-supportive, cn-patient-focal-deleted-supportive, alteration-role-lof-driver-neutral], driving_rule: mut-lof-dominant-supportive, priority: 15}
+  - {verdict: multi_class_driver, when_all_fired: [mut-missense-dominant-supportive, cn-recurrently-amplified-supportive, alteration-role-gof-driver-supportive], driving_rule: mut-missense-dominant-supportive, priority: 16}
+  - {verdict: multi_class_lof_driver, when_all_fired: [mut-missense-dominant-supportive, cn-recurrently-amplified-supportive, alteration-role-lof-driver-neutral], driving_rule: mut-missense-dominant-supportive, priority: 17}
+  - {verdict: multi_class_lof_driver, when_all_fired: [mut-missense-dominant-supportive, cn-patient-focal-deleted-supportive, alteration-role-lof-driver-neutral], driving_rule: mut-missense-dominant-supportive, priority: 19}
+  #    Patient-focal / biallelic CN twins: a mutation-class driver + role that is patient-focal amplified or
+  #    homozygously deleted (but cell-line-CN-neutral) also reads multi_class — a rescue, never a downgrade.
+  #    GoF+deletion twins are likewise absent (a deletion is a passenger for a GoF gene).
+  - {verdict: multi_class_driver, when_all_fired: [mut-lof-dominant-supportive, cn-patient-focal-amplified-supportive, alteration-role-gof-driver-supportive], driving_rule: mut-lof-dominant-supportive, priority: 20}
+  - {verdict: multi_class_lof_driver, when_all_fired: [mut-lof-dominant-supportive, cn-patient-focal-amplified-supportive, alteration-role-lof-driver-neutral], driving_rule: mut-lof-dominant-supportive, priority: 21}
+  #    COMPOSED (1.10.0): the deletion twin here is the biallelic cn-recurrent-homozygous-deletion-supportive,
+  #    LoF form only — the GoF form (priority 22/26) is absent by the same CASE-028 argument.
+  - {verdict: multi_class_lof_driver, when_all_fired: [mut-lof-dominant-supportive, cn-recurrent-homozygous-deletion-supportive, alteration-role-lof-driver-neutral], driving_rule: mut-lof-dominant-supportive, priority: 23}
+  - {verdict: multi_class_driver, when_all_fired: [mut-missense-dominant-supportive, cn-patient-focal-amplified-supportive, alteration-role-gof-driver-supportive], driving_rule: mut-missense-dominant-supportive, priority: 24}
+  - {verdict: multi_class_lof_driver, when_all_fired: [mut-missense-dominant-supportive, cn-patient-focal-amplified-supportive, alteration-role-lof-driver-neutral], driving_rule: mut-missense-dominant-supportive, priority: 25}
+  - {verdict: multi_class_lof_driver, when_all_fired: [mut-missense-dominant-supportive, cn-recurrent-homozygous-deletion-supportive, alteration-role-lof-driver-neutral], driving_rule: mut-missense-dominant-supportive, priority: 27}
+
+  # ── 3. confirmed_driver — a single-class driver corroborated by a typed driver role ──────────────
+  #    Below multi_class (a dually-altered driver surfaces multi_class first) but above the bare
+  #    variant-class-pattern rungs (a role-confirmed driver outranks a mutation-spectrum shape).
+  - {verdict: confirmed_driver, when_all_fired: [mut-lof-dominant-supportive, alteration-role-gof-driver-supportive], driving_rule: mut-lof-dominant-supportive, priority: 28}
+  - {verdict: confirmed_lof_driver, when_all_fired: [mut-lof-dominant-supportive, alteration-role-lof-driver-neutral], driving_rule: mut-lof-dominant-supportive, priority: 29}
+  - {verdict: confirmed_driver, when_all_fired: [mut-missense-dominant-supportive, alteration-role-gof-driver-supportive], driving_rule: mut-missense-dominant-supportive, priority: 30}
+  - {verdict: confirmed_lof_driver, when_all_fired: [mut-missense-dominant-supportive, alteration-role-lof-driver-neutral], driving_rule: mut-missense-dominant-supportive, priority: 31}
+  - {verdict: confirmed_driver, when_all_fired: [cn-recurrently-amplified-supportive, alteration-role-gof-driver-supportive], driving_rule: cn-recurrently-amplified-supportive, priority: 32}
+  - {verdict: confirmed_lof_driver, when_all_fired: [cn-recurrently-amplified-supportive, alteration-role-lof-driver-neutral], driving_rule: cn-recurrently-amplified-supportive, priority: 33}
+  #    GoF role + a DELETION as the SOLE altered class is INCOHERENT: a deletion is not the activating
+  #    mechanism of an oncogene, so it cannot confirm a GoF driver. It reads mixed_pattern (signals present
+  #    — a driver ROLE and a deletion — but no coherent driver call), NOT confirmed_driver, and NOT the bare
+  #    recurrent_deletion_driver rescue below (that is for a NO-role deletion of an unknown gene). Surfaced
+  #    by the genomic-20 panel: IDH2/AML read confirmed_driver off a cell-line focal DELETION of an
+  #    R140/R172-activated gene while its SNV recurrence axis was data_unavailable (the deletion filled the
+  #    vacuum). The LoF+deletion twins are the TSG case and stay confirmed_lof_driver. A GoF gene with a real
+  #    activating class (missense/amp/fusion) matches one of the higher-priority confirmed rungs FIRST, so
+  #    this only catches the deletion-ONLY GoF case. See eval/CASE_LOG CASE-028. driving_rule names the
+  #    deletion so the audit trail shows the (uncredited) signal that was present.
+  #    COMPOSED (1.10.0): the two deletion predicates below are the ones that survive the specificity pass —
+  #    the shallow cn-recurrently-deleted-supportive rung pair is REMOVED outright rather than demoted to
+  #    mixed_pattern, because a predicate that fires for 60.1% of all genes should establish no verdict at
+  #    all, not a neutral one. Such a target now falls through to tier 7 (mixed/passenger) on its mutation
+  #    axis, which is the honest read. The homozygous-deletion GoF rung at 38 is the extension flagged in
+  #    the version note.
+  - {verdict: mixed_pattern, when_all_fired: [cn-patient-focal-deleted-supportive, alteration-role-gof-driver-supportive], driving_rule: cn-patient-focal-deleted-supportive, priority: 34}
+  - {verdict: confirmed_lof_driver, when_all_fired: [cn-patient-focal-deleted-supportive, alteration-role-lof-driver-neutral], driving_rule: cn-patient-focal-deleted-supportive, priority: 35}
+  - {verdict: confirmed_driver, when_all_fired: [cn-patient-focal-amplified-supportive, alteration-role-gof-driver-supportive], driving_rule: cn-patient-focal-amplified-supportive, priority: 36}
+  - {verdict: confirmed_lof_driver, when_all_fired: [cn-patient-focal-amplified-supportive, alteration-role-lof-driver-neutral], driving_rule: cn-patient-focal-amplified-supportive, priority: 37}
+  - {verdict: mixed_pattern, when_all_fired: [cn-recurrent-homozygous-deletion-supportive, alteration-role-gof-driver-supportive], driving_rule: cn-recurrent-homozygous-deletion-supportive, priority: 38}
+  - {verdict: confirmed_lof_driver, when_all_fired: [cn-recurrent-homozygous-deletion-supportive, alteration-role-lof-driver-neutral], driving_rule: cn-recurrent-homozygous-deletion-supportive, priority: 39}
+
+  # ── 3b. splice_exon_skip_driver — curated exon-skipping driver (CASE-002 substrate fidelity) ─────
+  #    A curated exon-skip DRIVER event (METex14) that is oncogenic in the indication, confirmed by live
+  #    DepMap carriers, is a bona-fide GoF driver-class characterization. Ranks just below confirmed_driver
+  #    (last rung 39) and ABOVE drug_response (41) + the variant-class-shape rungs (54/55), so a splice-skipping
+  #    oncogene (MET/LUAD) reads splice_exon_skip_driver rather than a NEUTRAL missense_dominant_pattern
+  #    (signal-vector fidelity, eval/CASE_LOG CASE-002 — the veto itself was already resolved; this fixes
+  #    WHY, not the nomination). SURGICAL blast radius: only a gene with a registered exon-skip event in
+  #    its curated oncogenic indication (today: MET in LUAD/LUSC/NSCLC) can fire it. NOT a killer.
+  - {verdict: splice_exon_skip_driver, when_fired: splice-exon-skip-driver-supportive, priority: 40}
+
+  # ── 4. drug_response_biomarker — genotype-selective drug sensitivity ─────────────────────────────
+  #    A distinct verdict, never conflated with biomarker_stratified_dependency (drug sensitivity is
+  #    not CRISPR-KO dependency). Below the KO-dependency family (the more mechanism-anchored call) but
+  #    above the bare variant-class-pattern rungs. Only the STRONG class drives a verdict; the moderate
+  #    class stays a signal-only facet.
+  - {verdict: drug_response_biomarker, when_fired: mutation-drug-response-strongly-sensitive-supportive, priority: 41}
+
+  # ── 5. (MOVED to priority 54/55 in v1.9.0 — see tier 6b) ─────────────────────────────────────────
+  #    The variant-class-SHAPE rungs (lof/missense_dominant_pattern) used to sit HERE, above tier 6. They
+  #    now sit BELOW landscape recurrence: a spectrum shape at a 62%-panel base rate (it fires for the
+  #    GAPDH and ACTB negative controls; >=0.70 missense is the no-selection expectation of the genetic
+  #    code) must not pre-empt a measured patient landscape event. ROS1/LUAD is the falsifying case.
+
+  # ── 6. CN-only and fusion-landscape recurrent drivers (landscape recurrence, no dependency line) ──
+  #    AMPLIFICATION arm (unchanged, 2.9% genome-wide null — no measured defect): cell-line CN before
+  #    patient-focal CN. DELETION arm (v1.9.0): the indication-native patient-focal GISTIC rung LEADS and
+  #    the biallelic deep-deletion rung follows; the shallow-inclusive cn-recurrently-deleted-supportive
+  #    fires NO rung here (60.1% genome-wide null — display/modality signal only).
+  #    Fusion-landscape last in this tier, and SPLIT by recurrence confidence (v1.9.0): the
+  #    high_recurrent_partner-gated rung stays at 48, the promiscuous remainder drops to 53. These are landscape-recurrence drivers, not
+  #    nominating positive_signals — they keep an amplification/deletion/fusion-driven oncogene with no
+  #    DepMap dependency line (e.g. ERBB2/MYC amp, EWSR1-FLI1 / EML4-ALK fusion) from collapsing to
+  #    passenger, mirroring how the copy-number reframe rescued amplification-driven targets.
+  - {verdict: recurrent_amplification_driver, when_fired: cn-recurrently-amplified-supportive, priority: 44}
+  - {verdict: recurrent_deletion_driver, when_fired: cn-patient-focal-deleted-supportive, priority: 45}
+  - {verdict: recurrent_amplification_driver, when_fired: cn-patient-focal-amplified-supportive, priority: 46}
+  - {verdict: recurrent_deletion_driver, when_fired: cn-recurrent-homozygous-deletion-supportive, priority: 47}
+  - {verdict: recurrent_fusion_driver, when_all_fired: [fusion-landscape-recurrent-driver-supportive, fusion-recurrence-high-partner-context], driving_rule: fusion-landscape-recurrent-driver-supportive, priority: 48}
+  #    SNV landscape recurrence (scope-coherence Phase 2): a top-1% pooled multi-cohort recurrent SNV
+  #    driver with no KO-dependency, no variant-class dominance, and no CN/fusion landscape event. LAST
+  #    in tier 6 so it fires only when no CN/fusion landscape driver did — a dually-altered gene keeps
+  #    its existing recurrent_amplification/deletion/fusion verdict (byte-stable). The SNV analog of the
+  #    recurrent focal-amp / recurrent-fusion rescues; makes patient recurrence verdict-relevant.
+  #    SUBCLONAL GUARD (2026-08-28, distillation assessment change-3; backtest-gated per the card note):
+  #    a top-1% recurrent SNV that is MEASURED predominantly-subclonal AND carries no other corroboration
+  #    (no dependency/role/CN/fusion — those fire higher rungs) is a late/hitchhiker pattern, not a truncal
+  #    driver → recurrent_snv_subclonal_uncertain (ranks ABOVE the bare recurrence rung). Fires ONLY when
+  #    clonality is measured-subclonal; a clonal OR clonality-unavailable target keeps recurrent_snv_driver
+  #    (no coverage regression). KRAS/APC/TP53 (predominantly_clonal) are unaffected.
+  #    ROLE-CORROBORATION PRE-EMPTION: an OncoKB/intOGen driver ROLE (GoF or LoF) confirms a real driver
+  #    regardless of clonality, so it PRE-EMPTS the subclonal demotion (ranks above it) → keep
+  #    recurrent_snv_driver. (Role alone fires no higher confirmed_driver rung — that needs a CN/dep
+  #    co-signal — so without this a role-confirmed subclonal recurrent SNV would wrongly demote.)
+  - {verdict: recurrent_snv_driver, when_all_fired: [snv-recurrence-top-driver-supportive, alteration-role-gof-driver-supportive], driving_rule: snv-recurrence-top-driver-supportive, priority: 49}
+  - {verdict: recurrent_snv_driver, when_all_fired: [snv-recurrence-top-driver-supportive, alteration-role-lof-driver-neutral], driving_rule: snv-recurrence-top-driver-supportive, priority: 50}
+  - {verdict: recurrent_snv_subclonal_uncertain, when_all_fired: [snv-recurrence-top-driver-supportive, snv-clonality-subclonal-opposing], driving_rule: snv-clonality-subclonal-opposing, priority: 51}
+  - {verdict: recurrent_snv_driver, when_fired: snv-recurrence-top-driver-supportive, priority: 52}
+  #    DEMOTED bare-fusion rung (v1.9.0): a moderate_promiscuous fusion (target recurs >=3 samples, NO
+  #    single recurrent partner) still rescues a fusion-only target from passenger, but ranks BELOW
+  #    top-1% SNV recurrence. Reached only when fusion-recurrence-high-partner-context did not fire.
+  - {verdict: recurrent_fusion_driver, when_fired: fusion-landscape-recurrent-driver-supportive, priority: 53}
+  # ── 6b. Variant-class pattern (mutation-spectrum SHAPE, no dependency test) — MOVED HERE in v1.9.0 ─
+  #    Fires from mutation-type-counts variant-class dominance (>=70% missense / >=50% truncating among
+  #    coding variants in >=5 cell lines). These measure the SHAPE of the spectrum, not patient
+  #    recurrence — so they now rank BELOW every rung that literally counts sample recurrence. Still
+  #    ABOVE tier 7: a driver-shaped spectrum is more informative than mixed/passenger. The card's own
+  #    caveat ("'missense_dominant' alone doesn't prove oncogene status") is what this order encodes.
+  - {verdict: lof_dominant_pattern, when_fired: mut-lof-dominant-supportive, priority: 54}
+  - {verdict: missense_dominant_pattern, when_fired: mut-missense-dominant-supportive, priority: 55}
+
+  # ── 7. mixed / passenger fallback, with a double-data-gap guard ──────────────────────────────────
+  #    passenger_pattern is a substantive "not a driver" call, but its trigger fires on a rarely-mutated
+  #    gene. When another axis is ALSO a COVERAGE GAP, asserting "not a driver" would come from a double
+  #    data-gap — the exact mutation-only failure mode the amplification reframe was built to kill. The
+  #    engine has no negation predicate, so the guard is precedence: no-mutations + a gapped CN or fusion
+  #    axis resolves to insufficient (an honest coverage gap) BEFORE the passenger rung.
+  #    CN guard (priority 56): cn-data-unavailable-insufficient fires on copy_number_class in
+  #    {data_unavailable, underpowered} — CN unreachable/off-panel OR looked-but-too-thin.
+  #    FUSION guard (priority 57, added PR-C2): fusion-underpowered-insufficient fires on
+  #    fusion_class == underpowered — the fusion classifier looked but could not power a recurrence call.
+  #    Symmetric with CN: a could-not-power fusion axis must not let a no-mutation gene read passenger.
+  #    A MEASURED-neutral CN + a MEASURED-negative fusion + no mutations still reads passenger_pattern (an
+  #    informative not-a-driver call) — only a GAP (unmeasured/underpowered), never a measured negative,
+  #    trips the guard. underpowered fires NO driver rung (it is neither a recurrent/focal class nor
+  #    recurrent_fusion_driver), so this guard is its ONLY verdict-moving reach.
+  - {verdict: insufficient, when_all_fired: [mut-no-mutations-neutral, cn-data-unavailable-insufficient], driving_rule: cn-data-unavailable-insufficient, priority: 56}
+  - {verdict: insufficient, when_all_fired: [mut-no-mutations-neutral, fusion-underpowered-insufficient], driving_rule: fusion-underpowered-insufficient, priority: 57}
+  - {verdict: mixed_pattern, when_fired: mut-mixed-neutral, priority: 58}
+  - {verdict: passenger_pattern, when_fired: mut-no-mutations-neutral, priority: 59}
+
+default: insufficient
+evaluation: match_all_reduce

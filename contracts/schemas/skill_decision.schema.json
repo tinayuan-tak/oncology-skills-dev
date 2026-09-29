@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/takeda-rnd/rnd-computational-biology-oncology-target-contracts/schemas/skill_decision.schema.json",
+  "title": "skill_decision",
+  "version": "1.0.0",
+  "$comment": "CONTRACT SOURCE (canonical). The SHARED emitted-output envelope: the top-level shape of decision.json every wired target-profile skill writes (via _skills_common/write_package.py + the dispatcher). Per-skill decision schemas EMBED this (validators/gen_skill_output_schemas.py) as a self-contained monolith rather than $ref-ing it across files. Lenient at the top level (additionalProperties:true) so a skill may add facet keys; strictness lives in the embedded skill_report + the per-skill pins. The `$ref: skill_report.schema.json` below is rewritten by the generator to `#/$defs/skill_report`. See docs/UNIFIED_OUTPUT_CONTRACT.md.",
+  "type": "object",
+  "required": [
+    "skill",
+    "target",
+    "indication",
+    "generated_at",
+    "headline",
+    "cards",
+    "fired_rules",
+    "provenance",
+    "run_health"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "skill": {"type": "string"},
+    "target": {"type": "string"},
+    "indication": {
+      "description": "The indication code; null for an indication-independent skill (or a sentinel like PANCANCER if the skill emits one).",
+      "type": ["string", "null"]
+    },
+    "question": {"type": "string"},
+    "generated_at": {"type": "string"},
+    "headline": {
+      "description": "The skill's headline block: the skill-specific verdict + facet fields (pinned per skill), the shared skill_report object, and the shared consumer-contract projections (headline_block/claim_vector/key_signals) the composer + nomination envelope read.",
+      "type": "object",
+      "required": ["skill_report"],
+      "additionalProperties": true,
+      "properties": {
+        "skill_report": {
+          "oneOf": [
+            {"$ref": "skill_report.schema.json"},
+            {"type": "null"}
+          ],
+          "description": "The shared unified output object. May be null only when build_skill_report faulted (degrade-not-abort); a healthy run always emits it."
+        },
+        "headline_block": {
+          "description": "Canonical hero payload (build_headline). Consumed by tp_evidence_package into nomination.json; typed here so a rename fails CI.",
+          "type": ["object", "null"],
+          "additionalProperties": true,
+          "properties": {
+            "verdict": {"type": ["object", "null"]},
+            "confidence": {"type": ["object", "null"]},
+            "top_tension": {"type": ["object", "null"]},
+            "hero": {"type": ["object", "null"]}
+          }
+        },
+        "claim_vector": {
+          "description": "The A/B/C/D signal atoms carried into nomination.json + the cross-evidence reasoner; typed here so a rename can't silently null the composition input.",
+          "type": ["object", "null"]
+        },
+        "key_signals": {
+          "description": "Reader headline/supports/caveat package carried into the nomination envelope.",
+          "type": ["object", "null"]
+        }
+      }
+    },
+    "cards": {
+      "description": "The resolved card outputs the skill consumed.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["card_id"],
+        "additionalProperties": true,
+        "properties": {"card_id": {"type": "string"}}
+      }
+    },
+    "fired_rules": {
+      "description": "The interpretation rules that fired against the resolved cards.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["rule_id"],
+        "additionalProperties": true,
+        "properties": {"rule_id": {"type": "string"}}
+      }
+    },
+    "provenance": {
+      "description": "Run-level data provenance, including per-manifest resolved release + staleness and the reproducibility lineage digests.",
+      "type": "object",
+      "required": ["data_mode", "resolved_releases"],
+      "additionalProperties": true,
+      "properties": {
+        "data_mode": {"type": "string"},
+        "release_pin": {"type": ["string", "null"]},
+        "skills_repo_sha": {"type": ["string", "null"]},
+        "resolved_release_digest": {"type": ["string", "null"]},
+        "resolved_content_digest": {"type": ["string", "null"]},
+        "resolved_releases": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["used"],
+            "additionalProperties": true,
+            "properties": {
+              "used": {"type": "array", "items": {"type": "string"}},
+              "head": {"type": ["string", "null"]},
+              "is_stale": {
+                "description": "Wiring staleness audit (optional — resolved_release_governance omits it for families whose catalog head is indeterminate, e.g. some source-releases); null/stale_indeterminate permitted for logical product-id families. When present, downstream freshness checks read it.",
+                "type": ["boolean", "null"]
+              }
+            }
+          }
+        }
+      }
+    },
+    "run_health": {
+      "description": "Per-run health telemetry.",
+      "type": "object",
+      "required": ["skill_name", "skill_version", "status"],
+      "additionalProperties": true,
+      "properties": {
+        "skill_name": {"type": "string"},
+        "skill_version": {"type": "string"},
+        "status": {"type": "string"}
+      }
+    }
+  }
+}

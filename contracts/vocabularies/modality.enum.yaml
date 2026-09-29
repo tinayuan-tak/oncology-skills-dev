@@ -1,0 +1,148 @@
+# modality.enum.yaml
+# Controlled vocabulary: therapeutic modalities the framework supports.
+# Modality is an OPTIONAL refinement layer that loads a modality_module on top of the
+# biology-axis base dashboard. When unspecified, the framework enumerates plausible
+# modalities (from modality_axis_compatibility.yaml) and surfaces differential reads
+# in synthesis.
+#
+# Five modalities are active in iter-1b; additional modalities (cell therapy,
+# radiopharmaceutical, IO-extrinsic) are deferred to later iterations but listed here
+# with status=deferred so the framework's scope is structurally visible.
+#
+# ── wt_engagement (added 2026-08-24; VERDICT_REPRESENTATION.md Layer-0) ──────────────
+# The decision-relevant property the WT-LOSS / full-knockout safety concern conditions on:
+# "does an agent of this modality deplete or fully inhibit the WILD-TYPE protein?"
+#   engages_wt     — removes/fully-inhibits total (incl. WT) protein → a WT-loss-of-function
+#                    safety signal (gnomAD LoF-constraint, gene-burden, ClinGen dominant-loss,
+#                    mouse-KO-lethal, ClinVar germline-pathogenic, pan-essential broad-tox,
+#                    essential-normal-tissue-protein) APPLIES.
+#   conditional    — WT engagement depends on the AGENT, not the modality class. A
+#                    mutant/allele-selective agent (e.g. G12C covalent, mutant-selective glue)
+#                    SPARES WT and nullifies the WT-loss concern; a pan / orthosteric agent
+#                    ENGAGES WT and the concern stands. Allele-selectivity is therefore an
+#                    agent-level property carried at query/program time, NOT a modality constant.
+#   not_applicable — the WT-loss-of-function concern is not the operative safety axis for this
+#                    modality (surface-directed / cytolytic modalities engage extracellular
+#                    antigen or kill the cell; their safety is on-target-off-tumor surface +
+#                    payload/effector, owned by the surface/selectivity axes, not gnomAD WT
+#                    constraint).
+# CONSUMPTION: this attribute is inert until the composition layer reads it to emit a
+# per-modality safety verdict (VERDICT_REPRESENTATION.md Layer-2). It replaces the current
+# role-proxy heuristic in safety.resolver.yaml, which fakes allele-selectivity from GoF role.
+
+enum_id: modality
+version: 1.1.0   # 1.1.0 (2026-08-24): + wt_engagement property (WT-loss safety conditioning; Layer-0)
+description: |
+  Therapeutic modalities. Each active modality has a corresponding modality_module
+  at target-contracts/dashboards/modality-modules/{modality}.module.yaml that declares
+  additional cards, threshold overlays, and headline decision question.
+
+values:
+  - value: small_molecule
+    label: "Small molecule"
+    description: |
+      Orally bioavailable or parenteral small-molecule inhibitor, agonist, or
+      allosteric modulator. Typical for intracellular intrinsic targets with
+      druggable binding pockets.
+    compatible_axes: [intracellular_intrinsic]
+    modality_module: target-contracts/dashboards/modality-modules/small_molecule.module.yaml
+    iter1b_status: active
+    wt_engagement: conditional   # allele/mutant-selective (G12C covalent) SPARES WT; pan/orthosteric ENGAGES WT — agent-level
+
+  - value: degrader
+    label: "Targeted protein degrader (PROTAC, molecular glue)"
+    description: |
+      Heterobifunctional molecule that recruits an E3 ligase to ubiquitinate and
+      degrade a target protein. Requires intracellular protein presence + ligandable
+      surface + degradable lysines.
+    compatible_axes: [intracellular_intrinsic]
+    modality_module: target-contracts/dashboards/modality-modules/degrader.module.yaml
+    iter1b_status: active
+    wt_engagement: engages_wt    # depletes total protein incl. WT (allele-selective glues are a rare agent-level exception)
+
+  - value: adc
+    label: "Antibody-drug conjugate (ADC)"
+    description: |
+      Antibody linked to a cytotoxic payload via a cleavable or non-cleavable linker.
+      Requires tumor-cell-surface antigen with sufficient tumor-vs-normal selectivity
+      and antigen density. Bystander payload effect provides some normal-tissue
+      tolerance.
+    compatible_axes: [surface_intrinsic]
+    modality_module: target-contracts/dashboards/modality-modules/adc.module.yaml
+    iter1b_status: active
+    wt_engagement: not_applicable   # surface antigen; WT-loss safety N/A (safety = on-target-off-tumor surface + payload)
+
+  - value: bite_tce
+    label: "Bispecific T-cell engager (BiTE / TCE)"
+    description: |
+      Bispecific antibody that binds a tumor surface antigen with one arm and CD3 on
+      T cells with the other. Recruits T-cell cytotoxicity. Requires tumor-cell-surface
+      antigen with STRICT tumor-vs-normal selectivity (no bystander payload tolerance);
+      antigen density and homogeneity matter more than for ADC.
+    compatible_axes: [surface_intrinsic]
+    modality_module: target-contracts/dashboards/modality-modules/bite_tce.module.yaml
+    iter1b_status: active
+    wt_engagement: not_applicable   # surface antigen; WT-loss safety N/A (safety = strict tumor-vs-normal surface + effector)
+
+  - value: antibody
+    label: "Naked / blocking antibody"
+    description: |
+      Monoclonal antibody used for functional blockade, receptor antagonism, or
+      ligand sequestration. Iter-1b scope: antibody-against-surface-intrinsic targets
+      only (TROP2, CLDN18.2, HER2-as-antigen). Antibody-against-extrinsic targets
+      (PD-L1, CTLA-4, TGF-β) deferred to iter-2 with the extrinsic base.
+    compatible_axes: [surface_intrinsic]                # iter-1b restricted; extrinsic adds in iter-2
+    modality_module: target-contracts/dashboards/modality-modules/antibody.module.yaml
+    iter1b_status: active
+    iter1b_scope_restriction: "Surface-intrinsic targets only; extrinsic antibody contexts deferred to iter-2."
+    wt_engagement: not_applicable   # extracellular blockade; does not deplete intracellular WT protein pool (WT-loss axis N/A)
+
+  - value: bispecific_non_tce
+    label: "Bispecific antibody (non-TCE)"
+    description: |
+      Bispecific antibody for purposes other than T-cell engagement (e.g., dual
+      receptor blockade, ligand trap + receptor antagonism). Deferred to iter-2.
+    compatible_axes: [surface_intrinsic, mixed]
+    iter1b_status: deferred
+    wt_engagement: not_applicable
+
+  - value: cell_therapy
+    label: "Cell therapy (CAR-T, TIL, NK)"
+    description: |
+      Engineered immune cells expressing receptors against tumor antigens.
+      Deferred to iter-2; requires strict antigen homogeneity + on-target-off-tumor
+      risk cards that iter-1b doesn't ship.
+    compatible_axes: [surface_intrinsic]
+    iter1b_status: deferred
+    wt_engagement: not_applicable
+
+  - value: radiopharmaceutical
+    label: "Radiopharmaceutical / radioligand therapy"
+    description: |
+      Small molecule or peptide carrying a radionuclide for targeted tumor delivery.
+      Deferred to iter-2.
+    compatible_axes: [surface_intrinsic]
+    iter1b_status: deferred
+    wt_engagement: not_applicable   # cytolytic via radionuclide crossfire; not a WT-loss-of-function mechanism
+
+  - value: io_extrinsic
+    label: "IO / immune checkpoint / extrinsic immunomodulator"
+    description: |
+      Checkpoint inhibitor, immune agonist, myeloid-targeting agent, stromal-targeting
+      agent. Requires the extrinsic base + microenvironment cards. Deferred to iter-2.
+    compatible_axes: [extrinsic, mixed]
+    iter1b_status: deferred
+    wt_engagement: not_applicable
+
+  - value: rna_therapeutic
+    label: "RNA therapeutic (ASO, siRNA, mRNA)"
+    description: |
+      Oligonucleotide-based modality. Deferred to iter-2+.
+    compatible_axes: [intracellular_intrinsic]
+    iter1b_status: deferred
+    wt_engagement: engages_wt    # knocks down total transcript → WT loss-of-function (same conditioning as degrader)
+
+# Iter-1b modality coverage = 5 active values (small_molecule, degrader, ADC, BiTE/TCE,
+# antibody). Five additional modalities are scoped but deferred. The framework's
+# strategic scope is now structurally visible: a stakeholder asking "does this support
+# bispecific T-cell engagers?" reads modality.enum.yaml and gets "yes, active in iter-1b."

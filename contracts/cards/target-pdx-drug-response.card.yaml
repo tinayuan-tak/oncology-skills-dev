@@ -1,0 +1,84 @@
+# Card — PDX IN-VIVO DRUG RESPONSE (does the target's tractability signal reproduce in vivo?)
+#
+# The IN-VIVO translational-corroboration leg for the translational-readiness skill — a VERDICT-INERT
+# display/context card. The in-vitro cell-line drug-response rollups (GDSC / PRISM) ask "does a compound
+# hit the target in a dish?"; THIS card asks the complementary, translationally weightier "does a
+# treatment naming the target as its target produce tumour REGRESSION in vivo, in Novartis PDXE PDX
+# population trials?" — the ONLY large public genotype -> drug-response resource measured in vivo
+# (Gao et al. 2015 Nat Med 21:1318-1325). A signal that reproduces in the PDX setting is far more
+# translationally credible than a cell-line signal alone.
+#
+# TARGET-GRAIN (tier: target): PDXE's per-gene rollup aggregates response ACROSS models and does NOT
+# split by indication, so this card consumes {target} only ({indication} is accepted and IGNORED by the
+# reader). A genotype-stratified per-model response product ("do BRAF-MUTANT PDX respond to
+# encorafenib?") is a downstream v2 (model-genomics join).
+#
+# ROLE — verdict-INERT translational in-vivo-corroboration facet. Reaches the LLM / matrix / headline;
+# drives NO resolver rung. PDX-response DOWNGRADING or GATING a nomination's translational confidence is
+# a later, verdict-moving step gated by a backtest.
+#
+# pdx_drug_response_class (PRIMARY): pdx_objective_responders | pdx_no_objective_response |
+#   pdx_response_unavailable | data_unavailable.
+#
+# CAVEAT — gene_symbol is the NATIVE PDXE 'Treatment target' token (curated free text; may be a
+# protein-FAMILY / pathway / shorthand token, not a clean HGNC symbol). A target whose token is absent
+# resolves data_unavailable. This is a drug -> target ROLLUP (response across all treatments naming the
+# token), and the Gao 2015 supplement is a RESEARCH-ONLY source (no commercial redistribution).
+
+card_id: target-pdx-drug-response
+version: 0.1.0
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
+question: "In vivo (Novartis PDXE PDX population trials), do treatments that name {target.symbol} as their target produce tumour regression — and what is the objective-responder fraction + most-active treatment?"
+
+tier: target   # per-gene in-vivo drug-response rollup; target-grain (no per-indication split in this product)
+
+applies_when:
+  - "true"   # any target/indication; data_unavailable-safe when the target is not a PDXE 'Treatment target' token
+
+required_inputs:
+  - product_id: pdxe-drug-response-per-gene-v1   # per-gene PDXE in-vivo BestAvgResponse + responder rollup
+
+methods:
+  - call: target-pdx-drug-response
+    module: pdxe_drug_response      # generic-dispatch wiring (no bespoke _dispatch_* needed)
+    entrypoint: read_target_summary
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"   # accepted + IGNORED in the reader (target-grain rollup, no per-indication split)
+
+outputs:
+  summary_fields:
+    - pdx_drug_response_class                         # PRIMARY categorical (verdict-INERT; in-vivo response direction/availability)
+    - n_treatments                                    # distinct treatments (single agents + combos) naming this target token
+    - n_models_tested                                 # distinct PDX models (X-nnnn) with >=1 response record for those treatments
+    - n_response_records                              # total (model, treatment) response records contributing
+    - median_best_avg_response                        # median BestAvgResponse (signed % tumour-volume change; LOWER/more-negative = more shrinkage)
+    - min_best_avg_response                           # minimum (most tumour-shrinkage) BestAvgResponse across contributing records
+    - responder_fraction                              # objective-response rate (best mRECIST ResponseCategory in {CR, PR}) across models+treatments
+    - most_active_treatment                           # treatment with the lowest per-treatment median BestAvgResponse (best single agent/combo)
+    - most_active_treatment_median_best_avg_response  # the per-treatment median BestAvgResponse of most_active_treatment
+    - treatment_types                                 # '|'-joined sorted distinct Treatment type values (single, combo)
+    - source                                          # source release tag (PDXE-Gao-2015)
+
+  summary_fields_vocabulary:
+    pdx_drug_response_class:
+      - pdx_objective_responders     # >=1 model achieved an objective response (mRECIST CR/PR) to a target-naming treatment
+      - pdx_no_objective_response    # measured in PDX, but zero objective (CR/PR) responders (responder_fraction == 0)
+      - pdx_response_unavailable     # token present but BestAvgResponse/responder metrics are null (no scorable records)
+      - data_unavailable             # target is not a PDXE 'Treatment target' token, or no product (coverage gap)
+
+warning_predicates:
+  - warning_id: pdx_target_is_drug_rollup
+    if: "true"
+    message: "PDXE response is a DRUG -> TARGET rollup: BestAvgResponse / responder_fraction for {target.symbol} aggregate ALL treatments naming it as a target across ALL models (no per-model genotype join). Read as in-vivo tractability CORROBORATION, not a genotype-specific response claim (display-only)."
+
+caveats:
+  - "VERDICT-INERT translational in-vivo-corroboration display card. Fires no interpretation rule and moves no gate verdict; it adds an in-vivo (PDX) tractability corroboration alongside the in-vitro cell-line (GDSC/PRISM) drug-response signals."
+  - "TARGET-GRAIN: PDXE's per-gene rollup aggregates response across models and does NOT split by indication, so {indication} is accepted and IGNORED. A genotype-stratified per-model response product (BRAF-mutant PDX -> encorafenib) is a downstream v2."
+  - "gene_symbol is the NATIVE PDXE 'Treatment target' token (curated free text; may be a protein-family/pathway/shorthand token, not a clean HGNC symbol); a target whose token is absent resolves data_unavailable. BestAvgResponse is a SIGNED % tumour-volume change (LOWER/more-negative = more shrinkage = more active); responder_fraction counts best mRECIST CR/PR."
+  - "RESEARCH-ONLY source: PDXE (Gao et al. 2015 Nat Med 21:1318-1325, doi:10.1038/nm.3954) is a subscription Nature Medicine supplement — reusable for internal Takeda research with attribution, NOT for commercial redistribution without Springer Nature permission. This card carries only AGGREGATE per-gene rollups (no per-animal payload)."
+
+measurement_type: pdx_drug_response   # per-gene in-vivo drug-response (target-grain translational corroboration; DATA_TO_SKILL_CONTRACT Rule 1)
+entity_grains: [target]
+schema_version: 1

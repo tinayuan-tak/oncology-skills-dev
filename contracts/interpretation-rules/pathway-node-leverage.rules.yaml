@@ -1,0 +1,130 @@
+# Interpretation rules for the PATHWAY-NODE-LEVERAGE axis (WS3, cross-evidence integrator).
+#
+# Maps the pathway-node-leverage card's `node_leverage_class` → a SOFT, verdict-inert differentiation
+# signal on the biology-axis channel (`axis_fit`). See docs/design/PATHWAY_NODE_LEVERAGE_SPEC.md §4/§8.
+#
+# ATTACH MODEL (WS3 build-order step 3): node-leverage is a COMPARATIVE differentiation context signal
+# ("given the biology, is the target the best NODE to hit, or is it dominated?"). It is deliberately
+# NOT wired into resolvers/differentiation.resolver.yaml — that resolver emits ONE first-match verdict
+# from cooccurrence_class, and node-leverage is ORTHOGONAL (co-mutation = patient-selection/combination
+# biology; node-leverage = is-this-the-best-node). Making it a cooccurrence rung would let it override
+# an unrelated verdict. Instead these rules FIRE (appear in fired_rule_ids, carry rationale) and are
+# surfaced additively by the differentiation-landscape skill + consumed by the cross-evidence
+# hypothesis agent as a differentiation-axis input / evidence-path seed (build-order step 4).
+#
+# INVARIANTS (spec §8):
+#   - SOFT, never a veto: signals are supportive/opposing/neutral/insufficient — NEVER `killer`.
+#   - Never raises certainty: node-leverage is DepMap-Chronos-derived (correlated with the dependency
+#     cards); the correlation/independence layer already tags its measurement_type
+#     (pathway_node_leverage) to the `depmap_crispr_chronos` evidence_substrate so it cannot lift
+#     certainty by double-counting. These rules affect (soft) STRENGTH/fit only, not certainty.
+#   - Modality-independent: the signal is on `axis_fit` (biology axis), NOT a per-modality channel —
+#     node-leverage does not route to a modality-fit gate (the card declares no modality_relevance).
+#
+# axis: intracellular_intrinsic — matches the sibling differentiation card (co-mutation-and-mutual-
+# exclusivity rules also live under intracellular_intrinsic). The differentiation-landscape skill
+# binds rules by card_id (composition.rules_scope), not by file axis, so this grouping does not pull
+# node-leverage into the intracellular nomination ladder.
+
+rules_id: pathway-node-leverage
+version: 1.0.0
+axis: intracellular_intrinsic
+schema_version: 1
+
+rules:
+  # --- favorable: the target IS the best node in its neighbourhood ---------------------------------
+  - rule_id: node-leverage-dominant-node-supportive
+    when:
+      card_id: pathway-node-leverage
+      field: node_leverage_class
+      equals: dominant_node
+    signals:
+      axis_fit: supportive
+    rationale: |
+      The target is the most-dependent node in its complex/pathway neighbourhood (no member is
+      stronger by the noise-separation margin, common-essentials excluded). Hitting it is
+      mechanistically well-differentiated — it is the rate-limiting node, not a dominated one. SOFT
+      differentiation signal (no veto, does not raise certainty); the dependency/tractability axes
+      still own the primary call.
+
+  # --- mixed: dominated on dependency, but the target is the tractable entry point -----------------
+  - rule_id: node-leverage-dominated-but-tractability-edge-neutral
+    when:
+      card_id: pathway-node-leverage
+      field: node_leverage_class
+      equals: dominated_but_tractability_edge
+    signals:
+      axis_fit: neutral
+    rationale: |
+      A more-dependent node exists, but none is at least as tractable as the target — the target is
+      the tractable entry point into the neighbourhood (e.g. KRAS/PIK3CA/CDK4, all Tclin). Mixed:
+      no clear differentiation lean, so a neutral (informational) signal — the tractability-yield
+      caveat is the decision-relevant content, carried for the hypothesis agent.
+
+  # --- unfavorable: a more-dependent AND >=-as-tractable node exists --------------------------------
+  - rule_id: node-leverage-dominated-node-opposing
+    when:
+      card_id: pathway-node-leverage
+      field: node_leverage_class
+      equals: dominated_node
+    signals:
+      axis_fit: opposing
+    rationale: |
+      A more-dependent AND at-least-as-tractable node exists in the target's neighbourhood — the
+      target is a DOMINATED node; the neighbour is the better intervention point. Differentiation is
+      unfavorable. SOFT (never a veto): this is a mechanistic-context downweight, not a kill — the
+      dependency and tractability axes retain the verdict, and a paralog-mediated or context-specific
+      relationship this pan/lineage membership lens cannot see may still redeem the target.
+
+  # --- uninformative / not-applicable cases (neutral) ----------------------------------------------
+  - rule_id: node-leverage-weak-and-uncontested-neutral
+    when:
+      card_id: pathway-node-leverage
+      field: node_leverage_class
+      equals: weak_and_uncontested
+    signals:
+      axis_fit: neutral
+    rationale: |
+      The target does not clear the dependency floor and nothing dominates it — the node-leverage
+      lens is uninformative for differentiation here (neither favorable nor unfavorable). Neutral.
+
+  - rule_id: node-leverage-no-node-set-neutral
+    when:
+      card_id: pathway-node-leverage
+      field: node_leverage_class
+      equals: no_node_set
+    signals:
+      axis_fit: neutral
+    rationale: |
+      No complex or pathway node-set contains the target (a peripheral gene the tight curated lenses
+      do not annotate). The lens does not apply. Neutral signal — but the ABSENCE is itself weakly
+      informative differentiation context (surfaced via this rule_id for the hypothesis agent).
+
+  - rule_id: node-leverage-data-unavailable-insufficient
+    when:
+      card_id: pathway-node-leverage
+      field: node_leverage_class
+      equals: data_unavailable
+    signals:
+      axis_fit: insufficient
+    rationale: |
+      Node-leverage could not be computed (target not DepMap-screened, or a live-read error). Evidence
+      is in-scope but missing — a coverage gap, not a negative signal. Insufficient.
+
+  # --- paralog / combinatorial correction (spec §6) -----------------------------------------------
+  - rule_id: node-leverage-single-ko-understated-neutral
+    when:
+      card_id: pathway-node-leverage
+      field: single_ko_leverage_understated
+      equals: 'true'
+    signals:
+      axis_fit: neutral
+    rationale: |
+      The target is paralog-BUFFERED (paralog_buffering_class strong/partial, from the DepMap dual-KO
+      buffering product), so its single-KO Chronos — and therefore its node_leverage_class — UNDERSTATES
+      its dependency. A buffered weak_and_uncontested / dominated verdict is a candidate FALSE-NEGATIVE
+      masked by redundancy: do not dismiss the target on the single-KO leverage call; assess dual-KO /
+      combinatorial leverage (this is also how the paralog-mediated-effector relationship, e.g. MARK2 via
+      MARK3, surfaces — as a buffering caveat, not a node-set membership edge). Neutral (informational
+      caveat): it never vetoes and never raises certainty; the fired_rule_id carries the correction to
+      the cross-evidence hypothesis agent.

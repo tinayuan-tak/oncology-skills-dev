@@ -1,0 +1,59 @@
+# Card — TARGET IDENTITY (promotes the resolver from invisible substrate to first-class card)
+# First card in every dashboard. Runs the resolver, emits a structured summary, and gates
+# every downstream card via applies_when on resolution_status. Identity resolution failure
+# (deprecated alias, ambiguous symbol) should be a visible dashboard outcome, not a silent
+# upstream crash.
+
+card_id: target-identity-summary
+version: 1.0.0
+# interpretation (descriptive): emits no categorical class.
+interpretation: descriptive
+question: "Does {target.symbol} resolve cleanly to a canonical HGNC/Ensembl/UniProt identity, and what is its curated biology axis?"
+
+tier: target   # scope-invariant: gene identity is a property of the gene, identical across every patient subpopulation. Never stratifies.
+
+applies_when: []                                # this card always applies; no gating
+
+required_inputs:
+  - product_id: target-id-resolver-release
+    release_pin: "{release_pin}"
+
+methods:
+  - call: target-id-resolve
+    args:
+      symbol: "{target.symbol}"
+      resolver_release: "{release_pin}"
+
+outputs:
+  summary_fields:
+    - input_value
+    - resolved_hgnc_symbol
+    - resolved_hgnc_id
+    - resolved_ensembl_id
+    - resolved_uniprot_canonical
+    - resolution_status
+    - redirects_applied
+    - resolver_release_pin
+    - biology_axis_curated
+    - biology_axis_source
+  figure: target_identity_lineage_card
+  plot_data: identifier_resolution_provenance
+
+interpretation_hints:
+  - if: "resolution_status == 'resolved' && biology_axis_curated != 'unknown'"
+    call: "resolved cleanly with curated biology axis"
+  - if: "resolution_status == 'resolved' && biology_axis_curated == 'unknown'"
+    call: "resolved cleanly; biology axis uncurated — framework cannot select an axis-specific base dashboard"
+  - if: "resolution_status == 'deprecated_remapped'"
+    call: "deprecated alias remapped; downstream cards interpret with caution"
+  - if: "resolution_status == 'ambiguous' || resolution_status == 'no_match_in_source'"
+    call: "resolution failed — downstream cards excluded"
+
+caveats:
+  - "Resolver releases pin specific HGNC/Ensembl/UniProt/MyGene.info snapshots; cross-release comparisons require explicit pin matching."
+  - "Biology axis is sourced from target_biology_axis_lookup.yaml (curated). Targets not in the lookup default to 'unknown' and framework surfaces the gap honestly."
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `target_identity` claim.
+measurement_type: target_identity
+entity_grains: [target]
+schema_version: 1

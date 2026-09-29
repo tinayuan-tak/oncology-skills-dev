@@ -1,0 +1,365 @@
+# Card — NORMAL-TISSUE PROTEIN ABUNDANCE  (TPHP DIA-MS)  [MOSTLY DISPLAY; 2 VERDICT-BEARING FIELDS —
+# the tvn breadth veto arm + the skills#1793 HPA-blind vital-organ safety rung]
+#
+# The quantitative NORMAL-tissue PROTEIN comparator the tumor-selectivity skill lacked. The skill
+# already carried normal-tissue RNA (GTEx/recount3) + categorical protein-IHC breadth (HPA), but no
+# quantitative normal-tissue PROTEIN baseline. This card adds it: per-tissue DIA mass-spec protein
+# abundance across the TPHP body proteome (Xu et al., Nature 2026; open PRIDE PXD063370), a proteome
+# spanning 70 adult tissues + 4 fetal germ-layer groups over 663 NORMAL samples.
+#
+# MIXED ROLE in tumor-selectivity: most fields are additive DISPLAY, but tphp_normal_protein_liability_class
+# is VERDICT-BEARING — its broad_and_abundant class fires tvn-tphp-broad-abundant-normal-protein-veto,
+# which the tumor-selectivity skills-side clamp turns into selective_with_normal_liability (NO resolver
+# rung; a skills-side conjunction). The remaining fields complement the GTEx-RNA + HPA-IHC normal
+# comparators at PROTEIN resolution (a target RNA-restricted in normal tissue but broadly PROTEIN-
+# expressed reads differently — the layer this card surfaces).
+#
+# Substrate: normal-tissue-protein-abundance-per-gene-v2 — a long/tidy, gene_symbol-pushdown reshape
+# of the TPHP DIA-NN MaxLFQ protein-group matrix, per (gene_symbol, tissue, tissue_class,
+# tissue_category): median log2 MaxLFQ abundance + detection support (n_samples / n_detected /
+# detection_rate). Detected-only rows are stored (a (gene, tissue) with n_detected==0 is absent), so a
+# row = a tissue where the protein was quantified. The reader pyarrow-column-pushdowns one gene's rows.
+#
+# ★ v2 ADDS tissue_category, AND IT MATTERS FOR THE DENOMINATOR: 10 of the 70 "adult tissues" are not
+# solid tissues (body fluids, non-tissue entries), and the 4 blood_compartment entries are ONE
+# compartment counted four times. So the ~70-tissue denominator over-counts. The reader now emits BOTH
+# denominators — all-adult (n_adult_tissues_*) and solid-only (n_solid_adult_tissues_*, /60) — and the
+# breadth/liability CLASSES still key on the ALL-ADULT count. That is deliberate and it is a SAFETY
+# direction, not laziness: the class cut is an ABSOLUTE count (>=35), so shrinking the denominator
+# while leaving the cut fixed would make the liability veto fire LESS. Measured on the full product:
+# solid-only >=35 fires on 1,446 genes vs 1,510 today, i.e. 64 FEWER liabilities. The solid-only
+# counts are therefore DISPLAY, offered so a consumer can see the over-count, never a re-gating.
+#
+# ★ MEASURABILITY IS LABELLED, NEVER GATED. Some organism parts have n_samples 1-2. A sample-support
+# gate on a SAFETY facet is fail-OPEN — a dropped organ reads downstream as the favourable "no
+# liability" class — so the vital-organ loop KEEPS every organ and labels it (`measurable`, plus
+# n_vital_organs_measurable / _unmeasurable and the threshold itself). Dropping them would have deleted
+# blood (n=1) and thyroid gland (n=2), and thyroid is the exact organ whose omission was the original
+# S1-3 false negative.
+#
+# DIA MaxLFQ abundance is a panel-relative log2 intensity, NOT absolute copies-per-cell.
+
+card_id: normal-tissue-protein-abundance-tphp
+version: 1.3.0   # 1.3.0 (skills #1793): + the HPA-BLIND vital-organ view (analysis-methods
+                 # tphp_normal_protein 0.5.0) — tphp_hpa_blind_vital_organ_liability_class (+count/
+                 # names/uncovered): the vital-organ read SCOPED to the organs the HPA-IHC
+                 # essential-tissue killer structurally cannot represent (nerve/blood/adrenal_gland/
+                 # thyroid; pituitary covered by NEITHER protein panel → emitted as uncovered). The
+                 # class is VERDICT-BEARING: tphp-hpa-blind-vital-organ-protein-safety-warning fires a
+                 # safety.resolver rung (v2.3.0) reusing normal_tissue_protein_safety_concern — this
+                 # card now ENTERS card_resolver_consumption. Closes the endocrine/CNS/vascular
+                 # safety fail-open (a liability there previously could not move the safety verdict).
+# 1.2.0: the ABUNDANCE read-out (max / median / highest_abundance_tissue + its class) is
+                 # ORGANS ONLY — body fluids, blood compartments, hair and unassignable parts excluded.
+                 # Display-only fields, no rule reads them, so the verdict spine is unmoved.
+# 1.1.0: v2 substrate — tissue_category/solid-tissue counts + vital-organ MEASURABILITY labels.
+question: "Across the TPHP normal-tissue proteome (DIA MaxLFQ), how broad is {target.symbol}'s NORMAL-tissue protein footprint, and where is it highest — the quantitative normal-protein comparator for tumor-vs-normal selectivity?"
+
+# Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a
+# non-verdict-driving field on this card; declare the rule-keyed primary + salient categoricals.
+# VERDICT-INERT projection (see capsule contract migration).
+capsule:
+  primary_class: tphp_normal_protein_liability_class
+  categorical_fields:
+    - tphp_normal_protein_liability_class
+    - normal_protein_breadth_class
+    - tphp_hpa_blind_vital_organ_liability_class
+    - fetal_vs_adult_flag
+    - highest_abundance_tissue_class
+
+tier: target   # a normal-tissue protein footprint is a property of the gene, not a tumor subgroup; never stratifies.
+
+applies_when:
+  - "context.data_sources.tphp_normal_proteome_available == true"
+
+required_inputs:
+  # Consumed via the derived long/tidy pushdown product (parquet-storage-standard): the reader
+  # pyarrow-column-pushdowns one gene (filters=[("gene_symbol","=",symbol)]) instead of parsing the
+  # ~11MB long matrix. Declaring the derived product keeps the resolve_cards provenance stamp equal
+  # to what is actually read.
+  # v2, matching methods/tphp_normal_protein/read.py::DERIVED_MANIFEST_ID. The reader was repointed to
+  # v2 in analysis-methods e8384e6 while this card still declared v1, so the provenance stamp named a
+  # product the run does not read.
+  - product_id: normal-tissue-protein-abundance-per-gene-v2
+
+methods:
+  # The GENERIC skills dispatcher (_live_readers._generic_dispatch) resolves module + entrypoint from
+  # this block and invokes methods/tphp_normal_protein/read.py::read_target_summary(target=,
+  # indication=). No bespoke dispatcher needed.
+  - call: tphp-normal-protein
+    module: tphp_normal_protein
+    entrypoint: read_target_summary
+    args:
+      target: "{target.symbol}"
+
+outputs:
+  # summary_fields match the reader's emitted dict EXACTLY (methods/tphp_normal_protein/read.py::
+  # compute_summary). A reader RENAME breaks the tumor-selectivity replay drift guard (freeze reads
+  # these field keys), so keep the two in lockstep.
+  summary_fields:
+    - normal_protein_breadth_class                # DETECTION-breadth categorical — adult-tissue breadth band (display)
+    - tphp_normal_protein_liability_class         # VERDICT-BEARING — Floor-C abundance-gated NORMAL-breadth liability
+                                                  # (the tumor-selectivity selective_with_normal_liability veto arm)
+    - n_adult_tissues_above_abundance_floor       # # adult tissues with median_log2_abundance >= abundance_floor_log2 (Floor-C count)
+    - abundance_floor_log2                        # the global per-tissue abundance floor used (log2 MaxLFQ; cached p75)
+    - tphp_vital_organ_liability_class            # T0-3 SAFETY view — is the target abundant in ANY dose-limiting organ (via TPHP_CROSSWALK)
+    - n_vital_organs_above_abundance_floor        # # canonical vital organs with representative-tissue median_log2_abundance >= floor
+    # ★ HPA-BLIND vital-organ view (skills #1793) — the vital-organ read SCOPED to the organs the
+    # verdict-bearing HPA-IHC essential-tissue killer structurally CANNOT represent (its closed
+    # 16-name vocabulary has no name for nerve / blood / adrenal_gland / thyroid / pituitary; the
+    # blind set is derived single-source in analysis-methods essential_organs.py and pinned there).
+    # Same abundance floor + measurability discipline as the full vital-organ view — no new cuts.
+    - tphp_hpa_blind_vital_organ_liability_class  # VERDICT-BEARING — fires tphp-hpa-blind-vital-organ-protein-safety-warning
+                                                  # → safety.resolver rung (normal_tissue_protein_safety_concern). The organ-
+                                                  # coverage extension of the HPA arm, not a new concern kind.
+    - n_hpa_blind_vital_organs_above_abundance_floor  # # HPA-blind vital organs at/above the abundance floor
+    - hpa_blind_vital_organs_above_floor          # WHICH HPA-blind organs are at/above the floor (canonical names) — lets a
+                                                  # consumer NAME the implicated organ, not just report a class
+    - hpa_blind_vital_organs_uncovered            # HPA-blind organs with NO TPHP arm either (pituitary today; the WHOLE blind
+                                                  # set when the gene is data_unavailable) — covered by NO verdict-bearing
+                                                  # protein arm: the explicit coverage-gap datum, never silent absence
+    # ★ v2 MEASURABILITY LABELS — the fail-CLOSED alternative to a sample-support GATE. Read a "clean
+    # sweep" of the vital-organ loop against n_vital_organs_unmeasurable: organs are never dropped, so
+    # absence of a liability is only informative where the organ was measurable in the first place.
+    - n_vital_organs_measurable                   # # vital organs whose arm has n_samples >= vital_organ_min_samples
+    - n_vital_organs_unmeasurable                 # # vital organs RETAINED but too thinly sampled to support a call (e.g. blood n=1, thyroid n=2)
+    - vital_organ_min_samples                     # the support threshold itself, so the consumer can re-derive the split
+    - tphp_vital_organ_abundance                  # list of {organ, tissue, median_log2_abundance, detected, above_abundance_floor,
+                                                  # n_samples, n_samples_source, n_detected, detection_rate, measurable}, abundance-sorted.
+                                                  # measurable=false => this organ CANNOT support a presence/absence call — do NOT
+                                                  # read it as "not expressed". n_samples_source names where n_samples came from
+                                                  # (the product row wins over the cached support table, which then cannot decay silently).
+    - n_tissues_detected                          # distinct tissues (adult + fetal) with a quantified value
+    - n_adult_tissues_detected                    # distinct ADULT tissues detected (drives the breadth class)
+    - n_adult_tissues_detected_low_support        # of those, how many rest on a thinly sampled part — a breadth count's own caveat
+    # ★ v2 SOLID-TISSUE denominators — DISPLAY ONLY. The classes still key on the all-adult counts
+    # above; re-gating on these under an unchanged absolute cut would RELAX the safety veto (see header).
+    - n_solid_adult_tissues_detected              # distinct SOLID adult tissues detected (tissue_category == solid_tissue)
+    - n_solid_adult_tissues_above_abundance_floor # of those, how many are at/above the abundance floor
+    - n_solid_adult_tissues_total                 # denominator (solid adult tissues, 60 of the 70 parts)
+    - n_fetal_groups_detected                     # distinct FETAL germ-layer groups detected (0-4)
+    - n_adult_tissues_total                       # denominator (panel adult tissues, 70) — the count the CLASSES use
+    - n_fetal_groups_total                        # denominator (panel fetal germ-layer groups, 4)
+    # ★ THE ABUNDANCE READ-OUT IS ORGANS ONLY — all four fields below are computed over the SAME
+    # narrowed population: the 60 solid adult parts + the 4 fetal germ-layer groups (64 of 74). The 10
+    # adult parts that are not organs (tissue_category in body_fluid | blood_compartment | non_tissue |
+    # unassignable) are EXCLUDED, because these fields answer "how much protein sits in the normal
+    # ORGANS a systemic agent would hit, and which one carries the most". Before the filter existed the
+    # selector was tissue_category-BLIND and 2558 of 13261 genes (19.3%, measured on v2) named a
+    # non-organ part: CDH17 read `plant vessel` (18.16), MSLN `tear`, FOLR1 `saliva`, GPC3 `urine`.
+    # ⚠️ This is the OPPOSITE direction from the breadth counts above, deliberately. Those keep every
+    # part and fail OPEN, because dropping a part there makes the liability veto fire LESS. These are
+    # display-only (no interpretation rule reads them), and naming a body fluid as the organ at risk is
+    # the failure mode, so the read-out narrows while the counts stay wide.
+    # ⚠️ EXCLUDE-list, never an allow-list of solid_tissue: fetal_germ_layer must stay in, or
+    # highest_abundance_tissue_class could never read `fetal` (922 genes top out on a fetal group).
+    - max_median_log2_abundance                   # highest per-ORGAN median log2 MaxLFQ abundance (panel-relative)
+    - median_across_tissues_log2_abundance        # median over the per-ORGAN medians (typical normal level).
+                                                  # Same population as the max, so it can never EXCEED it —
+                                                  # narrowing only the max would have inverted the two for 77 genes.
+    - highest_abundance_tissue                    # the ORGAN carrying max_median_log2_abundance
+    - highest_abundance_tissue_class              # adult_normal | fetal — class of the highest-abundance organ.
+                                                  # All four are null when a gene is detected ONLY in non-organ
+                                                  # parts (105 genes): honest "no organ abundance", NOT a
+                                                  # coverage gap — breadth still reports the detection.
+    - fetal_vs_adult_flag                         # categorical — adult/fetal detection pattern
+    - max_detection_rate                          # max per-tissue n_detected/n_samples (support gate)
+    - uniprot_ac                                  # UniProt accession of the protein group (1:1 with the gene)
+    - per_tissue_abundance                        # list of {tissue, tissue_class, tissue_category, median_log2_abundance,
+                                                  # median_intensity, n_samples, n_detected, detection_rate}, abundance-sorted
+    - method_version
+
+  summary_fields_vocabulary:
+    normal_protein_breadth_class:
+      - broad_normal_protein                      # detected in >=35 adult tissues (>=~50% of the panel) — broad normal-protein footprint
+      - moderate_normal_protein                   # detected in 10-34 adult tissues
+      - restricted_normal_protein                 # detected in 1-9 adult tissues — narrow normal-protein footprint
+      - not_detected_in_normal_protein            # detected in 0 adult tissues (fetal-only detection)
+      - data_unavailable                          # gene absent from the TPHP product / couldn't read — a coverage gap, NOT a favorable window
+    tphp_normal_protein_liability_class:          # VERDICT-BEARING (Floor-C abundance-gated normal-breadth liability)
+      - broad_and_abundant                        # ABUNDANT (>= abundance_floor_log2) across >=35 adult tissues — a genuine broad
+                                                  # normal-protein presence (GAPDH/ACTB/KRAS pan-tissue archetype). FIRES the
+                                                  # tumor-selectivity selective_with_normal_liability veto arm.
+      - detected_not_abundant                     # broadly DETECTED (>=35 adult tissues) but NOT broadly abundant — the DIA-
+                                                  # detects-broadly-at-trace correction (CEACAM5: many tissues detected, few above
+                                                  # floor). Does NOT fire the veto.
+      - restricted                                # narrow footprint (detected in <35 adult tissues). Does NOT fire the veto.
+      - data_unavailable                          # gene absent / couldn't read — coverage gap, NOT a favorable window.
+    tphp_hpa_blind_vital_organ_liability_class:   # VERDICT-BEARING (skills #1793) — the vital-organ read over the HPA-blind
+                                                  # organ subset only (nerve/blood/adrenal_gland/thyroid via TPHP crosswalk)
+      - vital_organ_abundant                      # ABUNDANT (>= abundance_floor_log2) in >=1 HPA-blind vital organ — a
+                                                  # dose-limiting-organ liability the HPA-IHC killer structurally cannot see.
+                                                  # FIRES tphp-hpa-blind-vital-organ-protein-safety-warning → safety HOLD.
+                                                  # Fail-CLOSED: an above-floor hit on a thin arm (thyroid n=2, blood n=1)
+                                                  # still counts — measurability gates ABSENCE claims only.
+      - vital_organ_low                           # detected in >=1 HPA-blind organ but NONE at/above the floor (trace-only).
+      - no_vital_organ_signal                     # not detected in any HPA-blind organ TPHP carries. NOT a clean sweep:
+                                                  # blood/thyroid arms are below vital_organ_min_samples, and pituitary has
+                                                  # no arm at all — read against hpa_blind_vital_organs_uncovered + the
+                                                  # measurable flags before treating this as reassurance.
+      - data_unavailable                          # gene absent / couldn't read — coverage gap over the WHOLE blind set
+                                                  # (hpa_blind_vital_organs_uncovered widens to all 5), NOT a favorable window.
+    tphp_vital_organ_liability_class:             # T0-3 SAFETY view — dose-limiting-organ PROTEIN presence, orthogonal to breadth
+      - vital_organ_abundant                      # ABUNDANT (>= abundance_floor_log2) in >=1 canonical vital organ — a therapeutic-
+                                                  # window liability the breadth class misses (e.g. CEACAM5: narrow breadth, abundant in liver/adrenal).
+      - vital_organ_low                           # detected in >=1 vital organ but NONE at/above the floor (trace-only).
+      - no_vital_organ_signal                     # not detected in any canonical vital organ in the TPHP panel.
+      - data_unavailable                          # gene absent / couldn't read — coverage gap, NOT a favorable window.
+    fetal_vs_adult_flag:
+      - adult_and_fetal                           # detected in >=1 adult AND >=1 fetal group
+      - adult_only                                # detected in adult tissues only
+      - fetal_only                                # detected in fetal germ-layer groups only
+      - none                                      # no detected tissue (paired with data_unavailable rows)
+      - data_unavailable                          # gene absent / couldn't read
+    tissue_category:                              # v2 — the KIND of organism part; appears per item in
+                                                  # per_tissue_abundance (not a top-level summary field).
+                                                  # Declared here so a consumer reading the list knows the
+                                                  # closed value set and does not treat all 70 parts alike.
+      - solid_tissue                              # a solid organ/tissue — 60 of the 70 adult parts. FAILS OPEN:
+                                                  # an unrecognised new part reads solid_tissue, so it still
+                                                  # counts toward breadth rather than vanishing from the denominator.
+      - body_fluid                                # e.g. plasma/serum-like entries — not an organ at risk
+      - blood_compartment                         # ★ 4 entries, but ONE compartment counted four times
+      - non_tissue                                # not an organism part in the safety sense
+      - unassignable                              # category could not be determined from the deposited SDRF
+      - fetal_germ_layer                          # one of the 4 fetal germ-layer groups (tissue_class == fetal)
+
+thresholds:
+  # normal_protein_breadth_class bands on the ADULT-tissue DETECTION count (absolute counts against
+  # the 70-adult-tissue TPHP panel). Mirrored in methods/tphp_normal_protein/read.py.
+  broad_adult_tissue_count: 35                    # >=50% of adult tissues → broad_normal_protein
+  moderate_adult_tissue_count: 10                 # >=~15% → moderate_normal_protein
+  # ★ THE VERDICT-BEARING CUT, previously UNDECLARED on this card. tphp_normal_protein_liability_class
+  # is the only field here that fires a veto, and both numbers that decide it were absent from the
+  # contract — a reader could not tell what broad_and_abundant means without reading the module.
+  abundance_floor_log2: 15.076                    # cached p75 of per-(gene, adult-tissue) median_log2_abundance
+  broad_abundant_tissue_count: 35                 # # adult tissues at/above the floor → broad_and_abundant (FIRES the veto)
+  vital_organ_min_samples: 3                      # LABEL threshold for `measurable`, NOT a drop filter (see header)
+  # ★★ TWO THINGS A CONSUMER MUST KNOW ABOUT abundance_floor_log2, both measured on the full product:
+  #   1. IT IS PARTLY A DEPTH READOUT, not a pure biological level. Spearman(n_proteins_quantified,
+  #      fraction of a tissue's genes above the floor) = -0.886 across the 70 adult tissues: deeply
+  #      sequenced tissues push MORE proteins over a globally fixed floor. So "abundant in tissue X"
+  #      carries a per-tissue depth term. Treat cross-tissue floor comparisons as approximate.
+  #   2. THE CUT OF 35 IS A POLICY CHOICE AND THE DATA CANNOT NOMINATE A BETTER ONE. Swept every cut
+  #      20..45 on all 13,009 genes: the survivor curve is smooth and monotone with NO VALLEY anywhere
+  #      (flattest step 42->43 = 15 genes; steepest 20->21 = 42; 35->36 = 17), and only 144 genes
+  #      (1.11%) sit in [30,35]. A distribution with no gap cannot nominate a threshold. ★ The nearest
+  #      real constraint is NOT 30-vs-35: MKI67 sits at 36 above-floor tissues, ONE above the cut, so
+  #      any cut >=37 releases the framework's own proliferation decoy. Do not retune without that check.
+
+# Every number in `thresholds:` above is applied by the READER (methods/tphp_normal_protein/read.py)
+# before this card sees a field — none is compared against by a card predicate, which is why
+# THRESHOLD_UNUSED fired on all five. Declaring the role is a CHECKED claim (consumed_by is validated
+# against this card's own methods[].call), so it goes stale loudly if the card ever starts interpreting
+# one of these values itself.
+threshold_roles:
+  broad_adult_tissue_count:
+    role: method_parameter
+    consumed_by: tphp-normal-protein
+    note: "Reader band boundary for normal_protein_breadth_class (>=35 adult tissues DETECTED -> broad)."
+  moderate_adult_tissue_count:
+    role: method_parameter
+    consumed_by: tphp-normal-protein
+    note: "Reader band boundary for normal_protein_breadth_class (>=10 adult tissues detected -> moderate)."
+  abundance_floor_log2:
+    role: method_parameter
+    consumed_by: tphp-normal-protein
+    note: "Cached p75 of per-(gene, adult-tissue) median_log2_abundance; the reader compares each tissue against it and re-derivable via its --recompute-floor CLI. Partly a sequencing-depth readout (Spearman -0.886) — see thresholds note."
+  broad_abundant_tissue_count:
+    role: method_parameter
+    consumed_by: tphp-normal-protein
+    note: "The VERDICT-BEARING cut: >=35 adult tissues at/above the floor -> broad_and_abundant, which fires the normal-liability veto. A policy choice, not data-nominated (no valley over cuts 20..45)."
+  vital_organ_min_samples:
+    role: method_parameter
+    consumed_by: tphp-normal-protein
+    note: "LABEL threshold only. The reader marks each vital organ measurable/unmeasurable against it and DROPS NOTHING — gating a safety facet on sample support would read as 'no liability'."
+
+warning_predicates:
+  - warning_id: broad_normal_protein_footprint
+    if: "normal_protein_breadth_class == 'broad_normal_protein'"
+    message: "{target.symbol} protein is detected broadly across normal tissues (TPHP DIA-MS, >=35 adult tissues) — a quantitative normal-protein footprint corroborating an on-target-off-tumor liability. The tumor-vs-normal PROTEIN window depends on the tumor-to-worst-normal differential."
+  - warning_id: tphp_vital_organs_unmeasurable
+    if: "n_vital_organs_unmeasurable > 0"
+    message: "Some vital organs are RETAINED but too thinly sampled (n_samples < vital_organ_min_samples) to support a presence/absence call, so 'no vital-organ signal' is NOT a clean sweep — absence is informative only where the organ was measurable. Check each tphp_vital_organ_abundance entry's measurable flag."
+  - warning_id: tphp_normal_arm_shared_with_tvn_facet
+    if: "normal_protein_breadth_class != 'data_unavailable'"
+    message: "These are the SAME normal samples the tumor-vs-normal-protein-abundance-tphp card uses as its normal arm (its normal_arm_source == body_atlas_same_organism_part). ONE DIA-MS measurement read twice, not two protein platforms — a consumer counting corroborating protein evidence must collapse them."
+  - warning_id: tphp_normal_protein_data_unavailable
+    if: "normal_protein_breadth_class == 'data_unavailable'"
+    message: "{target.symbol} has no TPHP normal-tissue protein quantification (absent from the DIA-MS proteome) — normal-protein footprint UNKNOWN (coverage gap), not low. Do not read absence as a favorable window; consult the GTEx-RNA + HPA-IHC normal comparators."
+  - warning_id: tphp_hpa_blind_vital_organ_liability
+    if: "tphp_hpa_blind_vital_organ_liability_class == 'vital_organ_abundant'"
+    message: "{target.symbol} protein is at/above the TPHP abundance floor in >=1 dose-limiting organ HPA-IHC cannot see (names in hpa_blind_vital_organs_above_floor) — an on-target-off-tumor full-KO liability; fires the safety normal_tissue_protein_safety_concern hold (skills #1793)."
+  - warning_id: tphp_hpa_blind_organ_coverage_gap
+    if: "tphp_hpa_blind_vital_organ_liability_class == 'data_unavailable'"
+    message: "{target.symbol} has no TPHP read, so the organs HPA-IHC cannot represent (thyroid, adrenal gland, pituitary, nerve, blood) are covered by NO verdict-bearing protein arm — an organ-coverage GAP on the safety axis, not a clean read (see hpa_blind_vital_organs_uncovered)."
+
+caveats:
+  - |
+    QUANTITATIVE normal-tissue PROTEIN comparator (TPHP DIA MaxLFQ mass-spec, 70 adult tissues +
+    4 fetal germ-layer groups, 663 normal samples; Xu et al., Nature 2026, open PRIDE PXD063370,
+    CC-BY-4.0). Complements the GTEx/recount3 normal-RNA breadth + the HPA-IHC categorical protein
+    breadth (normal-tissue-liability) at quantitative PROTEIN resolution — the layer where an
+    RNA-restricted target can still be broadly protein-expressed.
+  - |
+    DIA MaxLFQ abundance is a panel-relative log2 intensity, NOT absolute copies-per-cell; compare
+    distribution + breadth CLASS and per-tissue relative levels, never treat max_median_log2_abundance
+    as a concentration. Absolute surface density lives in surface-abundance-density (copies/cell).
+    The abundance read-out spans ORGANS ONLY (60 solid adult + 4 fetal groups); the 10 non-organ parts
+    stay in per_tissue_abundance and in the breadth counts, but never name the organ at risk.
+  - |
+    Detected-only rows: a (gene, tissue) with n_detected==0 is NOT stored, so a gene absent from the
+    product reads data_unavailable (coverage gap), and small tissue groups (n_samples 1-2 for rare
+    organs) should be gated via max_detection_rate / per_tissue_abundance detection_rate before
+    trusting a single-tissue call.
+  - |
+    MEASURABILITY IS LABELLED, NOT GATED. No organ is dropped for thin sampling: on a SAFETY facet a
+    support gate is fail-OPEN, because a missing organ reads as the favourable "no liability" class.
+    Read tphp_vital_organ_liability_class against n_vital_organs_unmeasurable — a clean sweep across
+    measurable organs is not a clean sweep. Dropping n_samples<3 would have deleted blood (n=1) and
+    thyroid gland (n=2), the organ whose omission was the original S1-3 false negative.
+  - |
+    THE ABUNDANCE FLOOR IS PARTLY A SEQUENCING-DEPTH READOUT: Spearman(n_proteins_quantified, fraction
+    above floor) = -0.886 over the 70 adult tissues, so a globally fixed floor passes more proteins in
+    deeply sequenced tissues. And the cut of 35 is a POLICY choice — the above-floor distribution is
+    featureless over 20..45 (no valley; only 1.11% of genes in [30,35]), so no threshold is data-nominated.
+    MKI67 sits at 36, one above the cut: any cut >=37 releases the framework's own proliferation decoy.
+  - |
+    THE ~70-TISSUE DENOMINATOR OVER-COUNTS: 10 adult parts are not solid tissues and the 4
+    blood_compartment entries are one compartment counted four times (v2 tissue_category). The
+    solid-only counts are emitted for visibility but the CLASSES still use the all-adult count, because
+    shrinking a denominator under an unchanged ABSOLUTE cut relaxes a safety veto — measured, solid-only
+    >=35 would fire on 1,446 genes vs 1,510 today, i.e. 64 liabilities silently dropped.
+  - |
+    Fetal granularity is the 4 germ-layer groups (ectoderm/endoderm/mesoderm/umbilical cord) the
+    deposited SDRF exposes, NOT the paper's 22 fetal tissue types; adult subtype resolution is
+    likewise the organism-part grain. breadth is keyed on ADULT tissues (fetal is developmental
+    context surfaced via fetal_vs_adult_flag, not the safety-relevant adult footprint).
+  - |
+    MIXED ROLE: two VERDICT-BEARING fields. (a) tphp_normal_protein_liability_class ==
+    broad_and_abundant fires tvn-tphp-broad-abundant-normal-protein-veto (skills-side clamp ->
+    selective_with_normal_liability; ADC neutral, SM/degrader/BiTE-TCE oppose). (b)
+    tphp_hpa_blind_vital_organ_liability_class == vital_organ_abundant fires
+    tphp-hpa-blind-vital-organ-protein-safety-warning -> safety rung ->
+    normal_tissue_protein_safety_concern HOLD (skills #1793); the card is resolver-consumed.
+  - |
+    ORGAN-COVERAGE SEAM (skills #1793): HPA-IHC, the other verdict-bearing protein arm, cannot
+    represent thyroid/adrenal gland/pituitary/nerve/blood. The HPA-blind view here closes that
+    hole for the four organs TPHP carries. Pituitary is covered by NEITHER panel: surfaced in
+    hpa_blind_vital_organs_uncovered + the coverage-gap warning, never silent absence. Blind set
+    single-sourced from HPA_CROSSWALK (analysis-methods) and pinned by value; re-check this
+    prose if it shrinks (AM#744).
+
+measurement: bulk_protein_ms
+sample_context: normal        # the TPHP abundance is measured on NORMAL tissue — the normal comparator arm.
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — a view of the `normal_tissue_protein_abundance` claim (the
+# quantitative normal-tissue-PROTEIN comparator; DISTINCT from normal_tissue_protein_breadth, which is
+# the HPA-IHC CATEGORICAL breadth safety read — different substrate, different grain of the answer).
+measurement_type: normal_tissue_protein_abundance
+# Advisory routing metadata (advisory only; the behavioral rule is tvn-tphp-broad-abundant-normal-protein-veto). Mirrors the sibling
+# normal-tissue-liability biologics-safety comparator: the normal-protein footprint informs biologics
+# on-target-off-tumor windows.
+modality_relevance: [adc, bite_tce]   # antibody dropped: the tvn-tphp veto routes adc(neutral)/bite_tce(opposing), not a naked-antibody lens
+entity_grains: [target]
+schema_version: 1

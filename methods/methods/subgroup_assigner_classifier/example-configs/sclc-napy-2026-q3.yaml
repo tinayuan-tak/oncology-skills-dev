@@ -1,0 +1,25 @@
+# Example classifier config — SCLC NAPY subtype assignment (Rudin 2019).
+#
+# Companion file for data-catalog/subgroup-catalogs/SCLC/2026-Q3.yaml.
+# Consumed by methods/subgroup_assigner_classifier/cli.py.
+
+id: sclc-napy-classifier-2026-q3
+version: 1.0.0
+classifier_method: napy_zscore_classifier
+reference_cohort: depmap_lung_sclc
+
+# One marker gene per stratum. Sample assigned to argmax stratum
+# whose marker z-score >= min_zscore.
+marker_genes:
+  SCLC_A: ASCL1
+  SCLC_N: NEUROD1
+  SCLC_P: POU2F3
+  SCLC_Y: YAP1
+
+# Minimum z-score floor for a stratum assignment to be valid.
+# 0.0 = require above-mean expression of the winning marker.
+min_zscore: 0.0
+
+literature_anchor:
+  pmid: 30297170
+  note: "Rudin et al. 2019 — NAPY 4-subtype classification of SCLC."

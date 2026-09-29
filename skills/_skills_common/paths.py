@@ -1,9 +1,11 @@
-"""_skills_common/paths.py — single source for the sibling-repo filesystem roots.
+"""_skills_common/paths.py — single source for the contracts/methods package roots.
 
-target-contracts and analysis-methods are sibling repos of claude-oncology-skills. Their roots were
-resolved by a copy-pasted `os.environ.get("TARGET_CONTRACTS_ROOT" / "ANALYSIS_METHODS_ROOT", "<default>")`
-in ~8 / ~4 modules; a default that drifted in one place would silently split the fleet's view of the
-contracts repo. This module is the ONE place the env-var names + default paths live.
+target-contracts and analysis-methods live IN THIS REPO as the contracts/ and methods/ packages
+(SK#2063 consolidation, 2026-09-29); the defaults below derive from the repo root so every checkout
+(CI, primary clone, /tmp worktrees) resolves its OWN tree, never a stale sibling clone. The env-var
+overrides are unchanged. Historically these were sibling repos resolved by a copy-pasted
+`os.environ.get("TARGET_CONTRACTS_ROOT" / "ANALYSIS_METHODS_ROOT", "<default>")` in ~8 / ~4 modules;
+this module is the ONE place the env-var names + default paths live.
 
 Two forms per repo:
   - the DEFAULT string constant — for the few call sites that keep their own `os.environ.get(...)`
@@ -17,8 +19,11 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-TARGET_CONTRACTS_ROOT_DEFAULT = "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
-ANALYSIS_METHODS_ROOT_DEFAULT = "/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods"
+# Repo root: this file is skills/_skills_common/paths.py → parents[2] is the checkout root.
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+
+TARGET_CONTRACTS_ROOT_DEFAULT = str(_REPO_ROOT / "contracts")
+ANALYSIS_METHODS_ROOT_DEFAULT = str(_REPO_ROOT / "methods")
 
 
 def target_contracts_root() -> Path:

@@ -1,0 +1,173 @@
+# Card — SURFACE-LOCALIZATION CONCORDANCE  (derived, verdict-INERT)
+#
+# The Surfaceome 26Q3 arc BRIDGE (target-contracts#966, epic claude-oncology-skills#2024). It relates
+# the CELL-LINE paired-assay surface-vs-wholecell enrichment call (cellline-surfaceome-abundance's
+# surface_localization_class — DepMap Consortium Surfaceome 26Q3 PAIRED DIA-MS) to an ORTHOGONAL,
+# independent wet-lab surface-CONFIRMATION read (protein-surface-evidence's surface_confirmation_class
+# — CSPA extracellular MS capture + HPA-IF plasma-membrane microscopy), so a target's cell-line
+# surface signal is read against corroborating surface evidence rather than in isolation.
+#
+# SUBSTRATE CHOICE (design note on #966): no candidate TUMOR substrate resolves a surface-specific
+# signal for gastric/esophageal (STAD/ESCA — where the 64-line surfaceome panel is informative) at
+# tumor target×indication grain. The CPTAC-backed cards (surface-abundance-density,
+# tumor-protein-abundance-cptac, rna-protein-concordance-tumor) exclude STAD/ESCA; the
+# spatial-surface product is HNSC/NSCLC only. The one surface-localization substrate populated for
+# gastric/eso targets is the pan-panel, target-grain CSPA/HPA-IF surface-confirmation read (which
+# matches the cell-line surfaceome's own target grain — the panel carries no lineage crosswalk). So
+# this is an ORTHOGONAL SURFACE-LOCALIZATION CORROBORATION (target grain), NOT a tumor-microenvironment
+# concordance — see caveats. A true tumor-surface concordance for gastric/eso is a genuine catalog gap
+# (future data product).
+#
+# VERDICT-INERT display (interpretation: rules_pending): no interpretation rule and no resolver rung
+# keys card_id surface-localization-concordance, so every verdict is byte-stable with or without it.
+# The concordance class is a DESCRIPTIVE facet; promotion to a deciding axis is a deliberate later pass
+# (out of scope — the concordance definition is kept coarse/inert until validated on a target panel).
+
+card_id: surface-localization-concordance
+version: 1.0.0
+# interpretation (rules_pending): the concordance class is a substantive surface-corroboration claim;
+# no axis reads it yet (verdict-INERT).
+interpretation: rules_pending
+question: "For {target.symbol}, does the cell-line paired-assay surface-vs-wholecell enrichment call (DepMap Surfaceome 26Q3) agree with the orthogonal wet-lab surface-confirmation evidence (CSPA MS + HPA-IF) that the protein is genuinely surface-localized?"
+
+# Evidence-capsule projection contract — the alphabetical-first *_class heuristic would mis-pick a
+# passthrough categorical; declare the derived primary + the two salient passthrough categoricals.
+capsule:
+  primary_class: surface_context_concordance_class
+  categorical_fields:
+    - surface_context_concordance_class
+    - cellline_surface_localization_class
+    - orthogonal_surface_confirmation_class
+    # Display-only descriptive fields (SK#2063 consolidation): this verdict-INERT card's remaining
+    # emitted fields are surfaced for the reader but read by no rule/resolver. Capsule-blocked so the
+    # display is deterministic and each earns exact census credit. `orthogonal_measured_in_cspa` is a
+    # bool → categorical (never numeric_anchors: the renderer type-filters bools out). Consumption by
+    # #966's downstream reader is a deliberate later pass (interpretation: rules_pending).
+    - orthogonal_measured_in_cspa
+    - concordance_substrate
+  numeric_anchors:
+    - cellline_median_enrichment_log2ratio
+    - cellline_n_lines_enrichment_evaluated
+    - orthogonal_n_celllines_detected
+
+tier: target   # both arms are per-target (indication-independent): the surfaceome panel carries no OncotreeLineage crosswalk and is gastric/esophageal by release scope; CSPA/HPA-IF are pan-panel target-grain. Forcing an indication axis where neither input resolves per-indication would be fake precision (mirrors crispr-rnai-dependency-concordance).
+
+applies_when:
+  # Gate on both arms' availability (mirrors the two source cards' gates). The card still emits an
+  # honest `insufficient` when one arm is non-committal.
+  - "context.data_sources.depmap_surfaceome_proteomics_available == true"
+  - "target.uniprot_canonical != null"
+
+required_inputs:
+  # The products the joiner reader consumes a class from. depmap-surfaceome-paired-per-protein-v1
+  # supplies surface_localization_class; cspa-surface-confirmation-per-uniprot-v1 supplies
+  # surface_confirmation_class. (The CSPA reader also reads an HPA product transitively for its OWN
+  # corroboration fields, which this card does NOT consume — so it is not declared here.)
+  - product_id: depmap-surfaceome-paired-per-protein-v1
+  - product_id: cspa-surface-confirmation-per-uniprot-v1
+
+# Derived-card declaration: this card depends on the two upstream cards' OUTPUTS, not directly on raw
+# data. The reachability validator checks both upstream cards emit the fields this card reads
+# (cellline-surfaceome-abundance → surface_localization_class; protein-surface-evidence →
+# surface_confirmation_class).
+derived_from:
+  - card_id: cellline-surfaceome-abundance
+  - card_id: protein-surface-evidence
+
+methods:
+  # The GENERIC skills dispatcher resolves module + entrypoint from this block and invokes
+  # methods/surface_localization_concordance/read.py::read_target_summary(target=, indication=). The
+  # reader is a thin JOINER that calls the two sibling readers (single source of truth). `indication`
+  # is accepted for the dispatch contract but NOT consumed (both arms are target-grain).
+  - call: surface-localization-concordance
+    module: surface_localization_concordance
+    entrypoint: read_target_summary
+    args:
+      target: "{target.symbol}"
+
+outputs:
+  summary_fields:
+    - surface_context_concordance_class          # CATEGORICAL — the derived concordance class (primary)
+    - cellline_surface_localization_class         # CATEGORICAL — passthrough from cellline-surfaceome-abundance
+    - orthogonal_surface_confirmation_class       # CATEGORICAL — passthrough from protein-surface-evidence
+    # verdict-INERT context passthrough (per-arm support / provenance)
+    - cellline_median_enrichment_log2ratio        # cell-line arm: median surface-vs-wholecell enrichment (log2), or null
+    - cellline_n_lines_enrichment_evaluated       # cell-line arm: lines with a non-null enrichment ratio
+    - orthogonal_measured_in_cspa                 # orthogonal arm: was the target present in the CSPA master (bool), or null
+    - orthogonal_n_celllines_detected             # orthogonal arm: CSPA cell lines detecting the target, or null
+    - concordance_substrate                       # string — names both arms + the target-grain corroboration framing
+    - method_version                              # string
+
+  summary_fields_vocabulary:
+    surface_context_concordance_class:
+      - concordant_surface                        # cell-line surface_confirmed AND orthogonal confirmed_high/confirmed
+      - concordant_not_surface                    # cell-line intracellular_contaminant AND orthogonal not_surface (both agree NOT a surface antigen)
+      - discordant                                # one arm confirms surface while the other is measured-negative
+      - cell_line_only                            # cell-line surface_confirmed, orthogonal arm non-committal (corroboration gap)
+      - surface_evidence_only                     # orthogonal confirms surface, cell-line arm non-committal (insufficient/data_unavailable)
+      - insufficient                              # both arms non-committal, OR a residual asymmetric/ambiguous case (mixed, measured-negative-vs-unmeasured) — kept conservative
+    cellline_surface_localization_class:
+      # Passthrough of cellline-surfaceome-abundance.surface_localization_class (shared vocab).
+      - surface_confirmed
+      - intracellular_contaminant
+      - mixed
+      - insufficient
+    orthogonal_surface_confirmation_class:
+      # Passthrough of protein-surface-evidence.surface_confirmation_class (shared vocab).
+      - confirmed_high
+      - confirmed
+      - not_surface
+      - data_unavailable
+
+  # Scalar (non-categorical) summary fields — types for the completeness/ledger triad. Runtime nulls
+  # are permitted (a non-committal arm); the schema types the non-null case.
+  summary_fields_scalar_types:
+    cellline_median_enrichment_log2ratio: number
+    cellline_n_lines_enrichment_evaluated: integer
+    orthogonal_measured_in_cspa: boolean
+    orthogonal_n_celllines_detected: integer
+    concordance_substrate: string
+    method_version: string
+
+warning_predicates:
+  - warning_id: surface_concordance_insufficient
+    if: "surface_context_concordance_class == 'insufficient'"
+    message: "Neither arm gives a committal surface-localization call for {target.symbol} (or they are asymmetric), so surface_context_concordance is 'insufficient'. NOT evidence against surface localization — consult cellline-surfaceome-abundance and protein-surface-evidence directly."
+  - warning_id: surface_concordance_discordant
+    if: "surface_context_concordance_class == 'discordant'"
+    message: "Cell-line enrichment and orthogonal CSPA/HPA-IF surface evidence DISAGREE for {target.symbol} (one confirms surface, the other measured-negative). Descriptive flag only — inspect both arms before relying on the surface read for an ADC/TCE decision."
+
+caveats:
+  - |
+    ORTHOGONAL SURFACE-LOCALIZATION CORROBORATION, not a tumor concordance. The cell-line arm is the
+    DepMap Surfaceome 26Q3 paired DIA-MS surface-vs-wholecell enrichment call; the orthogonal arm is
+    the CSPA wet-lab extracellular MS + HPA-IF plasma-membrane read (protein-surface-evidence). Both
+    are target-grain (indication-independent). This corroborates that a target is genuinely
+    surface-localized across two independent platforms; it does NOT measure tumor-microenvironment
+    surface presence.
+  - |
+    GASTRIC/ESOPHAGEAL TUMOR-SURFACE GAP: no framework substrate resolves a surface-specific signal
+    for STAD/ESCA (where the 64-line surfaceome panel is informative) at tumor target×indication grain
+    — the CPTAC-backed surface/abundance cards exclude STAD/ESCA and the spatial-surface product is
+    HNSC/NSCLC only. A true tumor-context surface concordance for gastric/eso needs a future gastric/eso
+    tumor surface-proteomics or spatial-surface product (design note on #966).
+  - |
+    VERDICT-INERT display: surface_context_concordance_class feeds no interpretation rule and no
+    resolver rung, so every verdict is byte-stable with or without this card. The class is a coarse,
+    conservative cross-tab (cell-line `mixed` and one-sided measured-negative-vs-unmeasured cases route
+    to `insufficient` — not over-claimed). Promotion to a deciding axis, and any refinement of the
+    concordance definition, is a deliberate later pass after validation on a target panel.
+
+# `measurement:` and `sample_context:` are intentionally OMITTED (mirrors crispr-rnai-dependency-concordance):
+# a derived concordance FUSION has no single measurement layer or sample substrate — its value is the
+# cross-substrate agreement.
+#
+# DATA_TO_SKILL_CONTRACT Rule 1 — a DERIVED concordance FUSION of two distinct surface-localization
+# substrates. measurement_type is the new derived `surface_localization_concordance`
+# (vocabularies/measurement_types.yaml), derived_from [cell_line_protein_abundance, surface_confirmation];
+# per the concordance-test governance a derived concordance-fusion type carries NO evidence_substrate
+# (its value IS the cross-substrate agreement), mirroring crispr_rnai_concordance / rna_protein_concordance.
+measurement_type: surface_localization_concordance
+modality_relevance: [adc, bite_tce, antibody]   # surface set (both arms are surface-localization reads)
+entity_grains: [target]     # target-grain only: both arms are indication-independent
+schema_version: 1

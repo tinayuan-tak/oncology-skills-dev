@@ -1,0 +1,17 @@
+{
+  "skill": "functional-requirement",
+  "target": "CTNNB1",
+  "indication": "COADREAD",
+  "generated_at": "2026-09-07",
+  "headline": {
+    "dependency_verdict": "lineage_selective",
+    "driving_rule_id": "lineage-selective-supportive",
+    "crispr_call": "strongly_selective",
+    "rnai_call": "strongly_selective",
+    "concordance_call": "moderately_concordant_non_dependent",
+    "lineage_selectivity": "lineage_selective",
+    "cards_available": 14,
+    "cards_missing": ["abundance-dependency"]
+  },
+  "_snapshot_note": "Captured live 2026-09-07 (depmap-consortium-26q1, cbg, py3.12). CTNNB1/beta-catenin is a genuine selective dependency (crispr+rnai strongly_selective) -> lineage_selective (non-veto). The APC-conditional partner-conditional lane (analysis-methods #584, partner_conditional_strongly_dependent, delta -0.881/q 3.2e-37/n=100 APC-LoF) fires and CORROBORATES but is not the driving rung (lineage-selectivity outranks it). Positive control: must_not_veto."
+}

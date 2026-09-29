@@ -1,0 +1,89 @@
+# Card — VARIANT-LEVEL INTERPRETATION  (per-variant oncogenicity + therapy resistance)
+#
+# THE gene→variant interpretation gap, closed. Every other mutation card in the framework
+# operates at the GENE level: alteration-role gives GoF/LoF/passenger per GENE (OncoKB geneType ×
+# IntOGen), and its own caveat states "a passenger mutation in a driver gene still reads as the
+# gene's role"; mutation-hotspot-frequency reports recurrence, which is FREQUENCY not FUNCTION
+# (a recurrently-mutated codon in a hypermutated cohort is not necessarily oncogenic). Neither
+# answers "is THIS variant a driver / does it confer therapy resistance?".
+#
+# This card adds that per-(gene, variant) axis from CIViC (curated, CC0), aggregated to the gene
+# (the target-eval unit). TARGET-GRAIN + indication-INDEPENDENT: a variant's oncogenicity and its
+# therapy-resistance relationships are properties of the gene's variants, not of a cohort.
+#
+# Two orthogonal axes:
+#   - civic_variant_class     — strongest per-variant oncogenicity call in the gene
+#                               (oncogenic > likely_oncogenic > vus > benign)
+#   - resistance_variant_count / resistance_variants — variants conferring therapy resistance
+#                               (EGFR T790M→TKIs, BRAF V600E→cetuximab, ABL1 TKD→imatinib)
+#
+# SCOPE: single-variant molecular profiles only (unambiguous gene attribution); complex/compound/
+# fusion profiles are combination biology (differentiation-landscape's co-mutation axis).
+#
+# DISPLAY facet — verdict-inert. Surfaces the per-variant interpretation to render/LLM; touches
+# no resolver rung (the genomic verdict still rests on the gene-level SNV/CN/role axes).
+
+card_id: variant-level-interpretation
+version: 0.1.0
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
+question: "For {target.symbol}, which specific variants are oncogenic (vs VUS/benign), and which confer therapy resistance — the per-variant call the gene-level role and recurrence axes can't make?"
+
+# Display projection (VERDICT-INERT). Declares has_oncogenic_variant as a display flag so it is consumed
+# here rather than misread as a *_class categorical by salience (salience reconcile 2026-09-16).
+capsule:
+  primary_class: civic_variant_class
+  categorical_fields:
+    - civic_variant_class
+    - has_oncogenic_variant
+
+tier: target   # per-variant oncogenicity + resistance are properties of the gene's variants, indication-independent
+
+applies_when:
+  - "true"   # any gene; data_unavailable-safe when the gene has no single-variant CIViC evidence
+
+required_inputs:
+  - product_id: civic-nightly-snapshot-2026-07-02
+
+methods:
+  - call: civic-variant-interpretation
+    args:
+      target: "{target.symbol}"
+
+outputs:
+  summary_fields:
+    - civic_variant_class                # PRIMARY categorical: strongest per-variant oncogenicity in the gene
+    - has_oncogenic_variant              # bool: any oncogenic/likely_oncogenic variant
+    - n_interpreted_variants             # single-variant CIViC profiles with evidence
+    - resistance_variant_count           # variants with a resistance annotation
+    - oncogenic_variants                 # [{variant, oncogenicity_class, n_evidence}] strongest-first
+    - resistance_variants                # [{variant, resistance_class, therapies}] count-desc
+    - civic_interpretation_context       # human-readable summary
+  summary_fields_scalar_types:
+    has_oncogenic_variant: boolean   # flag, not a categorical string
+
+  summary_fields_vocabulary:
+    civic_variant_class:
+      - oncogenic                        # >=1 variant graded Oncogenic (AMP/ASCO/CAP assertion)
+      - likely_oncogenic                 # >=1 variant likely-oncogenic (functional / sensitivity-implied / likely-graded)
+      - vus                              # variant(s) present but uncertain significance
+      - benign                           # variant(s) graded benign
+      - data_unavailable                 # no single-variant CIViC evidence for the gene — NOT a benign call
+    # resistance_variants[].resistance_class:
+    resistance_class:
+      - known_resistance                 # CIViC Predictive evidence, significance Resistance (therapy-linked)
+      - reduced_sensitivity              # significance Reduced Sensitivity
+      - no_resistance_annotation         # variant present, no resistance evidence
+
+caveats:
+  - "PER-VARIANT interpretation aggregated to the GENE. civic_variant_class is the STRONGEST oncogenicity call among the gene's variants — inspect oncogenic_variants for the specific alleles. This does NOT replace the gene-level alteration-role (GoF/LoF direction) or mutation-hotspot-frequency (recurrence); it adds the missing per-variant functional call."
+  - "Oncogenicity precedence: graded AMP/ASCO/CAP Oncogenic assertion (authoritative) > CIViC Oncogenic evidence-direction > Functional GoF/LoF/Dominant-Negative > Predictive-Sensitivity-implied (a therapy responding to a variant implies an actionable driver; only lifts an unknown/VUS call, never overrides an explicit benign). CIViC curation is high-precision but partial (~334 genes) — data_unavailable means uncurated, NOT benign."
+  - "SINGLE-VARIANT molecular profiles only. Complex/compound/fusion profiles (BRAF V600E AND NF1 Loss, BCR::ABL1) are combination biology — see differentiation-landscape's co-mutation axis — and are excluded to keep gene attribution unambiguous."
+  - "DISPLAY facet, verdict-inert: fires no resolver rung; the genomic-alteration verdict still rests on the gene-level SNV/copy-number/role axes. CIViC is CC0. IntOGen 2D/3D driver-cluster residues (a recall-extension leg for uncurated variants) are a deferred fast-follow."
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `variant_level_interpretation` claim, computed live from
+# the raw civic-nightly-snapshot-2026-07-02 by civic_variant_interpretation (the per-gene product is a
+# self-cache of that same logic). Additive per-variant axis for genomic-alteration-profile.
+measurement_type: variant_level_interpretation
+entity_grains: [target]
+schema_version: 1

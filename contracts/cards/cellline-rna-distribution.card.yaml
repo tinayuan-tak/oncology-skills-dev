@@ -1,0 +1,226 @@
+# Card E3a — EXPRESSION DISTRIBUTION across DepMap cell-line panel  (pure-data)
+#
+# Mirrors DepMap portal's per-gene expression panel. Reports TPM distribution across
+# ~1500 cell lines + per-lineage breakdown. Distinct from sibling expression cards:
+#   - tumor-rna-vs-adjacent: TCGA patient cohort vs adjacent normal
+#   - lineage-restriction-evidence: GTEx NORMAL tissue breadth
+#   - subgroup-stratified-expression: TCGA subgroup analysis
+# This card is CELL-LINE cohort only — "is this gene measurably expressed across
+# cancer cell lines, and is expression lineage-stratified?"
+#
+# Anchored to DepMap's log2(TPM+1) convention (OmicsExpressionTPMLogp1HumanProteinCodingGenes.csv):
+#   log2(TPM+1) >= 1.0   = expressed       (TPM >= 1.0)
+#   log2(TPM+1) >= 5.0   = highly expressed (TPM >= 31)
+#   log2(TPM+1) <  1.0   = not expressed   (TPM <  1.0)
+
+card_id: cellline-rna-distribution
+version: 1.3.0
+question: "Across ~1500 DepMap cell lines, what is the expression distribution of {target.symbol}, and is it lineage-stratified?"
+
+# Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a
+# non-verdict-driving field on this card; declare the rule-keyed primary + salient categoricals.
+# VERDICT-INERT projection (see capsule contract migration).
+capsule:
+  primary_class: expression_class
+  categorical_fields:
+    - expression_class
+    - allgene_percentile_class
+    - control_position_class
+    - isoform_expression_class
+    - distribution_pattern                        # P3 2026-09-23: shape categorical (unimodal/bimodal/long_tail); capsule-wired so the SK fleet-aperture ratchet counts it as read
+  numeric_anchors:
+    - coefficient_of_variation                    # P3 2026-09-23: linear-TPM dispersion qualifier; capsule-wired display anchor (earns a reader for the aperture ratchet)
+
+applies_when:
+  - "context.data_sources.depmap_expression_available == true"
+
+required_inputs:
+  - product_id: depmap-consortium-26q1
+    release_pin: "{release_pin}"
+  - product_id: depmap-isoform-expression-per-gene-v1   # isoform facet (methods: depmap-isoform-expression)
+  - product_id: allgene-depmap-rank-26q3-v1             # all-gene percentile facet (read.py depmap_allgene_percentile); read on every run — was under-pinned in the lockfile. Repointed 26q1->26q3 (data-catalog#654 / #935; old id still resolves)
+
+methods:
+  - call: depmap-expression-distribution
+    args:
+      target: "{target.symbol}"
+      release_pin: "{release_pin}"
+      expressed_threshold: "THRESHOLD.expressed_threshold_log2tpm"
+  # Additive isoform-EXPRESSION facet (2026-08-07, roadmap #2 model arm). ORTHOGONAL to the
+  # expression-LEVEL fields above: those say how MUCH the gene is expressed; this says WHICH
+  # transcript carries it. Reads the gene-sorted depmap-isoform-expression-per-gene-v1 product
+  # (per-gene dominant-isoform fraction across the panel). Verdict-inert — display + LLM context only.
+  - call: depmap-isoform-expression
+    args:
+      target: "{target.symbol}"
+
+outputs:
+  summary_fields:
+    - n_cell_lines_evaluated
+    - median_log2tpm_panel
+    - p25_log2tpm_panel
+    - p75_log2tpm_panel
+    - p5_log2tpm_panel
+    - p95_log2tpm_panel
+    - log2tpm_iqr
+    - fraction_expressed                          # log2(TPM+1) >= 1.0
+    - fraction_highly_expressed                   # log2(TPM+1) >= 5.0
+    - fraction_not_expressed                      # log2(TPM+1) < 1.0
+    - expression_class                            # DEPMAP-CONVENTION CATEGORICAL (drives Tier-2 rules)
+    - n_lineages_evaluated
+    - per_lineage_stats                           # list of {lineage, n, median_log2tpm, fraction_expressed}
+    - n_lineage_restricted_lineages               # lineages whose expressed-fraction is >=0.40 ABOVE the panel mean (relative rule; cli.py:227-230 — deliberately NOT a strict panel<30% gate)
+    # All-gene percentile null (additive, Phase 1C 2026-08-05): where the panel MEDIAN
+    # log2(TPM+1) falls among ALL ~19k protein-coding genes in the DepMap panel. A single-gene
+    # predicate-pushdown lookup of the precomputed allgene-depmap-rank-26q1-v1 (NO wide-matrix
+    # re-scan). Contextualizes the absolute panel median ("is 2.5 high?"). ORTHOGONAL to
+    # expression_class/lineage-restriction — a lineage-restricted antigen (e.g. CEACAM5) reads
+    # mid on the pan-panel median axis yet is a strong target on the lineage axis. One-directional:
+    # display + companion categorical; NEVER moves expression_class.
+    - allgene_percentile                           # float 0-100 (or null) — panel-median rank among all genes
+    - allgene_percentile_class                     # categorical (drives rules if wired)
+    - allgene_percentile_context                   # string — the panel/metric the null was drawn from (audit)
+    # Control-benchmark position (additive, Phase 2 2026-08-05): where the panel-median
+    # percentile sits relative to CURATED positive/negative control genes on the SAME
+    # pan-cancer panel scale (tumor_presence_controls.yaml). Turns a bare percentile into
+    # "above N/M positives; above N/M negatives" — a real antigen reads at/above the
+    # positives; housekeeping is a ceiling, silent/lineage genes a floor. One-directional:
+    # display + companion categorical; NEVER moves expression_class.
+    - control_position_class                       # categorical (drives rules if wired)
+    - control_position                             # string — "above N/M positive(s); above N/M negative(s)"
+    - control_positives                            # {symbol: percentile} — the positive anchors on this scale
+    - control_negatives                            # {symbol: percentile} — the applicable negative anchors
+    - control_position_context                     # string — controls vocab + scale the position was read on (audit)
+    # Isoform-EXPRESSION facet (additive, 2026-08-07, roadmap #2 model arm). Across the DepMap
+    # panel, how DOMINATED is this gene's expression by a SINGLE transcript? A single-isoform
+    # target is a cleaner modality/epitope target (an antibody/ADC/oligo hits a defined
+    # transcript); an isoform-diverse target (VEGFA, ERBB2, BCL2L1) flags that the functional/
+    # druggable isoform must be specified. ORTHOGONAL to expression-LEVEL + percentile + lineage
+    # axes (those say how MUCH; this says WHICH transcript). Verdict-inert: display + LLM context;
+    # NEVER moves expression_class. From depmap-isoform-expression-per-gene-v1 (MODEL arm; patient
+    # SpliceSeq is a separate deferred ingestion).
+    - isoform_expression_class                     # categorical (see vocabulary); verdict-inert
+    - dominant_isoform_fraction                    # float — cohort median top-isoform TPM / gene-total TPM
+    - n_expressed_isoforms                         # int — cohort median count of expressed isoforms per model
+    - dominant_isoform                             # string — modal top-isoform ENST across the panel
+    - isoform_n_models                             # int — cell lines expressing the gene (isoform-facet denominator)
+    - isoform_context                              # string — human-readable isoform summary (audit)
+    # Runtime-orphan display fields (additive, P3 2026-09-23, evidence-property architecture epic
+    # claude-oncology-skills#1507 / audit #1506 / issue #862). depmap-expression-distribution has
+    # emitted these since before this card's outputs.summary_fields was written; declaring AND
+    # capsule-wiring them (see capsule.categorical_fields / numeric_anchors above) both lets the SK
+    # tumor-presence field-disposition ledger disposition them (test_field_disposition_complete.py::
+    # test_ledger_matches_emitted_fields) AND earns them a reader, so the SK fleet-aperture ratchet
+    # (test_fleet_aperture_does_not_grow) counts them as read rather than as declared-but-unread
+    # orphans. Verdict-inert — neither moves expression_class.
+    #
+    # NARROWED from #869 (then partially RESTORED in P4): #869 declared 6 further runtime orphans here.
+    # Five remain reverted — control_target_percentile / control_target_class (redundant echoes of
+    # allgene_percentile / allgene_percentile_class), control_percentile_source /
+    # control_position_method_version (control-position provenance tokens) and
+    # control_negatives_excluded_lineage_conflict (a display array): none has a landed reader, and a
+    # declared-but-unread field breaches the SK aperture ratchet (a capsule can only credit scalar
+    # primary_class / categorical_fields / numeric_anchors, never an object or array). They return if
+    # and when a genuine (non-echo) reader materialises.
+    #
+    # RE-DECLARED in P4 (evidence-property architecture, SK#1508): expression_properties now has a
+    # landed reader — the SK tumor-presence claim layer surfaces it as a CITABLE evidence atom
+    # (_skills_common/presence_claims.py, via the `_patom` claim-passthrough seam), VERDICT-INERT. That
+    # reader is a claim atom, not a capsule (a capsule cannot credit an object), and the census credits
+    # the passthrough field, so declaring it here closes the SK ledger (test_ledger_matches_emitted_
+    # fields) and keeps the aperture ratchet balanced (domain +1, reached +1). Neither moves
+    # expression_class. The P2 resolver (analysis-methods/methods/expression_properties, #720) emits it.
+    - expression_properties                         # object {presence, magnitude, prevalence, heterogeneity, lineage_restriction, selectivity, localization, subtype_restriction} — the shared L2 expression-property facet (P1 vocab expression_property.enum.yaml v1.0.0). Surfaced by the SK claim layer, verdict-inert.
+    - coefficient_of_variation                     # float — CoV of linear TPM across the panel (dispersion qualifier); capsule numeric_anchor
+    - distribution_pattern                          # categorical — shape of the log2(TPM+1) distribution (unimodal/bimodal/long_tail); capsule categorical. The P2 property resolver (methods/expression_properties, separate PR) will additionally read this into heterogeneity/prevalence.
+
+  summary_fields_vocabulary:
+    expression_class:
+      - broadly_high                              # >70% cell lines highly expressed
+      - broadly_moderate                          # broad/patchy moderate presence: >=70% expressed but <30% highly, OR 10-70% expressed with no lineage enriched
+      - lineage_restricted                        # 10-70% expressed; lineage-stratified
+      - broadly_low                               # <30% expressed
+      - data_unavailable
+    allgene_percentile_class:
+      - top_1pct                                   # >= top_1_percentile cutoff
+      - top_decile                                 # >= top_decile cutoff
+      - mid
+      - bottom_decile                              # <= bottom_decile cutoff
+      - data_unavailable
+    control_position_class:
+      - above_all_positives                        # target >= every applicable positive control
+      - within_positives                           # target among the positives (>= at least one, below the max)
+      - above_negatives_below_positives            # clears every (floor) negative but below all positives
+      - below_negatives                            # below the highest non-housekeeping (silent/lineage) floor
+      - data_unavailable
+    isoform_expression_class:
+      - single_isoform_dominant                    # cohort-median dominant-isoform fraction >= 0.80 (one transcript carries expression)
+      - balanced                                   # 0.50-0.80 (a dominant isoform, but meaningful secondary transcripts)
+      - isoform_diverse                            # < 0.50 (no single isoform dominates — alternative splicing)
+      - data_unavailable
+
+  figures:
+    - id: density_expression
+      type: density_histogram_with_kde
+      description: "Histogram + KDE of log2(TPM+1) across the panel, with threshold reference lines at 1.0 (expressed) and 5.0 (highly expressed). Distribution shape is the primary diagnostic; bimodality + tail-skewness directly readable."
+      preferred_surfaces: [markdown, ppt, decision_memo]
+      primary: true
+    - id: lineage_strip_expression
+      type: per_lineage_strip_plot
+      description: "Per-lineage log2(TPM+1) strip plot, lineages ordered by median expression descending (n≥5 only). Lineage-restriction visible as bimodal-by-lineage pattern; red tick = lineage median."
+      preferred_surfaces: [markdown, ppt]
+  # (ranked_waterfall retired 2026-09-03 — redundant with the density panel, which now annotates the
+  # fraction-above-threshold + median directly; the per-lineage strip carries the complementary view.)
+  plot_data: per_cell_line_expression_with_lineage_tags
+
+thresholds:
+  expressed_threshold_log2tpm: 1.0                # DepMap's "expressed" cutoff
+  highly_expressed_threshold_log2tpm: 5.0         # TPM >= 31 ≈ high expression
+  broadly_expressed_fraction_threshold: 0.70
+  broadly_high_fraction_threshold: 0.30
+  lineage_restricted_min_fraction: 0.10
+  lineage_restricted_max_fraction: 0.70
+  min_lineage_size: 5                             # need ≥5 cell lines per lineage for stable estimate
+  # all-gene percentile-class cutoffs (method bins allgene_percentile → allgene_percentile_class)
+  allgene_top_1_percentile: 99.0
+  allgene_top_decile: 90.0
+  allgene_bottom_decile: 10.0
+
+threshold_roles:
+  lineage_restricted_max_fraction:
+    role: method_parameter
+    consumed_by: depmap-expression-distribution
+  lineage_restricted_min_fraction:
+    role: method_parameter
+    consumed_by: depmap-expression-distribution
+  min_lineage_size:
+    role: method_parameter
+    consumed_by: depmap-expression-distribution
+  allgene_top_decile:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the cell_line_rna_expression reference frame over `allgene_percentile` (percentile), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'
+  highly_expressed_threshold_log2tpm:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the cell_line_rna_expression reference frame over `median_log2tpm_panel` (log2tpm), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'
+warning_predicates:
+  - warning_id: low_panel_expression_coverage
+    if: "n_cell_lines_evaluated < 500"
+    message: "Expression panel coverage is unusually low for this gene; matrix subset may be biased."
+
+caveats:
+  - "Cell-line expression does not match tumor expression directly; DepMap lines are immortalized lab cultures and gene expression is biased toward proliferation programs."
+  - "Expression class is descriptive — therapeutic interpretation lives in target-contracts/interpretation-rules/."
+  - "Lineage-restricted expression in DepMap is informative but the gold-standard normal-tissue safety signal comes from GTEx via the lineage-restriction-evidence card."
+  - "Isoform-expression fields are MODEL-side (DepMap cell lines) and reflect transcript-level TPM; patient-tumour isoform usage (TCGA SpliceSeq) is a separate deferred axis. The dominant-isoform fraction is computed over transcript columns that map to GENCODE v26 (~83% of the matrix), so it is a within-mapped-isoform dominance, not a claim over unannotated transcripts."
+  - "isoform_expression_class is a verdict-inert display facet: it flags whether a target is a clean single-transcript target (modality/epitope simplicity) vs isoform-diverse (functional/druggable isoform must be specified); it does not move expression_class or fire any interpretation rule."
+
+measurement: bulk_rna
+sample_context: cell_line     # DepMap cell lines — NOT patient tumor (orthogonal to measurement; 2026-07-21)
+tier: target                  # pan-cancer DepMap panel — scope-invariant (no per-indication/subtype grain);
+                              # completes the (measurement × sample_context × tier) coordinate the presence
+                              # renderers group on. The per-lineage sub-view is a projection, not a tier.
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `cell_line_rna_expression` claim.
+measurement_type: cell_line_rna_expression
+entity_grains: [target, target_lineage]
+schema_version: 1

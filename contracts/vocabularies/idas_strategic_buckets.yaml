@@ -1,0 +1,69 @@
+# idas_strategic_buckets.yaml
+# Strategic groupings over iDAS indications. Buckets are METADATA — they
+# resolve to indication lists at query time. Buckets are NOT iDAS entities
+# themselves.
+#
+# BROADENED 2026-09-09 (user direction: "focus on Takeda iDAS indication
+# spaces — thoracic, gastric, heme; be broad in inclusion"). This supersedes
+# the narrow iter-1 grouping (2026-07-14): the three iDAS spaces now absorb
+# their adjacent indications, and GI-upper + GI-lower are consolidated into a
+# single broad Gastric (gastrointestinal) space. Everything outside these three
+# spaces is non-iDAS (rendered as the "Other" strategic_bucket in
+# indication_crosswalk.yaml; there is deliberately NO "Other" iDAS bucket here —
+# it is the absence of iDAS focus, not a space).
+#
+# Kept in lock-step with indication_crosswalk.yaml `strategic_bucket`
+# (the browser + tooling read that per-indication field; this file is the
+# space-level rollup). See IDAS_SUBTYPE_PIPELINE.md for the Scope contract.
+
+version: 1.1.0
+schema_version: 1
+curation_status: iter1_authored
+
+buckets:
+
+  - bucket_id: Thoracic
+    display_name: "Thoracic (Lung, Head & Neck, Pleura, Thymus)"
+    indications: [NSCLC, SCLC, HNSC, MESO, THYM]
+    rationale: >
+      Lung (NSCLC + SCLC) + Head-and-Neck (HNSC) share squamous biology and the
+      checkpoint-inhibitor / tobacco-mutation landscape (narrow iter-1 grouping).
+      Broadened 2026-09-09 to include the intrathoracic malignancies pleural
+      mesothelioma (MESO) and thymoma (THYM) per "be broad in inclusion"
+      direction. HNSC placement here is the standing Takeda strategic grouping
+      (upper-aerodigestive rather than chest-cavity, anatomically).
+
+  - bucket_id: Gastric
+    display_name: "Gastric / Gastrointestinal (broad)"
+    indications: [STAD, ESCA, PAAD, CHOL, LIHC, COADREAD]
+    rationale: >
+      Broad gastrointestinal space consolidating the former GI-upper (STAD, ESCA,
+      PAAD) and GI-lower (COADREAD) buckets, plus the hepatobiliary indications
+      cholangiocarcinoma (CHOL) and hepatocellular carcinoma (LIHC), per the
+      2026-09-09 "gastric, be broad" direction. Retains the HER2+ upper-GI
+      cross-indication thesis (STAD-HER2-amp + EAC-HER2-amp, ToGA precedent);
+      note PDAC (KRAS-dominant) and CRC treatment paradigms remain genomically
+      distinct but are grouped here for iDAS-strategic breadth.
+
+  - bucket_id: Heme
+    display_name: "Hematologic Malignancies"
+    indications: [AML, CML, DLBC]
+    rationale: >
+      Myeloid malignancies AML + CML (shared myeloid lineage + TKI paradigms:
+      FLT3 inhibitors in AML, BCR-ABL TKIs in CML). Broadened 2026-09-09 to
+      include DLBCL (DLBC), the lymphoid arm, per "be broad in inclusion".
+
+# Design invariants:
+# - Every `indications` entry must appear in indication_crosswalk.yaml.
+# - An indication may appear in AT MOST ONE bucket (mutual exclusion —
+#   simplifies UI/synthesis reasoning). Cross-bucket biology (e.g. HER2+
+#   spanning Gastric + Breast) is handled at synthesis-layer, NOT via
+#   multi-bucket membership.
+# - Buckets do NOT nest — no bucket is a subset of another.
+# - These three buckets ARE the iDAS focus spaces; indications outside them are
+#   non-iDAS and carry strategic_bucket: Other in indication_crosswalk.yaml.
+
+# Validation:
+# - schema_version + version pinned per data-catalog convention.
+# - `curation_status: iter1_authored` marks this as first-pass content pending
+#   clinical-lead sign-off (per the discipline for user-direction-driven vocabs).

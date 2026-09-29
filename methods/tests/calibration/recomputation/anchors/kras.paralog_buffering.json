@@ -1,0 +1,23 @@
+{
+  "target": "KRAS",
+  "indication": null,
+  "release_pin": "26q1",
+  "counts_fixture": "paralog_effects/depmap_26q1__paralog_gene_effect_slice.csv",
+  "expected_paralog_buffering_class": "strong",
+  "expected_strongest_paralog_symbol": "NRAS",
+  "expected_strongest_paralog_delta": 0.7205193095788722,
+  "expected_n_paralogs_annotated": 12,
+  "expected_n_paralogs_functionally_buffering": 6,
+  "snapshot_cross_ref": {
+    "source": "rnd-computational-biology-oncology-target-contracts/tests/calibration/snapshots/kras_coadread.functional-requirement.json",
+    "paralog_buffering_class": "strong",
+    "strongest_paralog_symbol": "NRAS"
+  },
+  "_source": {
+    "product": "depmap-consortium-26q1-paralogs/ParalogGeneEffect.csv (raw dual-KO gene effect)",
+    "read_path": "raw-CSV recompute (_read_from_raw_csv); derived product forced off",
+    "delta_definition": "min(single_a, single_b) - median_dual_ko  [strong>0.5, partial>=0.2]",
+    "captured_utc": "2026-09-21T11:41:16.776999+00:00",
+    "counts_fixture_md5": "222a4d62b9fbd182d900a85ad46a4cb3"
+  }
+}

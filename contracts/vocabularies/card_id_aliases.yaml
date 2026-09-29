@@ -1,0 +1,55 @@
+# card_id_aliases — historical card_id → current card_id.
+#
+# A card_id is a data CONTRACT. When a card is renamed for clarity (the naming-convention cleanup:
+# names encode <sample_context>-<measurement>[-by-grain]), stored data-products evidence packages keep
+# the OLD id baked into their directory paths (cards/<old_id>/...) as immutable approved history. This
+# map lets any tool that reads a historical package resolve its old card_id to the current one WITHOUT
+# rewriting the past. Forward-rename + alias, never mass-rewrite history.
+#
+# Invariant (guarded by tests): every `from` key is ABSENT from live cards/ (it was renamed away) and
+# every `to` value is a live card. Aliases are append-only; never delete one (a stored package may
+# still reference it).
+
+aliases:
+  # 2026-08-04 — naming-convention cleanup pilot. expression-distribution was cell-line-RNA-ONLY
+  # (pan-cancer DepMap TPM distribution); the bare name implied all expression. Renamed to name the
+  # sample_context + measurement it actually carries.
+  - from: expression-distribution
+    to: cellline-rna-distribution
+    renamed_date: '2026-08-04'
+    reason: "cell-line RNA distribution — the bare 'expression-distribution' hid that it is cell-line + RNA only"
+  - from: protein-presence-cptac
+    to: tumor-protein-abundance-cptac
+    renamed_date: '2026-08-04'
+    reason: "tumor protein abundance (CPTAC per-cohort) — 'presence' was vague; it's an abundance contrast"
+  - from: protein-abundance-celline
+    to: cellline-protein-abundance
+    renamed_date: '2026-08-04'
+    reason: "cell-line protein abundance (DepMap/Gygi MS) — word-order align (sample_context first)"
+  - from: expression-tumor-vs-adjacent
+    to: tumor-rna-vs-adjacent
+    renamed_date: '2026-08-04'
+    reason: "tumor RNA vs paired-adjacent DEG — name the RNA layer explicitly"
+  - from: tumor-expression-distribution-subtype
+    to: tumor-rna-distribution-by-subtype
+    renamed_date: '2026-08-04'
+    reason: "per-subtype tumor RNA distribution — grain explicit via by-<grain> suffix"
+  - from: tumor-expression-distribution
+    to: tumor-rna-distribution
+    renamed_date: '2026-08-04'
+    reason: "per-sample tumor RNA distribution — align with cellline-rna-distribution"
+  - from: rna-protein-concordance
+    to: cellline-rna-protein-concordance
+    renamed_date: '2026-08-04'
+    reason: "cell-line RNA-vs-protein concordance (the -tumor sibling is the tumor arm)"
+
+  # 2026-09-10 (#704 6b) — duplicate isoform-card consolidation. cellline-isoform-dominance and
+  # cellline-isoform-expression resolved to IDENTICAL product/method/entrypoint/vocabulary, differing
+  # only in measurement_type. Retired -dominance (measurement_type cell_line_isoform_dominance); kept
+  # cellline-isoform-expression (status: wired, measurement_type cellline_isoform_expression). Not a
+  # naming-cleanup rename — a de-duplication — but the same forward-alias contract lets any stored
+  # package that baked the old card_id resolve to the surviving card.
+  - from: cellline-isoform-dominance
+    to: cellline-isoform-expression
+    renamed_date: '2026-09-10'
+    reason: "duplicate molecular-form card consolidated into cellline-isoform-expression (same product/method; differed only in measurement_type)"

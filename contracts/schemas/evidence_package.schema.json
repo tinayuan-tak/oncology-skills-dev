@@ -1,0 +1,549 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/takeda-rnd/rnd-computational-biology-oncology-target-contracts/schemas/evidence_package.schema.json",
+  "title": "Evidence Package",
+  "description": "Schema for the canonical evidence package envelope emitted by compose-dashboard. The framework's central architectural claim is that this JSON envelope IS the product; markdown reports, HTML dashboards, PowerPoint decks, and decision memos are all *renderings* of an instance of this schema. See plan § Target Dashboard Architecture § Evidence package IS the product (A3) and § compose-dashboard behavioral spec (B1) for the runtime semantics that produce instances. This schema validates the runtime-emitted artifact; it does NOT validate authoring surfaces (those live in card.schema.json and dashboard_spec.schema.json).",
+  "type": "object",
+  "required": [
+    "package_id",
+    "framework_version",
+    "generated_at",
+    "generated_by",
+    "context",
+    "governance",
+    "dashboard_spec_ref",
+    "cards",
+    "synthesis",
+    "renderings",
+    "schema_version"
+  ],
+  "unevaluatedProperties": false,
+  "properties": {
+    "package_id": {
+      "type": "string",
+      "description": "Stable identifier for this specific evidence package emission. Convention: ep-{target}-{indication}-{release_pin}-{data_mode}-{seq}.",
+      "pattern": "^ep-[a-z0-9_-]+$",
+      "minLength": 5,
+      "maxLength": 200
+    },
+    "framework_version": {
+      "type": "string",
+      "description": "Semver of the framework that emitted this package. Iter-1 ships 2.0.0.",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?$"
+    },
+    "generated_at": {
+      "type": "string",
+      "description": "ISO-8601 timestamp of emission. Non-deterministic; excluded from card-invariance equality checks.",
+      "format": "date-time"
+    },
+    "generated_by": {
+      "type": "string",
+      "description": "Skill identifier + git_sha that emitted this package (e.g., 'skills/compose-dashboard@a1b2c3d').",
+      "pattern": "^skills/[a-z][a-z0-9-]*@[0-9a-f]+$"
+    },
+    "context": {
+      "type": "object",
+      "description": "The (target, indication, scope, subgroup_spec) binding this package was emitted for. scope and subgroup_spec must AGREE (allOf below, 2026-09-18): a subtype-scoped package (scope=cancer_subtype) carries a subgroup_spec (a strata list or the 'all' sentinel), and an indication- or pan-cancer-level package (scope=cancer_type|pancancer) carries no subgroup (subgroup_spec null or absent). Before this, scope was hardcoded 'cancer_type' regardless of subgroup_spec (skills envelope.py), so the two silently disagreed on every subtype run; the emitter now derives scope from subgroup_spec and this invariant pins that agreement in the contract.",
+      "required": ["target", "indication", "scope"],
+      "unevaluatedProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {"scope": {"const": "cancer_subtype"}},
+            "required": ["scope"]
+          },
+          "then": {
+            "required": ["subgroup_spec"],
+            "properties": {"subgroup_spec": {"not": {"type": "null"}}}
+          }
+        },
+        {
+          "if": {
+            "properties": {"scope": {"enum": ["cancer_type", "pancancer"]}},
+            "required": ["scope"]
+          },
+          "then": {
+            "properties": {"subgroup_spec": {"type": "null"}}
+          }
+        }
+      ],
+      "properties": {
+        "target": {
+          "type": "object",
+          "required": ["symbol", "hgnc_id"],
+          "properties": {
+            "symbol": {"type": "string", "minLength": 1},
+            "hgnc_id": {"type": "integer", "minimum": 1},
+            "ensembl": {"type": "string", "pattern": "^ENSG[0-9]+(\\.[0-9]+)?$"},
+            "uniprot": {"type": "string", "pattern": "^[A-Z][0-9][A-Z0-9]{3}[0-9]$"}
+          }
+        },
+        "indication": {
+          "type": "object",
+          "required": ["oncotree_code"],
+          "properties": {
+            "oncotree_code": {"type": "string", "minLength": 1},
+            "label": {"type": "string"}
+          }
+        },
+        "subgroup_spec": {
+          "description": "Either a list of subgroup_ids, the string 'all', or null.",
+          "oneOf": [
+            {"type": "null"},
+            {"type": "string", "const": "all"},
+            {"type": "array", "items": {"type": "string"}, "minItems": 1}
+          ]
+        },
+        "scope": {
+          "type": "string",
+          "enum": ["pancancer", "cancer_type", "cancer_subtype"]
+        }
+      }
+    },
+    "governance": {
+      "type": "object",
+      "description": "Governance metadata: data mode, release pin, lockfile reference, concurrence record reference, validation summary. The block downstream renderers consult to decide whether to emit into a nomination-grade artifact.",
+      "required": ["data_mode", "release_pin", "validation_summary"],
+      "unevaluatedProperties": false,
+      "properties": {
+        "data_mode": {
+          "type": "string",
+          "enum": ["latest_approved", "pinned", "exploratory"],
+          "description": "Must match data_mode.enum.yaml; inlined for standalone validation."
+        },
+        "release_pin": {
+          "type": "string",
+          "description": "Catalog release_pin identifier (e.g., '2026-Q2')."
+        },
+        "resolved_release_digest": {
+          "type": "string",
+          "description": "Governance enrichment (2026-08-12): sha256(sorted input_manifest_ids)[:16] — the run's DATA FINGERPRINT across every family it read. Changes when the underlying releases change, so it distinguishes runs across catalog releases even when release_pin is 'unpinned' (the eval-ledger cross-release trend keys on it)."
+        },
+        "resolved_releases": {
+          "type": "object",
+          "description": "Governance enrichment: per data-family, the manifests this run USED, the current catalog HEAD (via catalog_query.resolve_release), and an is_stale drift flag (True = the run read a superseded release). Best-effort; a family may carry resolution_error + head:null.",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "used": {"type": "array", "items": {"type": "string"}},
+              "head": {"type": ["string", "null"]},
+              "is_stale": {"type": "boolean"},
+              "resolution_error": {"type": "string"}
+            }
+          }
+        },
+        "lockfile_ref": {
+          "type": "string",
+          "description": "Relative path to lockfile.yaml within the package directory.",
+          "minLength": 1
+        },
+        "concurrence": {
+          "type": "object",
+          "description": "Optional concurrence-record reference. Absent for exploratory-mode packages or for packages not yet reviewed.",
+          "required": ["record_ref", "state"],
+          "unevaluatedProperties": false,
+          "properties": {
+            "record_ref": {"type": "string"},
+            "state": {"type": "string", "enum": ["concur", "concur_with_caveats", "dissent"]},
+            "reviewer_id": {"type": "string"}
+          }
+        },
+        "validation_summary": {
+          "type": "object",
+          "required": [
+            "n_cards_attempted",
+            "n_cards_passed",
+            "n_cards_passed_with_warnings",
+            "n_cards_failed",
+            "n_cards_excluded_by_applies_when"
+          ],
+          "unevaluatedProperties": false,
+          "properties": {
+            "n_cards_attempted": {"type": "integer", "minimum": 0},
+            "n_cards_passed": {"type": "integer", "minimum": 0},
+            "n_cards_passed_with_warnings": {"type": "integer", "minimum": 0},
+            "n_cards_failed": {"type": "integer", "minimum": 0},
+            "n_cards_excluded_by_applies_when": {"type": "integer", "minimum": 0}
+          }
+        }
+      }
+    },
+    "dashboard_spec_ref": {
+      "type": "string",
+      "description": "Reference to the dashboard_spec used to compose this package (e.g., 'target-contracts/dashboards/target-in-indication.dashboard_spec.yaml@<git_sha>').",
+      "minLength": 1
+    },
+    "cards": {
+      "type": "array",
+      "description": "Per-card outputs. Each entry is ONE of: (1) a present-and-validated card (card_present — summary, interpretation_call, provenance); (2) an applies_when exclusion stub (card_excluded — a structured predicate reason); (3) an availability stub (card_unavailable — the card produced no usable signal, carrying a typed availability_state that says WHY: not_wired / data_blocked / read_error / insufficient). card_unavailable replaces the historical silent drop-to-n_cards_failed: an unwired or data-blocked card is now a first-class, reasoned absence a consumer can key on, not an opaque integer. Validation-FAILED cards (method exception / schema violation) still do NOT appear here — they are surfaced only in validation_report.json (A2 rule).",
+      "items": {
+        "oneOf": [
+          {"$ref": "#/$defs/card_present"},
+          {"$ref": "#/$defs/card_excluded"},
+          {"$ref": "#/$defs/card_unavailable"}
+        ]
+      },
+      "minItems": 0,
+      "maxItems": 300
+    },
+    "synthesis": {
+      "type": "object",
+      "description": "Output of the dashboard_spec's synthesis_prompts. Iter-1 ships a minimal synthesis (headline + caveats_summary); deeper synthesis is iter-2.",
+      "required": ["headline"],
+      "properties": {
+        "headline": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 2000
+        },
+        "caveats_summary": {
+          "type": "string",
+          "maxLength": 5000
+        },
+        "claim_vectors": {
+          "type": "object",
+          "description": "Per-sub-skill VERDICT-INERT signal decomposition + canonical headline, keyed by sub-skill short name. Carried from each sub-skill's _synthesis_facet by the target-profile fan-out; ABSENT for compose-dashboard packages. Additive — the synthesis block intentionally does NOT set additionalProperties:false (sub_verdicts / recommendation_gate ride as consumer-owned additional properties).",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "claim_vector": {
+                "type": "object",
+                "description": "The {axis: {signal, corroboration, evidence, conflict, informs, evidence_atom?}} projection (claim_vector_core), plus a `_disclaimer` string. Each axis object stays open (signal/corroboration/... ride freely); the ONLY structural pin is that a present `evidence_atom` must be a well-formed citable atom (see $defs.evidence_atom) — the citation-integrity guard.",
+                "additionalProperties": {
+                  "oneOf": [
+                    {"type": "string"},
+                    {"type": "object", "properties": {"evidence_atom": {"$ref": "#/$defs/evidence_atom"}}}
+                  ]
+                }
+              },
+              "key_signals": {"type": ["object", "null"]},
+              "headline_block": {"$ref": "#/$defs/headline_block"}
+            }
+          }
+        }
+      }
+    },
+    "renderings": {
+      "type": "object",
+      "description": "References to rendered surfaces produced for this package. Iter-1 ships markdown only.",
+      "properties": {
+        "markdown": {"type": "string"},
+        "html": {"type": "string"},
+        "ppt": {"type": "string"},
+        "decision_memo": {"type": "string"}
+      },
+      "minProperties": 1
+    },
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "subtype_resolved": {
+      "$ref": "#/$defs/subtype_resolved",
+      "description": "OPTIONAL first-class subtype-resolved EVIDENCE block (subtype-first-class-evidence-axis spec, Option A). Present only for runs scoped to molecular strata (target-profile `--subtypes`); ABSENT for default (no-strata) runs, which stay byte-stable. This block makes the per-stratum subtype SIGNALS machine-readable so the cross-evidence integrator can reason at subtype resolution WITHOUT changing the deterministic spine's deliberate 'subtype = context, not a gate' treatment. It is SOFT integrator context: it never raises certainty beyond what a stratum's n supports, never overrides a gate, and a stratum below its n-floor carries no weight. No positive subtype signal here enters any hard gate."
+    },
+    "source_properties": {
+      "type": "object",
+      "description": "OPTIONAL L2a section (evidence-property architecture L1→L4, § 'The subskill as a bounded biological evidence package'; SK#1941). Present only for a subskill emitting a bounded evidence package (tumor-presence reference vertical); ABSENT for compose-dashboard/other packages, which stay byte-stable. A map of per-SOURCE biological properties (resolvers translate card measurements into bounded properties, e.g. patient_tumor_abundance / malignant_cell_coverage / tumor_protein_abundance). Reconstructable DOWNWARD to L1: each property entry carries the `card_id` of the card it resolved from. VIEW over content already on the decision headline (verdict-INERT): declaring/consuming it moves no verdict. additionalProperties stays open — the emitting skill owns each property's shape.",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {"card_id": {"type": "string"}}
+      }
+    },
+    "integrated_properties": {
+      "type": "object",
+      "description": "OPTIONAL L2b section (evidence-property architecture L1→L4; SK#1941). Present only for a subskill emitting a bounded evidence package; ABSENT otherwise (byte-stable). The domain's property ISLANDS — cross-source integrations keyed by their claim_id (e.g. tumor_presence_concordance, abundance_concordance, bulk_vs_singlecell_coverage_concordance, protein_presence_concordance). Reconstructable DOWNWARD to L1: each island carries `provenance.sources[*].provenance.card_id`. VIEW over content already on the decision headline (verdict-INERT). additionalProperties stays open — the emitting skill owns each island's shape.",
+      "additionalProperties": {"type": "object"}
+    },
+    "local_composites": {
+      "type": "object",
+      "description": "OPTIONAL section for composites that stay INSIDE the subskill (evidence-property architecture L1→L4, 'Local composites … carried with their epistemic type declared'; SK#1941). Present only for a subskill emitting a bounded evidence package; ABSENT otherwise (byte-stable). Carries the domain-local claim axes with their epistemic type declared; each carried claim is reconstructable DOWNWARD to L1 via its `evidence_atom.cite.card_id`. VIEW over content already on the decision headline (verdict-INERT).",
+      "properties": {
+        "epistemic_type": {"type": "string"},
+        "claims": {"type": "object"}
+      },
+      "additionalProperties": true
+    },
+    "l3d": {
+      "type": "object",
+      "description": "OPTIONAL within-domain interpretation section (L3d — DOMAIN_INTERPRETATION, strictly between L2b integrated_property and L3f decision_frame; SK#1940/#1941). Present only when a within-domain story resolves for a subskill emitting a bounded evidence package; ABSENT otherwise (byte-stable). A DETERMINISTIC (no-LLM) claim-ID-traceable synthesis over the L2b islands, staying strictly inside the subskill's semantic domain (never a cross-domain conclusion). Reconstructable DOWNWARD to the L2 claims via `provenance.claim_ids`. VIEW over content already on the decision headline (verdict-INERT). additionalProperties stays open — the emitting skill owns the story's shape."
+    }
+  },
+  "$defs": {
+    "evidence_atom": {
+      "type": "object",
+      "description": "A CITABLE evidence atom on a claim_vector axis (produced by the shared claim_vector_core.build_atom): the load-bearing numeric VALUES bound to their source {card_id, fields}. Structural guard for CITATION INTEGRITY — an atom must carry a `cite.card_id` (a string that resolves to a composed card), so a downstream reasoner can never cite a phantom source. additionalProperties stays open (read/entity ride along).",
+      "required": ["values", "cite"],
+      "properties": {
+        "read": {"description": "Human-readable one-token read of the atom (often the class label)."},
+        "values": {"type": "object", "description": "The load-bearing values (numeric/label), verbatim from the source card summary."},
+        "cite": {
+          "type": "object",
+          "required": ["card_id"],
+          "properties": {
+            "card_id": {"type": "string", "description": "The source card_id — MUST resolve to a composed card in this package (citation-integrity)."},
+            "fields": {"type": "array", "items": {"type": "string"}, "description": "The sorted value keys that are citable fields (list-valued keys are omitted here but kept in `values`)."}
+          }
+        },
+        "entity": {"type": ["string", "object"], "description": "Grain identity of the source: either a coarse grain TOKEN (e.g. 'target' / 'indication' / 'gene_indication', as translational_readiness + literature_context emit) OR a typed identity OBJECT (e.g. {measurement_type, sample_context}). Both are valid; the object-only pin previously failed the token-emitting axes."}
+      }
+    },
+    "headline_block": {
+      "type": "object",
+      "description": "The canonical per-skill HEADLINE block (verdict + confidence + top tension) produced by headline_core.build_headline — a VERDICT-INERT projection over the sub-skill's claim_vector / key_signals. Carries a deterministic one-sentence headline_text plus a renderer-agnostic `hero` plot_data payload (rendered by headline_hero to figure_headline_hero.{svg,png,json}). It never mints or lifts a verdict; the authoritative call remains the resolver gate verdict.",
+      "required": ["verdict", "confidence", "headline_text"],
+      "properties": {
+        "verdict": {
+          "type": "object",
+          "description": "The canonical, single-spelling verdict for this lens.",
+          "required": ["gate"],
+          "properties": {
+            "call": {"type": ["string", "null"], "description": "The verdict token (the sub-skill's vocabulary)."},
+            "phrase": {"type": "string", "description": "Human-readable phrase for the call."},
+            "gate": {"type": "string", "description": "The verdict gate name (e.g. 'presence')."},
+            "driving_rule_id": {"type": ["string", "null"]}
+          }
+        },
+        "confidence": {
+          "type": "object",
+          "required": ["level"],
+          "properties": {
+            "level": {"enum": ["strong", "moderate", "weak", "insufficient"], "description": "Weakest-link over the claim vector's corroboration (measured axes), capped by conflict and coverage; or the CERTAINTY_MODEL sidecar level when the skill emits one."},
+            "basis": {"type": "string"},
+            "coverage": {
+              "type": "object",
+              "properties": {
+                "n_measured": {"type": "integer"},
+                "n_axes": {"type": "integer"},
+                "n_critical_measured": {"type": "integer"}
+              }
+            }
+          }
+        },
+        "top_tension": {
+          "type": ["object", "null"],
+          "description": "The single highest-severity tension (claim conflict / key-signals caveat / skill-specific), or null when none.",
+          "properties": {
+            "text": {"type": "string"},
+            "source": {"type": "string"},
+            "severity": {"type": "integer"}
+          }
+        },
+        "headline_text": {"type": "string", "description": "Deterministic one-sentence headline (NOT the LLM narration)."},
+        "hero": {"type": "object", "description": "Renderer-agnostic hero plot_data (verdict badge, confidence meter, per-axis signal×corroboration, tension marker)."},
+        "provenance": {
+          "type": "array",
+          "description": "Citations lifted from the claim_vector atoms: {axis, card_id, fields}.",
+          "items": {"type": "object"}
+        }
+      }
+    },
+    "subtype_resolved": {
+      "type": "object",
+      "description": "Subtype-resolved evidence block (Option A). Carries, per requested molecular stratum, the per-stratum evidence_state / effect-size metric / subgroup_n / n-floor-met drawn from the subtype-grain cards' per_subgroup_metrics (dependency + mutation-frequency today), plus the cross-axis subtype convergence facet. Additive + independently schema-versioned (schema_version inside this block, distinct from the envelope's top-level schema_version). Verdict-inert: nothing here mints or lifts a nomination.",
+      "required": ["schema_version", "requested_strata", "per_stratum"],
+      "properties": {
+        "schema_version": {
+          "type": "integer",
+          "const": 1,
+          "description": "Version of the subtype_resolved block shape (independent of the envelope's schema_version)."
+        },
+        "requested_strata": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "description": "The molecular strata the run was scoped to (mirrors context.subgroup_spec when that is a list). Empty when a subtype-scoped run named no resolvable strata."
+        },
+        "available_strata": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "description": "Strata that actually appeared in at least one subtype-grain card's per_subgroup_metrics this run. A requested stratum absent here had no per-stratum record (coverage/floor gap) and carries no weight."
+        },
+        "per_stratum": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/subtype_stratum_record"},
+          "description": "One record per stratum observed in the subtype-grain cards, each carrying its per-axis evidence_state / n / floor / metric. ABSENCE-DISCIPLINE: a stratum below its n-floor is present but flagged subgroup_n_floor_met=false, so a consumer must not credit it."
+        },
+        "convergence_facet": {
+          "type": "object",
+          "description": "The cross-axis subtype convergence facet (_subtype_facet): per-molecular-subtype which axes carry a MEASURED signal, which subtypes converge on >=2 axes (convergent_subtypes), and registry-bridged associations (associated_subtypes). Previously computed but dropped from the package (emitted only to nomination.json); surfaced here for the integrator. Shape is the facet's own; validated loosely."
+        },
+        "_disclaimer": {
+          "type": "string",
+          "description": "Human-readable statement of the SOFT/verdict-inert contract for this block."
+        }
+      }
+    },
+    "subtype_stratum_record": {
+      "type": "object",
+      "description": "Per-stratum evidence record: the molecular stratum id + its per-axis per_subgroup_metrics projection.",
+      "required": ["stratum", "axes"],
+      "properties": {
+        "stratum": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The molecular-subtype identity (e.g. MSI_H, MSS, NAPY strata)."
+        },
+        "axes": {
+          "type": "object",
+          "description": "Keyed by evidence axis (dependency, mutation_frequency). Each value is the axis's per-stratum projection.",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "evidence_state": {
+                "type": ["string", "null"],
+                "description": "measured / underpowered / absent — the per-stratum evidence state emitted by the subtype-grain card. null when the card row did not carry one."
+              },
+              "subgroup_n": {
+                "type": ["number", "null"],
+                "description": "Number of samples/models in the stratum for this axis."
+              },
+              "subgroup_n_floor_met": {
+                "type": ["boolean", "null"],
+                "description": "Whether the stratum cleared its per-axis n-floor. false => carries no weight (absence-discipline at stratum grain)."
+              },
+              "metric": {
+                "type": "object",
+                "description": "The per-stratum effect-size / class the panorama row exposes (e.g. a Chronos median, a mutation frequency). Shape varies per axis; validated loosely."
+              }
+            }
+          }
+        }
+      }
+    },
+    "card_present": {
+      "type": "object",
+      "required": [
+        "card_id",
+        "card_version",
+        "validation_state",
+        "summary",
+        "interpretation_call",
+        "provenance"
+      ],
+      "unevaluatedProperties": false,
+      "properties": {
+        "card_id": {"type": "string", "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$"},
+        "card_version": {"type": "string"},
+        "measurement_type": {
+          "type": "string",
+          "description": "OPTIONAL (2026-08-16, cross-evidence roadmap invariant 8). The card's IDENTITY — the single per-target-entity CLAIM it measures, a key in target-contracts/vocabularies/measurement_types.yaml (e.g. crispr_lof_dependency, tumor_vs_normal_selectivity). Stamped by the emitting skill (resolved from the registry's card back-refs) so a cross-evidence integrator can group cards by claim without re-deriving it from card_id. Additive + backward-compatible; the default byte-golden envelope omits it.",
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "evidence_substrate": {
+          "type": "string",
+          "description": "OPTIONAL (2026-08-16, independence-before-certainty). The shared underlying RAW DATA PRODUCT this card's measurement_type is computed from — a key in measurement_types.yaml's `evidence_substrates` vocab (e.g. recount3_tcga_gtex_bulk_rna, depmap_crispr_chronos). Two present cards sharing an evidence_substrate are NOT independent corroboration: their agreement is a correlated re-read of the SAME measurements (the HTR1D expression<->selectivity double-count), so the integrator must not count them twice toward certainty. Absent = genuinely-independent singleton (the common case). Additive; the default byte-golden envelope omits it.",
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "validation_state": {
+          "type": "string",
+          "enum": ["pass", "passed_with_warnings"],
+          "description": "Present-card entries are pass or passed_with_warnings. Failed cards do NOT appear in the envelope."
+        },
+        "summary": {
+          "type": "object",
+          "description": "The card's emitted summary fields. Shape varies per card_id (matches the card_spec's outputs.summary_fields)."
+        },
+        "figure_ref": {"type": "string"},
+        "plot_data_ref": {"type": "string"},
+        "figures": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "path"],
+            "properties": {
+              "id": {"type": "string"},
+              "path": {"type": "string"},
+              "type": {"type": "string"},
+              "primary": {"type": "boolean"}
+            }
+          },
+          "description": "Figure descriptors emitted by phase-2's figure-emission registry. Path is relative to the evidence package's output root."
+        },
+        "interpretation_call": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The interpretation label emitted by the card's first-matching interpretation_hints rule. For negative-control runs, expect values like 'not informative' or 'no characterized hotspot landscape'."
+        },
+        "caveats": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "warning_ids": {
+          "type": "array",
+          "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+          "description": "Structured warning identifiers fired by the card's warning_predicates (when validation_state is passed_with_warnings). Free-text warnings are NOT acceptable; see validation_state.enum.yaml.passed_with_warnings.requires_structured_warning_ids."
+        },
+        "provenance": {
+          "type": "object",
+          "required": ["method_calls", "input_manifest_ids"],
+          "properties": {
+            "method_calls": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "method": {"type": "string"},
+                  "git_sha": {"type": "string"},
+                  "args": {"type": "object"}
+                }
+              }
+            },
+            "input_manifest_ids": {
+              "type": "array",
+              "items": {"type": "string"}
+            },
+            "required_product_ids": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "OPTIONAL (2026-08-16, cross-evidence roadmap invariant 8). The products.yaml product_ids the card DECLARES as inputs (card_spec.required_inputs[].product_id) — the STABLE, release-independent declared-input identity, coarser than input_manifest_ids (which pins a concrete release). Surfaced so a cross-evidence integrator can detect shared underlying products across cards at the declared-input grain, complementing the coarser evidence_substrate. Additive; the default byte-golden envelope omits it."
+            },
+            "canonical_decision_refs": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "References to canonical-decisions records (resolves open item #8). Required for governance-grade packages."
+            }
+          }
+        }
+      }
+    },
+    "card_excluded": {
+      "type": "object",
+      "required": ["card_id", "card_version", "excluded_by_applies_when", "exclusion_reason"],
+      "unevaluatedProperties": false,
+      "properties": {
+        "card_id": {"type": "string", "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$"},
+        "card_version": {"type": "string"},
+        "excluded_by_applies_when": {
+          "type": "boolean",
+          "const": true,
+          "description": "Discriminator: distinguishes excluded entries from card_present entries."
+        },
+        "exclusion_reason": {
+          "type": "string",
+          "minLength": 5,
+          "description": "Structured reason: the applies_when predicate (or cascading-exclusion link) that failed. NOT free text — must reference the failed predicate."
+        }
+      }
+    },
+    "card_unavailable": {
+      "type": "object",
+      "description": "A card that produced NO usable signal, carrying a typed reason WHY. Replaces the historical silent drop-to-n_cards_failed: an unwired / data-blocked / errored / measured-absent card is a first-class reasoned absence, so a consumer (and the deciding-axis router) can distinguish 'we haven't built it' from 'we looked and it's genuinely unknown'. Discriminator: `availability_state` present (card_present has validation_state; card_excluded has excluded_by_applies_when).",
+      "required": ["card_id", "card_version", "availability_state", "availability_reason"],
+      "unevaluatedProperties": false,
+      "properties": {
+        "card_id": {"type": "string", "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$"},
+        "card_version": {"type": "string"},
+        "availability_state": {
+          "type": "string",
+          "enum": ["not_wired", "data_blocked", "read_error", "insufficient"],
+          "description": "WHY the card is unavailable. See vocabularies/availability_state.enum.yaml. not_wired/data_blocked/read_error are framework-COVERAGE gaps (never looked / could not look); insufficient is a MEASURED gap (looked, target genuinely absent / below floor). None is opposing evidence."
+        },
+        "availability_reason": {
+          "type": "string",
+          "minLength": 5,
+          "description": "Human-readable, structured reason string (e.g. 'dispatcher_returned_none', 'live_read_error: <detail>', 'primary_class=data_unavailable'). Names the concrete cause; not free-form narrative."
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,112 @@
+# Card — RNA↔PROTEIN CONCORDANCE, TUMOR (CPTAC; Q5 tumor arm)
+#
+# The TUMOR-grain sibling of cellline-rna-protein-concordance (cell-line). Same question — does RNA predict
+# PROTEIN for this target? — but IN PATIENT TUMORS, per the indication's CPTAC cohort, from the
+# matched cptac-rna-protein-matched-per-sample-v1 product (per-(cohort, patient, gene) RNA+protein).
+#
+# WHY A SEPARATE CARD (grain-split, not two providers of one number): cell-line concordance is a
+# TARGET property (one r per gene, indication-independent → tier:target). Tumor concordance is
+# TARGET_INDICATION (one r per gene×cohort — a target can track in one tumor type and decouple in
+# another). Same measurement_type (rna_protein_concordance), different grain → sibling card, mirroring
+# the pooled/subtype expression split. The two are REPORTED SIDE-BY-SIDE, never averaged: they answer
+# the biomarker question in two contexts and their DISAGREEMENT is itself the signal.
+#
+# WHY TUMOR MATTERS MOST for rna_as_biomarker: bulk-tumor purity, stromal admixture, and
+# post-transcriptional regulation degrade RNA↔protein concordance far more than in cell lines, and it
+# is strongly gene-specific — so the tumor number, not the cell-line one, is what a patient-selection
+# RNA biomarker or RNA-inferred presence claim actually rests on. Verified: KRAS in COAD tumors
+# r≈0.01 (RNA useless as a KRAS-protein proxy) vs r≈0.55 in cell lines; ERBB2/BRCA r≈0.78, EGFR/LUAD
+# r≈0.80 (RNA adequate). The cell-line "partial_proxy" for KRAS would MISLEAD without the tumor read.
+
+card_id: rna-protein-concordance-tumor
+version: 0.1.0
+question: "Does {target.symbol} RNA predict its PROTEIN in {indication.label} TUMORS (CPTAC) — is RNA an adequate proxy in the disease context, or must protein be measured directly?"
+
+tier: indication   # tumor concordance is cohort/indication-specific
+
+# Evidence-capsule projection contract (#2015). The headline statistic of this card — the
+# per-tumor Pearson concordance rna_protein_r (+ its Fisher-z 95% CI bounds) — matched NO
+# _ANCHOR_HINTS token, so the capsule's numeric-anchor scan could not reach it; it surfaced
+# ONLY because "rna_protei·n_·r" contains the substring "n_" and was mis-swept into n_basis by
+# the pre-#2015 substring heuristic (a decisive correlation laundered as a fake sample size).
+# With that substring bug fixed skills-side, the statistic would vanish from the package
+# entirely, so we DECLARE it as a numeric_anchor here (mirroring the tumor-vs-normal-selectivity
+# declared-anchors precedent, TC#780). VERDICT-INERT projection: the 0.4/0.7 concordance frame
+# is a skill-side reader over rna_protein_r (threshold_roles below), not a card predicate.
+capsule:
+  numeric_anchors:                             # replaces the unreachable _ANCHOR_HINTS scan
+    - rna_protein_r                            # headline Pearson concordance (paired per-tumor)
+    - rna_protein_r_ci95_low                   # Fisher-z 95% CI low of the classifying correlation
+    - rna_protein_r_ci95_high                  # Fisher-z 95% CI high
+
+applies_when:
+  # the indications with a CPTAC cohort in the matched product (10 cohorts).
+  - "context.indication in ['BRCA', 'CCRCC', 'KIRC', 'COADREAD', 'COAD', 'READ', 'GBM', 'HNSC', 'HNSCC', 'LUSC', 'LSCC', 'LUAD', 'OV', 'PAAD', 'PDAC', 'UCEC']"
+
+required_inputs:
+  - product_id: cptac-rna-protein-matched-per-sample-v1   # matched per-(cohort, patient, gene) tumor RNA+protein
+
+methods:
+  - call: depmap-rna-protein-concordance
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - rna_as_biomarker                           # PRIMARY categorical (shared vocab with the cell-line card)
+    - rna_protein_r                              # Pearson (paired per-tumor)
+    - rna_protein_spearman
+    - n_paired_tumors
+    - cptac_cohort                               # the CPTAC cohort backing this indication
+    - substrate                                  # 'cptac_tumor' (distinguishes from the cell-line card)
+    # G10 boundary-fragility quartet (verdict-INERT; mirrors the cell-line orphan set). Emitted by
+    # read.py::_proxy_boundary_ci on the full-data path — they never change rna_as_biomarker, they
+    # let a consumer down-weight a class call whose Fisher-z CI straddles a 0.4/0.7 boundary.
+    - rna_proxy_classified_on                    # 'spearman' | 'pearson_fallback' — which correlation drove the class
+    - rna_protein_r_ci95_low                     # Fisher-z 95% CI low of the classifying correlation
+    - rna_protein_r_ci95_high                    # Fisher-z 95% CI high
+    - rna_proxy_class_boundary_fragile           # bool: CI straddles a class boundary (call may flip by sampling alone)
+  summary_fields_vocabulary:
+    rna_as_biomarker: [adequate_proxy, partial_proxy, poor_proxy, insufficient_paired_tumors, data_unavailable]
+  figure: rna_protein_concordance_tumor_scatter  # per-tumor RNA vs protein, fitted trend + r
+
+thresholds:
+  strong_concordance_r: 0.7
+  moderate_concordance_r: 0.4
+  min_paired_tumors: 20            # below → insufficient_paired_tumors
+
+caveats:
+  - "TUMOR-grain sibling of cellline-rna-protein-concordance (cell-line). Same measurement_type, different grain (target_indication vs target). Report the two SIDE-BY-SIDE, never averaged — their disagreement (e.g. KRAS partial in cell lines, poor in COAD tumors) is the decision-relevant signal."
+  - "CPTAC cohort maps to the indication (COADREAD→coad, KIRC→ccrcc, LUSC→lscc, PAAD→pdac, etc.); indications without a CPTAC cohort return data_unavailable."
+  - "bcm protein abundance is NOT zero-centered (per the matched product manifest) — used for CORRELATION only (scale-invariant), never cross-gene comparison."
+  - "A poor_proxy verdict is a MODALITY caution (protein must be measured for ADC/TCE; RNA biomarker inadequate in THIS tumor type), NOT a target killer."
+  - "Bulk-tumor concordance is degraded by purity/stroma; a low r may partly reflect microenvironmental dilution rather than pure post-transcriptional decoupling (see Q9 purity attribution)."
+  - "PROVENANCE+LICENSE (canon-13 #883): CPTAC proteogenomics (NCI Proteomic Data Commons) via the open-access cptac Python package — broad RSEM tumor RNA joined to bcm protein on the shared CPTAC Patient_ID, per required_inputs product cptac-rna-protein-matched-per-sample-v1 (from source cptac-pdc-snapshot-2026-07-01). LICENSE: NCI PDC open-access; attribution per CPTAC conventions (https://pdc.cancer.gov/pdc/about). Prose because card.schema.json admits no top-level provenance/license key."
+
+measurement: bulk_rna
+sample_context: tumor          # patient tumor (CPTAC), contrasted RNA-vs-protein
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — rna_protein_concordance at target_indication grain (tumor arm).
+measurement_type: rna_protein_concordance
+# P4 Tier-2 (2026-07-24): surface — rna_as_biomarker is a proxy-caution for the antibody antigen argument (surface rules I); RNA-as-SM-biomarker is carried by the sibling cell-line concordance card. Declaration lands WITH the matching surface rules (PR feat/p4-surface-rules-tier2) — never declare without a rule.
+modality_relevance: [adc, bite_tce, antibody]
+entity_grains: [target_indication]
+schema_version: 1
+
+# canon-13 (#883): the 0.4/0.7/20 cuts are verdict/reader cuts applied OUTSIDE a card predicate, so
+# THRESHOLD_UNUSED must not ask for their deletion. They are NOT read from this card — the method
+# hardcodes them as module constants, so card and code can drift silently; this block is the single
+# reviewable point of record for that drift (3rd occurrence of the hardcode pattern: canon-11 F4 →
+# canon-12 TC#882 → here). Sibling: cellline-rna-protein-concordance (same reader frame).
+threshold_roles:
+  moderate_concordance_r:
+    role: reader_gate
+    note: 'reader_gate: skill-side reader (evidence_salience.contract_threshold) applies 0.4 as the rna_protein_concordance frame over rna_protein_r, not a card predicate (THRESHOLD_UNUSED is a false positive here). ALSO hardcoded method-side as MODERATE_CONCORDANCE_R in analysis-methods depmap_rna_protein_concordance/read.py; method never reads this card so card/code can drift.'
+  strong_concordance_r:
+    role: reader_gate
+    note: 'reader_gate: skill-side reader (evidence_salience.contract_threshold) applies 0.7 as the rna_protein_concordance frame over rna_protein_r, not a card predicate (THRESHOLD_UNUSED is a false positive here). ALSO hardcoded method-side as STRONG_CONCORDANCE_R in analysis-methods depmap_rna_protein_concordance/read.py; method never reads this card so card/code can drift.'
+  min_paired_tumors:
+    role: method_parameter
+    consumed_by: depmap-rna-protein-concordance
+    note: 'Tumor arm read_tumor_rna_protein_concordance applies MIN_PAIRED_TUMORS=20 method-side (below it rna_as_biomarker=insufficient_paired_tumors); hardcoded in analysis-methods depmap_rna_protein_concordance/read.py, not read from this card — documented for drift review.'

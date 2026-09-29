@@ -1,0 +1,23 @@
+{
+  "$comment": "PER-SKILL PINS (source) for target-intrinsic. VARIANT = gateless-descriptive: verdict_fn=None → skill_report.call is NULL; role:descriptive + polarity:not_scored const. This is an indication-INDEPENDENT multi-field target-biology dossier with NO single headline verdict field — so nothing is required at headline beyond the shared skill_report; the dossier's *_class fields are schema-open. Append-only within contract major version.",
+  "skill": "target-intrinsic",
+  "role_variant": "gateless_descriptive",
+  "pins": {
+    "properties": {
+      "skill": {"const": "target-intrinsic"},
+      "headline": {
+        "type": "object",
+        "properties": {
+          "skill_report": {
+            "type": ["object", "null"],
+            "properties": {
+              "call": {"type": "null"},
+              "role": {"const": "descriptive"},
+              "polarity": {"const": "not_scored"}
+            }
+          }
+        }
+      }
+    }
+  }
+}

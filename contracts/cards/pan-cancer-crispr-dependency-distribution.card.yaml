@@ -1,0 +1,239 @@
+# Card E1a — PAN-CANCER CRISPR DEPENDENCY DISTRIBUTION  (pure-data, CRISPR-only)
+#
+# The CRISPR (Chronos) panel of DepMap's per-gene "Perturbation effect" target page.
+# Sibling cards (card_id below): pan-cancer-rnai-dependency-distribution (RNAi DEMETER2,
+# parallel evidence) + crispr-rnai-dependency-concordance (derived; reads both).
+#
+# Emits DepMap-defined descriptive categorical labels + numerics. NO normative
+# interpretation_hints — therapeutic inference moves to the Tier-2 rules layer
+# (target-contracts/interpretation-rules/) consumed by the Tier-3 synthesis layer.
+#
+# Decoupling-design (per warm-rolling-bunny plan, 2026-06-30):
+#   - Cards emit DepMap-defined descriptive labels ONLY (e.g. dependency_class).
+#   - The (evidence_label, modality) → signal mapping lives in interpretation-rules/.
+#   - Indication-context binding happens at synthesis (Tier 3), not here. Card output
+#     is target-only; same evidence package serves all indications + modalities.
+#
+# Anchored to DepMap-published Chronos conventions:
+#   Chronos ≤ -1.0 = strongly dependent ("common essentials" convention)
+#   Chronos ≤ -0.5 = moderately dependent
+#   Chronos > -0.5 = non-essential
+#
+# The RNAi companion lives in pan-cancer-rnai-dependency-distribution.card.yaml; this
+# card no longer carries rnai_* fields. Cross-assay concordance is computed by the
+# derived crispr-rnai-dependency-concordance card.
+
+card_id: pan-cancer-crispr-dependency-distribution
+version: 3.1.0          # 3.1.0 (2026-09-28, skills #1794): + dependency_class value
+                        #   common_essential_unanchored (well-powered >=85% fraction, curated anchor
+                        #   UNREACHABLE — split out of common_essential_underpowered so an anchor
+                        #   outage can no longer read as a clean safety verdict) + NEW
+                        #   broad_dependency_band categorical (SAFETY grading of the strongly-
+                        #   dependent fraction; the 0.60-0.85 partial_broad_band was invisible).
+                        #   Emitted by depmap_chronos_distribution 0.3.0 (analysis-methods).
+                        # 3.0.0 bumped 2026-06-30: split RNAi out into sibling card
+question: "Across ~1500 DepMap cell lines, what is the shape of CRISPR LOF dependency on {target.symbol}?"
+
+# Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a
+# non-verdict-driving field on this card; declare the rule-keyed primary + salient categoricals.
+# VERDICT-INERT projection (see capsule contract migration).
+capsule:
+  primary_class: dependency_class
+  categorical_fields:
+    - dependency_class
+    - distribution_shape
+    - dep_control_position_class
+
+applies_when:
+  - "context.data_sources.depmap_chronos_available == true"
+
+required_inputs:
+  - product_id: depmap-consortium-26q1
+    release_pin: "{release_pin}"
+
+methods:
+  - call: depmap-chronos-distribution
+    module: depmap_chronos_distribution
+    entrypoint: read_pan_cancer_distribution
+    args:
+      target: "{target.symbol}"
+      release_pin: "{release_pin}"
+      strong_dependency_threshold: "THRESHOLD.strongly_dependent_threshold_chronos"
+
+outputs:
+  summary_fields:
+    - n_cell_lines_evaluated
+    - median_chronos_panel
+    - p25_chronos_panel
+    - p75_chronos_panel
+    - p5_chronos_panel
+    - p95_chronos_panel
+    - chronos_iqr
+    - fraction_strongly_dependent                # fraction with chronos ≤ -1.0
+    - fraction_moderately_dependent
+    - fraction_non_essential
+    - distribution_shape                         # descriptive categorical
+    - pan_essential_score
+    - selectivity_index
+    - dependency_class                           # DEPMAP-CONVENTION CATEGORICAL (drives Tier-2 rules)
+    # --- T3 (2026-08-31): pan-essential-killer CALIBRATION ANCHOR + audit. The `common_essential` class
+    #     (→ dependency resolver pan_essential_killer, a broad-tox SAFETY veto) is no longer fired by the
+    #     eyeballed fraction_strongly_dependent>=0.85 alone: it co-requires membership in DepMap's curated
+    #     core-essential control set (AchillesCommonEssentialControls = Hart2015 ∩ Blomen2014). These two
+    #     fields make the re-anchoring auditable. `pan_essential_fraction_call` is the RAW fraction-only
+    #     class (the pre-re-anchor / ladder value); `depmap_curated_common_essential` is the anchor input.
+    - depmap_curated_common_essential            # bool|null — target ∈ curated core-essential set (null = list unavailable → fraction-only fallback)
+    - pan_essential_fraction_call                # dependency_class the fraction-only (pre-anchor) rule would emit — audit/ladder field
+    # --- skills #1794 (2026-09-28): SAFETY grading of the strongly-dependent fraction, orthogonal
+    #     to dependency_class. The 0.60-0.85 band classifies broadly_dependent (a broad-toxicity
+    #     liability nearly as severe as a common-essential — finding #2, 2026-08-13) but the
+    #     pan-essential broad-tox safety warning keys only on common_essential (>=0.85 + curated
+    #     anchor), so the partial band read CLEAN on the safety axis. Consumed by
+    #     broad-dependency-partial-tox-safety-warning (graded concern, never a killer).
+    - broad_dependency_band                      # pan_essential_band | partial_broad_band | below_band
+    - top_dependent_lineages
+    # --- Axis-2 (contextualized interpretation): control-benchmark position. DISPLAY-ONLY /
+    #     verdict-inert — NO rule reads these; the dependency resolver is untouched. Anchors the
+    #     target's pan-panel median Chronos against curated pan-essential (ceiling) + non-essential
+    #     (floor) controls (vocabularies/dependency_controls.yaml). INVERTED semantics: reading AT
+    #     the pan-essential ceiling is a BROAD-TOX liability, not a win (cf. presence, where above
+    #     the positives is good). Emitted by methods/dependency_controls via the distribution reader.
+    - dep_control_position_class                 # categorical — where the target sits vs the control bands
+    - dep_control_position                       # string — "as/more essential than N/M pan-essential; more dependent than N/M non-essential"
+    - dep_control_target_chronos                 # float — target's pan-panel median Chronos (the anchored value)
+    - dep_control_positives                      # {symbol: median_chronos} — pan-essential ceiling anchors
+    - dep_control_negatives                      # {symbol: median_chronos} — non-essential floor anchors
+    - dep_control_pan_essential_ceiling          # float — least-negative positive median (shallow edge of the essentiality band)
+    - dep_control_non_essential_floor            # float — most-negative negative median (deepest a non-essential reaches)
+    - dep_control_position_context               # string — controls vocab + release + bands (audit)
+
+  summary_fields_vocabulary:
+    dependency_class:
+      - common_essential
+      - common_essential_underpowered  # H fix 2026-07-20: >=85% pan-essential fraction BUT
+                                     # panel < PAN_ESSENTIAL_MIN_PANEL_N (300) — an underpowered
+                                     # tiny-panel artifact, NOT a trusted pan-essential. Symmetric
+                                     # top-end admissibility guard: routes to insufficient (not the
+                                     # pan-essential veto). Mirrors non_dependent_underpowered.
+      - common_essential_unanchored  # skills #1794 (2026-09-28): well-powered >=85% fraction whose
+                                     # curated core-essential ANCHOR (AchillesCommonEssentialControls)
+                                     # is UNREACHABLE (offline/creds fail). DISTINCT from underpowered:
+                                     # the fraction IS trusted, only the corroboration is missing.
+                                     # Dependency gate: insufficient (no fraction-only veto, the T3
+                                     # direction). SAFETY axis: CONSERVATIVE concern (an unverifiable
+                                     # pan-essential must never read as a clean safety verdict —
+                                     # the pre-#1794 routing to underpowered was safety-DARK and
+                                     # fail-opened the broad-tox liability on an anchor outage).
+      - strongly_selective
+      - broadly_dependent
+      - non_dependent
+      - non_dependent_underpowered   # 2026-07-17: below-floor pooled negative CONTRADICTED
+                                     # by a well-sampled concentrated-dependent lineage —
+                                     # DepMap under-samples the relevant lineage/genotype
+                                     # (EGFR-mut lung, FLT3-mut AML). Admissibility guard:
+                                     # treated as insufficient (not a trusted negative veto).
+      - data_unavailable
+    # T3 audit field — same categorical space as dependency_class (the fraction-only pre-anchor call).
+    pan_essential_fraction_call:
+      - common_essential
+      - common_essential_underpowered
+      - strongly_selective
+      - broadly_dependent
+      - non_dependent
+      - non_dependent_underpowered
+      - data_unavailable
+    distribution_shape:
+      - pan_essential
+      - bimodal_selective
+      - shifted_dependent
+      - non_essential
+      - unclassified
+    # skills #1794: pure banding of the measured fraction_strongly_dependent; edges mirror the
+    # classifier's own (> selective_fraction_max exclusive; >= pan_essential_fraction_threshold).
+    broad_dependency_band:
+      - pan_essential_band             # >= 0.85 — the pan-essential regime (killer/anchor semantics live on dependency_class)
+      - partial_broad_band             # 0.60 < f < 0.85 — partial broad-tox liability, graded by the safety rules
+      - below_band                     # <= 0.60 — selective / non-dependent regimes
+    dep_control_position_class:                   # Axis-2 control benchmark (display-only, INVERTED)
+      - as_essential_as_pan_essential             # target <= pan-essential ceiling → BROAD-TOX liability (NOT a win)
+      - between_controls                          # below non-essential floor, above pan-essential ceiling → selective dependency window
+      - non_dependent_near_negatives              # target >= non-essential floor → no dependency
+      - data_unavailable
+
+  figures:
+    - id: waterfall
+      type: ranked_waterfall
+      description: "CRISPR (Chronos) — per-cell-line scores sorted ascending, lineage-colored. Distribution shape directly readable."
+      preferred_surfaces: [markdown, ppt, decision_memo]
+      primary: true
+    - id: histogram_kde
+      type: density_histogram_with_kde
+      description: "Frequency histogram of CRISPR Chronos with KDE overlay. Bimodal vs unimodal shape explicit."
+      preferred_surfaces: [html, markdown_alt]
+  plot_data: per_cell_line_chronos_with_lineage_tags
+
+thresholds:
+  # DepMap-anchored numerical conventions (CRISPR Chronos scale)
+  strongly_dependent_threshold_chronos: -1.0     # "common essentials" cutoff per DepMap
+  moderately_dependent_threshold_chronos: -0.5
+  # Distribution classification thresholds (drive dependency_class derivation)
+  pan_essential_fraction_threshold: 0.85         # ≥85% strongly dependent → common_essential
+  selective_fraction_min: 0.05                   # ≥5% strongly dependent → at least some signal
+  selective_fraction_max: 0.60                   # ≤60% strongly dependent → not approaching pan-essential
+  shifted_median_threshold: -0.5                 # panel median ≤ -0.5 → whole-panel shift
+  # Warning-predicate thresholds
+  min_panel_coverage_threshold: 500
+  lineage_dominance_threshold: 0.80
+
+warning_predicates:
+  - warning_id: low_panel_coverage
+    if: "n_cell_lines_evaluated < THRESHOLD.min_panel_coverage_threshold"
+    message: "CRISPR has missing scores for many cell lines — interpretation may be biased toward the screened subset."
+  - warning_id: lineage_imbalanced_dependent_tail
+    if: "top_dependent_lineages.0.fraction_of_dependent_tail >= THRESHOLD.lineage_dominance_threshold"
+    message: "Dependent tail is essentially one-lineage-driven; pan-cancer label is misleading. Read the lineage-specific dependency card instead."
+
+caveats:
+  - "Chronos scores depend on CRISPR library + cell line context; not all dependencies replicate across screens."
+  - "DepMap panel composition is biased toward common cancer types; rare-lineage dependencies may be under-sampled."
+  - "CRISPR (Chronos) measures gene knockout. RNAi (DEMETER2, sibling card) measures mRNA knockdown — different LOF mechanisms can yield discordant signal. Read both panels together."
+  - "Dependency classification (common_essential/strongly_selective/...) is descriptive — therapeutic interpretation lives in target-contracts/interpretation-rules/."
+  - "Cell-line dependency does not guarantee in-vivo dependency. The card answers 'is this a real dependency in cellular models?' — translational validation is separate."
+  - "common_essential_unanchored means the curated core-essential anchor list was unreachable at read time for a well-powered >=85% strongly-dependent fraction: the pan-essential call is UNVERIFIED, not refuted. Safety treats it conservatively (broad-tox concern); re-run with anchor access to resolve to common_essential or broadly_dependent."
+  - "broad_dependency_band == partial_broad_band (0.60-0.85 strongly-dependent) is a PARTIAL broad-toxicity liability: below the pan-essential veto threshold but far too broad to read as clean on the safety axis. It grades a caveat, never a killer."
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `crispr_lof_dependency` claim (shape of CRISPR/Chronos
+# LOF dependency). Shares this type with dependency-lineage-selectivity + subgroup-stratified-
+# dependency — same claim, different grain slice (concordance test, Rule 2). target_subtype is LIVE
+# via the subgroup card's per-sample reader.
+measurement_type: crispr_lof_dependency
+# P4 (2026-07-24): declaration-only routing key — pan-essential killer / dependency efficacy basis for SM+degrader. Matching rule pre-exists in interpretation-rules/intracellular-intrinsic.rules.yaml.
+modality_relevance: [small_molecule, degrader]
+entity_grains: [target, target_lineage, target_subtype]
+schema_version: 1
+threshold_roles:
+  moderately_dependent_threshold_chronos:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the crispr_lof_dependency reference frame over `median_chronos_panel` (chronos), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'
+  # Applied by the method, never by a card predicate (min_panel_coverage_threshold and
+  # lineage_dominance_threshold ARE predicate-referenced by the warnings above, so they stay
+  # undeclared here). strongly_dependent_threshold_chronos is passed straight through as the
+  # method arg strong_dependency_threshold; the fraction bands bin dependency_class in
+  # depmap_chronos_distribution._classify_dependency (cli.py:276 pan_essential_fraction=0.85,
+  # applied at :329). THRESHOLD_UNUSED counts only predicate references, not method args, so the
+  # arg-passed cutoff needs a declaration too.
+  strongly_dependent_threshold_chronos:
+    role: method_parameter
+    consumed_by: depmap-chronos-distribution
+  pan_essential_fraction_threshold:
+    role: method_parameter
+    consumed_by: depmap-chronos-distribution
+  selective_fraction_min:
+    role: method_parameter
+    consumed_by: depmap-chronos-distribution
+  selective_fraction_max:
+    role: method_parameter
+    consumed_by: depmap-chronos-distribution
+  shifted_median_threshold:
+    role: method_parameter
+    consumed_by: depmap-chronos-distribution

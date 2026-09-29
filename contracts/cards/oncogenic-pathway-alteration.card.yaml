@@ -1,0 +1,70 @@
+# Card — ONCOGENIC-PATHWAY ALTERATION COHORT CONTEXT  (Sanchez-Vega 2018; pre-integrated mechanism facet)
+#
+# INDICATION-LEVEL, TARGET-INDEPENDENT context: how frequently is each of the 10 canonical oncogenic
+# signaling pathways ALTERED in this indication's TCGA cohort, and which pathway(s) does the target
+# belong to? A pre-integrated multi-omics RESULT — Sanchez-Vega 2018 fused curated driver mutations +
+# GISTIC copy-number + fusions against expert pathway templates into a per-sample binary pathway-altered
+# call. A target maps in via its pathway membership (mmc3 templates) → "my target's pathway is altered
+# in X% of this indication."
+#
+# COMPLEMENTS pathway-activity-context (PROGENy): PROGENy = pathway ACTIVITY (transcriptional footprint);
+# THIS = pathway ALTERATION (genomic). Same ~10 pathways, orthogonal axes — a pathway can be genomically
+# altered without transcriptional activity change and vice versa.
+#
+# Interpretation surface (oncogenic_pathway_class is PRIMARY):
+#   frequently_altered  → >=1 pathway altered in >= 50% of the cohort (e.g. TP53/OV 96%, WNT/COAD 90%,
+#                         PI3K/UCEC 93%, RTK-RAS/PAAD 78%)
+#   profiled            → alteration computed, no pathway clears the 50% bar
+#   data_unavailable    → indication not in the Sanchez-Vega product
+#
+# DISPLAY facet — VERDICT-INERT. Surfaces the cohort pathway-alteration landscape; touches NO resolver rung.
+
+card_id: oncogenic-pathway-alteration
+version: 1.0.0
+# interpretation (informational): oncogenic_pathway_class frequently_altered/profiled is cohort-level.
+interpretation: informational
+question: "Which oncogenic signaling pathways are frequently altered in the {indication.label} cohort, and is {target.symbol} a member of any of them?"
+
+tier: indication   # per-indication cohort property; target-independent (target adds pathway-membership only).
+
+applies_when:
+  - "true"   # any indication; data_unavailable-safe when not in the product
+
+required_inputs:
+  - product_id: oncogenic-pathway-alteration-per-indication-v1   # per-(pathway x indication) alteration freq
+
+methods:
+  - call: oncogenic-pathway-alteration
+    module: oncogenic_pathway_alteration
+    entrypoint: read_oncogenic_pathway_alteration
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - oncogenic_pathway_class                    # PRIMARY (frequently_altered | profiled | data_unavailable)
+    - frequently_altered_pathways                # pathways altered in >= 50% of the cohort
+    - n_pathways_profiled                        # pathways with data (<=10)
+    - target_pathway_membership                  # Sanchez-Vega pathway(s) the target belongs to
+    - target_pathway_alteration                  # the target's pathway(s) cohort alteration frequency
+    - per_pathway                                # per-pathway {pathway, frac_altered, class}
+    - pooled_from                                # TCGA codes pooled (e.g. [COAD, READ] for COADREAD)
+
+  summary_fields_vocabulary:
+    oncogenic_pathway_class:
+      - frequently_altered
+      - profiled
+      - data_unavailable
+
+  figure: oncogenic_pathway_alteration_card
+
+caveats:
+  - "Cohort-level pathway-ALTERATION landscape, NOT a per-target or per-patient call. A target in a cohort where its pathway is frequently altered is not thereby itself altered or a driver — this is mechanism/alteration cohort context, not a per-target driver or dependency claim."
+  - "Pathway 'altered' = the Sanchez-Vega 2018 per-sample binary (curated driver mutation OR GISTIC CN OR fusion, vs the expert pathway template). Binary at the pathway level — does not weight the number or type of alterations within a pathway."
+  - "Complements pathway-activity-context (PROGENy activity): genomic ALTERATION here vs transcriptional ACTIVITY there — orthogonal. Read together for a fuller mechanism picture."
+  - "VERDICT-INERT: drives no resolver rung. Routes into Mechanism (D) + Altered (E) as advisory cohort context, alongside genomic-instability-state and the PROGENy activity facet."
+
+measurement_type: oncogenic_pathway_alteration
+entity_grains: [cohort]
+schema_version: 1

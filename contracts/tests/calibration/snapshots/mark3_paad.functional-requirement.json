@@ -1,0 +1,19 @@
+{
+  "skill": "functional-requirement",
+  "target": "MARK3",
+  "indication": "PAAD",
+  "generated_at": "2026-09-08",
+  "headline": {
+    "dependency_verdict": "non_dependent_paralog_buffered",
+    "driving_rule_id": "strong-paralog-buffering-degrader-preferred",
+    "crispr_call": "non_dependent",
+    "rnai_call": "non_dependent",
+    "concordance_call": "strongly_concordant_non_dependent",
+    "lineage_selectivity": "no_lineage_enrichment",
+    "cards_available": 14,
+    "cards_missing": [
+      "dependency-predictability"
+    ]
+  },
+  "_snapshot_note": "REFRESHED 2026-09-08 (Takeda ONC backtest), superseding stale non_dependent. Reciprocal MARK2<->MARK3 paralog-SL: pooled CRISPR reads non_dependent (each buffers the other), but the paralog-buffering suppressor now reads non_dependent_paralog_buffered (NON-VETO, degrader-preferred) \u2014 correctly capturing the paralog-SL biology + modality path. must_not_veto holds."
+}

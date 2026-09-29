@@ -1,0 +1,133 @@
+# Tier-2 signal-mapping rules for the RESISTANCE-EMERGENCE axis.
+# Maps the resistance-emergence-signature card's resistance_emergence_class → per-modality signals
+# consumed by the combo-and-resistance skill's self-contained resistance verdict (the resistance
+# half — sibling of combination-opportunity.rules.yaml).
+#
+# SELF-CONTAINED: drives the combo-and-resistance skill's own resistance_verdict. NOT wired into
+# nomination_verdict_gate (a candidate resistance mediator is a co-target/monitoring rationale, not
+# a monotherapy nomination — it should never move the single-target verdict). Dedicated axis
+# resistance_emergence keeps these rules isolated from the shared ladder.
+#
+# Biology: a drug-anchored RESISTANCE signal ("gene Y knockout RESCUES the cell when target X is
+# inhibited") is a resistance-mechanism hypothesis — loss/downregulation of Y is a candidate route
+# to X-inhibitor resistance (e.g. KRAS inhibition rescued by NF1 loss (RAS-GAP reactivation) or
+# KEAP1 loss (NRF2 program)). Framed as a resistance WATCH-LIST, not a claim about X's validity.
+#
+# SEMANTICS: a detected resistance signal is INFORMATIVE/actionable for this awareness axis, so it
+# maps to `supportive` on the controlled enum (the axis's job is to SURFACE resistance mediators;
+# surfacing one is a positive result for the axis). The caution/liability meaning is carried by the
+# verdict vocabulary (…_resistance_signal), NOT by an `opposing` signal — this axis does not argue
+# against the target. Structurally parallel to combination-opportunity.rules.yaml.
+#
+# NOTE (schema alignment): per-rule `verdict:`/`message:` keys are DOCUMENTATION only — the
+# combo-and-resistance skill hardcodes its rule_id→verdict map (scripts/run.py _RESISTANCE_VERDICT).
+# The schema forbids those keys (unevaluatedProperties: false), so each rule's verdict + operator
+# message is preserved as a COMMENT above the rule. Signal vocabulary is the controlled enum
+# [supportive, opposing, killer, neutral, insufficient, not_applicable].
+
+rules_id: resistance-emergence
+version: 1.0.0
+axis: resistance_emergence
+schema_version: 1
+
+rationale: |
+  When a target is inhibited, genes whose knockout RESCUES the cell are candidate resistance
+  mediators (e.g. KRAS inhibition rescued by NF1 loss — RAS-GAP reactivation; or KEAP1 loss — NRF2
+  antioxidant program). This axis surfaces those from the positive arm of DepMap drug-anchor CRISPR
+  screens (the sign-mirror of the combination axis). Robust (broad across models) vs context
+  (single-model) mirrors the combination axis's constitutive-vs-context framing. Coverage is narrow
+  (single-target anchor inhibitors only); absence is a coverage gap, never a negative. Self-target
+  rescue (KO of the drug's own target) is suppressed upstream.
+
+rules:
+  # verdict: strong_resistance_signal
+  # message: |
+  #   Robust resistance signal — when the target is inhibited, at least one gene's knockout rescues
+  #   the cell broadly across models. Loss/downregulation of that gene is a candidate resistance
+  #   route to monitor and pre-empt (e.g. combination design against the resistance node).
+  - rule_id: resistance-strong-signal
+    when:
+      card_id: resistance-emergence-signature
+      field: resistance_emergence_class
+      equals: strong_resistance_signal
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      >=1 rescuer with resistance_class=robust_resistance_mediator (mean shift >= +0.5, significant
+      in >=50% of the anchor drug's model-screens).
+
+  # verdict: resistance_signal
+  # message: |
+  #   Resistance signal — >=1 gene knockout significantly rescues the cell under target inhibition
+  #   in at least one model. A candidate resistance mechanism to verify.
+  - rule_id: resistance-supported-signal
+    when:
+      card_id: resistance-emergence-signature
+      field: resistance_emergence_class
+      equals: resistance_signal
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      >=1 rescuer supported_resistance_mediator (mean shift >= +0.25, >=1 model significant).
+
+  # verdict: context_resistance_signal
+  # message: |
+  #   CONTEXT-specific resistance — a single model shows a strong rescue. A conditional resistance
+  #   hypothesis; needs the model/lineage context to interpret.
+  - rule_id: resistance-context-signal
+    when:
+      card_id: resistance-emergence-signature
+      field: resistance_emergence_class
+      equals: context_resistance_signal
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      Only context_resistance_mediator rescuers (single-model strong significant rescue). Weakest positive.
+
+  # verdict: no_resistance_signal
+  # message: |
+  #   An anchor screen exists for this target but no (non-self) gene knockout rescued the cell above
+  #   threshold. A measured negative for the screened context.
+  # (signal `neutral`: a measured no-signal result, not an insufficiency.)
+  - rule_id: resistance-no-signal
+    when:
+      card_id: resistance-emergence-signature
+      field: resistance_emergence_class
+      equals: no_resistance_signal
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Anchor screened, all non-self rescuers below threshold. Distinct from no_anchor_screen (coverage gap).
+
+  # verdict: resistance_insufficient
+  # message: |
+  #   No drug-anchor CRISPR screen for this target (the panel covers KRAS/KIT/XPO1/BCL2/EZH2 only). A coverage
+  #   gap — NOT evidence against resistance mechanisms.
+  - rule_id: resistance-no-anchor-screen
+    when:
+      card_id: resistance-emergence-signature
+      field: resistance_emergence_class
+      equals: no_anchor_screen
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      Measured-vs-null: absence of an anchor screen is a coverage gap → insufficient, never negative.
+
+  # verdict: resistance_insufficient
+  # message: |
+  #   Drug-anchor resistance product could not be read (infrastructure / access). Verdict withheld.
+  - rule_id: resistance-data-unavailable
+    when:
+      card_id: resistance-emergence-signature
+      field: resistance_emergence_class
+      equals: data_unavailable
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      Env-failure distinct from measured absence; both → insufficient, different operator message.

@@ -1,0 +1,294 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/takeda-rnd/rnd-computational-biology-oncology-target-contracts/schemas/run_plan.schema.json",
+  "title": "Compose-Dashboard Phase-1 Run Plan",
+  "description": "Schema for the deterministic 'run plan' artifact emitted by compose-dashboard's phase-1 (compose) step. The run plan is the COMPLETE specification of what phase-2 (execute) and phase-3 (synthesize) will do — without any method execution having happened yet. See plan § Dashboard, Interpretation, and Inference Layers § Implementation discipline for compose-dashboard. Run plans are persisted at data-products/{target}/{indication}/{package_id}/run_plan.yaml as audit trail.",
+  "type": "object",
+  "required": [
+    "run_plan_id",
+    "framework_version",
+    "generated_at",
+    "generated_by",
+    "input_context",
+    "axis_resolution",
+    "modality_resolution",
+    "card_run_plan",
+    "schema_version"
+  ],
+  "unevaluatedProperties": false,
+  "properties": {
+    "run_plan_id": {
+      "type": "string",
+      "description": "Stable identifier for this run plan emission. Convention: rp-{target}-{indication}-{release_pin}-{data_mode}-{seq}. L1 fix (post-adversarial-review): pattern widened to accept underscores so 'latest_approved' data_mode and 'unpinned' release_pin produce valid ids.",
+      "pattern": "^rp-[a-z0-9_-]+$",
+      "minLength": 8,
+      "maxLength": 200
+    },
+    "framework_version": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-[0-9A-Za-z.-]+)?$"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "generated_by": {
+      "type": "string",
+      "description": "Skill identifier + git_sha (or version) that emitted this run plan.",
+      "pattern": "^skills/[a-z][a-z0-9-]*@[0-9a-zA-Z.+-]+$"
+    },
+    "input_context": {
+      "type": "object",
+      "description": "The user-supplied inputs to compose-dashboard. Recorded verbatim so the run plan is self-contained.",
+      "required": ["target_symbol", "indication", "data_mode"],
+      "unevaluatedProperties": false,
+      "properties": {
+        "target_symbol": {"type": "string", "minLength": 1, "maxLength": 30},
+        "indication": {"type": "string", "minLength": 2, "maxLength": 30},
+        "modality": {"type": ["string", "null"]},
+        "subgroup_spec": {
+          "description": "Either a list of subgroup_ids, the literal 'all', or null.",
+          "oneOf": [
+            {"type": "null"},
+            {"type": "string", "const": "all"},
+            {"type": "array", "items": {"type": "string"}, "minItems": 1}
+          ]
+        },
+        "data_mode": {
+          "type": "string",
+          "enum": ["latest_approved", "pinned", "exploratory"]
+        },
+        "release_pin": {"type": ["string", "null"]}
+      }
+    },
+    "axis_resolution": {
+      "type": "object",
+      "description": "How the target's biology axis was resolved.",
+      "required": ["status"],
+      "unevaluatedProperties": false,
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["resolved", "unknown", "incompatible"],
+          "description": "resolved = axis found in lookup; unknown = target not in target_biology_axis_lookup.yaml; incompatible = axis found but no iter-1b dashboard base supports it (e.g., extrinsic, mixed)."
+        },
+        "resolved_axis": {
+          "type": "string",
+          "enum": ["intracellular_intrinsic", "surface_intrinsic", "extrinsic", "mixed", "unknown"]
+        },
+        "lookup_source": {
+          "type": "string",
+          "description": "Path or manifest_id of the lookup that produced the axis (e.g., 'target_biology_axis_lookup.yaml')."
+        },
+        "lookup_rationale": {
+          "type": "string",
+          "description": "Free-text rationale from the lookup entry."
+        },
+        "selected_base_dashboard": {
+          "type": ["string", "null"],
+          "description": "dashboard_spec.dashboard_id of the base loaded for this axis. Null when status != resolved."
+        },
+        "fallback_reason": {
+          "type": "string",
+          "description": "When status == unknown or incompatible, structured reason the framework refuses to proceed normally."
+        }
+      }
+    },
+    "modality_resolution": {
+      "type": "object",
+      "description": "How modality was resolved — specified, enumerated, or not applicable.",
+      "required": ["mode"],
+      "unevaluatedProperties": false,
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["user_specified", "enumerated_plausible", "not_applicable_axis_unresolved", "incompatible_modality_for_axis"]
+        },
+        "user_specified_modality": {"type": ["string", "null"]},
+        "plausible_modalities": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "When mode == enumerated_plausible, the list of modalities loaded. From modality_axis_compatibility.yaml.plausible_modalities_iter1b for the resolved axis."
+        },
+        "compatibility_source": {"type": "string"},
+        "incompatibility_reason": {"type": "string"}
+      }
+    },
+    "loaded_modality_modules": {
+      "type": "array",
+      "description": "Modality modules loaded into this run. Empty when axis_resolution.status != resolved or no plausible modalities exist.",
+      "items": {
+        "type": "object",
+        "required": ["modality", "module_path", "module_version", "headline_decision_question"],
+        "unevaluatedProperties": false,
+        "properties": {
+          "modality": {"type": "string", "minLength": 1},
+          "module_path": {"type": "string"},
+          "module_version": {"type": "string"},
+          "headline_decision_question": {"type": "string"},
+          "additional_card_ids": {
+            "type": "array",
+            "items": {"type": "string"}
+          },
+          "threshold_overlays_summary": {
+            "type": "array",
+            "description": "Per-card-id threshold tuning applied by this module.",
+            "items": {
+              "type": "object",
+              "required": ["card_id", "overlay"],
+              "properties": {
+                "card_id": {"type": "string"},
+                "overlay": {"type": "object"}
+              }
+            }
+          },
+          "synthesis_emphasis": {
+            "type": "object",
+            "description": "Module's synthesis_emphasis block copied verbatim — phase-3 consumes this directly."
+          },
+          "modality_specific_caveats": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "The modality module's modality_specific_caveats, carried verbatim so phase-3 synthesis can aggregate them into evidence_package.synthesis.caveats_summary. T7 fix (2026-08-11): the field was previously dropped in compose_phase1._module_summary, so synthesis had nothing to aggregate; this schema entry admits it (the items schema is unevaluatedProperties:false, so the new field must be declared)."
+          }
+        }
+      }
+    },
+    "subgroup_resolution": {
+      "type": "object",
+      "description": "How the subgroup_spec input was resolved to a catalog + (in phase-2) assignment products.",
+      "unevaluatedProperties": false,
+      "properties": {
+        "subgroup_catalog_ref": {
+          "type": ["string", "null"],
+          "description": "Resolved subgroup_catalog id (e.g., 'coadread-subgroups-2026-q2'). Null when subgroup_spec input was null or no catalog available."
+        },
+        "catalog_status": {
+          "type": "string",
+          "enum": ["resolved_active", "not_requested", "not_available_for_indication", "uncurated"]
+        },
+        "resolved_strata_ids": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Atomic stratum IDs in scope after resolving 'all' or the supplied subset."
+        },
+        "applicable_data_sources": {
+          "type": "array",
+          "items": {"type": "string"}
+        }
+      }
+    },
+    "card_run_plan": {
+      "type": "object",
+      "description": "Per-card disposition: cards to run, cards excluded by applies_when at compose time, cards failed (e.g., card_id not found in target-contracts/cards/).",
+      "required": ["to_run", "excluded_at_compose"],
+      "unevaluatedProperties": false,
+      "properties": {
+        "to_run": {
+          "type": "array",
+          "description": "Cards that compose-dashboard's phase-2 will invoke.",
+          "items": {
+            "type": "object",
+            "required": ["card_id", "card_version", "card_spec_path", "source"],
+            "unevaluatedProperties": false,
+            "properties": {
+              "card_id": {"type": "string", "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$"},
+              "card_version": {"type": "string"},
+              "card_spec_path": {"type": "string"},
+              "source": {
+                "type": "string",
+                "enum": ["base_required", "base_optional", "modality_module_additional"]
+              },
+              "source_detail": {
+                "type": "string",
+                "description": "When source == base_optional, the `when:` predicate that admitted it. When source == modality_module_additional, the modality the addition came from."
+              },
+              "applied_threshold_overlays": {
+                "type": "object",
+                "description": "Threshold values after merging base card_spec.thresholds with modality_module.threshold_overlays. Per-threshold-name → effective value."
+              },
+              "overlay_contributing_modalities": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Modalities whose threshold_overlays were merged. Empty when no module modified this card's thresholds."
+              },
+              "method_invocations": {
+                "type": "array",
+                "description": "Resolved method calls phase-2 will execute (with all template placeholders substituted).",
+                "items": {
+                  "type": "object",
+                  "required": ["call", "args"],
+                  "properties": {
+                    "call": {"type": "string"},
+                    "args": {"type": "object"}
+                  }
+                }
+              }
+            }
+          }
+        },
+        "excluded_at_compose": {
+          "type": "array",
+          "description": "Cards excluded at compose time. Includes base optional_cards whose `when:` predicate failed AND cards whose own applies_when context is unsatisfiable from compose-time-known fields (e.g., no subgroup_spec for subgroup-stratified card).",
+          "items": {
+            "type": "object",
+            "required": ["card_id", "exclusion_reason"],
+            "properties": {
+              "card_id": {"type": "string"},
+              "exclusion_source": {
+                "type": "string",
+                "enum": ["base_optional_when_predicate_false", "subgroup_spec_not_supplied", "data_blocked_at_compose"]
+              },
+              "exclusion_reason": {"type": "string"}
+            }
+          }
+        },
+        "failed_at_compose": {
+          "type": "array",
+          "description": "Cards listed in dashboard_spec or modality_module but whose card_spec_path doesn't resolve, or whose version range doesn't match an available card_spec. THIS IS A FRAMEWORK ERROR — run plan validation should reject runs with non-empty failed_at_compose.",
+          "items": {
+            "type": "object",
+            "required": ["card_id", "failure_reason"],
+            "properties": {
+              "card_id": {"type": "string"},
+              "failure_reason": {"type": "string"}
+            }
+          }
+        }
+      }
+    },
+    "synthesis_directives": {
+      "type": "object",
+      "description": "Material phase-3 (synthesize) consumes. Aggregated from dashboard_spec.synthesis_prompts + all loaded modality_modules' synthesis_emphasis blocks.",
+      "unevaluatedProperties": false,
+      "properties": {
+        "synthesis_prompts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["section", "instruction"],
+            "properties": {
+              "section": {"type": "string"},
+              "instruction": {"type": "string"}
+            }
+          }
+        },
+        "per_modality_emphasis": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["modality", "emphasis"],
+            "properties": {
+              "modality": {"type": "string"},
+              "emphasis": {"type": "object"}
+            }
+          }
+        }
+      }
+    },
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    }
+  }
+}

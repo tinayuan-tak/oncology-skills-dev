@@ -1,0 +1,100 @@
+# Card — TUMOR-VS-NORMAL PERCENTILE-CROSSING SELECTIVITY (per-sample RNA; TCGA vs GTEx)
+#
+# Q2 of the 12-question expression spec: the HEADLINE enrichment metric — the fraction of TUMOR
+# samples whose expression exceeds the Nth percentile of MATCHED-NORMAL expression. More actionable
+# than a fold change: it answers "how much of the tumor population separates from normal" directly.
+#
+# SELECTIVITY-side card (Gate B / tumor-selectivity). DISTINCT from:
+#   - tumor-rna-distribution (Q1, PRESENCE / Gate A — abundance, not a normal contrast),
+#   - tumor-vs-normal-selectivity (same Gate B, but an AGGREGATE log2FC from dge-deseq2; this card is
+#     the PER-SAMPLE percentile-crossing on the directly-comparable recount3 matrices).
+# Presence and selectivity stay SEPARATE (standing decision).
+#
+# ROUTES INTO GATES (master-sequencing plan Part 3): primary = Selectivity (B); also cross-cuts to
+# the therapeutic-window synthesis (Q12) and the ADC/surface-antigen framing (a per-sample clean
+# separation is the surface-antigen selectivity argument). modality_relevance metadata is a follow-up
+# (schema field not yet added); gate routing is via measurement_type today.
+
+card_id: tumor-vs-normal-percentile-crossing
+version: 0.1.0
+question: "What fraction of {indication.label} tumors express {target.symbol} above the 95th/99th percentile of matched normal tissue, and do the tumor and normal distributions separate?"
+
+tier: indication
+
+subgroup_stratification:
+  eligible: true
+  status: out_of_scope   # this POOLED card deliberately ships the indication grain only. The subtype
+                         # fan-out is NOT deferred -- it SHIPPED as the sibling card
+                         # tumor-vs-normal-percentile-crossing-by-subtype (subgroup_stratification.status:
+                         # live, backed by build_selectivity_crossing_subtype_panorama). Corrected
+                         # 2026-09-18: the prior "fast-follow deferred" prose contradicted the live sibling.
+  axes: [molecular_subtype]
+  rationale: "Percentile-crossing selectivity can vary by subtype (a target may separate from normal only in one subtype). This pooled card is deliberately not stratified; the per-subtype panorama SHIPPED as the sibling card tumor-vs-normal-percentile-crossing-by-subtype (subgroup_stratification.status: live), not a deferred fast-follow."
+
+applies_when:
+  # Rare-cohort coverage added 2026-08-19 (A3): ACC/KICH/KIRP/PCPG/TGCT/THCA/UCS/UCEC — the recount3
+  # per-sample substrate + matched GTEx normal are verified present for all 8; kept in lockstep with
+  # INDICATION_TO_TCGA_STUDIES / INDICATION_TO_GTEX_TISSUE in the tcga_gtex_expression_distribution reader.
+  - "context.indication in ['COADREAD', 'COAD', 'READ', 'LUAD', 'LUSC', 'BRCA', 'PAAD', 'PDAC', 'SKCM', 'STAD', 'PRAD', 'OV', 'KIRC', 'GBM', 'LGG', 'HNSC', 'BLCA', 'LIHC', 'CESC', 'ESCA', 'ACC', 'KICH', 'KIRP', 'PCPG', 'TGCT', 'THCA', 'UCS', 'UCEC']"
+
+required_inputs:
+  - product_id: tcga-tumor-tpm-recount3-long-v1        # per-sample tumor TPM
+  - product_id: gtex-tpm-recount3-long-v1              # matched-normal per-sample TPM (same axis)
+
+methods:
+  - call: tcga-gtex-expression-distribution
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - selectivity_class                          # PRIMARY categorical (drives Tier-2 rules)
+    - fraction_tumor_above_normal_p95            # the headline enrichment metric
+    - fraction_tumor_above_normal_p99
+    - normal_p95_log2tpm
+    - normal_p99_log2tpm
+    - distribution_overlap_tumor_normal          # OVL ∈ [0,1]; 0 = clean separation (wide window)
+    - matched_normal_tissue
+    - n_tumor_samples
+    - n_normal_samples
+    - studies
+  summary_fields_vocabulary:
+    selectivity_class: [strongly_tumor_enriched, enriched_subset, minimally_enriched, not_enriched, data_unavailable]
+  figure: expression_distribution_per_sample    # reuses the Q1 tumor-vs-normal box+strip w/ the p95 line
+
+thresholds:
+  # per-sample percentile-crossing cutoffs (declared, not hardcoded in rules — reviewable).
+  strong_frac_p95: 0.5           # >= half the tumors clear normal p95 ...
+  strong_max_overlap: 0.4        # ... AND distributions separate → strongly_tumor_enriched
+  enriched_subset_frac_p95: 0.25 # a real tumor-high subset above normal
+  not_enriched_frac_p95: 0.05    # essentially no separation
+
+caveats:
+  - "Percentile-crossing is a normal-RELATIVE selectivity metric (Gate B), NOT presence — a target can be broadly present (Q1) yet not tumor-enriched (this card), e.g. a housekeeping gene."
+  - "Matched normal is the GTEx tissue-of-origin; a target elevated vs the WRONG normal would mislead — the matched-tissue map mirrors the DGE pipeline's INDICATION_TO_GTEX_TISSUE."
+  - "Bulk tumor purity dilutes the tumor arm; a low fraction-above-normal in a low-purity cohort may understate tumor-cell-intrinsic selectivity (see Q9 purity attribution)."
+
+measurement: bulk_rna
+sample_context: tumor          # tumor per-sample, contrasted against matched normal
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — NEW measurement_type: per-sample percentile-crossing selectivity.
+measurement_type: tumor_vs_normal_percentile_crossing
+entity_grains: [target_indication]
+schema_version: 1
+threshold_roles:
+  strong_frac_p95:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the tumor_vs_normal_percentile_crossing reference frame over `fraction_tumor_above_normal_p95` (fraction), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'
+  strong_max_overlap:
+    role: method_parameter
+    consumed_by: tcga-gtex-expression-distribution
+    note: 'The method applies overlap <= 0.4 alongside frac_p95 >= 0.5 in _classify_percentile_crossing (tcga_gtex_expression_distribution/read.py:668) to gate strongly_tumor_enriched. Applied upstream, never by a card predicate.'
+  enriched_subset_frac_p95:
+    role: method_parameter
+    consumed_by: tcga-gtex-expression-distribution
+    note: 'The method applies frac_p95 >= 0.25 in _classify_percentile_crossing (read.py:670) to gate enriched_subset. Applied upstream, never by a card predicate.'
+  not_enriched_frac_p95:
+    role: method_parameter
+    consumed_by: tcga-gtex-expression-distribution
+    note: 'The method applies frac_p95 < 0.05 in _classify_percentile_crossing (read.py:672) to gate not_tumor_enriched. Applied upstream, never by a card predicate.'

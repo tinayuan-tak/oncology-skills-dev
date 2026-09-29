@@ -1,0 +1,17 @@
+{
+  "skill": "functional-requirement",
+  "target": "SMARCA2",
+  "indication": "LUAD",
+  "generated_at": "2026-09-08",
+  "headline": {
+    "dependency_verdict": "partner_conditional_dependent",
+    "driving_rule_id": "partner-conditional-moderately-dependent-supportive",
+    "crispr_call": "non_dependent",
+    "rnai_call": "non_dependent",
+    "concordance_call": "strongly_concordant_non_dependent",
+    "lineage_selectivity": "no_lineage_enrichment",
+    "cards_available": 13,
+    "cards_missing": ["dependency-predictability", "coessential-module"]
+  },
+  "_snapshot_note": "REFRESHED 2026-09-08 (depmap-26q1, cbg, py3.12), superseding the stale non_dependent snapshot. Pooled crispr/rnai read non_dependent, but the SMARCA2xSMARCA4 partner-conditional lane (partner_map, lof_mutation) now rescues it -> partner_conditional_dependent (driving partner-conditional-moderately-dependent-supportive). This is the flip the known_gap_watchlist entry anticipated (expected_after_context_sl: conditional_dependent). SMARCA4-mutant LUAD synthetic-lethal, an advanced Takeda program -> must_not_veto holds. Surfaced by the Takeda ONC dependency-FN backtest (2026-09-08)."
+}

@@ -1,0 +1,23 @@
+{
+  "target": "EPCAM",
+  "indication": "COADREAD",
+  "vectors_fixture": "tumor_normal_tpm/recount3_gtex__percentile_crossing_vectors.parquet",
+  "vectors_fixture_cohort": "tumor",
+  "n_tumor_samples": 669,
+  "expected_tumor_expression_class": "broadly_high",
+  "expected_median_log2tpm": 9.622452735900879,
+  "expected_p95_log2tpm": 10.38471279144287,
+  "expected_p99_log2tpm": 10.686274604797365,
+  "expected_min_log2tpm": 4.459277629852295,
+  "expected_max_log2tpm": 11.041440963745117,
+  "expected_coefficient_of_variation": 0.4019734844748852,
+  "expected_distribution_pattern": "continuous",
+  "expected_detectable_fraction": 1.0,
+  "expected_moderate_fraction": 1.0,
+  "expected_high_fraction": 0.9970104633781763,
+  "_source": {
+    "product": "recount3 TCGA/non-TCGA tumor long product (same slice as the percentile_crossing anchor for this pair)",
+    "captured_utc": "2026-09-29T01:41:59.327505+00:00",
+    "note": "reuses the percentile_crossing anchor's committed vectors_fixture; no new parquet"
+  }
+}

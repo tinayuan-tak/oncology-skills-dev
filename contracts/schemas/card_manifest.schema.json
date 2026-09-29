@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/takeda-rnd/rnd-computational-biology-oncology-target-contracts/schemas/card_manifest.schema.json",
+  "title": "Card Manifest",
+  "description": "Schema for catalog-side index entries that register a card emission. Lives at data-catalog/manifests/cards/{card_id}/{emission_id}/manifest.yaml. The catalog consumer uses this to answer 'what card emissions exist for (target, indication, release_pin, data_mode)?' without walking S3 or re-reading evidence packages. See plan § Scaffolding § data-catalog § manifests/cards/ (B1) and § compose-dashboard subsection (1) Manifest resolution algorithm.",
+  "type": "object",
+  "required": [
+    "manifest_kind",
+    "card_id",
+    "card_version",
+    "emission_id",
+    "target",
+    "indication",
+    "release_pin",
+    "data_mode",
+    "validation_state",
+    "generated_at",
+    "generated_by",
+    "s3_uri",
+    "dashboard_spec_ref",
+    "input_manifest_ids",
+    "schema_version"
+  ],
+  "unevaluatedProperties": false,
+  "properties": {
+    "manifest_kind": {
+      "type": "string",
+      "const": "card_emission",
+      "description": "Discriminator for the data-catalog's mixed-manifest directory; always 'card_emission' for entries that validate against this schema."
+    },
+    "card_id": {
+      "type": "string",
+      "description": "Stable card identifier matching a card_spec in target-contracts/cards/.",
+      "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$"
+    },
+    "card_version": {
+      "type": "string",
+      "description": "Exact semver of the card_spec at emission time. NOT a range — manifests pin to specific versions.",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?$"
+    },
+    "emission_id": {
+      "type": "string",
+      "description": "Stable identifier for this specific emission run. Convention: {card_id}-{target}-{indication}-{release_pin}-{data_mode}-{seq}.",
+      "pattern": "^[a-z0-9][a-z0-9.-]*[a-z0-9]$",
+      "minLength": 5,
+      "maxLength": 200
+    },
+    "target": {
+      "type": "object",
+      "required": ["symbol", "hgnc_id"],
+      "unevaluatedProperties": false,
+      "properties": {
+        "symbol": {"type": "string", "minLength": 1, "maxLength": 30},
+        "hgnc_id": {"type": "integer", "minimum": 1}
+      }
+    },
+    "indication": {
+      "type": "string",
+      "description": "OncoTree code (e.g., COADREAD, NSCLC, BRCA).",
+      "minLength": 1,
+      "maxLength": 30
+    },
+    "subgroup_spec": {
+      "description": "The subgroup binding active at emission time. Either a list of subgroup_ids, the literal 'all', or null.",
+      "oneOf": [
+        {"type": "null"},
+        {"type": "string", "const": "all"},
+        {"type": "array", "items": {"type": "string"}, "minItems": 1}
+      ]
+    },
+    "release_pin": {
+      "type": "string",
+      "description": "Catalog release_pin identifier (e.g., '2026-Q2').",
+      "minLength": 1
+    },
+    "data_mode": {
+      "type": "string",
+      "enum": ["latest_approved", "pinned", "exploratory"],
+      "description": "Resolution mode active at emission time. See data_mode.enum.yaml."
+    },
+    "validation_state": {
+      "type": "string",
+      "enum": ["pass", "passed_with_warnings"],
+      "description": "Card-emission outcome. Only pass / passed_with_warnings are emitted; failed emissions do not produce a card_manifest (see A2 rule)."
+    },
+    "warning_ids": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+      "description": "Structured warning identifiers that fired (when validation_state is passed_with_warnings)."
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "generated_by": {
+      "type": "string",
+      "pattern": "^skills/[a-z][a-z0-9-]*@[0-9a-f]+$"
+    },
+    "s3_uri": {
+      "type": "string",
+      "description": "S3 URI to the card-emission directory (containing summary.json, figure.svg, plot_data.parquet, manifest.yaml).",
+      "pattern": "^s3://[a-z0-9-]+/[a-zA-Z0-9._/-]+/?$"
+    },
+    "dashboard_spec_ref": {
+      "type": "string",
+      "description": "Reference to the dashboard_spec that composed this card emission (e.g., 'target-contracts/dashboards/target-in-indication.dashboard_spec.yaml@<git_sha>')."
+    },
+    "evidence_package_id": {
+      "type": "string",
+      "description": "Optional. The evidence_package this card emission belongs to (if part of a composition). Cards emitted standalone (e.g., during method development) may omit.",
+      "pattern": "^ep-[a-z0-9_-]+$"
+    },
+    "input_manifest_ids": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "minItems": 1,
+      "description": "Catalog manifest_ids the card consumed (e.g., 'coadread-dge-df06320', 'depmap-consortium-26q1')."
+    },
+    "canonical_decision_refs": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "References to canonical-decisions records that gated the input manifests. Required for governance-grade packages (resolves open item #8)."
+    },
+    "interpretation_call": {
+      "type": "string",
+      "description": "The interpretation label this emission produced (e.g., 'strong upregulation', 'not informative')."
+    },
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    }
+  }
+}

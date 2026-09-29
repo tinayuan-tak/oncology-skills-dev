@@ -1,0 +1,79 @@
+# Card — CO-ESSENTIAL MODULE (genome-wide co-essentiality / co-dependency)
+#
+# A gate-C CONFIDENCE facet: is {target}'s CRISPR dependency embedded in a COHERENT co-essential module
+# (complex/pathway partners co-essential across the same cell lines), or an ISOLATED hit? Two genes are
+# co-essential when their Chronos knockout profiles correlate across cell lines (shared pathway/complex
+# membership). A dependency sitting in a coherent module is a more credible, mechanism-anchored call —
+# the sibling of cross-consortium replication + omics-predictability.
+#
+# tier: target (pan-cancer, indication-independent). Reads the pre-built top-100 |r|>=0.2 gene-sorted
+# co-essentiality parquet (depmap-coessentiality-26q1-v1) — no new ingestion.
+#
+# Interpretation surface (coessential_module_class is PRIMARY):
+#   in_coherent_module   → >=3 strong (|r|>=0.3) co-essential partners — embedded in a coherent module
+#   sparse_module        → 1-2 strong partners, or >=5 partners overall — some module context
+#   isolated_dependency  → no strong partner and few/no edges — not module-anchored
+#   data_unavailable     → gene absent from the substrate / substrate unreadable
+#
+# CONFIDENCE FACET (role: corroboration; reports_into: dependency). VERDICT-INERT: it RAISES gate-C
+# confidence when a dependency is module-anchored, but NEVER fires a killer or a dependency call — a
+# sparse/isolated module read is a confidence caveat, not a veto (same discipline as
+# cross-consortium-dependency + dependency-predictability).
+
+card_id: coessential-module
+version: 1.0.0
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
+# DEAD-CARD RESOLUTION 2026-08-19 → WIRED 2026-09-10 (#652): Co-essentiality = a measured co-dependency →
+# the natural first measured member of the `combination_vulnerability` axis (the combination-and-
+# vulnerability relational tier). Its method (depmap_coessentiality) + product (depmap-coessentiality-26q1-v1)
+# are now built + materialized, and functional-requirement actively reads `coessential_module_class` as a
+# gate-C dependency-confidence facet (dependency_confidence_note).
+status: wired
+question: "Is {target.symbol}'s dependency embedded in a coherent co-essential module (complex/pathway partners), or an isolated hit?"
+
+tier: target
+
+applies_when:
+  - "target.depmap_screened == true"
+
+required_inputs:
+  - product_id: depmap-coessentiality-26q3-v1
+
+methods:
+  - call: coessential-module
+    module: depmap_coessentiality
+    entrypoint: read_coessential_module_summary
+    args:
+      target: "{target.symbol}"
+
+outputs:
+  summary_fields:
+    - coessential_module_class                   # PRIMARY categorical
+    - n_partners                                 # co-essential partners returned (top-25, |r|>=0.2)
+    - n_strong_partners                          # partners with |r| >= strong-r threshold (0.3)
+    - n_coessential                              # positively-correlated partners (shared essentiality)
+    - n_anti_correlated                          # negatively-correlated partners (buffering / SL-direction)
+    - strongest_partner_symbol
+    - strongest_partner_r
+    - strong_r_threshold                         # the |r| cut used for a "strong" module edge (provenance)
+    - top_partners                               # top-5 [{symbol, pearson_r, direction}]
+    - n_cell_lines                               # DepMap 26Q1 cell lines in the pre-build
+
+  summary_fields_vocabulary:
+    coessential_module_class:
+      - in_coherent_module
+      - sparse_module
+      - isolated_dependency
+      - data_unavailable
+
+caveats:
+  - "CONFIDENCE only (role: corroboration → gate-C CONFIDENCE), NEVER a verdict driver. A sparse or isolated module is a confidence caveat, not a veto — mirrors cross-consortium-dependency + dependency-predictability discipline. Module coherence corroborates a dependency's mechanism; it does not create or overturn a dependency call."
+  - "Co-essentiality is a genome-wide Pearson correlation of Chronos profiles across cell lines — a shared-pattern signal (complex/pathway co-membership), NOT a direct genetic-interaction (dual-KO) measurement. The measured GI complement is combinatorial-dependency (paralog dual-KO); a negatively-correlated (anti-correlated) partner here is a synthetic-lethal DIRECTION hint, not a tested SL."
+  - "Indication-independent (tier: target): co-essentiality is a pan-cancer property; the same module applies across indications."
+  - "strong-r threshold (0.3) calibrated against real DepMap 26Q1 modules — canonical module genes resolve as coherent (KRAS→TCF7L2, UBA3→NAE1/NEDD8, BRAF→MAPK1); 0.4 was too stringent (co-essential r peaks ~0.3-0.7)."
+
+measurement_type: coessential_module
+modality_relevance: [small_molecule, degrader]
+entity_grains: [target]
+schema_version: 1

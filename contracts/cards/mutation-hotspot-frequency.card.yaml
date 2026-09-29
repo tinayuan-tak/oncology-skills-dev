@@ -1,0 +1,138 @@
+card_id: mutation-hotspot-frequency
+version: 1.2.0    # GENIE panel-coverage-correct recurrence comparator (genie_driver_recurrence_*, display facet)
+question: "What is the somatic mutation frequency and hotspot landscape of {target.symbol} in {indication.label}?"
+
+# Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a
+# non-verdict-driving field on this card; declare the rule-keyed primary + salient categoricals.
+# VERDICT-INERT projection (see capsule contract migration).
+capsule:
+  primary_class: pooled_driver_recurrence_class
+  categorical_fields:
+    - pooled_driver_recurrence_class
+    - driver_recurrence_class
+    - genie_driver_recurrence_class
+  numeric_anchors:
+    - pooled_driver_recurrence_percentile   # the POOLED arm is primary_class's arm; alphabetical
+    - pooled_mutation_frequency             # ordering surfaced the TCGA-only arm first
+    - n_mutated_pooled
+    - n_covered_pooled
+    - driver_recurrence_percentile
+    - overall_mutation_frequency
+    - genie_driver_recurrence_percentile
+    - genie_mutation_frequency
+
+applies_when:
+  - "indication.gdc_samples_with_maf >= THRESHOLD.min_samples_with_maf"
+
+required_inputs:
+  - product_id: gdc-pancohort-somatic
+    indication: "{indication}"
+    release_pin: "{release_pin}"
+  # Pooled multi-cohort recurrence (scope-coherence Phase 2) — the VERDICT-DRIVING pooled_driver_
+  # recurrence_class (fires the recurrent_snv_driver rung). TCGA-MC3 + GENIE + MSK-CHORD.
+  # v2, not v1: the catalog manifest declares `supersedes: pooled-snv-recurrence-v1` and
+  # methods/pooled_snv_recurrence/read.py is what actually reads it. This id is not documentation —
+  # _skills_common.card_input_manifest_ids() reads it to STAMP emitted provenance, so a stale value
+  # here misreports every run's inputs, silently (that lookup is fail-open).
+  - product_id: pooled-snv-recurrence-v2
+    indication: "{indication}"
+    release_pin: "{release_pin}"
+
+methods:
+  - call: gdc-somatic-hotspot
+    module: gdc_somatic_hotspot
+    entrypoint: read_hotspot_summary
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+      release_pin: "{release_pin}"
+
+outputs:
+  summary_fields:
+    - overall_mutation_frequency
+    - n_samples_in_indication
+    - n_samples_mutated
+    # Driver-recurrence percentile (Axis-1 analog, 2026-08-05) — the CONTEXTUALIZATION
+    # of overall_mutation_frequency. A raw 8% frequency is uninterpretable without a
+    # reference frame; the percentile ranks this gene's recurrence among ALL genes
+    # mutated in the SAME indication (TCGA-MC3 aggregate, gene-summary rows only). This
+    # is the genomic sibling of tumor-rna-distribution's allgene_percentile. DISPLAY facet
+    # — feeds render/LLM; no rule is wired against the class yet (verdict spine byte-stable).
+    - driver_recurrence_percentile               # float 0-100 (or null) — MC3 recurrence rank among mutated genes in-indication
+    - driver_recurrence_class                    # categorical (drives rules if wired later)
+    - driver_recurrence_context                  # string — the null's reference frame + n_genes (anti-pooling audit)
+    # GENIE (higher-N, panel-coverage-correct) recurrence — the DISTINCT sibling comparator to the MC3
+    # driver_recurrence_* above (2026-08-06). GENIE has ~35x the MC3 sample count for these indications;
+    # frequency uses the panel-coverage denominator (samples whose panel covers the gene), so it is
+    # honest for non-universally-covered genes. Backed by genie-panel-recurrence-v1. DISPLAY facet.
+    - genie_driver_recurrence_percentile         # float 0-100 (or null) — GENIE coverage-correct recurrence rank
+    - genie_driver_recurrence_class              # categorical (same cutoff shape as driver_recurrence_class)
+    - genie_mutation_frequency                   # float — coverage-correct GENIE frequency (n_mutated / n_covered)
+    - genie_recurrence_context                   # string — n covered genes + coverage-corrected-denominator note
+    # POOLED multi-cohort recurrence (scope-coherence Phase 2, VERDICT-DRIVING). Pools TCGA-MC3 (WES) +
+    # GENIE (panel) + MSK-CHORD (panel) by summed-counts/summed-coverage; the pooled_driver_recurrence_
+    # class fires the recurrent_snv_driver resolver rung (top_1pct). Backed by pooled-snv-recurrence-v2.
+    - pooled_driver_recurrence_class             # categorical (VERDICT-DRIVING: top_1pct → recurrent_snv_driver)
+    - pooled_driver_recurrence_percentile        # float 0-100 (or null) — pooled recurrence rank in-indication
+    - pooled_mutation_frequency                  # float — Σn_mut / Σn_cov across contributing cohorts
+    - n_covered_pooled                           # int — Σ covered samples across cohorts
+    - n_mutated_pooled                           # int — Σ mutated samples across cohorts
+    - cohorts_contributing                       # list — cohorts that covered the gene (provenance)
+    - pooled_recurrence_context                  # string — cohorts pooled + n ranked genes
+    - hotspot_frequencies
+    - top_cooccurring_genes
+    - top_mutually_exclusive_genes
+  summary_fields_vocabulary:
+    driver_recurrence_class:
+      - top_1pct                                 # >= driver_recurrence_top_1pct cutoff — among the most recurrently mutated genes in-indication
+      - top_decile                               # >= driver_recurrence_top_decile cutoff
+      - mid
+      - bottom_decile                            # <= driver_recurrence_bottom_decile cutoff — rarely mutated relative to other mutated genes
+      - data_unavailable                         # MC3 aggregate absent (unknowable), distinct from a real recurrence-zero
+    genie_driver_recurrence_class:               # same bins as driver_recurrence_class, computed on the GENIE cohort
+      - top_1pct
+      - top_decile
+      - mid
+      - bottom_decile
+      - data_unavailable                         # GENIE has no cohort/coverage for this (target, indication), or coverage too thin (<20) to rank
+    pooled_driver_recurrence_class:              # VERDICT-DRIVING (top_1pct → recurrent_snv_driver rung); same bins, pooled cohorts
+      - top_1pct                                 # among the most recurrently mutated genes in-indication across pooled cohorts
+      - top_decile
+      - mid
+      - bottom_decile
+      - data_unavailable                         # gene covered by no pooled cohort, or pooled coverage < 20 (too thin to rank)
+  figure: lollipop_hotspot_frequency
+  plot_data: per_sample_variants_with_hotspot_tags
+
+interpretation_hints:
+  - if: "overall_mutation_frequency >= THRESHOLD.frequent_mutation_pct"
+    call: "frequently mutated; characterized hotspot landscape"
+  - if: "overall_mutation_frequency >= THRESHOLD.occasional_mutation_pct && overall_mutation_frequency < THRESHOLD.frequent_mutation_pct"
+    call: "occasionally mutated"
+  - if: "overall_mutation_frequency < THRESHOLD.occasional_mutation_pct"
+    call: "no characterized hotspot landscape"
+
+thresholds:
+  min_samples_with_maf: 50           # below this, frequency estimates have wide CIs
+  frequent_mutation_pct: 0.10        # >= 10% of samples → frequently mutated
+  occasional_mutation_pct: 0.02      # 2-10% → occasionally mutated
+  # driver-recurrence percentile-class cutoffs (method bins driver_recurrence_percentile →
+  # driver_recurrence_class). Same cutoff shape as tumor-rna-distribution's allgene cutoffs.
+  driver_recurrence_top_1pct: 99.0
+  driver_recurrence_top_decile: 90.0
+  driver_recurrence_bottom_decile: 10.0
+
+caveats:
+  - "Mutation frequency is an indication-level summary; per-subgroup frequencies (e.g., MSI-H enriched) require subgroup-stratified analysis."
+  - "Hotspot calls depend on the variant caller and filtering thresholds upstream; cross-validate with MC3 or GENIE for low-confidence hotspots."
+  - "driver_recurrence_percentile ranks the target among genes with >=1 non-synonymous mutation in the indication (NOT all ~20k genes) — the reference frame is stated in driver_recurrence_context. It is a relative-recurrence display facet, not a functional-driver call (a passenger gene in a hypermutated MSI-H cohort can be recurrently mutated without being a driver — see alteration-role for the functional layer)."
+  - "TWO recurrence comparators (both display-only): driver_recurrence_* = TCGA-MC3 (whole-EXOME, ~500-1000 pts/indication) vs genie_driver_recurrence_* = AACR GENIE (PANEL, ~35x pts, panel genes only). GENIE uses the panel-COVERAGE denominator (samples whose panel covers the gene) so it is honest for non-universal genes; genie_*_class=data_unavailable = GENIE lacks cohort/coverage or coverage too thin (<20) to rank, NOT a recurrence-zero. Neither is a functional call."
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `mutation_hotspot_frequency` claim.
+measurement_type: mutation_hotspot_frequency
+entity_grains: [target_indication]
+schema_version: 1
+threshold_roles:
+  driver_recurrence_top_1pct:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the mutation_hotspot_frequency reference frame over `pooled_driver_recurrence_percentile` (percentile), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'

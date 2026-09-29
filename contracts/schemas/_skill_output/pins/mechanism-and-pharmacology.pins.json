@@ -1,0 +1,41 @@
+{
+  "$comment": "PER-SKILL PINS (source) for mechanism-and-pharmacology. VARIANT = gating-scalar: pins role:gating + the mechanism_verdict/call enum (a signaling-network CHARACTERIZATION class), no polarity const, no bucket map. Enum = resolvers/mechanism.resolver.yaml verdict set (no run.py post-resolve mints; resolver keys only on network_class). Append-only within contract major version.",
+  "skill": "mechanism-and-pharmacology",
+  "role_variant": "gating_scalar",
+  "$defs": {
+    "mechanism_verdict_enum": {
+      "type": "string",
+      "enum": [
+        "well_characterized",
+        "partial",
+        "sparse",
+        "insufficient",
+        "data_unavailable"
+      ]
+    }
+  },
+  "pins": {
+    "properties": {
+      "skill": {"const": "mechanism-and-pharmacology"},
+      "headline": {
+        "type": "object",
+        "required": ["mechanism_verdict"],
+        "properties": {
+          "mechanism_verdict": {"$ref": "#/$defs/mechanism_verdict_enum"},
+          "skill_report": {
+            "type": ["object", "null"],
+            "properties": {
+              "call": {
+                "oneOf": [
+                  {"$ref": "#/$defs/mechanism_verdict_enum"},
+                  {"type": "null"}
+                ]
+              },
+              "role": {"const": "gating"}
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,75 @@
+# concurrence_state.enum.yaml
+# Controlled vocabulary: the three states a human-concurrence record can carry.
+# See plan § Evidence Card Framework § Human-concurrence checkpoint (A2),
+# including the Integrity primitive subsection that defines iter-1's
+# git-signed-commit + CODEOWNERS-style reviewer-registry primitive.
+#
+# Key property (T1.6): concurrence is per-package, not per-card. A reviewer
+# signs the composed evidence package, having inspected its cards. Per-card
+# caveats may be attached but the concurrence_state is package-level.
+#
+# Schemas that reference this enum: human_concurrence.schema.json,
+# evidence_package.schema.json (in the governance.concurrence block).
+
+enum_id: concurrence_state
+version: 1.0.0
+description: |
+  Per-package human-concurrence outcome. Concurrence is a fitness-for-decision sign-off
+  ("this package is the right artifact to attach to the decision being made") — NOT a
+  quality grade ("this is high-quality science"). Card-level validation_state covers
+  technical quality; concurrence covers strategic appropriateness. Iter-1 ships
+  git-signed-commit identity as the integrity primitive; CODEOWNERS-style reviewer
+  registry at data-products/.concurrence-reviewers.yaml gates allowed reviewers.
+
+values:
+  - value: concur
+    label: "Concur"
+    description: |
+      The reviewer endorses the evidence package as fit for the decision being made.
+      No caveats blocking citation. Downstream renderers (PPT, decision memo, AgenticBoost
+      adapter) may emit the package into nomination-grade artifacts.
+    blocks_nomination_emission: false
+    typical_usage: "Pinned-mode package destined for a target nomination memo, reviewed by comp-bio director."
+
+  - value: concur_with_caveats
+    label: "Concur with caveats"
+    description: |
+      The reviewer endorses the package as fit-for-decision but attaches explicit caveats
+      that downstream renderers MUST surface in the rendered artifact. Caveats are recorded
+      in the human_concurrence record's `caveats_acknowledged` field and propagate to every
+      rendering (markdown, HTML, PPT, decision memo).
+    blocks_nomination_emission: false       # nomination still allowed, but caveats render visibly
+    requires_caveats_acknowledged_non_empty: true
+    typical_usage: "RNA-only signal; protein validation pending. Concurrence proceeds with the caveat explicitly attached."
+
+  - value: dissent
+    label: "Dissent"
+    description: |
+      The reviewer DOES NOT endorse the package as fit-for-decision. Downstream renderers
+      MUST NOT emit the package into nomination-grade artifacts; the package is exploratory-
+      grade regardless of its data_mode. The dissent record stays in version-controlled history
+      (data-products/{target}/{indication}/{package_id}/concurrence.yaml is the canonical record);
+      a subsequent reviewer may author a NEW concurrence record with state: concur to supersede
+      by timestamp — NO mutation of the prior dissent record.
+    blocks_nomination_emission: true
+    requires_caveats_acknowledged_non_empty: true   # dissent must articulate why
+    typical_usage: "Reviewer determines the package's cards do not support the decision the package is being attached to (e.g., dependency signal is too thin to justify a chemistry-program kickoff)."
+
+# Supersession semantics:
+# A concurrence record committed is a fact in git history. If the reviewer later changes their
+# mind, they author a NEW concurrence record with a NEW commit; the most recent commit wins for
+# the package's current concurrence state. The older record stays in git history (audit trail).
+# Mutating prior records is forbidden by branch-protection rules on data-products.
+
+# Reviewer role gating (referenced by human_concurrence.schema.json):
+# Iter-1 recognizes three reviewer roles, each authorized via data-products/.concurrence-reviewers.yaml:
+#   - comp_bio_director (Ryan, for iter-1)
+#   - translational_lead
+#   - medical_reviewer
+# Iter-1 ships single-reviewer concurrence; multi-reviewer quorum semantics (e.g., comp_bio_director
+# AND translational_lead both concur) land in iter-2.
+
+valid_reviewer_roles:
+  - comp_bio_director
+  - translational_lead
+  - medical_reviewer

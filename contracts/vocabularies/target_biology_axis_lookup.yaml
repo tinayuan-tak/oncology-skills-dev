@@ -1,0 +1,178 @@
+# target_biology_axis_lookup.yaml
+# Curated mapping: target → biology_axis. The framework reads this lookup to determine
+# which base dashboard_spec to load when evaluating a target. Targets not in this lookup
+# default to axis=unknown and the framework surfaces the gap honestly.
+#
+# Curation discipline: each entry has a literature anchor (or canonical-source URL) and
+# a brief rationale. Translational sign-off is recommended for entries where the axis
+# call is non-obvious (e.g., PD-L1 as mixed rather than extrinsic).
+#
+# Iter-1b seed: ~20 high-priority targets covering the iter-1b modality range. Iter-2
+# expands via literature mining + comp-bio curation as targets enter active programs.
+
+version: 1.0.0
+schema_version: 1
+curation_status: iter1b_seed
+
+targets:
+  # ===== Intracellular intrinsic =====
+  - hgnc_symbol: KRAS
+    hgnc_id: 6407
+    biology_axis: intracellular_intrinsic
+    rationale: "Cytoplasmic GTPase; intracellular oncogenic driver. Direct small-molecule inhibition (G12C) clinically validated; degrader programs in clinic."
+    literature_anchor:
+      pmid: 31919378
+      note: "Canon et al. 2019, sotorasib mechanism."
+
+  - hgnc_symbol: EGFR
+    hgnc_id: 3236
+    biology_axis: intracellular_intrinsic
+    rationale: "Receptor tyrosine kinase; intracellular kinase domain is the small-molecule target. Surface expression also makes it an ADC/antibody target — for those modalities, the lookup may need a secondary surface_intrinsic entry (iter-2 model: multi-axis targets)."
+    literature_anchor:
+      pmid: 16187798
+      note: "Lynch et al. 2004, EGFR mutations + gefitinib."
+    iter2_note: "EGFR is a multi-axis target (intracellular kinase AND surface antigen). Iter-1b classifies as intracellular_intrinsic; iter-2 may extend with surface_intrinsic when ADC/antibody contexts are queried."
+
+  - hgnc_symbol: CDK4
+    hgnc_id: 1773
+    biology_axis: intracellular_intrinsic
+    rationale: "Cell cycle kinase; intracellular. Small-molecule inhibitors approved (palbociclib, ribociclib, abemaciclib)."
+    literature_anchor:
+      pmid: 27282844
+
+  - hgnc_symbol: BRAF
+    hgnc_id: 1097
+    biology_axis: intracellular_intrinsic
+    rationale: "Cytoplasmic serine/threonine kinase; intracellular. V600E inhibitors approved."
+    literature_anchor:
+      pmid: 21639808
+
+  - hgnc_symbol: MYC
+    hgnc_id: 7553
+    biology_axis: intracellular_intrinsic
+    rationale: "Nuclear transcription factor; intracellular. Historically undruggable; recent degrader and PROTAC efforts."
+    literature_anchor:
+      pmid: 33561420
+
+  - hgnc_symbol: BCL2
+    hgnc_id: 990
+    biology_axis: intracellular_intrinsic
+    rationale: "Intracellular anti-apoptotic protein. Small-molecule BH3 mimetics approved (venetoclax)."
+    literature_anchor:
+      pmid: 26720576
+
+  - hgnc_symbol: BRD4
+    hgnc_id: 13575
+    biology_axis: intracellular_intrinsic
+    rationale: "Nuclear bromodomain protein. BET inhibitor and BRD4-degrader programs."
+    literature_anchor:
+      pmid: 21889194
+
+  # ===== Surface intrinsic =====
+  - hgnc_symbol: TACSTD2
+    hgnc_symbol_aliases: [TROP2]
+    hgnc_id: 11530
+    biology_axis: surface_intrinsic
+    rationale: "Cell-surface glycoprotein; tumor-expressed in multiple epithelial cancers. ADC modality validated (sacituzumab govitecan, datopotamab)."
+    literature_anchor:
+      pmid: 33538338
+
+  - hgnc_symbol: DLL3
+    hgnc_id: 2909
+    biology_axis: surface_intrinsic
+    rationale: "Cell-surface Notch ligand; aberrantly expressed in SCLC. ADC and BiTE programs in clinic (tarlatamab approved 2024)."
+    literature_anchor:
+      pmid: 27049731
+
+  - hgnc_symbol: CLDN18
+    hgnc_symbol_aliases: [CLDN18.2]
+    hgnc_id: 2039
+    biology_axis: surface_intrinsic
+    rationale: "Cell-surface tight-junction protein; isoform 2 selectively expressed in gastric, gastric-junction, pancreatic cancers. Antibody (zolbetuximab, approved 2024) and ADC programs."
+    literature_anchor:
+      pmid: 38215036
+
+  - hgnc_symbol: ERBB2
+    hgnc_symbol_aliases: [HER2]
+    hgnc_id: 3430
+    biology_axis: surface_intrinsic
+    rationale: "Surface receptor tyrosine kinase; intracellular kinase domain is also a small-molecule target (multi-axis). Iter-1b classifies as surface_intrinsic for ADC/antibody/BiTE contexts; iter-2 may extend."
+    iter2_note: "ERBB2/HER2 is a multi-axis target (surface antigen for ADC/antibody AND intracellular kinase for small molecules — tucatinib/lapatinib/neratinib). Iter-1b classifies as surface_intrinsic; the SM arm stays live (multi_axis)."
+    literature_anchor:
+      pmid: 11248153
+
+  - hgnc_symbol: CEACAM5
+    hgnc_id: 1817
+    biology_axis: surface_intrinsic
+    rationale: "Cell-surface glycoprotein; CRC + gastric + lung. ADC programs in clinic (tusamitamab ravtansine)."
+    literature_anchor:
+      pmid: 34857616
+
+  - hgnc_symbol: MET
+    hgnc_id: 7029
+    biology_axis: surface_intrinsic
+    rationale: "Surface receptor tyrosine kinase. Multi-axis (intracellular kinase for SM inhibitors; surface antigen for ADC like telisotuzumab). Iter-1b classifies as surface_intrinsic for the ADC context."
+    iter2_note: "MET is a multi-axis target (surface antigen for ADC like telisotuzumab AND intracellular kinase for small molecules — capmatinib/tepotinib/crizotinib). Iter-1b classifies as surface_intrinsic; the SM arm stays live (multi_axis)."
+    literature_anchor:
+      pmid: 36791751
+
+  - hgnc_symbol: FOLR1
+    hgnc_id: 3791
+    biology_axis: surface_intrinsic
+    rationale: "Cell-surface folate receptor. ADC modality validated (mirvetuximab soravtansine in ovarian)."
+    literature_anchor:
+      pmid: 35189727
+
+  - hgnc_symbol: NECTIN4
+    hgnc_id: 17671
+    biology_axis: surface_intrinsic
+    rationale: "Cell-surface adhesion molecule; ADC modality validated (enfortumab vedotin in urothelial)."
+    literature_anchor:
+      pmid: 33591915
+
+  # ===== Extrinsic (curated but iter-2 active) =====
+  - hgnc_symbol: PDCD1
+    hgnc_symbol_aliases: [PD-1]
+    hgnc_id: 8760
+    biology_axis: extrinsic
+    rationale: "Immune checkpoint on T cells; the receptor side of the PD-1/PD-L1 axis. Antibody blockade approved across many indications."
+    literature_anchor:
+      pmid: 22658128
+    iter1b_status: cataloged_but_axis_deferred
+
+  - hgnc_symbol: CD274
+    hgnc_symbol_aliases: [PD-L1]
+    hgnc_id: 17635
+    biology_axis: mixed
+    rationale: "Expressed on tumor cells AND immune cells. Tumor-cell expression is intrinsic (some tumor types upregulate as a resistance mechanism); immune-cell expression is extrinsic. Requires dual-panel reading."
+    literature_anchor:
+      pmid: 27269938
+    iter1b_status: cataloged_but_axis_deferred
+
+  - hgnc_symbol: CTLA4
+    hgnc_id: 2505
+    biology_axis: extrinsic
+    rationale: "Immune checkpoint on T cells. Antibody blockade (ipilimumab) approved."
+    literature_anchor:
+      pmid: 21639810
+    iter1b_status: cataloged_but_axis_deferred
+
+  - hgnc_symbol: TGFB1
+    hgnc_id: 11766
+    biology_axis: mixed
+    rationale: "Cytokine; tumor-cell expression + stromal expression. Multiple modalities (antibody, ligand trap, small-molecule pathway inhibitor)."
+    literature_anchor:
+      pmid: 29455683
+    iter1b_status: cataloged_but_axis_deferred
+
+  - hgnc_symbol: VEGFA
+    hgnc_id: 12680
+    biology_axis: extrinsic
+    rationale: "Angiogenic ligand from tumor and stromal cells. Antibody (bevacizumab) and small-molecule receptor inhibitors approved."
+    literature_anchor:
+      pmid: 14523239
+    iter1b_status: cataloged_but_axis_deferred
+
+# Multi-axis targets (EGFR, ERBB2, MET) are flagged with iter2_note. The iter-1b model
+# assigns a single primary axis; iter-2 may extend the schema to support multi-axis
+# targets where the axis depends on the modality being considered.

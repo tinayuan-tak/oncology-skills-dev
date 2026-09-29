@@ -1,0 +1,28 @@
+{
+  "$comment": "PER-SKILL PINS (source) for synthetic-lethal-partners (AUX, non-fan-out standalone; verdict-bearing veto-suppressor). VARIANT = descriptive-scalar: role:descriptive (gateless — ∉ _SHORT_TO_GATE) + polarity:not_scored + the sl_partner_verdict/call enum. The emitter was patched to add build_skill_report (skills PR). Enum = resolvers/synthetic_lethal_partners.resolver.yaml (has_experimental/computational + no_curated + insufficient default + data_unavailable). Append-only within contract major version.",
+  "skill": "synthetic-lethal-partners",
+  "role_variant": "descriptive_scalar",
+  "$defs": {
+    "sl_partner_verdict_enum": {"type": "string", "enum": ["has_experimental_sl_partner", "has_computational_sl_partner", "no_curated_sl_partner", "insufficient", "data_unavailable"]}
+  },
+  "pins": {
+    "properties": {
+      "skill": {"const": "synthetic-lethal-partners"},
+      "headline": {
+        "type": "object",
+        "required": ["sl_partner_verdict"],
+        "properties": {
+          "sl_partner_verdict": {"$ref": "#/$defs/sl_partner_verdict_enum"},
+          "skill_report": {
+            "type": ["object", "null"],
+            "properties": {
+              "call": {"oneOf": [{"$ref": "#/$defs/sl_partner_verdict_enum"}, {"type": "null"}]},
+              "role": {"const": "descriptive"},
+              "polarity": {"const": "not_scored"}
+            }
+          }
+        }
+      }
+    }
+  }
+}

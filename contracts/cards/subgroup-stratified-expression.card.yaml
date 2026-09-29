@@ -1,0 +1,106 @@
+# Card 5 of 5 — iter-1 vertical slice
+# Exercises: subgroup wiring through cards (subgroup_catalog → applies_when → method --stratify-by → per-stratum panel)
+# Iter-1 subgroup axis: MSI/MSS (directly tagged from TCGA clinical metadata; see T1.2 swap from CMS).
+# Iter-2 expansion: CMS1-4 when Ellrott classifier + Table S1 label-dictionary land.
+
+card_id: subgroup-stratified-expression
+version: 1.1.0
+# interpretation (descriptive): emits no categorical class.
+interpretation: descriptive
+question: "How does {target.symbol} expression vary across molecular subgroups in {indication.label}?"
+
+tier: subtype
+
+# NOT LIVE (2026-08-15, C3): this subtype-tier card's entire identity is the per-subgroup expression
+# panorama, and that panorama is blocked (subgroup_stratification.status below) until a per-sample
+# stratified expression reader ships — so the card produces nothing today. An OMITTED top-level status
+# defaults to `wired` (schema), which would falsely claim the card is live and let the required-cards
+# gate treat it as must-produce; declaring it dormant_pending_data is the honest state (the dge-deseq2
+# method exists but is gated off pending the per-sample stratified reader). It lives in optional_cards,
+# never required_cards, in every dashboard_spec.
+status: dormant_pending_data
+
+# BLOCKED (2026-07-16): the biology genuinely varies by subgroup (filter 1 met),
+# but the bound method `dge-deseq2` returns an aggregate log2FC computed across the
+# whole cohort at emit time (filter 2 FAILS). There is no per-sample expression
+# reader that can honestly recompute within each stratum's member-set, so this card
+# cannot emit a per-subgroup panorama yet. It is tagged not-live and the
+# `per_subgroup_metrics` record field is dropped until a per-sample stratified
+# expression reader (a `read_stratified_expression` / `build_expression_panorama`
+# in methods/) ships. The grain-check in validators/validate_cards.py enforces this.
+#
+# DISPOSITION UPDATE (2026-08-19): the per-stratum tumor-vs-normal question is now COVERED for the
+# common case by two LIVE per-sample subtype cards, both backed by the tcga-gtex-expression-distribution
+# per-sample stratified reader (the "per-sample reader" this card waited for — via median-based
+# per-stratum recompute, the framework's established subtype-panorama convention):
+#   - tumor-rna-distribution-by-subtype        — per-stratum median + fraction-above-matched-normal window
+#   - tumor-vs-normal-percentile-crossing-by-subtype (Phase B, 2026-08-19) — per-stratum crossing selectivity
+# This card stays DORMANT because its DISTINCT value over those two is specifically a per-stratum
+# DESeq2 NB-GLM contrast vs TCGA-ADJACENT normal (not GTEx-matched, not median-based) — which still
+# requires the dge-deseq2 R pipeline to gain a genuine per-stratum refit (the stubbed `stratify_by`
+# path). That is an owner-gated data-engineering effort; graduating this card with a median-based
+# GTEx-normal reader would merely DUPLICATE the two live cards above, so it is deliberately NOT done.
+subgroup_stratification:
+  eligible: true
+  status: blocked_needs_per_sample_reader
+  axes: [msi_status]
+  rationale: "Expression varies by MSI/MSS, but dge-deseq2 emits a whole-cohort aggregate; needs a per-sample stratified expression reader before it can recompute per-stratum."
+
+applies_when:
+  - "subgroup_spec != null"
+  - "indication.subgroup_catalog_available == true"
+  - "target.tumor_expression_p95 >= THRESHOLD.expression_p95_min"
+
+required_inputs:
+  - product_id: expression-rna-tumor-vs-adjacent   # products.yaml registry id; catalog carries it per-indication via each manifest's product_id: field
+    indication: "{indication}"
+    release_pin: "{release_pin}"
+  - product_id: subgroup-catalog
+    indication: "{indication}"
+    release_pin: "{release_pin}"
+
+methods:
+  - call: dge-deseq2
+    args:
+      indication: "{indication}"
+      release_pin: "{release_pin}"
+      contrast: tumor_vs_adjacent
+      stratify_by: subgroup_catalog
+      subgroup_spec: "{subgroup_spec}"
+
+outputs:
+  # `per_subgroup_metrics` DROPPED 2026-07-16 — this card is blocked (see
+  # subgroup_stratification above): dge-deseq2 cannot honestly emit per-stratum
+  # records. The cross-stratum reducer scalars below describe the intended output
+  # ONCE a per-sample stratified expression reader ships; until then this card is
+  # not-live and produces no per-subgroup panorama.
+  summary_fields:
+    - n_subgroups_with_data
+    - max_subgroup_log2fc
+    - min_subgroup_log2fc
+    - cross_subgroup_delta_log2fc
+    - any_subgroup_significant
+  figure: per_subgroup_panel_grid
+  plot_data: per_subgroup_dge_long_format
+
+interpretation_hints:
+  - if: "cross_subgroup_delta_log2fc >= THRESHOLD.meaningful_subgroup_delta"
+    call: "subgroup-specific expression pattern"
+  - if: "any_subgroup_significant == true && cross_subgroup_delta_log2fc < THRESHOLD.meaningful_subgroup_delta"
+    call: "uniform expression across subgroups"
+  - if: "any_subgroup_significant == false"
+    call: "not informative"
+
+thresholds:
+  expression_p95_min: 1.0            # TPM — same as card 1's applies_when; consistency matters
+  meaningful_subgroup_delta: 1.0     # log2FC delta between max and min subgroup; iter-1 conservative
+
+caveats:
+  - "Iter-1 subgroup axis is MSI-H vs MSS (two strata); CMS1-4 expansion is iter-2 when the Ellrott classifier method ships."
+  - "Subgroup-stratified DGE has lower power than indication-level DGE; small subgroups may fail significance even when underlying biology is real."
+  - "MSI-H stratum biology is dominated by mismatch-repair hypermutation; gene-specific calls may reflect global expression dysregulation, not target-specific signal."
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of `tumor_vs_adjacent_expression` at target_subtype grain (LIVE per-sample slice).
+measurement_type: tumor_vs_adjacent_expression
+entity_grains: [target_subtype]
+schema_version: 1

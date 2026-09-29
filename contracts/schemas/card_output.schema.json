@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/takeda-rnd/rnd-computational-biology-oncology-target-contracts/schemas/card_output.schema.json",
+  "title": "Card Output",
+  "description": "Schema for the per-card output emitted by phase-2 (execute) and consumed by phase-3 (synthesize). Each card output is either a CARD_PRESENT entry (with summary + interpretation_call) or a CARD_EXCLUDED entry (with exclusion_reason). C3 fix (post-adversarial-review): phase-3 must validate every card output against this schema before consuming it, closing the layer-orthogonality gap.",
+  "oneOf": [
+    {"$ref": "#/$defs/card_present"},
+    {"$ref": "#/$defs/card_excluded"}
+  ],
+  "$defs": {
+    "card_present": {
+      "type": "object",
+      "required": ["card_id", "card_version", "validation_state", "summary", "interpretation_call", "provenance"],
+      "unevaluatedProperties": false,
+      "properties": {
+        "card_id": {"type": "string", "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$"},
+        "card_version": {"type": "string"},
+        "validation_state": {
+          "type": "string",
+          "enum": ["pass", "passed_with_warnings"]
+        },
+        "summary": {"type": "object"},
+        "figures": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "path"],
+            "properties": {
+              "id": {"type": "string"},
+              "path": {"type": "string"},
+              "type": {"type": "string"},
+              "primary": {"type": "boolean"}
+            }
+          }
+        },
+        "interpretation_call": {"type": "string", "minLength": 1},
+        "caveats": {"type": "array", "items": {"type": "string"}},
+        "warning_ids": {
+          "type": "array",
+          "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"}
+        },
+        "provenance": {
+          "type": "object",
+          "required": ["method_calls", "input_manifest_ids"],
+          "properties": {
+            "method_calls": {"type": "array"},
+            "input_manifest_ids": {"type": "array", "items": {"type": "string"}}
+          }
+        }
+      }
+    },
+    "card_excluded": {
+      "type": "object",
+      "required": ["card_id", "card_version", "excluded_by_applies_when", "exclusion_reason"],
+      "unevaluatedProperties": false,
+      "properties": {
+        "card_id": {"type": "string", "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$"},
+        "card_version": {"type": "string"},
+        "excluded_by_applies_when": {"type": "boolean", "const": true},
+        "exclusion_reason": {"type": "string", "minLength": 5}
+      }
+    }
+  }
+}

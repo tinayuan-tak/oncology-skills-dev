@@ -1,0 +1,17 @@
+{
+  "skill": "functional-requirement",
+  "target": "MET",
+  "indication": "LUAD",
+  "generated_at": "2026-08-30",
+  "headline": {
+    "dependency_verdict": "non_dependent",
+    "driving_rule_id": "non-dependent-killer",
+    "crispr_call": "non_dependent",
+    "rnai_call": "non_dependent",
+    "concordance_call": "strongly_concordant_non_dependent",
+    "lineage_selectivity": null,
+    "cards_available": 14,
+    "cards_missing": ["dependency-predictability"]
+  },
+  "_snapshot_note": "Captured live 2026-08-30 (depmap-consortium-26q1, AWS_PROFILE=cbg). MET-LUAD reads pan-line non_dependent — the METex14-skipping-selective dependency (a splice-site biomarker subset, ~3% of LUAD) is invisible to the pan-line CRISPR/RNAi distribution. MET is an APPROVED LUAD target (capmatinib/tepotinib in METex14; telisotuzumab-vedotin c-Met ADC), so this is a biomarker-conditional false-negative, not a true negative. Documented gap; see the entry's expected_after_metex14."
+}

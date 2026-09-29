@@ -1,0 +1,96 @@
+# Card — SURFACE SAME-CELL CO-LOCALIZATION / AVIDITY (bispecific AND-gate)
+#
+# Does {target} co-express with a candidate partner antigen on the SAME malignant cells — the
+# same-cell avidity an AND-gate bispecific (TCE / dual ADC / bispecific mAb) actually requires?
+# Reads the single-cell same-cell coexpression cubes (sc-samecell-coexpr-{indication}-v1) via the
+# target-centric avidity reader (pair_selectivity_gate), which scans EVERY nominated pair involving
+# the target and returns the best-partner call.
+#
+# WHY THIS CARD EXISTS: the same-cell cubes + the avidity method existed but NO card consumed them —
+# a wired-but-orphaned capability. (The only caller was the standalone bispecific-pair-scan SKILL,
+# which sat outside the card spine and never fired a card, so nothing reached a composed package;
+# that skill was retired 2026-09-11 and this card is now the sole route.) Bulk pair co-expression is
+# NECESSARY BUT NOT SUFFICIENT: two antigens can each be high in a tumor SAMPLE yet sit on DIFFERENT
+# cells, so an AND-gate bispecific never engages both. This card confirms same-CELL co-expression.
+#
+# THE DECISION-RELEVANT NEGATIVE: same_cell_mutually_exclusive — the antigens are rarely on the same
+# cell (enrichment < independence) — means the bispecific avidity FAILS despite an encouraging bulk
+# read. same_cell_coordinated means a viable AND-gate partner exists.
+
+card_id: surface-colocalization-avidity
+version: 0.1.0
+# WIRED 2026-08-20 (reverses the 2026-08-19 dead-card RETIRE). The prior retirement claimed this card
+# was superseded-as-duplicate by the shared METHOD pair_selectivity_gate.samecell.
+# confirm_pair_samecell. Verification showed that claim is only PARTIALLY true: that method
+# covers the tumor-side, per-PAIR avidity call ONLY. This card additionally provides (a) the tumor-vs-
+# NORMAL selectivity WINDOW (window_verdict/selectivity_margin/normal_liability_locus, reading
+# sc-samecell-coexpr-normal-v1 via pair_selectivity_gate.window — the SAFETY half the samecell
+# entrypoint does not cover) and (b) the TARGET-centric best-partner rollup (samecell_avidity_class
+# headline,
+# n_coordinated_partners). Those are unique, built + tested capability, not a duplicate — so the card
+# is wired (its dispatcher → cli.build_summary is the only route that delivers the normal window into a
+# composed evidence package). See surface-intrinsic-base.dashboard_spec.yaml (optional_cards).
+status: wired
+question: "For {target.symbol} in {indication.label}, does any candidate partner antigen co-express on the SAME malignant cells (same-cell avidity for an AND-gate bispecific), or are the best partners mutually exclusive?"
+
+tier: indication   # the same-cell cube is per-indication (malignant compartment)
+
+applies_when:
+  # indications with a landed same-cell coexpr cube (INDICATION_TO_SAMECELL_MANIFEST in the method).
+  - "context.indication in ['COADREAD', 'COAD', 'READ', 'NSCLC', 'LUAD', 'LUSC', 'PAAD', 'HNSC', 'KIRC', 'OV', 'STAD', 'BRCA']"
+
+required_inputs:
+  - product_id: sc-samecell-coexpr-crc-coadread-v1           # COADREAD — CRC core atlas same-cell avidity (12 pairs / 370 donors / 509,819 malignant cells; reader repointed AM#312). Superseded: sc-samecell-coexpr-coadread-v1 (Census).
+  - product_id: sc-samecell-coexpr-luca-nsclc-v1            # NSCLC/LUAD — LuCA NSCLC core atlas same-cell avidity (reader repointed). Superseded: sc-samecell-coexpr-nsclc-v1 (Census pilot).
+  - product_id: sc-samecell-coexpr-lusc-v1
+  - product_id: sc-samecell-coexpr-3ca-pancreas-v1
+  - product_id: sc-samecell-coexpr-3ca-hnsc-v1
+  - product_id: sc-samecell-coexpr-3ca-kidney-v1
+  - product_id: sc-samecell-coexpr-3ca-ovarian-v1
+  - product_id: sc-samecell-coexpr-stad-golim-v1             # STAD — Go/Lim gastric atlas same-cell avidity (16 CLDN18.2-anchored pairs / 88 malignant donors; CLDN18 ~56% malignant; CLDN18:MUC1 / CLDN18:EPCAM both~0.37).
+  - product_id: sc-samecell-coexpr-brca-wu-v1               # BRCA — Wu/Swarbrick breast atlas same-cell avidity (reader-wired; applies_when now includes BRCA).
+  - product_id: sc-samecell-coexpr-normal-v1              # NORMAL selectivity gate (pan-tissue, 19 tissues / 46 pairs / 318 donors). The SAFETY half of the AND-gate: does any well-powered normal cell type co-express BOTH antigens on the same cell? Previously orphaned (read by no card); wired via pair_selectivity_gate.window (method PR analysis-methods#351). Order-insensitive pair match; support floor >=3 donors & >=10 cells.
+
+methods:
+  - call: surface-colocalization-avidity
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - samecell_avidity_class          # PRIMARY — best-partner call across the target's nominated pairs
+    - best_partner                    # the most avidity-supportive partner antigen
+    - best_enrichment_median          # cross-donor median enrichment_vs_independence for that partner
+    - best_both_fraction_median       # cross-donor median fraction of malignant cells expressing BOTH
+    - n_partners_tested               # candidate partners scanned for this target
+    - n_coordinated_partners          # partners with same_cell_coordinated
+    # --- tumor-vs-normal SELECTIVITY WINDOW (the safety complement; normal gate now wired) ---
+    - window_verdict                  # best-partner AND-gate verdict combining tumor engagement + normal selectivity
+    - window_best_partner             # the partner giving the most viable window (by verdict, then margin)
+    - selectivity_margin              # tumor_both_fraction - normal_max_both_fraction for that partner (higher = more selective)
+    - n_window_open                   # partners clearing the full AND-gate (tumor coordinated + normal selectivity_clean)
+    - normal_liability_locus          # (tissue, cell_type) driving normal co-positivity for the best partner, when a liability exists
+  summary_fields_vocabulary:
+    samecell_avidity_class: [same_cell_coordinated, same_cell_independent, same_cell_mutually_exclusive, avidity_unconfirmed, data_unavailable]
+    window_verdict: [window_open, window_marginal, no_window, selectivity_unproven, insufficient_tumor_engagement, data_unavailable]
+
+caveats:
+  - "Surfaces the same-cell avidity cubes (previously orphaned). Bulk pair co-expression is necessary but NOT sufficient — this confirms same-CELL co-expression (the AND-gate requirement). Reported as a bispecific/dual-targeting lens, not a monospecific-target signal."
+  - "Best-partner headline: same_cell_coordinated if ANY nominated partner co-expresses on the same malignant cells (enrichment_vs_independence >= 1.2). same_cell_mutually_exclusive (<= 0.8) is the decision-relevant NEGATIVE — avidity fails despite bulk co-expression."
+  - "Partners are the pairs the bulk pair-scan NOMINATED for the indication (not an exhaustive genome scan); a target with no nominated pair returns data_unavailable (not scanned), never a fabricated negative."
+  - "Cross-donor median over the malignant compartment (donor = replicate); pooled/pan-subtype malignant denominators for the 3CA indications (PAAD/HNSC/KIRC/OV)."
+  - "SELECTIVITY WINDOW (window_verdict): the AND-gate is a CONTRAST — tumor same-cell co-positivity (high) vs normal same-cell co-positivity (~0). window_open = tumor coordinated AND no well-powered normal cell type co-expresses both; no_window = a normal cell type DOES (the SAFETY negative bulk + tumor-only avidity both miss)."
+  - "selectivity_unproven = normal coverage too thin to clear (>=3 donors & >=10 cells) — conservatively NOT a pass. normal_max_both is a LOWER BOUND on risk (scRNA dropout biases co-detection down), so a clean window is necessary, not sufficient; absence in the Census atlases is not proof of absence in the body. Protein-level tumor co-positivity (tumor CITE-seq) remains a standing gap."
+  - "DOUBLET CONFOUND (dual to the dropout lower bound). A droplet doublet reads as A+B+ even when the two antigens are on different cells, biasing both_fraction UPWARD — false-avidity (over-nominates the AND-gate) and a second normal-gate false-positive. So tumor engagement is an UPPER bound (doublet direction) while normal_max_both stays a LOWER bound (dropout). No doublet control today (no doublet field in Census obs / 3CA Cells.csv); a per-dataset caller is deferred (data-catalog #665 Step 2)."
+
+measurement: sc_rna
+sample_context: tumor          # malignant cells (single-cell same-cell coexpression)
+
+# DATA_TO_SKILL_CONTRACT — antigen_pair_coexpression at the single-cell same-cell (avidity) grain.
+measurement_type: antigen_pair_coexpression
+# bispecific / dual-targeting modality lens. Declaration lands WITH its avidity rules
+# (feat/sc-surface-avidity-rules) — never declare a lens without a rule that carries it.
+modality_relevance: [adc, bite_tce, antibody]
+entity_grains: [target_indication, target_pair]
+schema_version: 1

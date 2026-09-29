@@ -1,0 +1,104 @@
+# Card — PEPTIDE-CENTRIC HLA PRESENTATION (immunopeptidome; v1)
+#
+# The PEPTIDE-CENTRIC axis (biologics enrichment E1; signaling-node-skepticism angle A). An
+# intracellular oncoprotein is degraded and its peptides presented on HLA — a TCR-mimetic T-cell
+# engager targets the peptide-MHC COMPLEX on the cell surface, reaching "undruggable" intracellular
+# targets (KRAS-G12V, WT1, PRAME, MAGE-A4 class). This is the axis surface-antigen presence cannot see:
+# a target with zero surface expression can still be a viable pMHC-TCE target.
+#
+# Substrate: hla-ligand-atlas-presentation-per-protein-v1 — the BENIGN (normal-tissue) immunopeptidome
+# (HLA Ligand Atlas, PXD019643), per source protein.
+#
+# INVERTED SAFETY SEMANTICS (this is the NORMAL-tissue atlas): broad presentation is a LIABILITY, not
+# an opportunity. A TCR-mimetic TCE hits every cell presenting the peptide, so n_normal_tissues high =
+# broad on-target/off-tumor risk; a testis-restricted peptide (MAGE-A4, n=1) is the CLEAN target. This
+# card is the NORMAL-PRESENTATION SAFETY DENOMINATOR; the tumor-restriction call awaits a tumor
+# immunopeptidome (PCI-DB, a Tier-2 acquisition).
+#
+# MS ASYMMETRY: absence from the atlas is a WEAK negative (not_observed) — a tumor-restricted CANDIDATE
+# to confirm, NEVER a proven non-presenter (MS tracks abundance×turnover).
+
+card_id: pmhc-presentation
+version: 1.0.0
+question: "Are {target.symbol}'s peptides presented on HLA, and how broadly across NORMAL tissue — i.e. is it a clean peptide-centric (TCR-mimetic TCE) target or a broad on-target/off-tumor presentation liability?"
+
+# Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a
+# non-verdict-driving field on this card; declare the rule-keyed primary + salient categoricals.
+# VERDICT-INERT projection (see capsule contract migration).
+capsule:
+  primary_class: pmhc_presentation_class
+  categorical_fields:
+    - pmhc_presentation_class
+    - hla_class
+
+tier: target   # HLA presentation of a protein's peptides is a protein property (indication-independent, like the benign atlas)
+
+applies_when:
+  - "target.uniprot_canonical != null"   # need a UniProt AC to look up presentation; else data_unavailable
+
+required_inputs:
+  - product_id: hla-ligand-atlas-presentation-per-protein-v1
+
+methods:
+  - call: pmhc-presentation
+    args:
+      target: "{target.symbol}"
+
+outputs:
+  summary_fields:
+    - pmhc_presentation_class                    # PRIMARY categorical
+    - n_presented_peptides                       # distinct benign-atlas peptides mapping to the protein
+    - n_normal_tissues_presented                 # distinct NORMAL tissues presenting them (higher = broader liability)
+    - normal_tissues_presented                   # ';'-joined tissue list
+    - hla_class                                  # HLA-I | HLA-II | HLA-I+II (union across peptides)
+    - n_strong_binder_peptides                   # peptides with >=1 STRONG donor-allele binder call
+    - n_weak_binder_peptides
+    - uniprot_ac
+
+  summary_fields_vocabulary:
+    pmhc_presentation_class:
+      - restricted_presentation                  # <= atlas Q1 (3) normal tissues — CLEAN peptide-centric TCE target (MAGE-A4 archetype)
+      - intermediate_presentation                # normal-tissue breadth between Q1 and Q3
+      - broadly_presented_normal                 # >= atlas Q3 (19) normal tissues — broad on-target/off-tumor SAFETY LIABILITY for a pMHC TCE
+      - not_observed                             # absent from the benign atlas — WEAK negative (MS asymmetry); a tumor-restricted CANDIDATE to confirm
+      - data_unavailable                         # target not resolvable to a UniProt AC / atlas unreadable
+
+  figure: pmhc_presentation_tissue_breadth
+
+thresholds:
+  # anchored to the atlas n_normal_tissues distribution (15,262 proteins; quartiles [3, 8, 19, 25]).
+  restricted_max_tissues: 3                       # <= atlas Q1
+  broad_min_tissues: 19                           # >= atlas Q3
+
+warning_predicates:
+  - warning_id: pmhc_broad_normal_presentation_liability
+    if: "pmhc_presentation_class == 'broadly_presented_normal'"
+    message: "{target.symbol} peptides are presented on >= 19 normal tissues (HLA {hla_class}). A TCR-mimetic pMHC TCE would engage every presenting cell — a broad on-target/off-tumor liability. A peptide-centric program needs a tumor-restricted peptide + tight HLA restriction, not just presentation."
+  - warning_id: pmhc_not_observed_is_weak_negative
+    if: "pmhc_presentation_class == 'not_observed'"
+    message: "{target.symbol} is absent from the HLA Ligand Atlas benign immunopeptidome. MS tracks abundance x turnover, so absence is a WEAK negative — a tumor-restricted peptide-centric CANDIDATE to confirm on a tumor atlas, NOT proof it is unpresented."
+
+caveats:
+  - |
+    BENIGN-atlas only (normal tissues). This card answers "how broadly is the peptide presented on
+    NORMAL tissue" (the safety denominator) — NOT "is it tumor-presented". The tumor-restriction call
+    needs a tumor immunopeptidome (PCI-DB PXD058376 + indication PXDs — a Tier-2 acquisition). A
+    restricted_presentation call is necessary-but-not-sufficient for a clean pMHC-TCE target.
+  - |
+    MS ASYMMETRY (load-bearing): mass-spec immunopeptidomics detects presented peptides by abundance x
+    turnover. PRESENCE is strong evidence; ABSENCE (not_observed) is WEAK — a peptide below MS detection
+    on normal tissue may still be presented. Never read not_observed as a confirmed non-presenter.
+  - |
+    HLA restriction + population coverage are not scored here (per-protein rollup). A pMHC-TCE is
+    restricted to specific HLA alleles; the peptide-level allele + 1000G super-population coverage is a
+    follow-on (the biologics phla-immunopeptidomics deliverable resolves 44 epitopes by HLA haplotype).
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the DERIVED `pmhc_presentation` claim (peptide-centric HLA
+# presentation breadth). A DISTINCT modality axis: reaches intracellular targets via pMHC that
+# surface_confirmation / surface_topology cannot see.
+measurement_type: pmhc_presentation
+# P4 modality routing: peptide-centric presentation gates the TCR-mimetic T-cell-engager modality only
+# (a pMHC TCE); an ADC/naked antibody binds the folded surface protein, not the peptide-MHC complex.
+modality_relevance: [bite_tce]
+entity_grains: [target]
+schema_version: 1

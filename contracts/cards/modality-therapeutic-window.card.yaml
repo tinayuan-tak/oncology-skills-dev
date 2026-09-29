@@ -1,0 +1,164 @@
+# Card Phase-F — MODALITY THERAPEUTIC WINDOW (v1)
+#
+# Biologics-augment card (2026-08-06). Re-homes the biologics-target-discovery clean-antigen
+# THERAPEUTIC-WINDOW signal onto the framework's own tcga-gtex-tpm-tissue-quantiles-v1 product at
+# CLAIM-GRADE TPM. Answers what NEITHER tumor-vs-normal-selectivity (a within-tissue-of-origin
+# contrast) NOR normal-tissue-liability (off-tumor breadth) answers: is tumor expression high enough
+# RELATIVE TO the worst essential normal organ to open a therapeutic window for THIS modality tier?
+#
+# The single fused ratio surfaces the CEACAM5 archetype: a ~558x window that is STILL a strict-TCE
+# liability (lung > 1.0 TPM) yet clean for a moderate-tier ADC — a call neither existing card makes.
+#
+# Interpretation surface (window_class is PRIMARY):
+#   clean_window               → window_ratio_essential >= 4x AND no essential organ >= modality tier
+#   essential_tissue_liability → an essential organ >= the modality tier threshold (THE teeth)
+#   narrow_window              → expressed, no essential liability, but ratio < 4x
+#   not_expressed_in_cohort    → tumor median < 1.0 TPM (cohort-honesty; NOT a clean/dirty call)
+#   data_unavailable           → indication has no TCGA study, or target absent from the product
+
+card_id: modality-therapeutic-window
+version: 1.1.0
+question: "For {target.symbol} in {indication.label}, is tumor expression high enough relative to the worst essential normal organ to open a therapeutic window for a biologic at each modality tier (strict TCE / moderate ADC / pathway antibody)?"
+
+# Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a
+# non-verdict-driving field on this card; declare the rule-keyed primary + salient categoricals.
+# VERDICT-INERT projection (see capsule contract migration).
+capsule:
+  primary_class: window_class
+  categorical_fields:
+    - window_class
+    - therapeutic_window_class
+    - full_normal_window_class
+    - modality
+
+tier: indication   # per-indication tumor-vs-essential-normal window; the tumor numerator is cohort-specific
+
+applies_when:
+  # The window numerator is the TCGA tumor cohort for the indication; requires the indication to map
+  # to a TCGA study (indications without one — e.g. SCLC — resolve data_unavailable, honestly).
+  - "context.data_sources.tcga_gtex_tpm_quantiles_available == true"
+
+required_inputs:
+  - product_id: tcga-gtex-tpm-tissue-quantiles-v1
+
+methods:
+  - call: modality-therapeutic-window
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - window_class                               # PRIMARY categorical (per modality tier; absolute essential-organ gate)
+    - therapeutic_window_class                   # RATIO-based re-tier (2026-08-07): clean>=5x / narrow 1-5x /
+                                                 # no_therapeutic_window <1x (tumor below worst critical normal) /
+                                                 # not_expressed_in_cohort. Separates high-window antigens from
+                                                 # housekeeping where window_class collapses them; the selectivity
+                                                 # conjunction's normal-breadth VETO keys on no_therapeutic_window.
+    - full_normal_window_class                   # PAN-NORMAL companion (AM #239): tumor / worst of the FULL normal
+                                                 # atlas (vs therapeutic_window_class's essential-organs-only). The
+                                                 # selectivity axis-B pan-normal VETO keys on no_full_normal_window.
+    - tumor_tpm                                  # linear TPM, max median across the indication's TCGA studies
+    - max_essential_normal_tpm                   # denominator 1: worst essential organ (the tier gate)
+    - max_essential_normal_organ                 # which essential GTEx tissue
+    - max_full_normal_tpm                        # denominator 2 (THEME-1 fix): worst tissue across ALL normal
+    - max_full_normal_organ                      # which GTEx tissue (may be non-essential — skin/salivary/etc.)
+    - window_ratio_essential                     # (tumor+1)/(max_essential_normal+1)
+    - window_ratio_full_normal                   # (tumor+1)/(max_full_normal+1) — exposes non-essential dirtiness
+    - modality_tier_threshold_tpm                # the essential-tissue tier applied (strict 1.0 / mod 5.0 / pathway 10.0)
+    - tumor_studies                              # TCGA study code(s) used as the tumor cohort
+    - modality                                   # which modality tier this call was scored at
+    - method_version
+
+  summary_fields_vocabulary:
+    window_class:
+      - clean_window                             # viable window at this tier
+      - essential_tissue_liability               # an essential organ exceeds the tier threshold
+      - narrow_window                            # expressed, no essential liability, but < 4x separation
+      - not_expressed_in_cohort                  # tumor < 1.0 TPM in this cohort (not a candidate here)
+      - data_unavailable                         # no TCGA study for the indication, or target absent
+    therapeutic_window_class:                    # RATIO-only re-tier (tumor / worst essential-normal)
+      - clean_window                             # ratio >= 5x — comfortable therapeutic window
+      - narrow_window                            # ratio 1-5x — real but modest window (kept, flagged)
+      - no_therapeutic_window                    # ratio < 1x — tumor BELOW worst critical normal (the veto)
+      - not_expressed_in_cohort                  # tumor < 1.0 TPM
+      - data_unavailable
+    full_normal_window_class:                    # PAN-NORMAL companion (AM #239, 2026-08-08): tumor / worst
+                                                 # of the FULL normal atlas (not just the 15 essential organs).
+                                                 # therapeutic_window_class is essential-organs-only, so a gene
+                                                 # broad across NON-essential normals (TROP2/salivary-gland
+                                                 # archetype) reads clean there yet has no pan-normal window.
+                                                 # The selectivity conjunction's axis-B pan-normal VETO keys on
+                                                 # no_full_normal_window (DEFERRED-2).
+      - clean_full_normal_window                 # ratio >= 5x vs worst full-normal — pan-normal window
+      - narrow_full_normal_window                # ratio 1-5x
+      - no_full_normal_window                    # ratio < 1x — tumor below worst of the full normal atlas (the veto)
+      - not_expressed_in_cohort                  # tumor < 1.0 TPM
+      - data_unavailable
+
+  figure: modality_window_tumor_vs_essential_normal
+
+thresholds:
+  clean_window_ratio: 4.0                        # window ratio at/above which tumor:essential-normal is "clean"
+  tumor_expression_floor_tpm: 1.0                # below this the tumor is effectively not-expressed
+  # modality-tiered essential-tissue thresholds (linear TPM), ported verbatim from
+  # normal-tissue-liability.card.yaml — the SAME thresholds the framework already governs by.
+  strict_tier_threshold_tpm: 1.0                 # BiTE/TCE, cell therapy
+  moderate_tier_threshold_tpm: 5.0               # ADC (bystander payload buffer)
+  pathway_dependent_tier_threshold_tpm: 10.0     # antibody
+
+warning_predicates:
+  - warning_id: window_full_normal_diverges_from_essential
+    if: "window_ratio_full_normal < 1.0 && window_ratio_essential >= THRESHOLD.clean_window_ratio"
+    message: "Essential-only window looks clean, but a NON-ESSENTIAL normal tissue ({max_full_normal_organ}, {max_full_normal_tpm} TPM) exceeds tumor — the essential-only blind spot (TACSTD2/TROP2, high in skin/salivary). An ADC may tolerate this; a strict TCE typically cannot."
+  - warning_id: window_not_expressed_in_this_cohort
+    if: "window_class == 'not_expressed_in_cohort'"
+    message: "{target.symbol} tumor median < 1.0 TPM in the {indication.label} TCGA cohort — window call cannot be made here. If the target's true indication lacks a TCGA study (e.g. DLL3/SCLC), this is a cohort artifact, not a biological absence."
+
+caveats:
+  - |
+    CROSS-SOURCE BATCH CONFOUND (first-order): the numerator (TCGA tumor) and denominator (GTEx
+    normal) are different assays harmonized onto one recount3/GENCODE-v26 TPM axis, NOT a matched
+    tumor-vs-adjacent contrast — a raw ratio inherits residual batch effects. Read the window as a
+    MODALITY-TIER SCREEN (does an essential organ trip the threshold?); cross-check the magnitude
+    against the within-cohort tumor-vs-normal-selectivity card before citing a specific fold-value.
+  - |
+    ESSENTIAL vs FULL-NORMAL denominators are BOTH emitted deliberately. window_ratio_essential
+    drives the modality-tier liability call (the biologics repo's core signal); window_ratio_full_normal
+    is the Theme-1 correction — the source scorer discarded the full-normal max and thereby understated
+    dirtiness for antigens whose liability is a NON-essential tissue (TACSTD2 skin/salivary, CEACAM5
+    colon). When the two diverge, the full-normal ratio is the more conservative read for a strict TCE.
+  - |
+    The window is TCGA-cohort-based. Indications without a TCGA study resolve data_unavailable (never a
+    silent coarser fall-back). Tumor numerator = MAX median across the indication's TCGA studies
+    (COADREAD = max over COAD, READ) — the study where the target is highest gets its due.
+  - |
+    RNA, not protein. TPM is a transcript proxy; a surface antigen's deliverable target is the PROTEIN.
+    Pair with surface-abundance-density (copies/cell) + protein-surface-evidence (CSPA) for the
+    protein-reality half of a biologics decision. The window is an efficacy/safety-SCREEN axis.
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the DERIVED `modality_window` claim (tumor-vs-essential-normal
+# therapeutic window per modality tier). Distinct from surface_density (copies/cell) and from
+# tumor_vs_normal_selectivity (within-tissue contrast) — the fused tumor / max-essential-normal ratio.
+measurement_type: modality_window
+# P4 modality routing: the window is a per-modality-tier efficacy/safety screen for biologics.
+modality_relevance: [adc, bite_tce, antibody]
+entity_grains: [target_indication]
+schema_version: 1
+threshold_roles:
+  tumor_expression_floor_tpm:
+    role: method_parameter
+    consumed_by: modality-therapeutic-window
+    note: 'The method treats tumor_tpm below 1.0 as not-expressed in tcga_gtex_tpm_quantiles/window.py:164 (TUMOR_EXPRESSION_FLOOR_TPM), applied at L296/L315/L326. Applied upstream, never by a card predicate.'
+  strict_tier_threshold_tpm:
+    role: method_parameter
+    consumed_by: modality-therapeutic-window
+    note: 'The BiTE/TCE + cell-therapy essential-liability tier cut (1.0 TPM), MODALITY_TIER_THRESHOLD in window.py:159-160, applied at L329. Applied upstream, never by a card predicate.'
+  moderate_tier_threshold_tpm:
+    role: method_parameter
+    consumed_by: modality-therapeutic-window
+    note: 'The ADC essential-liability tier cut (5.0 TPM, bystander-payload buffer), MODALITY_TIER_THRESHOLD["adc"] in window.py:161, applied at L329. Applied upstream, never by a card predicate.'
+  pathway_dependent_tier_threshold_tpm:
+    role: method_parameter
+    consumed_by: modality-therapeutic-window
+    note: 'The antibody essential-liability tier cut (10.0 TPM), MODALITY_TIER_THRESHOLD["antibody"] in window.py:162, applied at L329. Applied upstream, never by a card predicate.'

@@ -1,0 +1,75 @@
+# Card — CD / IMMUNO-ONCOLOGY ANTIGEN BACKBONE (clinical-precedent prior; v1, E6-CD)
+#
+# Enrichment E6-CD (2026-08-07). A CLASS-level clinical-PRECEDENT signal orthogonal to everything
+# else surface-modality-fit scores (topology / density / window / shed are all PREDICTED biology):
+# is the target on the canonical CD / immuno-oncology antigen BACKBONE — the antigen class that has
+# actually DELIVERED approved biologics (CD19/CD20/CD22/CD38/CD30/BCMA-class mAb / ADC / TCE / CAR-T)?
+#
+# Substrate: hgnc-gene-group-471 "CD molecules" (394 canonical CD antigens per HGNC, CC0), read via
+# the cd_antigen_backbone method. The roster catches immuno-oncology backbone antigens that do NOT
+# carry "CD" in their HGNC symbol (PDCD1=CD279, CTLA4=CD152, TNFRSF17/BCMA=CD269) — which a family-
+# label match on the symbol would miss.
+#
+# HONEST FRAMING (load-bearing): this is a CLASS-level precedent PRIOR. "On the backbone" does NOT mean
+# THIS target is validated. And not_cd_antigen is NOT a negative — most excellent solid-tumor ADC/TCE
+# antigens (CEACAM5, FOLR1, TROP2/TACSTD2, MSLN, CLDN18.2) are NOT CD molecules. Supportive-only.
+
+card_id: cd-antigen-backbone
+version: 1.0.0
+question: "Is {target.symbol} on the CD / immuno-oncology antigen backbone — a class with established mAb / ADC / TCE / CAR-T clinical precedent?"
+
+tier: target   # CD-antigen membership is a protein property (indication-independent)
+
+applies_when: []   # biologics-relevant; scoped downstream by the composed modality card
+
+required_inputs:
+  - product_id: hgnc-gene-group-471-cd-molecules-snapshot-2026-07-08   # HGNC CD-molecule roster (CC0)
+
+methods:
+  - call: cd-antigen-backbone
+    module: cd_antigen_backbone
+    entrypoint: read_cd_antigen_backbone
+    args:
+      target: "{target.symbol}"
+
+outputs:
+  summary_fields:
+    - cd_antigen_backbone_class                   # PRIMARY categorical
+    - on_cd_roster                                # bool: on the HGNC CD-molecule roster
+    - cd_number                                   # str|null; the CD number (e.g. CD19, CD279 for PDCD1)
+    - cd_roster_uniprot                           # str|null; UniProt AC from the roster record
+    - cd_gene_groups                              # list|null; HGNC functional-group memberships (multi)
+    - established_io_precedent                    # bool: in the curated approved/advanced-clinical set
+    - method_version
+
+  summary_fields_vocabulary:
+    cd_antigen_backbone_class:
+      - established_io_backbone                   # canonical CD antigen WITH an approved/advanced biologic against the class — strongest tractability prior
+      - cd_antigen                                # on the HGNC CD roster (a real backbone prior) but not in the curated approved-precedent set
+      - not_cd_antigen                            # NOT on the roster — the ABSENCE of a CD-backbone prior, NOT a negative (most solid-tumor antigens aren't CD)
+      - data_unavailable                          # roster unreadable (infra)
+
+warning_predicates:
+  - warning_id: cd_established_io_backbone
+    if: "cd_antigen_backbone_class == 'established_io_backbone'"
+    message: "{target.symbol} ({cd_number}) is a canonical CD/IO antigen with APPROVED or advanced-clinical biologic precedent (mAb/ADC/TCE/CAR-T against the class). A strong tractability prior — but class precedent is not this-target validation; confirm the specific-target evidence."
+
+caveats:
+  - |
+    CLASS-level clinical-PRECEDENT prior, NOT this-target validation. established_io_backbone means the
+    ANTIGEN CLASS has delivered approved biologics (CD19/CD20/BCMA-class) — it does not establish that
+    THIS target is a validated program. Read it as a tractability-precedent enrichment, not proof.
+  - |
+    not_cd_antigen is NOT a negative. Most of the best solid-tumor ADC/TCE antigens (CEACAM5, FOLR1,
+    TROP2/TACSTD2, MSLN, CLDN18.2) are NOT CD molecules. Absence of a CD-backbone prior says nothing
+    against a target — the signal is supportive-only, never opposing.
+  - |
+    Roster = HGNC gene-group 471 (nomenclature snapshot 2026-07-08). It catches non-"CD"-named backbone
+    antigens (PDCD1=CD279, CTLA4=CD152) a symbol match misses, but is bounded to HGNC's CD assignment;
+    a non-membership is "not per HGNC nomenclature", not a biological claim about surface accessibility.
+
+# DATA_TO_SKILL_CONTRACT — view of the derived `cd_antigen_backbone` claim.
+measurement_type: cd_antigen_backbone
+modality_relevance: [adc, bite_tce, antibody]
+entity_grains: [target]
+schema_version: 1

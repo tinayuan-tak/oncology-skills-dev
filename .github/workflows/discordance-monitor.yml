@@ -33,8 +33,9 @@ jobs:
     timeout-minutes: 90
     env:
       HAVE_AWS: ${{ secrets.AWS_ROLE_TO_ASSUME != '' }}
-      ANALYSIS_METHODS_ROOT: ${{ github.workspace }}/rnd-computational-biology-oncology-analysis-methods
-      TARGET_CONTRACTS_ROOT: ${{ github.workspace }}/rnd-computational-biology-oncology-target-contracts
+      # methods/ and contracts/ are IN-TREE since the SK#2063 consolidation.
+      ANALYSIS_METHODS_ROOT: ${{ github.workspace }}/rnd-computational-biology-oncology-claude-oncology-skills/methods
+      TARGET_CONTRACTS_ROOT: ${{ github.workspace }}/rnd-computational-biology-oncology-claude-oncology-skills/contracts
       DATA_CATALOG_ROOT: ${{ github.workspace }}/rnd-computational-biology-oncology-data-catalog
       AWS_PROFILE: cbg
       BEDROCK_AWS_PROFILE: cmp-dev
@@ -43,22 +44,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: rnd-computational-biology-oncology-claude-oncology-skills
-
-      - name: Checkout analysis-methods
-        uses: actions/checkout@v4
-        with:
-          repository: oneTakeda/rnd-computational-biology-oncology-analysis-methods
-          ref: main
-          path: rnd-computational-biology-oncology-analysis-methods
-          token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
-
-      - name: Checkout target-contracts
-        uses: actions/checkout@v4
-        with:
-          repository: oneTakeda/rnd-computational-biology-oncology-target-contracts
-          ref: main
-          path: rnd-computational-biology-oncology-target-contracts
-          token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
 
       - name: Checkout data-catalog
         uses: actions/checkout@v4

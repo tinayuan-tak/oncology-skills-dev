@@ -1,0 +1,311 @@
+# Card — TUMOR EXPRESSION DISTRIBUTION BY MOLECULAR SUBTYPE (per-sample RNA; TCGA)
+#
+# The target_subtype-grain SIBLING of tumor-rna-distribution. Same measurement_type
+# (tumor_expression_distribution), same per-sample substrate — but recomputes the distribution
+# WITHIN each molecular-subtype member-set of the indication, emitting a per-stratum panorama.
+#
+# This is the framework's standard grain-split convention: a POOLED target_indication card
+# (tumor-rna-distribution) beside a SEPARATE tier:subtype card (this one) — exactly as
+# crispr_lof_dependency splits into the pooled distribution cards + subgroup-stratified-dependency.
+# The GRAIN-CHECK validator (_grain_and_tier_check) enforces that a card declaring
+# per_subgroup_metrics binds a per-sample stratified reader; tcga-gtex-expression-distribution
+# (AM #82, read_tumor_expression_subtype_landscape) IS one — it recomputes per stratum via the
+# TCGA UUID→barcode→stratum bridge, verified live (0 null bridge, ~92% stratum coverage, KRAS/CRC).
+#
+# PRESENCE-side (Gate A / tumor-presence). Subtype is CONTEXT/CONFIDENCE, never a veto — the
+# one-directional nomination gate is preserved. COMPUTE-ALL-SPOTLIGHT-ONE: the reader computes
+# EVERY stratum; a queried subtype spotlights + scopes the verdict downstream, not the computation.
+
+card_id: tumor-rna-distribution-by-subtype
+version: 0.1.0
+question: "How does {target.symbol} RNA expression DISTRIBUTE across the molecular subtypes of {indication.label} tumors — which subtypes are enriched, depleted, or restricted vs the pooled distribution?"
+
+# Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a
+# non-verdict-driving field on this card; declare the rule-keyed primary + salient categoricals.
+# VERDICT-INERT projection (see capsule contract migration).
+capsule:
+  primary_class: subtype_stratification_class
+  categorical_fields:
+    - subtype_stratification_class
+    - subtype_effect_size_class
+    - subtype_axis_quality
+    - normal_comparator_type
+
+tier: subtype
+
+subgroup_stratification:
+  eligible: true
+  status: live
+  axes: [molecular_subtype]
+  rationale: "Expression distribution varies by molecular subtype (e.g. MLH1 depleted in CIMP-High/CMS1/MSI-H via mismatch-repair silencing; ZEB1 enriched in mesenchymal CMS4). Backed by tcga-gtex-expression-distribution, which recomputes the per-sample distribution within each stratum's member-set via the TCGA UUID↔barcode bridge — not an emit-time aggregate."
+
+applies_when:
+  # a landed tumor assignment shard is required. Extended 2026-08-04 from COADREAD-only to the 6
+  # indications whose shards have landed AND been VERIFIED to emit real, powered strata (>=30
+  # members): COADREAD (7 strata), HNSC (9), STAD (4), NSCLC/LUAD/LUSC (3), ESCA (2), PAAD/PDAC (2).
+  # SCLC was added alongside them but is NON-TCGA (George 2015) — see required_inputs.
+  # Must stay in lockstep with BOTH reader maps in tcga_gtex_expression_distribution
+  # (analysis-methods): INDICATION_TO_TUMOR_ASSIGNMENT_MANIFEST (base strata) and
+  # INDICATION_TO_TUMOR_MAF_MANIFEST (the orthogonal driver-mutation strata, unioned on). Between them
+  # they resolve 16 indication codes to 11 shards, all declared below as of 2026-09-18. An indication
+  # not listed here → subtype_axis_available:False.
+  - "context.indication in ['COADREAD', 'COAD', 'READ', 'HNSC', 'HNSCC', 'STAD', 'GC', 'NSCLC', 'LUAD', 'LUSC', 'ESCA', 'PAAD', 'PDAC', 'SCLC']"
+  - "indication.subgroup_catalog_available == true"
+
+required_inputs:
+  - product_id: tcga-tumor-tpm-recount3-long-v1        # per-sample tumor TPM (the distribution substrate)
+  - product_id: tcga-tumor-tpm-per-sample-v1           # the UUID↔barcode sidecar (the bridge)
+  # ASSIGNMENT SHARDS — the UNION the reader can resolve, not just the COADREAD one (2026-09-18).
+  # Until now this block declared coadread ALONE while applies_when admitted 14 indication codes and
+  # the reader resolved 16 codes to 11 shards: HNSC/STAD/NSCLC/ESCA/PAAD/SCLC subtype coverage was
+  # LIVE but UNDECLARED. That is not a missing citation. `required_inputs[].product_id` is copied into
+  # (a) governance.resolved_releases staleness auditing and (b) card_present[].provenance.
+  # required_product_ids, which the cross-evidence INDEPENDENCE invariant reads to avoid
+  # double-counting correlated evidence toward certainty — so an undeclared substrate is a
+  # certainty-INFLATION channel. Declaring the union errs the safe way (more apparent sharing =>
+  # LESS independence credit); the per-run narrowing is the reader's own `assignment_manifest` stamp,
+  # which this card already declares as a summary_field.
+  # Must stay in lockstep with INDICATION_TO_TUMOR_ASSIGNMENT_MANIFEST + INDICATION_TO_TUMOR_MAF_
+  # MANIFEST in the tcga_gtex_expression_distribution reader (analysis-methods). Verified 2026-09-18:
+  # every id below resolves to a landed data-catalog manifest and none is superseded.
+  #
+  # base (directly-tagged molecular / histology strata) — one shard per indication family:
+  - product_id: tcga-subgroup-assignments-coadread-v1  # the molecular-subtype assignment shard (barcode-keyed)
+  - product_id: tcga-subgroup-assignments-hnsc-v1      # HPV status + anatomic site
+  - product_id: tcga-subgroup-assignments-stad-v1      # Bass/TCGA molecular subtypes
+  - product_id: tcga-subgroup-assignments-nsclc-v1     # histology split (Adeno / SCC) — serves LUAD + LUSC
+  - product_id: tcga-subgroup-assignments-esca-v1      # EAC / ESCC
+  - product_id: tcga-subgroup-assignments-paad-v1      # Moffitt subtypes
+  # ORTHOGONAL genomic (driver-mutation) strata, UNIONED onto the base strata per indication. Partial
+  # by design — only the 4 indications with a landed -maf shard; absence = base strata only (honest).
+  - product_id: tcga-subgroup-assignments-hnsc-maf-v1  # TP53_mut / PIK3CA_mut
+  - product_id: tcga-subgroup-assignments-nsclc-maf-v1 # KRAS_G12C
+  - product_id: tcga-subgroup-assignments-esca-maf-v1  # TP53_mut
+  - product_id: tcga-subgroup-assignments-paad-maf-v1  # TP53_mut / KRAS_G12D / KRAS_WT
+  # NON-TCGA. SCLC sits in applies_when but was backed by NO declared input at all: the NAPY strata
+  # (SCLC-A/N/P/Y) come from the George 2015 cohort, and the per-sample source is the George product
+  # routed via INDICATION_TO_NONTCGA_SOURCE — NOT a TCGA study. Declaring it here is what lets the
+  # staleness auditor and the independence guard see that this arm changes substrate for SCLC.
+  - product_id: sclc-subgroup-assignments-v1           # George 2015 NAPY strata (ASCL1/NEUROD1/POU2F3/YAP1 argmax)
+
+methods:
+  - call: tcga-gtex-expression-distribution
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - per_subgroup_metrics                      # the per-stratum panorama (record schema below)
+    - subtype_axis_available                    # is a shard landed for this indication?
+    - subtype_axis_quality                      # powered | underpowered | empty | unavailable — the HONEST
+                                                # capability grade: subtype_axis_available:true alone masks a
+                                                # hollow axis (only 1 powered stratum / all strata empty). Lets a
+                                                # consumer distinguish an ACTIONABLE subtype axis (>=2 powered
+                                                # strata, contrastable) from one present-but-unusable. Verdict-inert.
+    - n_subtypes_measured                       # strata clearing the n-floor
+    - n_subtypes_enriched                       # strata flagged subtype_enriched
+    - n_subtypes_restricted                     # strata flagged subtype_restricted (present here, absent pooled)
+    - subtype_stratification_class              # graded patient-selection signal → biomarker facet stratification_role
+                                                # (subtype_restricted_with_window > subtype_restricted > subtype_enriched
+                                                #  > pan_subtype_uniform > subtype_axis_unavailable). One-directional:
+                                                #  raises CONFIDENCE / defines patient population, NEVER moves presence_verdict.
+    - n_subtypes_clearing_normal_window         # strata where >=50% of tumors clear the (matched) normal p95
+    - n_subtypes_clearing_proxy_window_by_tissue # {proxy_tissue: count} — the PROXY analogue (multi-valued);
+                                                 # null on matched/none comparators (mutually exclusive w/ the above)
+    - spotlight_subtype                          # the queried stratum (or null — compute-all)
+    - assignment_manifest                        # provenance: the shard consumed
+    - matched_normal_tissue                      # true GTEx tissue-of-origin (null when none exists)
+    - normal_comparator_type                     # matched | proxy | none — HOW the window was computed
+    - proxy_normal_tissues                        # proxy tissues used when no true normal (HNSC etc.)
+    # ACROSS-SUBTYPE OMNIBUS (Phase 3, 2026-08-05) — the ANOVA-analogue over the POWERED strata's
+    # per-sample vectors. Answers "is subtype a patient-selection axis for this target, and how much
+    # of the expression variance does it explain?" Kruskal-Wallis (non-parametric — log2TPM is
+    # non-normal/heteroscedastic) + ε² variance-explained EFFECT SIZE. The effect-size CLASS is the
+    # decision-relevant field; the p-value is DISPLAY-ONLY (at TCGA n's KW p is near-always
+    # significant → significance != actionability; effect size is what discriminates). One-directional
+    # display facet — NEVER moves presence_verdict (consistent with the rest of this card).
+    - subtype_omnibus_kruskal_h                  # float — the H statistic (or null)
+    - subtype_omnibus_p                          # float — asymptotic chi-square p (DISPLAY-ONLY)
+    - subtype_variance_explained                 # float — ε² ∈ [0,1] (variance subtype explains)
+    - subtype_effect_size_class                  # categorical — large / moderate / negligible / data_unavailable
+    - which_subtypes_separate                    # {highest, lowest} stratum ids at the median extremes (or null)
+    # PURITY confounder context (2026-08-21) — a subtype whose "enrichment" tracks LOW tumor purity
+    # is a stromal signal, not tumor-intrinsic. Verdict-inert (like the omnibus).
+    - purity_source                              # pancanatlas_absolute | unavailable
+    - subtype_purity_spread                      # {max_median_purity, min_median_purity, delta} over measured strata (or null)
+  summary_fields_vocabulary:
+    # Ordered most→least usable, mirroring subgroup_common.panorama.axis_quality. `exploratory` and
+    # `unevaluable` are the two grades AM #659 added (2026-09-18); both are OPT-IN per reader, and the
+    # method's own contract is that "a reader opts in only after its card declares the wider enum" —
+    # which is what this block did.
+    #
+    # STATUS TRUTHED UP 2026-09-18 (AM #662, merge 48f20a1). The previous note here said the
+    # declaration was inert "until the tcga_gtex_expression_distribution reader passes
+    # `exploratory_floor=` / `evaluated=`". That is now false, and it was also wrong to pair the two
+    # kwargs, because they resolve in OPPOSITE directions on this arm:
+    #   `exploratory` is LIVE — the reader passes `exploratory_floor=` at read.py:1060 and :1362.
+    #   `unevaluable` is PERMANENTLY UNREACHABLE HERE, by construction and on purpose. This arm
+    #     derives its strata from `is_member == True` rows, so every stratum it can name was
+    #     necessarily evaluated; passing `evaluated=` would be an argument that cannot vary. Only the
+    #     DepMap and CPTAC arms pass it, because those are handed `subgroups` by the CALLER and can
+    #     therefore be asked about a stratum nobody was assigned to.
+    # The token stays declared rather than being removed: this enum is shared vocabulary across the
+    # three by-subtype arms (the point of the arc is cross-arm comparability), and a reader-specific
+    # unreachability is not a reason for one card to disagree with its siblings about the vocabulary.
+    # It is declared-and-unreachable HERE for a stated structural reason — not pending wiring.
+    subtype_axis_quality:
+      - powered                                  # >=2 strata clear the n-floor → cross-subtype contrast supportable
+      - exploratory                              # <2 measured but >=2 strata measured-OR-exploratory (the 10-29 band,
+                                                 # subgroup_common.SUBGROUP_EXPLORATORY_FLOOR): contrastable as a
+                                                 # HYPOTHESIS only. NOT a relaxation of the n-floor — `powered` keeps its
+                                                 # one meaning across every substrate; this is a SECOND, LOWER band so a
+                                                 # 10-29-member stratum stops being invisible. Such a stratum reports its
+                                                 # distribution stats with a NULL subtype_signal, can never carry a scoped
+                                                 # call, and is excluded from every cross-stratum reducer exactly as
+                                                 # `underpowered` is.
+      - underpowered                             # axis has samples but <2 measured strata → context only
+      - unevaluable                              # NOTHING on the axis was classified. Ranked deliberately ABOVE `empty`:
+                                                 # `empty` asserts a MEASURED absence ("we looked, nobody qualifies") and
+                                                 # here there is no such measurement, so there is no absence to assert.
+                                                 # Conflating the two is how an abstention gets laundered into a negative.
+      - empty                                    # every stratum was EVALUATED and none has members (0 ∩ cohort)
+      - unavailable                              # no assignment shard / indication has no subtype axis
+    subtype_effect_size_class:
+      - large                                    # ε² >= subtype_effect_large (subtype a strong patient-selection axis)
+      - moderate                                 # ε² >= subtype_effect_moderate
+      - negligible                               # ε² below moderate (subtype not a meaningful selection axis)
+      - data_unavailable                         # <2 powered strata / no shard
+  summary_fields_record_schemas:
+    # record-schema value specs declare the EXPECTED scalar type; a runtime null (e.g. an
+    # underpowered stratum's subtype_signal / median) is permitted — the schema types the
+    # non-null case, matching the subgroup-stratified-dependency exemplar convention.
+    per_subgroup_metrics:
+      stratum_id: string
+      subtype_signal: {enum: [subtype_enriched, subtype_restricted, subtype_depleted, subtype_uniform], type: string}
+      # The enrichment cutoff ACTUALLY APPLIED to produce `subtype_signal` on this row, in log2 units.
+      # Declared 2026-09-18 to close a cross-arm comparability defect: the word "enriched" means a
+      # 1.5x linear shift here (0.585) and a 2x shift on cellline-rna-distribution-by-subtype (1.0),
+      # and until now the number lived only as a constant inside each method and was emitted NOWHERE.
+      # A consumer joining the arms per stratum therefore had no way to tell that the two
+      # `subtype_enriched` tokens are not the same claim. Emitting the applied delta per record makes
+      # the arms normalisable WITHOUT moving either cut — deliberately preferred over aligning the
+      # constants, because changing the cellline cutoff would silently move that arm's live
+      # subtype_signal values. Equals thresholds.subtype_enrich_log2_delta on this card unless a
+      # future per-indication override exists; the point is that the consumer reads the APPLIED
+      # value, not a card default it has to assume was used.
+      subtype_enrich_log2_delta: number
+      # WIDENED 2026-09-18 for AM #659. Unlike summary_fields_vocabulary above, THIS enum is the
+      # restrictive half: it is what an emitted row is validated against, so a reader that opts into
+      # the exploratory band before this widening emits a row its own card rejects.
+      # REACHABILITY TRUTHED UP 2026-09-18 (AM #662): `exploratory` is now EMITTED on this arm;
+      # `unevaluable` is structurally unreachable here. See the note above summary_fields_vocabulary
+      # for why the two kwargs do not travel together — do not "finish the job" by wiring
+      # `evaluated=` into this reader.
+      evidence_state: {enum: [measured, exploratory, underpowered, unevaluable, absent], type: string}
+      subgroup_n_floor_met: boolean
+      n_tumor_samples: integer
+      # absolute distribution depth (parity with the pooled card — Option 1, 2026-08-04)
+      median_log2tpm: number
+      p95_log2tpm: number
+      p99_log2tpm: number
+      min_log2tpm: number
+      max_log2tpm: number
+      # five-number-summary SPREAD retained per stratum (AM#857, 2026-09-29) — parity with the pooled
+      # card's summary_fields; same DROPPED-at-projection fix applied to the per-subtype grain. q1/q3 ==
+      # p25/p75, VERDICT-INERT. See the pooled card for the naming rationale.
+      p5_log2tpm: number
+      q1_log2tpm: number
+      q3_log2tpm: number
+      mean_log2tpm: number
+      sd_log2tpm: number
+      coefficient_of_variation: number
+      detectable_fraction: number
+      high_fraction: number
+      moderate_fraction: number
+      distribution_pattern: string
+      tumor_expression_class: string
+      match_rate: number                        # stratum join coverage (id-convention guard)
+      # per-stratum tumor PURITY (ABSOLUTE / PanCanAtlas) — a low-purity stratum's expression
+      # enrichment may be stromal, not tumor-intrinsic. Verdict-inert context. Null when no purity call.
+      median_purity: number
+      n_purity_paired: integer
+      # per-subtype matched-normal WINDOW (therapeutic-window / patient-selection — Option 2). Null
+      # when the indication has no true matched normal (then see proxy_normal_windows).
+      fraction_tumor_above_normal_p95: number
+      fraction_tumor_above_normal_p99: number
+      normal_p95_log2tpm: number
+      normal_p99_log2tpm: number
+      distribution_overlap_tumor_normal: number
+      # per-subtype PROXY-normal window panel (labeled analogue, weaker evidence — Option 3). One
+      # entry per configured proxy tissue; EMPTY list when a true matched normal exists.
+      proxy_normal_windows:
+        record_schema:
+          proxy_tissue: string
+          rationale: string
+          fraction_tumor_above_proxy_p95: number
+          fraction_tumor_above_proxy_p99: number
+          proxy_p95_log2tpm: number
+          proxy_p99_log2tpm: number
+          distribution_overlap_tumor_proxy: number
+  figure: expression_distribution_subtype_panel  # per-stratum distribution panel (faceted)
+
+thresholds:
+  # per-stratum enrichment cutoff vs the indication's pooled median, in log2TPM units. Declared
+  # here (not hardcoded in rules) so it is reviewable. ~0.585 = log2(1.5) ≈ a 1.5x linear-TPM
+  # shift — mirrors SUBTYPE_ENRICH_LOG2_DELTA in the method.
+  subtype_enrich_log2_delta: 0.585
+  subgroup_n_floor: 30                           # underpowered stratum → null signal, never a scoped call
+  # SECOND, LOWER band — NOT a relaxation of subgroup_n_floor, which keeps its one meaning (>=30) on
+  # every substrate. A stratum with 10-29 members grades `exploratory`: it reports distribution stats,
+  # still carries a NULL subtype_signal, and is still excluded from every cross-stratum reducer — it
+  # simply stops being invisible. INCLUSIVE (`subgroup_n >= exploratory_floor`), mirroring
+  # subgroup_common.SUBGROUP_EXPLORATORY_FLOOR. Declared only now (not in #806) because the reader did
+  # not yet pass it; see threshold_roles for why that ordering is load-bearing.
+  subgroup_exploratory_floor: 10
+  # across-subtype omnibus ε² (variance-explained) effect-size cutoffs — the method bins
+  # subtype_variance_explained → subtype_effect_size_class on these (Cohen-style bands adapted to ε²).
+  # Declared here (not hardcoded in rules) so they are reviewable; mirror EPSILON_SQUARED_* in stats.py.
+  subtype_effect_large: 0.14
+  subtype_effect_moderate: 0.06
+
+caveats:
+  - "Consumed tumor assignment shards, verified 2026-09-18 (11, every one now declared in required_inputs): 6 base TCGA (COADREAD, HNSC, STAD, NSCLC serving LUAD+LUSC, ESCA, PAAD) + 4 orthogonal TCGA MAF driver-strata shards (HNSC, NSCLC, ESCA, PAAD) unioned onto the base strata + the NON-TCGA sclc-subgroup-assignments-v1 (George 2015 NAPY). An indication outside applies_when returns subtype_axis_available:false (honest) until its shard lands."
+  - "normal_comparator_type distinguishes matched (true GTEx tissue-of-origin) from proxy (histological analogue, e.g. HNSC→esophagus/skin/salivary — GTEx has no head-and-neck track). A PROXY window is WEAKER evidence: proxy fields live in proxy_normal_windows, NEVER in the matched fraction_tumor_above_normal_* fields. The panel is multi-proxy because a target's window can be strong vs one proxy but weak vs another (EGFR/HNSC: ~86% vs esophagus/salivary but ~33% vs skin)."
+  - "A stratum below subgroup_n_floor (n<30) carries distribution stats for context but a NULL subtype_signal — never a scoped call on underpowered data. The reader HAS now opted into the exploratory band (AM #662), so a 10-29-member stratum grades `exploratory` rather than being invisible: still a null signal, still excluded from every cross-stratum reducer, but labelled hypothesis-grade instead of discarded."
+  - "The UUID→barcode→stratum bridge drops the ~8% of recount3 samples with no sidecar barcode or no stratum label; a <5% match rate raises the id-convention guard rather than masquerading as empty strata."
+  - "MSI-H / CIMP-High stratum biology is dominated by mismatch-repair hypermutation; subtype-specific calls may partly reflect global expression dysregulation, not target-specific signal."
+  - "Subtype is confidence/context for patient selection, NOT a new veto — the pooled tumor-rna-distribution card carries the presence verdict; this card enriches it."
+
+# Two orthogonal axes (Slice A1): measurement LAYER + biological SAMPLE. Same as the pooled
+# sibling — this card differs only in GRAIN (target_subtype), not measurement/sample_context.
+measurement: bulk_rna
+sample_context: tumor         # patient tumor per-sample (TCGA), stratified by molecular subtype
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of tumor_expression_distribution at target_subtype grain (LIVE per-sample slice).
+measurement_type: tumor_expression_distribution
+entity_grains: [target_subtype]
+schema_version: 1
+threshold_roles:
+  # THE ORDERING HERE IS LOAD-BEARING, AND THE VALIDATOR CANNOT ENFORCE IT. `role: method_parameter`
+  # asserts that the cutoff is applied UPSTREAM by the named method, and validate_cards.py only checks
+  # that `consumed_by` names a `methods[].call` on this card — it never checks that the method reads
+  # the value. So a role entry written before the method consumes it is a FALSE declaration that
+  # passes every gate. #806 deliberately declined to declare subgroup_exploratory_floor for exactly
+  # that reason; AM #662 (merge 48f20a1) then wired it, and it is verified consumed at
+  # tcga_gtex_expression_distribution/read.py:1060 and :1362 before being declared here.
+  subgroup_exploratory_floor:
+    role: method_parameter
+    consumed_by: tcga-gtex-expression-distribution
+  subgroup_n_floor:
+    role: method_parameter
+    consumed_by: tcga-gtex-expression-distribution
+  subtype_enrich_log2_delta:
+    role: method_parameter
+    consumed_by: tcga-gtex-expression-distribution
+  subtype_effect_large:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the tumor_expression_distribution reference frame over `subtype_variance_explained` (variance_explained), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'
+  subtype_effect_moderate:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the tumor_expression_distribution reference frame over `subtype_variance_explained` (variance_explained), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'

@@ -1,0 +1,206 @@
+# Card E5 — DEPENDENCY PREDICTABILITY  (v2 — DepMap-parity + extensions)
+#
+# Per-target predictability of Chronos CRISPR dependency from a genome-wide
+# multi-omics + lineage feature set. Matches DepMap Daintree's published
+# methodology (Dempster 2020; cds-daintree pipeline) with three principled
+# extensions:
+#   1. Bootstrap 95% CI on r² for calibration
+#   2. Feature attributions alongside RF importances (mean(|SHAP|) TreeExplainer values
+#      when the `shap` lib is present. The canonical 26q1-v4 precompute ran with shap
+#      installed, so top_features_rf_shap is TRUE SHAP; the older v1/v2/v3 pins took the
+#      documented fallback path — shap_computed:false — where attribution = RF impurity.)
+#   3. Lineage-conditional companion table (per-lineage r² + top feature)
+#
+# DEPMAP-PARITY (Broad's cds-daintree):
+#   Model:         RandomForestRegressor(n_estimators=100, max_depth=8,
+#                                          min_samples_leaf=5)
+#   CV:            3-fold QuantileKFold (quantile-stratified splitter)
+#   Feature red.:  SelectKBest(f_regression, k=1000) inside each CV fold
+#   Metric:        Pearson r (portal DB column literally named `pearson`)
+#   High-conf:     r ≥ 0.4 (r² ≥ 0.16) matches DepMap's binned taxonomy floor
+#
+# DEPMAP-PARITY FEATURES (target-own + genome-wide + context):
+#   own_expression, own_copy_number, own_mut_hotspot, own_mut_damaging
+#   cross_gene_expression (all ~19k protein-coding genes, target excluded)
+#   cross_gene_copy_number (all ~38k CN entries, target excluded)
+#   arm_level_cn (chromosome-arm-mean CN; ~48 arms) — matches Daintree's
+#     transform_genetic_derangement
+#   oncokb_gof / oncokb_lof — inferred from OncoKB gene roles × DepMap hotspot/
+#     damaging matrices. Approximates Daintree's transform_driver_events using
+#     only public data (delta documented in derived manifest).
+#   lineage — one-hot of Model.csv.OncotreeLineage
+#
+# DEPMAP-PARITY GAPS (documented, queued for v2.1 if anchor validation shows
+# these matter):
+#   - Fusion status matrix (not yet in data-catalog)
+#   - RPPA proteomics
+#   - RRBS methylation, metabolomics, ssGSEA
+#   - DepMap's dynamic MatchRelated related-entity lookup
+
+card_id: dependency-predictability
+version: 2.2.0
+question: "How well can {target.symbol}'s Chronos dependency be predicted from a genome-wide multi-omics + lineage feature set? Is the dependency biomarker-anchored (target-own omics dominate), context/driver-dependent (lineage/arm/co-driver flags dominate), or unpredictable (standard features don't explain Chronos)?"
+
+# Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a
+# non-verdict-driving field on this card; declare the rule-keyed primary + salient categoricals.
+# VERDICT-INERT projection (see capsule contract migration).
+capsule:
+  primary_class: predictability_class
+  categorical_fields:
+    - predictability_class
+    - pred_dominant_feature_class
+
+applies_when:
+  - "context.data_sources.depmap_predictability_available == true"
+
+required_inputs:
+  - product_id: depmap-predictability
+    release_pin: "26q1-v4"
+
+methods:
+  - call: depmap-predictability
+    module: depmap_predictability
+    entrypoint: read_predictability
+    args:
+      target: "{target.symbol}"
+      release_pin: "26q1-v4"
+
+outputs:
+  summary_fields:
+    # Core predictability scalars
+    - pred_n_cell_lines_evaluated       # n cells with complete-case features
+    - pearson_r_rf                      # Pearson r of OOF preds vs truth (RF)
+    - pearson_r_squared_rf              # r_rf² (primary DepMap-parity scalar)
+    - pearson_r_squared_rf_ci_lo        # bootstrap 95% CI lower bound
+    - pearson_r_squared_rf_ci_hi        # bootstrap 95% CI upper bound
+    # Feature-attribution outputs
+    - pred_top_features_rf              # top-10 features by mean(|SHAP|) in canonical 26q1-v4
+                                          # (RF impurity fallback in the older v1/v2/v3 pins)
+                                          # struct{feature, feature_class, importance, rf_importance}
+    - pred_dominant_feature             # top-1 feature name
+    - pred_dominant_feature_class       # feature-class of the top-1 feature
+    - predictability_class              # DESCRIPTIVE (drives Tier-2 rules)
+    - per_lineage_predictability        # RF-only per-lineage r² + top-feature table
+
+  summary_fields_vocabulary:
+    predictability_class:
+      - own_omics_driven                # r²_rf CI lo ≥ 0.35 AND top ∈ target-own
+      - context_or_driver_dependent     # r²_rf CI lo ≥ 0.35 AND top ∈ lineage / arm / driver
+      - weakly_predictable              # r² ≥ 0.16 (DepMap high-conf) but CI lo < 0.35
+      - unpredictable                   # r² < 0.16
+      - data_unavailable                # target not in v2 precompute
+    pred_dominant_feature_class:
+      - own_expression
+      - own_copy_number
+      - own_mut_hotspot
+      - own_mut_damaging
+      - cross_gene_expression
+      - cross_gene_copy_number
+      - arm_level_cn
+      - oncokb_gof
+      - oncokb_lof
+      - lineage
+      # v2.1 additions (all 8 previously-declared "gaps" now ingested)
+      - fusion
+      - rppa_protein
+      - ms_protein
+      - paralog_dep
+      - mol_signature
+      - msi_status
+      - sv_gene
+      - methylation_tss
+      - metabolomics
+      - unpredictable
+      - data_unavailable
+
+  figures:
+    - id: feature_importance_bar
+      type: horizontal_bar
+      description: "Horizontal bar of top-10 importance-ranked features (RF; mean(|SHAP|) in the canonical 26q1-v4 build, impurity-importance fallback in the older v1/v2/v3 pins), colored by feature_class. Reads as: dominant navy/red = own-omic biomarker; dominant slate = cross-gene expression / arm-level CN; dominant gray = lineage-context. Title carries r² + bootstrap CI + predictability_class."
+      preferred_surfaces: [markdown, ppt, decision_memo]
+      primary: true
+    - id: lineage_predictability
+      type: horizontal_bar_lineage
+      description: "Per-lineage r² horizontal bar (top 12 lineages by r²), each annotated with its within-lineage top feature. Vertical dashed line at r²=0.16 marks DepMap's high-confidence floor. Diagnostic for lineage-collapsed biomarker signals: high pan-cancer r² with all lineages below the floor = signal driven by lineage-differentiated variance."
+      preferred_surfaces: [markdown, ppt]
+
+thresholds:
+  r2_high_ci_lo: 0.35                   # CI lower bound above → strong-predictor bucket
+  r2_depmap_high_conf: 0.16             # DepMap's Pearson r ≥ 0.4 floor
+  min_cell_lines_per_gene: 100          # per-gene coverage floor (v2 precompute)
+  cv_n_splits: 3                        # matches DepMap Daintree
+  select_k_best: 1000                   # per-fold KBest reduction
+  bootstrap_n: 500                      # bootstrap resamples for CI
+  lineage_min_lines: 30                 # per-lineage refit min-n
+  rf_n_estimators: 100
+  rf_max_depth: 8
+  rf_min_samples_leaf: 5
+
+warning_predicates:
+  - warning_id: predictability_low_cell_line_count
+    if: "pred_n_cell_lines_evaluated < 200"
+    message: "Predictability fit used fewer than 200 cell lines — R² estimate has higher variance; interpret class call with caution."
+  - warning_id: predictability_wide_ci
+    if: "(pearson_r_squared_rf_ci_hi - pearson_r_squared_rf_ci_lo) > 0.20"
+    message: "95% CI on r² spans more than 0.20 — high uncertainty; a single-run r² point estimate over-states confidence in the biomarker class call."
+  - warning_id: predictability_lineage_collapsed
+    if: "predictability_class == 'context_or_driver_dependent' && pred_dominant_feature_class == 'lineage'"
+    message: "Lineage one-hot dominates; the model has essentially learned a per-lineage baseline. Patient-selection beyond indication unlikely from standard omics."
+
+caveats:
+  - "v2 approximates DepMap Daintree's transform_driver_events (which uses OncoKB's auth-gated per-variant Oncogenic + MutationEffect annotations) with a coarser GENE-ROLE join (OncoKB public gene list × DepMap hotspot/damaging matrices). This means some GoF/LoF flags may be less specific than DepMap's — particularly for genes where OncoKB's per-variant curation resolves ambiguous mutations."
+  - "cross_gene_expression + cross_gene_copy_number features fill NaNs with 0 / 1.0 (diploid) respectively rather than dropping rows. This preserves the ~1500-cell CRISPR panel but introduces some noise on the discarded features. SelectKBest inside each CV fold retains only the 1000 most-informative features (per-fold, no leakage) so noise on the discarded features is soft-capped."
+  - "predictability_class is DESCRIPTIVE — `unpredictable` means standard features don't explain Chronos, NOT that the dependency is artefactual. Pair with E1/E2 to confirm the dependency itself is real before discounting."
+  - "Bootstrap CI on r² is over cell-line indices at the OOF-prediction level. It does NOT propagate uncertainty from feature-selection (KBest inside folds) or hyperparameter choice. A tighter CI would nest bootstrap around the full CV loop — infeasible at ~18k-gene scale."
+  - "Own driver flags (driver_{target}_GoF / driver_{target}_LoF) are EXCLUDED from the OncoKB flag feature block for each target — same feature as own_mut_hotspot / own_mut_damaging; would leak label information. Cross-driver flags (driver_TP53_LoF when target=KRAS, etc.) are retained since they capture co-driver context."
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `dependency_predictability` claim (can Chronos
+# dependency be predicted from omics?). CONSUMED (2026-08 status) by 4 skills as a CONFIDENCE /
+# DISPLAY-ONLY facet — functional-requirement (confidence annotation, feeds NO resolver rung),
+# genomic-alteration-profile (verdict-inert Q4 confidence), mechanism-and-pharmacology (display-only
+# feature-attribution facet) and tractability-small-molecule (headline display) — plus the
+# target-profile composer transitively. It is VERDICT-INERT everywhere: it fires no verdict rung in
+# any resolver (predictability_class is DESCRIPTIVE). No `status:` field → defaults to `wired`
+# (live method + dispatcher + landed product depmap-predictability-26q1-v4).
+measurement_type: dependency_predictability
+entity_grains: [target, target_lineage]
+schema_version: 1
+threshold_roles:
+  r2_depmap_high_conf:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the dependency_predictability reference frame over `pearson_r_squared_rf` (r2), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'
+  # UPSTREAM precompute parameters. read_predictability reads a FROZEN parquet (26q1-v4); it computes
+  # nothing. Both the classification cutpoint (r2_high_ci_lo) and every ML hyperparameter are applied
+  # in the training build depmap_predictability_precompute/cli.py — the bands at :85 (R2_HIGH_CI_LO=0.35)
+  # applied in _classify at :365-376 and baked into the parquet's predictability_class at :543; the
+  # CV/model constants at :88+ (CV_N_SPLITS, SELECT_K_BEST, BOOTSTRAP_N, MIN_CELL_LINES_PER_GENE,
+  # LINEAGE_MIN_LINES, RF n_estimators=100/max_depth=8/min_samples_leaf=5) applied in the per-fold
+  # pipeline and echoed into the derived manifest. Declared method_parameter/consumed_by the card's own read call so
+  # THRESHOLD_UNUSED stops asking for numbers that live in the frozen substrate the method consumes.
+  r2_high_ci_lo:
+    role: method_parameter
+    consumed_by: depmap-predictability
+  min_cell_lines_per_gene:
+    role: method_parameter
+    consumed_by: depmap-predictability
+  cv_n_splits:
+    role: method_parameter
+    consumed_by: depmap-predictability
+  select_k_best:
+    role: method_parameter
+    consumed_by: depmap-predictability
+  bootstrap_n:
+    role: method_parameter
+    consumed_by: depmap-predictability
+  lineage_min_lines:
+    role: method_parameter
+    consumed_by: depmap-predictability
+  rf_n_estimators:
+    role: method_parameter
+    consumed_by: depmap-predictability
+  rf_max_depth:
+    role: method_parameter
+    consumed_by: depmap-predictability
+  rf_min_samples_leaf:
+    role: method_parameter
+    consumed_by: depmap-predictability

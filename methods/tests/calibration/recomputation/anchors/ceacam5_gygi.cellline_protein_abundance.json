@@ -1,0 +1,20 @@
+{
+  "target": "CEACAM5",
+  "accession": "P06731",
+  "skill": "tumor-presence",
+  "card_id": "cellline-protein-abundance",
+  "class_field": "protein_expression_class",
+  "vector_fixture": "protein_vectors/ceacam5_gygi.cellline_protein_abundance.parquet",
+  "null_fixture": "protein_vectors/depmap_gygi_allgene_median_null.parquet",
+  "n_panel": 375,
+  "n_cell_lines_evaluated": 313,
+  "expected_class": "broadly_moderate",
+  "expected_fraction_detected": 0.8347,
+  "expected_median_log2_abundance_panel": -0.582486775228266,
+  "expected_p5_log2_abundance_panel": -2.1108126605074355,
+  "expected_p95_log2_abundance_panel": 4.774448017311245,
+  "expected_n_lineages_evaluated": 17,
+  "expected_n_lineage_restricted_lineages": 0,
+  "_captured_at": "2026-09-29T01:43:05.209427+00:00",
+  "_provenance": "live cbg read via resolve_accession('CEACAM5') -> load_abundance_column('P06731'); fixture = gene's log2-abundance per DepMap cell line (Gygi TMT MS, 313 models) + lineage; re-derive with methods.depmap_protein_abundance.cli.compute_summary."
+}

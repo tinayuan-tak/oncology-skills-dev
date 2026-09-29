@@ -1,0 +1,302 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://onetakeda.oncology/schemas/resolver.schema.json",
+  "title": "Verdict resolver spec",
+  "description": "Declarative per-gate verdict-resolution spec. Replaces the hand-rolled if-chains in each sub-skill's _verdict() with an ordered, PR-reviewable precedence ladder over the set of FIRED rule IDs. A single shared interpreter (claude-oncology-skills _skills_common/resolver.py) evaluates it; both engines (target-profile, compose-dashboard) call the same interpreter, so the two engines cannot drift. GUARDRAIL (deliberately NOT Turing-complete): a resolver may ONLY pattern-match over the set of fired rule IDs — ordered precedence + when_fired / when_any_fired / when_all_fired. NO arithmetic, thresholds, loops, or data lookups: that logic belongs in a CARD (compute the label) or a METHOD (compute the number), never here. This keeps the interpreter small, typed, and unit-tested, and keeps the framework's hardest-won biology precedence (e.g. 'CRISPR beats RNAi', 'suppressor before veto') visible and reviewable instead of buried in per-skill Python.",
+  "type": "object",
+  "required": ["gate", "version", "resolve", "default"],
+  "additionalProperties": false,
+  "properties": {
+    "gate": {
+      "type": "string",
+      "description": "The sub-skill / gate this resolver governs (matches the SUB_SKILLS short, e.g. 'dependency', 'expression', 'surface_modality').",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "version": {
+      "type": "string",
+      "description": "SemVer of THIS resolver spec. A verdict-precedence change is a reviewable contract bump, not a silent code diff.",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "description": {"type": "string"},
+    "clamp_verdicts": {
+      "type": "array",
+      "description": "OPTIONAL. Verdicts a sub-skill's POST-RESOLVER Python clamp can mint that this ladder's rungs never emit (e.g. selectivity's normal-breadth / stromal-confound veto in _skills_common/selectivity_veto.py downgrades a selective axis-A verdict AFTER resolution). Declared here so the resolver lists the COMPLETE emitted enum and the emitted-set tooling (validate_verdict_tokens.py, test_kill_capable_completeness) folds them in — otherwise a nomination-gate entry for a clamp verdict is wrongly rejected as 'never emitted'. Kept in lockstep with the skill's clamp constant by a skills-side guard test.",
+      "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+      "uniqueItems": true
+    },
+    "post_resolver_clamp": {
+      "type": "object",
+      "description": "OPTIONAL. DECLARATION (not executed by this interpreter) of the sub-skill's POST-RESOLVER Python clamp — the ONE place decision logic legitimately lives outside the rung ladder, because the clamp is conditioned on the resolver's OUTPUT verdict (it only downgrades an already-selective axis-A call), which a rung firing on the fired-set alone cannot express. Declared here so the clamp's rule_id -> verdict mapping and precedence are PR-reviewable in the contract with the SAME legibility the rungs have, closing the 'one hole in the declarative decision spine' (framework-architecture assessment, finding 6). The executor (e.g. skills/_skills_common/selectivity_veto.py) is kept in lockstep with this block by a skills-side guard test; every clamp verdict here must also appear in `clamp_verdicts`.",
+      "additionalProperties": false,
+      "required": ["module", "direction", "applies_to_input_verdicts", "precedence"],
+      "properties": {
+        "module": {
+          "type": "string",
+          "description": "Repo-relative path of the Python executor that applies this clamp (for traceability)."
+        },
+        "direction": {
+          "enum": ["downgrade_only"],
+          "description": "One-directional guarantee. `downgrade_only`: the clamp can only make a selective axis-A verdict MORE conservative, never upgrade; it is a NO-OP on any input verdict not in `applies_to_input_verdicts`."
+        },
+        "applies_to_input_verdicts": {
+          "type": "array",
+          "description": "The resolver-output verdicts the downgrade may act on (the guard). A fired veto rule is a NO-OP unless the current verdict is one of these — which is exactly why this cannot be a rung.",
+          "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "precedence": {
+          "type": "array",
+          "description": "ORDERED veto arms — first arm whose `when_fired` rule is in the fired set wins the clamp verdict + driving label (worst-case conjunction with explicit precedence). Every `verdict` here MUST also be listed in `clamp_verdicts`.",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["when_fired", "verdict"],
+            "properties": {
+              "when_fired": {"type": "string", "description": "The veto rule_id whose firing triggers this arm."},
+              "verdict": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$", "description": "The clamp verdict this arm mints (also in clamp_verdicts)."}
+            }
+          }
+        },
+        "upgrade": {
+          "type": "object",
+          "description": "OPTIONAL companion one-directional UPGRADE clamp, applied BEFORE the downgrade precedence (so the downgrade arms can still act on the upgraded verdict). Lifts a rescue-eligible input verdict to `verdict` iff EVERY requirement group has >=1 fired member.",
+          "additionalProperties": false,
+          "required": ["applies_to_input_verdicts", "requires", "verdict"],
+          "properties": {
+            "applies_to_input_verdicts": {
+              "type": "array",
+              "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "requires": {
+              "type": "array",
+              "description": "Conjunction of groups; each inner group is satisfied by ANY of its fired rule_ids (AND-of-ORs).",
+              "minItems": 1,
+              "items": {"type": "array", "items": {"type": "string"}, "minItems": 1}
+            },
+            "verdict": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"}
+          }
+        },
+        "modality_conditional": {
+          "type": "object",
+          "description": "OPTIONAL. Declares that the `precedence` walk is MODULATED by the caller's optional modality lens: an arm whose OWN interpretation-rules `signals:` block declares a non-opposing signal for the chosen modality is SUPPRESSED and the walk falls through to the next arm. The signal is read from the fired rule, never from a table in the executor, so adding an arm needs no code change. Present only where a clamp is genuinely modality-conditional; absent means the clamp is modality-blind (worst-case for every modality).",
+          "additionalProperties": false,
+          "required": [
+            "signal_source",
+            "suppressing_signals",
+            "suppressible_verdicts",
+            "on_suppression",
+            "no_modality_behavior"
+          ],
+          "properties": {
+            "signal_source": {
+              "enum": ["interpretation_rules.signals"],
+              "description": "Where the per-modality declaration is read from. Only the fired rule's own `signals:` block is permitted — a modality table inside the executor would be undeclared logic, which is what this block exists to prevent."
+            },
+            "suppressing_signals": {
+              "type": "array",
+              "description": "The signal tokens that count as an EXPLICIT non-opposing declaration and therefore waive the arm. Any token NOT listed here (including a missing/unknown signal) leaves the arm in force — fail-closed. `insufficient` must NOT be listed: it is a coverage token, and a veto arm only fires when the measurement exists, so admitting it would read data availability as a safety judgement.",
+              "items": {"enum": ["supportive", "neutral", "opposing", "insufficient"]},
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "suppressible_verdicts": {
+              "type": "array",
+              "description": "The clamp verdicts a modality lens may waive — normally only the KILLs. Every entry must appear in `clamp_verdicts`.",
+              "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "never_suppressed_verdicts": {
+              "type": "array",
+              "description": "OPTIONAL explicit complement: clamp verdicts NO lens may waive. Use for selectivity-PRESERVING outcomes, where suppression would DELETE a named liability from the record rather than unblock a nomination.",
+              "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+              "uniqueItems": true
+            },
+            "expected_inert_arms": {
+              "type": "array",
+              "description": "OPTIONAL. Arms that are inert BY DESIGN: the arm mints a verdict listed in `suppressible_verdicts`, but the arm's own rule is `opposing` for every modality, so no lens can ever waive it. This happens legitimately when one verdict is minted by SEVERAL arms with opposite lens behaviour — suppressibility is declared per-VERDICT and evaluated per-ARM. Declaring the arm here waives validate_resolvers' MODALITY_LENS_INERT_ARM warning for that arm ONLY, and the declaration is itself checked: it must name a real precedence arm minting a suppressible verdict, and if the arm later BECOMES waivable the declaration is a STALE_EXPECTED_INERT_ARM error, because it would then document the opposite of the safety behaviour. It can never waive VACUOUS_MODALITY_LENS — if no arm at all is reachable the whole block is still an error.",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["rule_id", "reason"],
+                "properties": {
+                  "rule_id": {"type": "string", "description": "The `when_fired` rule_id of the precedence arm that is inert by design."},
+                  "reason": {"type": "string", "minLength": 25, "description": "WHY no modality can waive this arm, in mechanism terms — not 'by design'. The reason is the reviewable part: an unexplained entry is a silencer."}
+                }
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "requires_essential_window_class": {
+              "type": "object",
+              "description": "OPTIONAL PRECONDITION gating every suppression on a card field rather than on the fired set — e.g. modality tolerance of broad-LOW normal expression holds only when the target is CLEAN against the essential-organ set, so a merely narrow essential window must still KILL. Read from the named card's summary; anything outside `one_of` (including a missing card or field) FAILS CLOSED.",
+              "additionalProperties": false,
+              "required": ["card_id", "field", "one_of"],
+              "properties": {
+                "card_id": {"type": "string", "description": "The card whose summary carries the precondition field."},
+                "field": {"type": "string", "description": "The summary field name to read."},
+                "one_of": {
+                  "type": "array",
+                  "description": "The ONLY field values that permit suppression.",
+                  "items": {"type": "string"},
+                  "minItems": 1,
+                  "uniqueItems": true
+                }
+              }
+            },
+            "on_suppression": {
+              "enum": ["fall_through_to_next_arm"],
+              "description": "What a suppressed arm does. `fall_through_to_next_arm`: the walk continues, so a lower-precedence arm that is `opposing` for the chosen modality still takes the verdict. NOT 'the resolver verdict stands'."
+            },
+            "no_modality_behavior": {
+              "enum": ["worst_case_identical"],
+              "description": "The guarantee when no modality lens is supplied: the walk reproduces the modality-blind precedence byte-for-byte, so every default and composed path is unaffected."
+            },
+            "provenance_fields": {
+              "type": "array",
+              "description": "Headline/decision fields the executor MUST emit so a waived arm is VISIBLE rather than silently absent.",
+              "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+              "minItems": 1,
+              "uniqueItems": true
+            }
+          }
+        }
+      }
+    },
+    "marrow_coverage_abstain": {
+      "type": "object",
+      "description": "OPTIONAL. DECLARATION (not executed by this interpreter) of a SECOND, orthogonal post-resolver clamp stage applied AFTER `post_resolver_clamp` — a substrate-conditioned ABSTAIN, NOT a veto arm. Unlike `post_resolver_clamp.precedence` it is not driven by any fired rule_id: it withholds a still-selective axis-A verdict when a producing-side substrate is TRANSIENTLY unavailable (#796, marrow-HPA transient read failure) AND the target is plausibly affected, so the confident call is deferred ('re-run to resolve') rather than fabricated or cleared. Declared here so the abstain's trigger conditions are PR-reviewable with the same legibility as the rungs and the veto precedence; the executor (skills/_skills_common/selectivity_veto.py) is kept in lockstep by a skills-side guard test. Its `verdict` MUST also appear in `clamp_verdicts`.",
+      "additionalProperties": false,
+      "required": ["module", "direction", "verdict", "applies_to_input_verdicts", "requires_marrow_substrate", "requires_marrow_plausible"],
+      "properties": {
+        "module": {
+          "type": "string",
+          "description": "Repo-relative path of the Python executor that applies this abstain (for traceability)."
+        },
+        "applied_after": {
+          "enum": ["post_resolver_clamp"],
+          "description": "Ordering guarantee: this stage runs on the OUTPUT verdict of `post_resolver_clamp` (the veto walk). If a veto already fired the verdict is a KILL/liability ∉ `applies_to_input_verdicts`, so this stage is a no-op — that is how 'never clears a KILL' is enforced by construction."
+        },
+        "direction": {
+          "enum": ["withhold_only"],
+          "description": "One-directional guarantee. `withhold_only`: the abstain can only REPLACE a still-selective axis-A verdict with the withhold verdict; it never fabricates a KILL, never upgrades, and is a NO-OP on any input verdict not in `applies_to_input_verdicts`."
+        },
+        "verdict": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "description": "The abstain verdict this stage mints (MUST also be listed in `clamp_verdicts`)."
+        },
+        "disposition": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "description": "OPTIONAL. The nomination_verdict_gate disposition this verdict carries (e.g. `uncorroborated`: blocks a `strong` call without being a measured contradiction). Documented here for reviewer legibility; the authoritative registration lives in vocabularies/nomination_verdict_gate.yaml."
+        },
+        "applies_to_input_verdicts": {
+          "type": "array",
+          "description": "The resolver-output (post-veto) verdicts the withhold may act on (the guard). A no-op unless the current verdict is one of these.",
+          "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "requires_marrow_substrate": {
+          "type": "object",
+          "description": "PRECONDITION 1: the transient-substrate token, read from the named card's summary. Anything outside `one_of` (including the DEFINITIVE unavailable token or a missing field) does NOT trigger the abstain — fail-open on the withhold.",
+          "additionalProperties": false,
+          "required": ["card_id", "field", "one_of"],
+          "properties": {
+            "card_id": {"type": "string", "description": "The card whose summary carries the substrate field."},
+            "field": {"type": "string", "description": "The summary field name to read."},
+            "one_of": {
+              "type": "array",
+              "description": "The ONLY field values that trigger the abstain (e.g. the transient token).",
+              "items": {"type": "string"},
+              "minItems": 1,
+              "uniqueItems": true
+            }
+          }
+        },
+        "requires_marrow_plausible": {
+          "type": "object",
+          "description": "PRECONDITION 2: marrow-plausibility derived from an INDEPENDENT substrate (NOT the transiently-missing value), so the withhold cannot scope-creep to all targets during a process-wide transient. Anything outside `one_of` (including a missing field) does NOT trigger the abstain — fail-open on the withhold.",
+          "additionalProperties": false,
+          "required": ["card_id", "field", "one_of"],
+          "properties": {
+            "card_id": {"type": "string", "description": "The card whose summary carries the independent plausibility field."},
+            "field": {"type": "string", "description": "The summary field name to read."},
+            "one_of": {
+              "type": "array",
+              "description": "The ONLY field values that count as plausible.",
+              "items": {"type": "string"},
+              "minItems": 1,
+              "uniqueItems": true
+            }
+          }
+        },
+        "driver_label": {
+          "type": "string",
+          "description": "OPTIONAL provenance label recorded when the abstain fires (NOT a resolver rung / fired rule_id)."
+        }
+      }
+    },
+    "resolve": {
+      "type": "array",
+      "description": "ORDERED precedence ladder — first matching rung wins (the precedence, now visible). Each rung fires a verdict when its fired-set predicate matches.",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["verdict"],
+        "additionalProperties": false,
+        "properties": {
+          "verdict": {
+            "type": "string",
+            "description": "The verdict string this rung emits when it matches.",
+            "pattern": "^[a-z][a-z0-9_]*$"
+          },
+          "when_fired": {
+            "type": "string",
+            "description": "Matches iff this single rule_id is in the fired set. driving_rule_id = this rule_id."
+          },
+          "when_any_fired": {
+            "type": "array",
+            "description": "Matches iff ANY listed rule_id is in the fired set. driving_rule_id = the FIRST listed rule_id that fired (list order = tie-break, so it is deterministic).",
+            "items": {"type": "string"},
+            "minItems": 1
+          },
+          "when_all_fired": {
+            "type": "array",
+            "description": "Matches iff ALL listed rule_ids are in the fired set (the compound conjunction — e.g. the paralog suppressor needs non-dependent-killer AND strong-paralog-buffering both fired). driving_rule defaults to the LAST listed rule_id unless `driving_rule` is set explicitly.",
+            "items": {"type": "string"},
+            "minItems": 2
+          },
+          "driving_rule": {
+            "type": "string",
+            "description": "OPTIONAL explicit driving_rule_id for the rung (must be one of the rung's own rule_ids). Used mainly with when_all_fired to name WHICH of the conjoined rules is the provenance anchor. Defaults: when_fired → its rule; when_any_fired → first-fired; when_all_fired → last listed."
+          },
+          "priority": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "OPTIONAL explicit precedence (0 = highest), used only when the resolver's `evaluation` is `match_all_reduce` (the Fold — VERDICT_REPRESENTATION_FOLD.md). Makes precedence EXPLICIT DATA instead of positional: match-all-then-reduce evaluates every rung and returns the matching rung of MINIMUM priority, so rung ORDER no longer affects the result (R6 order-independence). Set priority = the rung's current ladder index to be byte-equivalent to first-match by construction. Ignored under the default `first_match` evaluation."
+          }
+        },
+        "oneOf": [
+          {"required": ["when_fired"]},
+          {"required": ["when_any_fired"]},
+          {"required": ["when_all_fired"]}
+        ]
+      }
+    },
+    "default": {
+      "type": "string",
+      "description": "The verdict when NO rung matches (typically 'insufficient'). driving_rule_id is null for the default. Making the default EXPLICIT is what lets the exhaustiveness validator prove there is no silent fall-through.",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "evaluation": {
+      "enum": ["first_match", "match_all_reduce"],
+      "description": "How the shared interpreter evaluates this ladder. `first_match` (DEFAULT when absent — back-compat): the earliest matching rung wins (implicit positional precedence). `match_all_reduce` (the Fold — VERDICT_REPRESENTATION_FOLD.md): evaluate ALL rungs, return the matching rung of minimum `priority` — precedence is EXPLICIT DATA and rung order is irrelevant (R6). A `match_all_reduce` resolver MUST give every rung a unique `priority`; set them to the ladder indices to remain byte-equivalent to first_match by construction."
+    }
+  }
+}

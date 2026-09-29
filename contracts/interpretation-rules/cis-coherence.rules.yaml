@@ -1,0 +1,206 @@
+# Tier-2 signal-mapping rules for the CIS-COHERENCE axis.
+#
+# The cis-feature-coherence skill's dedicated, self-contained rule set (mirrors the
+# combination-opportunity / resistance-emergence pattern): its rules_id == axis == the skill's
+# requested axis name, and it is kept OUT of the shared nomination LADDER (kill/hold rungs).
+# VERDICT-INERT for overall_recommendation — cis_coherence is NOT a kill/hold gating axis (see
+# tp_gates._GATING_AXES) and has no `gates` action, so it can never move the Go/No-Go. It emits a
+# descriptive coherence classification that GRADUATED (nomination_verdict_gate.yaml v1.6.0) to a
+# CONFIDENCE-tier positive_signal (coherent_cis_driver) + positive_contradiction (expressed_cis_coupled_
+# inert, blocks `strong`) — consumed as a confidence-annotation + tension_analysis spine, never a
+# recommendation gate.
+#
+# These rules fire the leg tokens the cis_coherence.resolver.yaml ladders into cis_coherence_verdict.
+# The verdict is a deterministic 2x2 cross-tab of two coherence legs:
+#   leg-1  feature -> own-expression   (cis_dosage_class; the NEW card, the previously-missing leg)
+#   leg-2  expression/feature -> own-dependency  (correlation_class OR amp_expr_stratification_class)
+#
+# Reuse discipline: leg-2 reads the EXISTING expression-dependency-correlation +
+# amp-expr-stratified-dependency cards by field — no new dependency measurement, no new
+# *-stratified-dependency card (the family is complete). Only leg-1 (cis-dosage) is new biology.
+
+rules_id: cis-coherence
+version: 1.1.0  # 1.1.0 (2026-09-12): leg-1 gains a DIRECTION pair (amplification vs deletion coupling) so
+                # an amplicon driver and a deleted suppressor stop reading identically, and the methylation
+                # leg gains a neutral token for the lineage-confounded class. See the rules' own rationales.
+axis: cis_coherence
+schema_version: 1
+
+rationale: |
+  Cis-coherence asks whether the target's own locus feature CAUSALLY EXPLAINS its own expression
+  AND its own dependency — the oncogene-addiction chain (amplification -> overexpression ->
+  dependency; ERBB2/MYC/KRAS-amp) — as opposed to three axes that merely co-occur. It integrates a
+  new feature->expression leg (cis-dosage coupling) with the existing expression->dependency
+  evidence. All signals are supportive/neutral only (no killer): coherence is a confidence + framing
+  signal, not a veto — an incoherent chain lowers confidence and reframes the tension_analysis, it
+  does not (at this verdict-inert stage) block a nomination.
+
+rules:
+  # ── leg-1: feature -> own-expression (cis-dosage coupling) — the NEW leg ──────────────────────────
+  - rule_id: cis-dosage-coupled-supportive
+    when:
+      card_id: cis-feature-expression-coherence
+      field: cis_dosage_class
+      in: [cn_dosage_coupled_strong, cn_dosage_coupled_moderate]
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      The target's own relative copy-number predicts its own expression across the panel
+      (Spearman r >= 0.25, p <= 0.01, or the lineage-controlled focal-amplification subset escape) —
+      expression is copy-number-DRIVEN (cis-dosage coupled). Leg-1 of the coherence chain is intact.
+      Live expectation: ERBB2 / MYC (strong), KRAS-amp. This token says leg-1 is intact; it does NOT say
+      WHICH CN arm carries it — that is the direction pair below, and the resolver needs both.
+
+  # ── leg-1 DIRECTION (card v1.1.0) — which arm of the CN distribution carries the coupling ──────────
+  # `cis_dosage_class` alone cannot separate an amplification-driven oncogene from a deletion-driven
+  # suppressor: PTEN, RB1, CDKN2A and ERBB2 all read cn_dosage_coupled_*. That collapse is what forced the
+  # resolver to hand MET-class amplicons the same rung as CDKN2A-class suppressors (the residual v1.2.0
+  # documented inline). Direction is its OWN card field with its OWN token because a rule's `when` binds
+  # exactly one (card_id, field) pair. It is only populated for coupled_* classes, so these tokens can
+  # never fire alongside cis-dosage-uncoupled-neutral, and exactly one of them fires whenever leg-1 is
+  # coupled (the reader falls back to the CN distribution's asymmetry rather than emitting nothing).
+  - rule_id: cis-dosage-amplification-coupled-supportive
+    when:
+      card_id: cis-feature-expression-coherence
+      field: cis_dosage_direction
+      equals: amplification_coupled
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      The coupling is carried by the AMPLIFIED arm: gain drives expression UP. This is the oncogene /
+      amplicon reading and the only direction that can support an amplification-addiction chain
+      (ERBB2, MYC, AURKA, MITF, FOXA1 live). Supportive on the same footing as the class token — it
+      sharpens the same claim rather than adding a second one; the resolver requires both on its
+      coherent_cis_driver rungs, so no verdict can be reached by direction alone.
+
+  - rule_id: cis-dosage-deletion-coupled-neutral
+    when:
+      card_id: cis-feature-expression-coherence
+      field: cis_dosage_direction
+      equals: deletion_coupled
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      The coupling is carried by the DELETED arm: loss drives expression DOWN (PTEN, RB1, SMAD4, APC,
+      STK11, NF1, CDKN2A live). Leg-1 is intact and cis, but it is a LOSS-of-function statement, so it
+      cannot support a "the target is an amplification-driven driver" reading — hence NEUTRAL, not
+      supportive: a deleted, under-expressed gene is a synthetic-lethal / re-expression hypothesis, not
+      a direct-inhibition target. Combined with an absent dependency leg the resolver routes it to
+      coherent_cis_loss_of_function; combined with a dependency leg the dependency cannot be
+      amplification-driven either, so it routes to dependency_without_cis_dosage.
+
+  - rule_id: cis-dosage-uncoupled-neutral
+    when:
+      card_id: cis-feature-expression-coherence
+      field: cis_dosage_class
+      equals: cn_dosage_uncoupled
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Copy-number VARIES across the panel but does NOT predict expression — expression is
+      copy-number-INDEPENDENT (trans/lineage-regulated). Leg-1 of the cis chain is broken. This is
+      the informative negative: combined with a leg-2 dependency signal it routes the verdict to
+      dependency_without_cis_dosage (a trans-driven, not amplification-driven, dependency). NOT the
+      same as cn_invariant_panel (untestable), which fires no leg-1 token and abstains.
+
+  # ── leg-2: expression/feature -> own-dependency (REUSED cards; no new measurement) ───────────────
+  - rule_id: cis-expr-dependency-coupled-supportive
+    when:
+      card_id: expression-dependency-correlation
+      field: correlation_class
+      in: [strong_negative, moderate_negative]
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      Expression correlates with stronger dependency across cell lines (Pearson r <= -0.2, p <= 0.01)
+      — high-expressers are more dependent. Leg-2 of the coherence chain (expression -> dependency).
+      Reuses the existing expression-dependency-correlation card by field; no new dependency test.
+
+  - rule_id: cis-expr-dependency-absent-neutral
+    when:
+      card_id: expression-dependency-correlation
+      field: correlation_class
+      in: [weak_negative, no_correlation, positive_anomaly]
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Expression does NOT track dependency (weak/absent/anomalous correlation). Leg-2 negative:
+      the target may be expressed (and even cis-dosage-driven) but is not more required where it is
+      more abundant. Combined with a coupled leg-1 this routes to expressed_cis_coupled_inert — the
+      abundance-laundering guard (present + cis-driven, but not a dependency).
+
+  - rule_id: cis-conjoint-dependent-supportive
+    when:
+      card_id: amp-expr-stratified-dependency
+      field: amp_expr_stratification_class
+      in: [amplified_overexpressed_strongly_dependent, amplified_overexpressed_moderately_dependent]
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      The amplified+overexpressed subset is significantly more dependent than the rest — a leg-2
+      dependency signal read through the conjoint amplification-addiction lens. Reuses the existing
+      amp-expr-stratified-dependency card. Redundant-but-corroborating with the correlation leg; the
+      resolver treats either as sufficient for leg-2-positive (OR), never double-counts (both fire the
+      same coherent_cis_driver verdict, first-match).
+
+  # ── LoF / epigenetic-silencing leg (the DOWNWARD feature→expression direction) ────────────────────
+  # The GoF amplification arm above is a cross-tab with dependency; silencing is DIFFERENT — a silenced
+  # gene is turned OFF (not a self-dependency), so this leg fires a STANDALONE coherence statement
+  # (methylation coherently explains the target's low expression = epigenetic LoF), which the resolver
+  # routes to coherent_epigenetic_silencing (a synthetic-lethal / silenced-target hypothesis flag).
+  - rule_id: cis-silencing-coupled-supportive
+    when:
+      card_id: cellline-methylation-expression-coherence
+      field: methylation_silencing_class
+      in: [silencing_coupled_strong, silencing_coupled_moderate]
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      Promoter methylation coherently explains the target's LOW expression across the panel (subset
+      hypermethylation-vs-rest contrast, or a broad negative correlation) — the target is epigenetically
+      SILENCED. Live: MLH1 (subset Δ -4.62), MGMT, CDKN2A. A LoF/SL-hypothesis signal, NOT a dependency:
+      the resolver routes it to coherent_epigenetic_silencing standalone (no dependency leg required).
+
+  - rule_id: cis-silencing-absent-neutral
+    when:
+      card_id: cellline-methylation-expression-coherence
+      field: methylation_silencing_class
+      equals: methylation_uncoupled
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Promoter methylation was TESTABLE (a hypermethylated subset exists, or methylation varies broadly)
+      and does NOT explain the target's expression — the target is not epigenetically silenced in this
+      panel. The measured negative of the silencing leg, and interpretation debt until 2026-09-12: the
+      token existed on the card with no rule, so a tested-and-not-silenced gene arrived at the skill
+      indistinguishable from methylation_invariant_panel (untestable) or a missing read. Routed to NO
+      verdict rung — absence of silencing does not by itself say anything about the dosage/dependency
+      cross-tab — but it is now on the record, which is what the narrator needs to say "tested, negative"
+      instead of staying silent. AR and PDGFRA land here after the round-2 effect-size floor.
+
+  - rule_id: cis-silencing-lineage-confounded-neutral
+    when:
+      card_id: cellline-methylation-expression-coherence
+      field: methylation_silencing_class
+      equals: silencing_lineage_confounded
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      A large, significant hypermethylated-vs-rest contrast that COLLAPSES once conditioned on lineage
+      (lineage_collapse_ratio < 0.35) — the "hypermethylated" group is simply the lineages that do not
+      express the gene, so what was measured is lineage separation, not promoter silencing (CDH1 -4.44
+      pan → -0.45 within lineage; MET -4.99 → -0.85; FOXA1 -1.92 → -0.19). NEUTRAL and deliberately
+      routed to NO verdict rung: this is neither a silencing claim nor a refutation of one, because a
+      within-lineage-powered silencing test has not been run on this gene. The other legs decide the
+      verdict, exactly as they would if the methylation card had abstained — the difference is that the
+      collapse is now RECORDED rather than laundered into coherent_epigenetic_silencing.

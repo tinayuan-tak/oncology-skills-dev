@@ -1,0 +1,841 @@
+# known_target_calibration_set.yaml
+#
+# The framework's standing regression suite of KNOWN targets — approved drugs
+# (positive controls) + real Takeda ONC program targets with known outcomes
+# (advanced / declined). Codifies the ad-hoc known-target backtests
+# (GATE_SCAFFOLD_MODALITY_CONDITIONAL.md, prose tables) as a runnable fixture set
+# so every future framework change is MEASURED against known targets, not argued.
+#
+# Consumer: tests/calibration/test_known_target_calibration.py — reads each entry's
+# cached decision-snapshot (tests/calibration/snapshots/) and asserts per the
+# entry's `assertion_type`. Deterministic (no Bedrock); snapshots checked in.
+# Live refresh is an opt-in path (see the test's REFRESH note).
+#
+# ASSERTION TYPES (the executable form of the Phase-0 reframes,
+# docs/design/KNOWN_TARGET_FRAMEWORK_REFRAMES.md):
+#   must_not_veto          — NECESSITY reframe: an approved/validated target must NOT
+#                            hit a dependency (gate-C) veto. The osimertinib guard.
+#                            PASS = dependency_verdict is not a veto verdict.
+#   abstention_expected    — ABSTENTION reframe: a data-blocked axis must return an
+#                            HONEST insufficient, NOT a fabricated nomination. PASS =
+#                            the relevant sufficiency skill returns insufficient/null.
+#   known_gap_expected_fail — an ADVANCED program the framework CURRENTLY false-negatives
+#                            (measured gate-C veto). PASS-of-the-suite = it still reads the
+#                            documented gap verdict; when a fix lands (e.g. context-SL,
+#                            Phase 2) the expected_after flips and this becomes must_not_veto.
+#   selectivity_verdict_expected — SELECTIVITY gate (tumor-selectivity skill): pins
+#                            headline.selectivity_class to its CURRENT measured value as a
+#                            regression anchor, tagged with a `disposition` (clean_positive /
+#                            over_veto_false_negative / window_veto_cohort_confounded /
+#                            discordant_flag / not_selective_control / true_negative_veto). The
+#                            over_veto_false_negative entries pin approved antigens the
+#                            normal-breadth veto currently over-downgrades; a future veto fix
+#                            flips expected_selectivity_class→`should_be`. Foundation gating all
+#                            verdict-moving selectivity work.
+#
+# Curation discipline:
+#   - Every entry cites outcome provenance (FDA approval / Takeda program status).
+#   - `measured: true` means the read was captured from a LIVE framework run this
+#     session (snapshot in tests/calibration/snapshots/); `measured: false` = reasoned,
+#     no snapshot yet (the test skips its hard assertion, reports as pending).
+#   - Extending is cheap — add an entry + (for measured ones) a snapshot; bump version.
+
+version: 1.5.0
+snapshot_date: "2026-07-19"
+# v1.5.0 (2026-09-21, plan foamy-bird I.2 / T4): added the `biology_anchors` bucket — field-grain
+# directional biology assertions over the SAME committed snapshots the buckets above already carry.
+# Where the existing buckets pin only the top-line class (selectivity_class / dependency_verdict /
+# surface_modality_verdict), these anchor the SUPPORTING driving fields (axis_a_selectivity_class,
+# sc_normal_safety_essential_class, sc_normal_max_detection_cell_type, max_abs_log2fc,
+# selectivity_allgene_percentile_class, sc_tumor_expression_class, percentile_crossing_class,
+# crispr_call/rnai_call/paralog fields, family_class) to the biology of an approved/validated target.
+# Non-duplicative by construction (test_biology_anchor_ownership_is_disjoint enforces it). A data fix
+# that moves a driving field reds the anchor even when the top-line class is unchanged. No snapshots
+# were re-captured; all pinned values verified against the committed 26q1 snapshots.
+# v1.4.0 (2026-09-18, Stage 2b parity): every `expected_verdict_not_in` list (10 entries, 8 of them
+# live — BRAF/SKCM and EGFR/LUAD are `measured: false`, so their lists are declarations the
+# parametrize never evaluates) gains `not_dependent_in_indication`, the third dependency veto arm
+# minted by #812. INERT TODAY BY REACHABILITY, not by weak assertion: no producer populates
+# `indication_dependency_class` until Stage 5, so no snapshot can carry the token and the suite is
+# byte-for-byte green. The addition is a FORWARD-DATED REQUIREMENT — "an approved target must not
+# read a veto verdict" was always the assertion; naming only the pooled arm made it incomplete the
+# moment a second arm existed. `known_gap_watchlist.MET.expected_verdict_current: non_dependent` is
+# DELIBERATELY NOT touched: it is a positive claim about today's behaviour, not an absence set, and
+# blind parity there would assert a verdict MET cannot reach. It flips at Stage 5 (MET/LUAD would
+# resolve `not_dependent_in_indication` at priority 9, outranking pooled `non_dependent` at 22), and
+# the test that reads it is the forcing function for that refresh.
+#
+# ✅ RESOLVED 2026-09-18 by dependency.resolver v1.6.0 — the blocker below is CLOSED. The 4th compound
+#    twin it asks for landed at priority 9, above the indication killer (now 10), so WWTR1/MESO,
+#    MARK2/PAAD and MARK3/PAAD keep resolving `non_dependent_paralog_buffered` at Stage 5 and this
+#    suite stays green. The paragraph is left as written rather than edited away: it is the record of
+#    a measured hazard and of the assertion that forced the fix, and `expected_verdict_not_in` is
+#    STILL the forcing function if the rung is ever removed.
+#    NOT a blanket rescue, and this matters for reading the MET note above: rung 9 requires
+#    `strong-paralog-buffering-degrader-preferred` to have fired, so it rescues exactly the
+#    paralog-buffered subset. MET/LUAD carries no strong buffer (it resolves pooled `non_dependent`
+#    today, which the pooled paralog rung would already have relabelled), so MET still flips to
+#    `not_dependent_in_indication` at Stage 5 exactly as described.
+#    No version bump: the `expected_verdict_not_in` lists are byte-unchanged and this is a comment.
+#
+# ⚠ STAGE-5 BLOCKER THIS VERSION MAKES VISIBLE (measured, not predicted). WWTR1/MESO, MARK2/PAAD and
+# MARK3/PAAD — 3 of the 8 live controls, MARK2/3 being ADVANCED programs — resolve
+# `non_dependent_paralog_buffered`, whose resolver rung is 19. `not_dependent_in_indication` is
+# priority 9 and therefore OUTRANKS it, because v1.5.0 added compound twins pairing the indication
+# killer with partner-conditional (6,7) and chemical-genetic (8) but NOT with
+# `strong-paralog-buffering-degrader-preferred`. So at Stage 5 these three flip to a veto verdict and
+# THIS SUITE GOES RED. That red is correct and must be fixed in the RESOLVER (a 4th compound twin
+# above priority 9), never by deleting the token from these lists — a reciprocal paralog SL is
+# invisible to a single-gene KO at every panel size, so the escape is real. The gate-layer half is
+# already closed by veto_suppressors A4i (the veto will not fire); what remains is the LABEL, which
+# is what this file asserts against. tests/vocabularies/test_indication_verdict_gate_parity.py pins
+# both the obligation and the exact shape of the missing rung.
+# v1.3.0 (2026-08-30): added MET/LUAD to known_gap_watchlist (known_gap_expected_fail) — the
+# METex14-skipping biomarker-conditional dependency false-negative (approved TKI/ADC target reads
+# pan-line non_dependent). Snapshot met_luad.functional-requirement.json captured against
+# depmap-consortium-26q1. Flips to must_not_veto once a METex14 classifier lands (Wave-2 gap).
+curator: ryan.abo@takeda.com
+depmap_release_pin: depmap-consortium-26q1   # snapshots captured against this release
+# v1.1.0 (2026-08-19): added the selectivity_cases bucket + selectivity_verdict_expected
+# assertion type (tumor-vs-normal selectivity gate). Selectivity snapshots are captured against
+# the recount3 tcga-gtex-2023-01-04 substrate (NOT the DepMap pin above, which governs dependency).
+
+# ---------------------------------------------------------------------------
+# POSITIVE CONTROLS — approved drugs / clinically-validated targets.
+# NECESSITY: gate C must not veto these. (Sufficiency may still abstain — fine.)
+# ---------------------------------------------------------------------------
+positive_controls:
+
+  KRAS:
+    indication: COADREAD
+    modality: small_molecule
+    outcome: approved_class            # sotorasib/adagrasib (KRAS-G12C)
+    dependency_mode: oncogene_addiction
+    assertion_type: must_not_veto
+    measured: true
+    snapshot: kras_coadread.functional-requirement.json
+    expected_verdict_not_in: [non_dependent, not_dependent_in_indication, pan_essential_killer]
+    note: "Golden control. Measured lineage_selective / lineage-selective-supportive (not a veto)."
+
+  # Reasoned (no snapshot yet) approved-drug positives — pending live capture.
+  BRAF:
+    indication: SKCM
+    modality: small_molecule
+    outcome: approved_class            # vemurafenib/dabrafenib (BRAF-V600E)
+    dependency_mode: oncogene_addiction
+    assertion_type: must_not_veto
+    measured: false
+    expected_verdict_not_in: [non_dependent, not_dependent_in_indication, pan_essential_killer]
+
+  EGFR:
+    indication: LUAD
+    modality: small_molecule
+    outcome: approved_class            # osimertinib (EGFR-mutant NSCLC)
+    dependency_mode: mutation_addiction
+    assertion_type: must_not_veto
+    measured: false
+    expected_verdict_not_in: [non_dependent, not_dependent_in_indication, pan_essential_killer]
+    note: "The canonical false-negative risk: mutant lines under-sampled → pooled non_dependent. Biomarker-rescue (v1.2.0) is the intended guard."
+
+  # ── Conditional-dependency discovery sweep (2026-09-07, analysis-methods #584) — positive controls.
+  # These read NON-VETO already (via lineage-selectivity / paralog-buffering); the curated partner-conditional
+  # lanes CORROBORATE but do NOT drive the verdict (unlike EPAS1/CASE-014, which the partner-conditional lane
+  # genuinely rescued from a hard non_dependent). Anchored as must_not_veto to regression-lock non-veto.
+  CTNNB1:
+    indication: COADREAD
+    modality: small_molecule            # WNT/β-catenin programs (tankyrase, β-catenin degraders)
+    outcome: advanced
+    dependency_mode: biomarker_conditional   # APC-LoF → β-catenin addiction (also a genuine selective dep here)
+    biomarker: APC_loss
+    assertion_type: must_not_veto
+    measured: true
+    snapshot: ctnnb1_coadread.functional-requirement.json
+    expected_verdict_not_in: [non_dependent, not_dependent_in_indication, pan_essential_killer]
+    note: "Genuine selective dependency (crispr+rnai strongly_selective → lineage_selective). APC-conditional partner-conditional lane (partner_conditional_strongly_dependent, delta -0.881/q 3.2e-37/n=100) corroborates, does not drive."
+  TEAD1:
+    indication: MESO
+    modality: small_molecule            # TEAD-palmitoylation inhibitors VT3989 / IK-930
+    outcome: advanced
+    dependency_mode: biomarker_conditional   # NF2-LoF → Hippo/YAP-TAZ-TEAD addiction
+    biomarker: NF2_loss
+    assertion_type: must_not_veto
+    measured: true
+    snapshot: tead1_meso.functional-requirement.json
+    expected_verdict_not_in: [non_dependent, not_dependent_in_indication, pan_essential_killer]
+    note: "Pooled crispr/rnai non_dependent → rescued to lineage_selective (mesothelioma). NF2-conditional partner-conditional lane (partner_conditional_moderately_dependent, delta -0.247/q 2.3e-4/n=36) corroborates, does not drive."
+  WWTR1:
+    indication: MESO
+    modality: small_molecule            # Hippo/TEAD effector arm (paired with TEAD1)
+    outcome: advanced
+    dependency_mode: biomarker_conditional   # NF2-LoF → TAZ addiction (paralog-buffered by YAP1)
+    biomarker: NF2_loss
+    assertion_type: must_not_veto
+    measured: true
+    snapshot: wwtr1_meso.functional-requirement.json
+    expected_verdict_not_in: [non_dependent, not_dependent_in_indication, pan_essential_killer]
+    note: "Pooled crispr/rnai non_dependent → rescued to non_dependent_paralog_buffered (YAP1 buffers TAZ; degrader-preferred, non-veto). NF2-conditional partner-conditional lane (partner_conditional_moderately_dependent, delta -0.251/q 4.4e-4/n=36) corroborates."
+
+# ---------------------------------------------------------------------------
+# KNOWN-GAP WATCH-LIST — ADVANCED Takeda programs the framework CURRENTLY
+# false-negatives at gate C (measured). These are the Phase-2 (context-SL) targets:
+# expected to read the gap verdict TODAY; expected_after flips when the fix lands.
+# ---------------------------------------------------------------------------
+known_gap_watchlist:
+
+  # ADDED 2026-09-11 by Step 3 (nomination_verdict_gate v1.18.0 thesis_deciding_axes). The single
+  # substrate build that would repair the ONE false positive Step 3 knowingly creates.
+  same_organ_normal_liability:
+    indication: LUAD                    # the archetype; general to every surface antigen thesis
+    modality: adc
+    outcome: declined_ph3               # CEACAM5 / tusamitamab ravtansine
+    assertion_type: known_gap_expected_fail
+    measured: false                     # the CROSS is unwired; both inputs exist separately
+    exemplar_target: CEACAM5
+    blocks_correct_call_for: [CEACAM5]
+    inputs_that_already_exist:
+      - "surface_modality: the antigen-positive ESSENTIAL normal tissue identity (HPA IHC anchor /
+         sc-surface-normal-safety / the modality-window-essential-liability rung that fires for CEACAM5)"
+      - "the query's own indication -> organ (the OncoTree code is already in Context.indication)"
+    missing: |
+      The CROSS: no card or resolver rung asks "is the antigen-positive essential normal tissue the SAME
+      ORGAN as the indication?". Until it does, a large tumor-vs-normal window RATIO reads as a clean
+      therapeutic window even when tumor and critical normal tissue are the same tissue — the
+      "~558x-window-yet-lung-positive" pattern surface_modality.resolver.yaml names CEACAM5 for by name.
+    expected_after_wiring: |
+      CEACAM5/LUAD leaves the antigen_driven nominate set (its surface arm should downgrade, or the
+      thesis_deciding_axes conjunction should gain a same-organ negative conjunct), returning it to a
+      correctly-declined control WITHOUT touching FOLR1/OV, DLL3/SCLC or MSLN/OV (whose antigen-positive
+      normal tissues are NOT the indication organ). Flip CEACAM5's `agreement` back from
+      framework_false_positive at that point.
+    note: "This is the price Step 3 pays for the framework's first non-zero nominate count, recorded as a
+      build item rather than absorbed silently. See the ★KNOWN LIMITATION note on
+      nomination_verdict_gate.yaml::thesis_deciding_axes and the CEACAM5 reference_profiles entry."
+
+  SMARCA2:
+    indication: LUAD
+    modality: small_molecule
+    outcome: advanced                  # Takeda PS Achievement; SMARCA4-mutant synthetic lethal
+    dependency_mode: partner_conditional_sl   # essential when SMARCA4 is LOF
+    partner_gene: SMARCA4
+    assertion_type: must_not_veto      # FLIPPED from known_gap_expected_fail — RESCUED (Takeda ONC backtest 2026-09-08)
+    measured: true
+    snapshot: smarca2_luad.functional-requirement.json
+    expected_verdict_not_in: [non_dependent, not_dependent_in_indication, pan_essential_killer]
+    resolved_verdict: partner_conditional_dependent            # realized (was non_dependent); the anticipated expected_after_context_sl flip
+    resolved_driving_rule: partner-conditional-moderately-dependent-supportive
+    note: "RESCUED: the SMARCA2×SMARCA4 partner-conditional lane (partner_map) now reads partner_conditional_dependent — the flip the entry anticipated (expected_after_context_sl: conditional_dependent). Surfaced by the Takeda ONC dependency-FN backtest (2026-09-08); snapshot refreshed from the stale non_dependent capture."
+
+  MET:
+    indication: LUAD
+    modality: small_molecule            # capmatinib / tepotinib (METex14); also telisotuzumab-vedotin (c-Met ADC)
+    outcome: approved_class             # METex14-selective TKIs approved in NSCLC/LUAD
+    dependency_mode: biomarker_conditional   # dependency is METex14-skipping-selective (a splice-site subset)
+    biomarker: METex14_skipping
+    assertion_type: known_gap_expected_fail
+    measured: true
+    snapshot: met_luad.functional-requirement.json
+    expected_verdict_current: non_dependent
+    expected_driving_rule_current: non-dependent-killer
+    expected_after_metex14: [biomarker_stratified_dependency, conditional_dependent, insufficient]  # flip when a METex14 classifier strata-fies the dependency
+    note: "Biomarker-conditional false-negative (analogue of SMARCA2/LUAD). Pan-line CRISPR/RNAi reads strongly_concordant_non_dependent because METex14 skipping — a splice-site event in ~3% of LUAD — is invisible to the missense/hotspot-centric genomics + the pan-line dependency distribution. MET is APPROVED in LUAD, so the gate-C non_dependent veto is WRONG. Flips to must_not_veto once a METex14 classifier stratifies mutation-stratified-dependency (KNOWN_ISSUES-2026-08-26 MET-LUAD DATA-GAP; mostly WIRE from depmap MAF splice-site + CIViC METex14 + isoform/exon index, not ACQUIRE)."
+    # SEPARATE axis (differentiation-landscape), surfaced by the literature↔deterministic discordance loop
+    # (skills eval/CASE_LOG.md CASE-007). Verdict-INERT — NOT a nomination-gate assertion, so no
+    # assertion_type/snapshot here; recorded as the regression-lock anchor for the caveat fix.
+    differentiation_note: "Co-mutation reads strong_cooccurring, but de-novo MET drivers in LUAD are largely mutually exclusive with EGFR/ALK/ROS1 — MET co-occurrence is chiefly an ACQUIRED EGFR-TKI bypass (secondary MET amplification), a temporal/treatment-context association the cross-sectional cooccurrence_fisher_pancohort (no treatment axis) cannot separate from a de-novo co-driver. Regression-locked by the verdict-INERT cooccurrence_temporal_context_caveat (skills PR #1151, differentiation-landscape v1.11.0) + its hermetic tests; expected co-mutation reading = bypass-context / mutually-exclusive, NOT a de-novo patient-selection co-mutation."
+
+  EPAS1:                               # HIF2A / HIF-2α (HGNC=EPAS1; keyed by HGNC per the CASE-011 alias lesson)
+    indication: RCC
+    modality: small_molecule           # belzutifan (HIF-2α antagonist), approved in VHL-associated ccRCC
+    outcome: approved_class            # belzutifan approved; the canonical VHL-loss oncogenic dependency
+    dependency_mode: biomarker_conditional   # dependency is conditional on VHL loss (VHL-null stabilizes HIF-2α)
+    biomarker: VHL_loss
+    assertion_type: must_not_veto      # FLIPPED from known_gap_expected_fail — CASE-014 fix landed (AM #582)
+    measured: true
+    snapshot: epas1_rcc.functional-requirement.json
+    expected_verdict_not_in: [non_dependent, not_dependent_in_indication, pan_essential_killer]
+    resolved_verdict: partner_conditional_dependent            # realized (was non_dependent)
+    resolved_driving_rule: partner-conditional-moderately-dependent-supportive
+    note: "RESOLVED CASE-014 (skills eval/CASE_LOG.md). Was a biomarker-conditional false-negative (analogue of MET/LUAD + SMARCA2/LUAD): pooled pan-line CRISPR/RNAi read non_dependent because EPAS1/HIF-2α dependency is CONDITIONAL on VHL loss (ccRCC near-uniformly VHL-null → no in-RCC-panel contrast; the conditional signal is only visible pan-cancer). FIXED by curating EPAS1×VHL (lof_mutation) in analysis-methods partner_map (PR #582): live DepMap 26q1 EPAS1×VHL-LoF stratum = delta -0.066 Chronos, mann-whitney q 2.1e-3, rank-biserial 0.32, n=28 VHL-LoF / 1510 neutral → partner_conditional_moderately_dependent, which the dependency resolver rescues above the non_dependent rung. Live FR re-run 2026-09-07 confirms the flip non_dependent → partner_conditional_dependent (snapshot epas1_rcc.functional-requirement.json). belzutifan-validated, so must_not_veto now holds. DISTINCT from the reference_profiles HIF2A/RCC licensing-blind anchor (Cortellis wall)."
+
+  MARK2:
+    indication: PAAD
+    modality: small_molecule
+    outcome: advanced                  # identified via paralog CRISPR screens
+    dependency_mode: paralog_sl         # reciprocal MARK2<->MARK3 buffering
+    partner_gene: MARK3
+    assertion_type: must_not_veto      # FLIPPED (Takeda ONC backtest 2026-09-08) — paralog suppressor rescues
+    measured: true
+    snapshot: mark2_paad.functional-requirement.json
+    expected_verdict_not_in: [non_dependent, not_dependent_in_indication, pan_essential_killer]
+    resolved_verdict: non_dependent_paralog_buffered           # realized (was non_dependent); degrader-preferred
+    resolved_driving_rule: strong-paralog-buffering-degrader-preferred
+    note: "RESCUED: paralog-buffering suppressor reads non_dependent_paralog_buffered (non-veto, degrader-preferred), correctly capturing the reciprocal MARK2<->MARK3 SL. Realized verdict differs from the old expected_after_context_sl prediction (paralog_buffered, not conditional_dependent). Snapshot refreshed from stale non_dependent."
+
+  MARK3:
+    indication: PAAD
+    modality: small_molecule
+    outcome: advanced
+    dependency_mode: paralog_sl
+    partner_gene: MARK2
+    assertion_type: must_not_veto      # FLIPPED (Takeda ONC backtest 2026-09-08) — paralog suppressor rescues
+    measured: true
+    snapshot: mark3_paad.functional-requirement.json
+    expected_verdict_not_in: [non_dependent, not_dependent_in_indication, pan_essential_killer]
+    resolved_verdict: non_dependent_paralog_buffered           # realized (was non_dependent); degrader-preferred
+    resolved_driving_rule: strong-paralog-buffering-degrader-preferred
+    note: "RESCUED: paralog-buffering suppressor reads non_dependent_paralog_buffered (non-veto, degrader-preferred), correctly capturing the reciprocal MARK3<->MARK2 SL. Snapshot refreshed from stale non_dependent."
+
+# ---------------------------------------------------------------------------
+# ABSTENTION CASES — biologics-surface targets the framework must ABSTAIN on
+# (surface cards data-blocked), NOT over-promote. Advanced/declined status is not
+# the point here: the point is the framework honestly returns insufficient rather
+# than a fabricated surface nomination. (Refuted the "biologics false-positive"
+# claim — the framework abstains; that is the correct, tested behavior.)
+# ---------------------------------------------------------------------------
+abstention_cases:
+
+  HTR1D:
+    indication: COADREAD
+    modality: biologics                # proposed TCE/ADC; declined
+    outcome: declined
+    assertion_type: abstention_expected
+    measured: true
+    snapshot: htr1d_coadread.surface-modality-fit.json
+    expected_surface_fit_class: null   # data-blocked → honest insufficient
+    expected_surface_modality_verdict: insufficient   # headline field name
+    note: "GPCR — no TCE/ADC-viable epitope. A/B upstream read strong; the abstention is at the surface (E2/F) gate. The RNA-convergence discovery engine ranked it top; the composed framework correctly abstains."
+
+  CDH17:
+    indication: COADREAD
+    modality: biologics                # proposed surface; declined
+    outcome: declined
+    assertion_type: abstention_expected
+    measured: true
+    snapshot: cdh17_coadread.surface-modality-fit.json
+    expected_surface_fit_class: null
+    expected_surface_verdict: insufficient
+    note: "Bulk-clean but normal-gut-surface-unsafe for a CD3 TCE. Surface gate abstains (data-blocked)."
+
+# ---------------------------------------------------------------------------
+# SELECTIVITY CASES — tumor-vs-normal SELECTIVITY gate (tumor-selectivity skill).
+# assertion_type: selectivity_verdict_expected — pins headline.selectivity_class to the
+# CURRENT measured value (a regression anchor), and tags each with a `disposition`:
+#   clean_positive              — validated antigen correctly reads a *_tumor_selective class (PASS-as-intended)
+#   over_veto_false_negative    — a validated/approved antigen the normal-breadth VETO currently
+#                                 DOWNGRADES to selective_but_broadly_normal (the "over-eager clamp
+#                                 kills good targets" failure, cf. the CD19 lesson). Pinned so a future
+#                                 veto fix (plan Phase V/S/A5) produces a reviewable flip: update
+#                                 expected_selectivity_class → `should_be` and disposition → clean_positive.
+#   window_veto_cohort_confounded — vetoed, but scored in a non-approved cohort (confounds the read).
+#   discordant_flag             — validated antigen not landing selective (comparator conflict).
+#   not_selective_control       — a non-over-expressed control correctly read not_selective.
+#   selective_with_liability_correct — Phase S FIX (skills #554 + contracts #417): the sc-normal
+#                                 critical-organ arm now reads selective_with_normal_liability (a
+#                                 named-organ SAFETY flag), NOT the housekeeping selective_but_broadly_
+#                                 normal KILL. DLL3/ERBB2/FOLR1/MET flipped here from over_veto_false_
+#                                 negative — the intended regression signal.
+# This is the FOUNDATION that gates every verdict-moving selectivity change; snapshots captured
+# from ~/dev/framework-runs/full/tumor-selectivity (recount3 tcga-gtex-2023-01-04 substrate).
+# ---------------------------------------------------------------------------
+selectivity_cases:
+
+  CEACAM5:
+    indication: COADREAD
+    modality: adc
+    outcome: declined_ph3              # CEACAM5-NSCLC ADC failed Ph3 (on density, not selectivity)
+    assertion_type: selectivity_verdict_expected
+    measured: true
+    snapshot: ceacam5_coadread.tumor-selectivity.json
+    expected_selectivity_class: field_effect_tumor_selective
+    disposition: clean_positive
+    note: "GTEx field-cancerization arm carries it (A/B discordant); no veto fired (clean_window; sc origin_tissue_liability does NOT veto). The reference positive."
+    # CASE-008 tractability MODALITY-gate anchor (the false-DIRECT leak case). CEACAM5 carries 8 typed-
+    # "direct" DGIdb records (mistyped antibody/other), so the directness proxy alone reads approved_direct
+    # → would fire the SM-supportive approved-drug rung (chemically_active). The modality gate overrides:
+    # biologics_only: true → approved_biologic_only, so the DRUG axis routes to annotation_only_indirect.
+    tractability_modality_note: "SM-tractability DRUG axis: CEACAM5's approved agents are ADCs / a CEAxCD3 TCE (BIOLOGICS); no approved small molecule. The directness proxy leaks (8 false-direct records → approved_direct), so the CASE-008 modality gate is what demotes it (approved_biologic_only). SM verdict itself is unchanged (discordant, driven by the e7 off-target read); the gate fixes the DRUG-axis signal."
+
+  KLK3:
+    indication: PRAD
+    modality: small_molecule
+    outcome: active
+    assertion_type: selectivity_verdict_expected
+    measured: true
+    snapshot: klk3_prad.tumor-selectivity.json
+    expected_selectivity_class: strong_tumor_selective
+    disposition: clean_positive
+    note: "KLK3/PSA — prostate-restricted; strong across comparators, no normal-breadth veto. Cleanest true positive."
+
+  MSLN:
+    indication: PAAD
+    modality: adc
+    outcome: approved_class            # mesothelin ADC/TCE programs
+    assertion_type: selectivity_verdict_expected
+    measured: true
+    snapshot: msln_paad.tumor-selectivity.json
+    expected_selectivity_class: selective_with_normal_liability
+    expected_driving_rule_current: tvn-sc-normal-critical-organ-veto
+    disposition: selective_with_liability_correct
+    note: "Phase A4 (lung promoted to sc-normal always-on) SURFACED MSLN's pleural-mesothelium liability (its real serositis dose-limiting tox), previously invisible for PAAD (lung queried indication-matched only). axis-A modest_tumor_selective HOLDS — MSLN IS selective; the pleural liability is a named SAFETY concern (owned by on-target-safety-liability), not loss of selectivity. Was clean_positive pre-A4."
+
+  DLL3:
+    indication: SCLC
+    modality: bite_tce
+    outcome: approved_class            # tarlatamab (SCLC), approved
+    assertion_type: selectivity_verdict_expected
+    measured: true
+    snapshot: dll3_sclc.tumor-selectivity.json
+    expected_selectivity_class: selective_with_normal_liability
+    expected_driving_rule_current: tvn-sc-normal-critical-organ-veto
+    disposition: selective_with_liability_correct
+    note: "FIXED by Phase S (sc-normal veto split, skills #554 + contracts #417). Was over_veto_false_negative (selective_but_broadly_normal); now selective_with_normal_liability — the approved drug reads SELECTIVE with a named forebrain-neuron liability, no longer lumped with housekeeping. The named-organ SAFETY severity is owned by on-target-safety-liability."
+    # CASE-008 tractability MODALITY-gate anchor (verdict-INERT for the SM verdict; no assertion_type/snapshot
+    # here — the executable regression-lock is the AM dgidb reader tests + the skills tractability golden/replay).
+    tractability_modality_note: "SM-tractability DRUG axis: DLL3's approved agent is the DLL3xCD3 TCE tarlatamab (a BIOLOGIC), so the modality-blind DGIdb known-drug annotation must NOT credit small-molecule tractability. Regression-locked by the CASE-008 modality gate (biologics_precedent_targets.yaml biologics_only: true → approved_drug_engagement_class=approved_biologic_only → the SM-supportive approved-drug rung is gated off, routing the DRUG axis to annotation_only_indirect). The SM verdict is unchanged (structurally_ligandable, driven by the STRUCTURE predicted-pocket card); this gate fixes the DRUG-axis signal, not the top-line verdict."
+
+  ERBB2:
+    indication: BRCA
+    modality: adc
+    outcome: approved_class            # trastuzumab / T-DXd
+    assertion_type: selectivity_verdict_expected
+    measured: true
+    snapshot: erbb2_brca.tumor-selectivity.json
+    expected_selectivity_class: selective_with_normal_liability
+    expected_driving_rule_current: tvn-sc-normal-critical-organ-veto
+    disposition: selective_with_liability_correct
+    note: "FIXED by Phase S. The biologics flagship now reads SELECTIVE with a named nephron/cardiomyocyte liability (HER2 cardiotox is REAL but HER2 is approved) — the modality/therapeutic-index tension is now surfaced as a named liability rather than a blunt kill. Safety severity owned by on-target-safety-liability + modality-fit."
+
+  FOLR1:
+    indication: OV
+    modality: adc
+    outcome: approved_class            # mirvetuximab soravtansine, approved OV
+    assertion_type: selectivity_verdict_expected
+    measured: true
+    snapshot: folr1_ov.tumor-selectivity.json
+    expected_selectivity_class: selective_with_normal_liability
+    expected_driving_rule_current: tvn-sc-normal-critical-organ-veto
+    disposition: selective_with_liability_correct
+    note: "FIXED by Phase S. mirvetuximab (approved OV) now reads SELECTIVE with a named renal loop-of-Henle liability — real renal expression surfaced as a named safety concern, not loss of selectivity."
+
+  MET:
+    indication: COADREAD
+    modality: adc
+    outcome: active
+    assertion_type: selectivity_verdict_expected
+    measured: true
+    snapshot: met_coadread.tumor-selectivity.json
+    expected_selectivity_class: selective_with_normal_liability
+    expected_driving_rule_current: tvn-sc-normal-critical-organ-veto
+    disposition: selective_with_liability_correct
+    note: "FIXED by Phase S. Now reads SELECTIVE with a named renal (outer-medulla collecting-duct) liability rather than the blunt broadly-normal kill."
+
+  TACSTD2:
+    indication: COADREAD
+    modality: adc
+    outcome: approved_class            # sacituzumab govitecan (TROP2), approved TNBC/urothelial
+    assertion_type: selectivity_verdict_expected
+    measured: true
+    snapshot: tacstd2_coadread.tumor-selectivity.json
+    expected_selectivity_class: selective_but_broadly_normal
+    expected_driving_rule_current: tvn-no-therapeutic-window-veto
+    disposition: window_veto_cohort_confounded
+    note: "TROP2 — the housekeeping-window archetype. Vetoed via no_therapeutic_window, but scored in COADREAD (not its approved TNBC indication); the broadly-epithelial ADC tolerates this. Keep as the window-veto reference, flag the cohort confound."
+
+  EPCAM:
+    indication: COADREAD
+    modality: adc
+    outcome: active                    # broadly-pursued epithelial antigen
+    assertion_type: selectivity_verdict_expected
+    measured: true
+    snapshot: epcam_coadread.tumor-selectivity.json
+    expected_selectivity_class: discordant_across_comparators
+    disposition: discordant_flag
+    should_be: field_effect_tumor_selective
+    note: "Canonical epithelial antigen NOT landing selective — TCGA-adjacent vs GTEx comparators genuinely disagree and the field-effect signature did not trigger. A comparator-robustness documentation case (plan V2)."
+
+  APC:
+    indication: COADREAD
+    modality: small_molecule
+    outcome: not_a_selectivity_target  # tumor suppressor, not over-expressed
+    assertion_type: selectivity_verdict_expected
+    measured: true
+    snapshot: apc_coadread.tumor-selectivity.json
+    expected_selectivity_class: not_selective
+    disposition: not_selective_control
+    note: "Negative control — a tumor-suppressor is not tumor-over-expressed; correctly not_selective."
+
+  # --- TRUE-NEGATIVE veto panel (housekeeping + stromal/CAF) — PENDING live capture ---
+  # These MUST be downgraded/vetoed (must_veto). Staged measured:false (reasoned) until
+  # captured with /opt/conda/bin/python + AWS_PROFILE=cbg (see the test's REFRESH note),
+  # since they are not in the existing framework-runs panel. When captured, set measured:true,
+  # add a snapshot, and expected_selectivity_class: selective_but_broadly_normal.
+  GAPDH:
+    indication: COADREAD
+    modality: adc
+    outcome: not_a_target              # housekeeping
+    assertion_type: selectivity_verdict_expected
+    measured: false
+    disposition: true_negative_veto
+    expected_selectivity_class: selective_but_broadly_normal
+    note: "Housekeeping true-negative — the window veto MUST fire. Pending live capture."
+  ACTB:
+    indication: COADREAD
+    modality: adc
+    outcome: not_a_target
+    assertion_type: selectivity_verdict_expected
+    measured: false
+    disposition: true_negative_veto
+    expected_selectivity_class: selective_but_broadly_normal
+    note: "Housekeeping true-negative. Pending live capture."
+  FAP:
+    indication: PAAD
+    modality: adc
+    outcome: stromal_caf               # fibroblast activation protein — CAF marker
+    assertion_type: selectivity_verdict_expected
+    measured: false
+    disposition: true_negative_veto
+    expected_selectivity_class: selective_but_broadly_normal
+    note: "CAF/stromal marker — the stromal-confound veto (plan Phase S) target: should downgrade to selective_but_stromal_confound once that arm lands. Pending live capture."
+  POSTN:
+    indication: PAAD
+    modality: adc
+    outcome: stromal_caf               # periostin — stromal ECM
+    assertion_type: selectivity_verdict_expected
+    measured: false
+    disposition: true_negative_veto
+    expected_selectivity_class: selective_but_broadly_normal
+    note: "Stromal ECM — stromal-confound veto target (Phase S). Pending live capture."
+
+# ============================================================================
+# REFERENCE PROFILES (2026-07-19) — deep-research fidelity assessment
+# ============================================================================
+# Independent per-target reference standard (built biology-first from published
+# literature + catalog, then mapped to the 8 gates) grading whether the framework
+# captures the axis that ACTUALLY DECIDED each target. Full per-gate profiles +
+# citations live in the working-dir transcripts; the ASSESSMENT VERDICTS below are
+# the committed ground truth the harness asserts against and the enrich backlog cites.
+# Schema: dev/framework-runs/deep-research-reference/target-reference-profile.schema.yaml
+# Assessment: .../R3_FIDELITY_ASSESSMENT.md   Citations: .../CITATION_CORRECTIONS_FINAL.md
+#
+# deciding_axis_coverage ∈ {captured | partial | blind | license_blocked | out_of_scope}
+# severity ∈ {dangerous_false_positive | silent_false_negative | honest_blind | validated_lane}
+# NOTE: all citations verified vs PubMed/E-utilities (7 adjacent-PMID mismatches corrected;
+#       0 false biological claims). Coverage grades are unaffected by the citation fixes.
+#
+# HEADLINE: of ~71 known targets, the framework is blind/partial on the DECIDING axis for
+# the large majority; approved-SM gate-C false-negatives = 5/9; approved-biologics
+# nominable-on-merit = 0/10. Only the SM + pooled-CRISPR-visible + lineage/expression-shaped
+# box is the validated lane. This is an assessment record, not per-entry harness assertions
+# (those remain the measured snapshots above); it drives the enrich backlog + will be the
+# flip-test when fixes land (blind→captured is the regression signal).
+
+reference_profiles:
+
+  # --- DANGEROUS: framework would CONFIDENTLY ADVANCE what biology declines ---
+  ADAR1:   {indication: multi, modality: small_molecule, outcome: declined, deciding_axis: interferon_IO_context, deciding_axis_coverage: blind, agreement: framework_false_positive, severity: dangerous_false_positive, note: "real ISG-high dependency → gate C says selective_dependent; IO-context decline invisible. Abstention would NOT save it. VERIFIED-STANDS 2026-09-02 (do NOT flip to agree): live ADAR reads dependency=lineage_selective and only HOLDS via safety:highly_constrained_safety_concern (gnomAD WT-loss) — an INCIDENTAL wrong-reason save, NOT a principled IO-context decline; the deciding IO-axis is still blind and it would advance absent the safety hold. A panel drift-heuristic ('dangerous_FP but live does not nominate → caught up') is TOO OPTIMISTIC here — the collapsed word 'hold' hides that the save is off-axis. Right-answer-wrong-reason (cf POSTN/CTHRC1_PDL1)."}
+  RBM39:   {indication: multi, modality: molecular_glue, outcome: declined, deciding_axis: window_pan_essential, deciding_axis_coverage: captured, agreement: agree, severity: validated_lane, note: "CORRECTED 2026-08-30 (was dangerous_false_positive/framework_false_positive): the pan-essential axis is now CAPTURED — live functional-requirement reads dependency_verdict=pan_essential_killer (a VETO in nomination_verdict_gate; veto>hold) + on-target-safety fires pan-essential-broad-tox-safety-warning → the framework now DECLINES RBM39 for the pan-essential/no-window liability, MATCHING the declined outcome. Frontier caveat: a pan-essential gene with a real therapeutic index can still be a valid glue-degrader target (indisulam) — the veto is honest about the liability, not a claim the target is undruggable."}
+  CLDN18.2_LRRC15: {indication: PAAD, modality: bite_tce, outcome: declined, deciding_axis: bispecific_avidity_coexpression, deciding_axis_coverage: blind, agreement: framework_false_positive, severity: dangerous_false_positive, note: "epithelial CLDN18.2 vs stromal-CAF LRRC15 — NOT co-expressed same cell; framework sees two green antigens, avidity axis ABSENT → verdict FLIPS wrong."}
+  EGFR_cMET_VEGF: {indication: NSCLC, modality: biologics, outcome: declined, deciding_axis: bispecific_avidity_format, deciding_axis_coverage: blind, agreement: framework_false_positive, severity: dangerous_false_positive, note: "trispecific; VEGF secreted; avidity/format axis absent."}
+
+  # --- SILENT: framework would wrongly VETO / under-credit (conservative) ---
+  PARP1:   {indication: OV, modality: small_molecule, outcome: approved_class, deciding_axis: synthetic_lethal_BRCA_HRD, deciding_axis_coverage: blind, agreement: framework_false_negative, severity: silent_false_negative, note: "definitionally non-monoculture-essential → pooled non_dependent VETO; partner(BRCA)-conditional, own-mutation suppressor can't rescue."}
+  BCL2:    {indication: CLL_AML, modality: small_molecule, outcome: approved_class, deciding_axis: addiction_MCL1_buffered, deciding_axis_coverage: captured, agreement: agree_paralog_buffered, severity: validated_lane, note: "RESCUED (backtest 2026-09-08): reads non_dependent_paralog_buffered (non-veto; MCL1 buffers, degrader-preferred). Was framework_false_negative."}
+  XPO1:    {indication: MM, modality: small_molecule, outcome: approved_class, deciding_axis: pan_essential_with_window, deciding_axis_coverage: blind, agreement: framework_conservative_pan_essential, severity: honest_conservative, note: "RECLASSIFIED (backtest 2026-09-08): pan_essential_killer veto is DEFENSIBLE for de-novo nomination. DepMap probe shows NO MM window (XPO1 MM median -2.28 vs rest -2.25, no difference, MW p=0.42) — selinexor's window is in-vivo nuclear-export dependence of MM survival factors, not a genetic-dependency signal. Out-of-scope, not a framework error."}
+  PSMB5:   {indication: MM, modality: small_molecule, outcome: approved_class, deciding_axis: proteotoxic_stress_cell_state, deciding_axis_coverage: blind, agreement: framework_conservative_pan_essential, severity: honest_conservative, note: "RECLASSIFIED (backtest 2026-09-08): pan_essential_killer veto is DEFENSIBLE for de-novo nomination. DepMap probe shows NO MM dependency window (PSMB5 MM median -1.49 vs rest -1.89, LESS dependent, MW p=0.98) — bortezomib's window is in-vivo secretory/proteostatic stress, a pharmacology/therapeutic-index effect, NOT a genetic-dependency signal. Not fixable from DepMap; out-of-scope, not a framework error."}
+  CDK4_6:  {indication: BRCA, modality: small_molecule, outcome: approved_class, deciding_axis: paralog_buffered, deciding_axis_coverage: partial, agreement: agree, severity: validated_lane, note: "RESCUED (backtest 2026-09-08): CDK4 + CDK6 both read lineage_selective (non-veto). Was framework_false_negative."}
+  SMARCA2: {indication: LUAD, modality: degrader, outcome: advanced, deciding_axis: partner_conditional_SL_SMARCA4, deciding_axis_coverage: captured, agreement: agree_conditional, severity: validated_lane, note: "RESCUED (Takeda ONC backtest 2026-09-08): SMARCA2×SMARCA4 partner-conditional lane → partner_conditional_dependent. Was framework_false_negative."}
+  MARK2_3: {indication: PAAD, modality: small_molecule, outcome: advanced, deciding_axis: reciprocal_paralog_SL, deciding_axis_coverage: captured, agreement: agree_paralog_buffered, severity: validated_lane, note: "RESCUED (backtest 2026-09-08): both MARK2 + MARK3 read non_dependent_paralog_buffered (non-veto, degrader-preferred) via the paralog-buffering suppressor. Was framework_false_negative."}
+  PELO:    {indication: multi, modality: small_molecule, outcome: advanced, deciding_axis: circuit_SL_SKI_9q_loss, deciding_axis_coverage: blind, agreement: framework_false_negative, severity: silent_false_negative}
+  SKP2:    {indication: SCLC, modality: small_molecule, outcome: active, deciding_axis: partner_loss_SL_RB1, deciding_axis_coverage: partial, agreement: agree, severity: validated_lane, note: "RESCUED (backtest 2026-09-08): reads lineage_selective (non-veto). Was framework_false_negative."}
+  CDS2:    {indication: multi, modality: small_molecule, outcome: active, deciding_axis: paralog_SL_CDS1, deciding_axis_coverage: partial, agreement: agree, severity: validated_lane, note: "RESCUED (backtest 2026-09-08): reads lineage_selective (non-veto). Was framework_false_negative."}
+  RIPK1:   {indication: multi, modality: molecular_glue, outcome: advanced, deciding_axis: exvivo_inflammatory, deciding_axis_coverage: blind, agreement: framework_false_negative, severity: silent_false_negative}
+
+  # --- HONEST-BLIND: framework correctly abstains / out-of-scope (NOT a failure) ---
+  #     surface biologics (E2/F blind — zero discriminative power; abstains on winners AND losers)
+  CD19:    {indication: BALL, modality: bite_tce, outcome: approved_class, deciding_axis: B2_window_E2_density, deciding_axis_coverage: blind, agreement: framework_abstains, severity: honest_blind}
+  TROP2:   {indication: TNBC, modality: adc, outcome: approved_class, deciding_axis: F_broad_epithelial_window_E2_bystander, deciding_axis_coverage: blind, agreement: framework_abstains, severity: honest_blind}
+  DLL3:    {indication: SCLC, modality: bite_tce, outcome: approved_class, deciding_axis: A2_aberrant_surface_B2_absent_normal, deciding_axis_coverage: blind, agreement: framework_abstains, severity: honest_blind, note: "cleanest A2 proof: aberrant surface trafficking invisible; framework under-reads even RNA presence."}
+  FOLR1:   {indication: OV, modality: adc, outcome: approved_class, deciding_axis: E2_antigen_density_CDx, deciding_axis_coverage: blind, agreement: framework_abstains, severity: honest_blind, note: "approval label IS an antigen-density companion Dx; density = the BIG gap card returning insufficient."}
+  CD22:    {indication: BALL, modality: adc, outcome: approved_class, deciding_axis: E2_internalization, deciding_axis_coverage: blind, agreement: framework_abstains, severity: honest_blind}
+  NECTIN4: {indication: urothelial, modality: adc, outcome: approved_class, deciding_axis: E2_internalization_F_skin, deciding_axis_coverage: blind, agreement: framework_abstains, severity: honest_blind}
+  BCMA:    {indication: MM, modality: bite_tce, outcome: approved_class, deciding_axis: A2_shed_E2_density_B2, deciding_axis_coverage: blind, agreement: framework_abstains, severity: honest_blind}
+  CD20:    {indication: lymphoma, modality: antibody, outcome: approved_class, deciding_axis: E2_noninternalizing_density, deciding_axis_coverage: blind, agreement: framework_abstains, severity: honest_blind}
+  CEACAM5: {indication: NSCLC, modality: adc, outcome: declined_ph3, deciding_axis: E2_density_threshold_same_organ_normal, deciding_axis_coverage: blind, agreement: framework_false_positive, severity: dangerous_false_positive, note: "RECLASSIFIED 2026-09-11 by Step 3 (was framework_abstains / honest_blind): the thesis_deciding_axes block (nomination_verdict_gate v1.18.0) graduates surface_modality to a positive decider under the antigen_driven thesis, and CEACAM5/LUAD SATISFIES the whole conjunction — surface adc_preferred_tce_unsafe + selectivity strong_tumor_selective + expression strongly_upregulated_in_tumor + density grade B (76k copies/cell, above_adc_high_payload_floor) + safety tolerant_reduced_safety_risk — so it moves abstain -> NOMINATE on a PHASE-3 FAILURE. This is a KNOWINGLY-SHIPPED false positive, not an oversight: on every WIRED axis CEACAM5 reads BETTER than the approved FOLR1/OV (which reads only selective_with_normal_liability + tumor_broadly_expressed), so no non-overfit rule over wired signals separates them, and tightening the conjunction until CEACAM5 fails also blocks FOLR1/DLL3/MSLN (i.e. nominates nothing). THE REAL DISCRIMINATOR is SAME-ORGAN normal liability: the antigen-positive ESSENTIAL normal tissue IS the indication's own organ (lung / LUAD) — the '~558x-window-yet-lung-positive' pattern surface_modality.resolver.yaml names CEACAM5 for by name. Wiring it needs normal-tissue identity crossed with the indication organ = a SUBSTRATE build (see known_gap_watchlist: same_organ_normal_liability), not a gate edit. Ph3 fail control retained — it is now a FAILING control, and that is the honest reading."}
+  MUC13:   {indication: CRC, modality: adc, outcome: declined, deciding_axis: E2_glycan_shed_F, deciding_axis_coverage: blind, agreement: framework_abstains_correctly, severity: honest_blind}
+  GRIN2D:  {indication: GI, modality: adc, outcome: declined, deciding_axis: E2_ion_channel_topology, deciding_axis_coverage: blind, agreement: framework_abstains_correctly, severity: honest_blind, note: "topology-killer (HTR1D analog) — highest-value buildable E2 fix."}
+  NOX1:    {indication: CRC, modality: bite_tce, outcome: advanced, deciding_axis: F_restricted_GI_window, deciding_axis_coverage: blind, agreement: framework_abstains_incorrectly, severity: honest_blind, note: "advanced on restricted-normal window; framework can't distinguish from losers."}
+  STEAP1:  {indication: prostate, modality: bite_tce, outcome: active, deciding_axis: E2_topology_overturned_by_clinical, deciding_axis_coverage: blind, agreement: framework_abstains_incorrectly, severity: honest_blind, note: "TRAP: 6-TM like GRIN2D but clinically de-risked — a topology-killer card must be SUBORDINATE to clinical precedent or it false-negatives STEAP1."}
+  #     genuinely out-of-scope Tier-2 (framework correctly has no view)
+  NLRP3:   {indication: heme, modality: small_molecule, outcome: declined, deciding_axis: immune_inflammasome, deciding_axis_coverage: out_of_scope, agreement: out_of_scope_tier2, severity: honest_blind}
+  POSTN_PDL1: {indication: multi, modality: biologics, outcome: declined, deciding_axis: TME_secreted_CAF, deciding_axis_coverage: out_of_scope, agreement: out_of_scope_tier2, severity: honest_blind, note: "right-answer-wrong-reason: C inverts (secreted→non_dependent), matches decline but zero fidelity."}
+  CTHRC1_PDL1: {indication: multi, modality: biologics, outcome: declined, deciding_axis: TME_secreted_CAF, deciding_axis_coverage: out_of_scope, agreement: out_of_scope_tier2, severity: honest_blind}
+  CA19_9:  {indication: PAAD, modality: bite_tce, outcome: declined, deciding_axis: shed_glycan_nongene, deciding_axis_coverage: out_of_scope, agreement: out_of_scope_tier2, severity: honest_blind, note: "gate A can't even instantiate a non-gene glycan antigen — representation fails pre-verdict."}
+  panRAF_MEK_FAK: {indication: multi, modality: small_molecule, outcome: declined, deciding_axis: adaptive_feedback_combination, deciding_axis_coverage: out_of_scope, agreement: out_of_scope_tier2, severity: honest_blind}
+  HIF2A:   {indication: RCC, modality: small_molecule, outcome: declined, deciding_axis: clinical_precedent_belzutifan, deciding_axis_coverage: license_blocked, agreement: out_of_scope_tier2, severity: honest_blind, note: "framework Cortellis-walled — literally can't see that belzutifan is approved."}
+  MLLT1_3: {indication: AML, modality: degrader, outcome: active, deciding_axis: degrader_E3_feasibility, deciding_axis_coverage: blind, agreement: out_of_scope_tier2, severity: honest_blind, note: "dependency (C) captured; degrader-feasibility axis blind."}
+  KAT2A_B: {indication: AML, modality: degrader, outcome: active, deciding_axis: degrader_E3_feasibility, deciding_axis_coverage: blind, agreement: out_of_scope_tier2, severity: honest_blind}
+  CNDP2:   {indication: multi, modality: small_molecule, outcome: active, deciding_axis: noncell_autonomous_metabolic_dependency_KEAP1_NRF2, deciding_axis_coverage: out_of_scope, agreement: out_of_scope_tier2, severity: honest_blind, note: "CORRECTED 2026-09-02 (was neomorphic_gain_of_function/silent_false_negative — a mislabel). CNDP2 is globally WT in tumors: no somatic alteration/hotspot/GoF mutation. 'Neomorphic' in the literature = the WT enzyme's substrate-driven Lac-Phe synthase MOONLIGHTING (Long 2023), a physiological reverse-reaction under high lactate, NOT a mutant oncogenic event. Actionability is a NON-CELL-AUTONOMOUS metabolic liability: tumors upregulate + SECRETE WT CNDP2 to cleave extracellular peptides into free amino acids, feeding the glutamine/AA addiction of KEAP1-LoF / NFE2L2(NRF2)-GoF cells (Carmona-Fontaine 2025). Patient-selection biomarker is the UPSTREAM trans genotype KEAP1-LoF / NRF2-GoF (both CAPTURED by alteration-role), not a CNDP2 mutation. DepMap monoculture CRISPR is structurally blind — CNDP2 is cell-autonomously NON-dependent (frac<=-0.5 = 0.1%, mean +0.035); the secreted community effect is unmeasurable in public data. Same class as POSTN/CTHRC1_PDL1 secreted-TME (C inverts secreted->non_dependent). NOT a wiring false-negative; a genuine out-of-scope scientific gap (non-cell-autonomous / microenvironment-induced metabolic dependency)."}
+
+  # --- VALIDATED LANE: framework reads correctly (SM + pooled-CRISPR-visible + lineage/expr-shaped) ---
+  KRAS:    {indication: COADREAD, modality: small_molecule, outcome: approved_class, deciding_axis: E1_covalent_switchII_pocket, deciding_axis_coverage: blind, agreement: agree, severity: validated_lane, note: "gate C captured (lineage_selective) BUT deciding axis (the pocket) is E1-blind — home turf, right verdict, blind on what decided it."}
+  HER2:    {indication: BRCA, modality: adc, outcome: approved_class, deciding_axis: E2_internalization_F_cardiotox, deciding_axis_coverage: blind, agreement: agree, severity: validated_lane, note: "the biologics control — passes gate C on amplified-line DEPENDENCY (on merit), but E2/F axes that made T-DXd a drug are blind."}
+  FLT3:    {indication: AML, modality: small_molecule, outcome: approved_class, deciding_axis: mutation_context_ITD, deciding_axis_coverage: captured, agreement: agree, severity: validated_lane, note: "the 1/9 approved-SM with deciding axis genuinely captured (own-mutation ITD wire; power-contingent)."}
+  KAT7:    {indication: multi, modality: small_molecule, outcome: active, deciding_axis: SM_dependency, deciding_axis_coverage: captured, agreement: agree, severity: validated_lane, note: "positive control — SM + pooled-CRISPR-visible dependency = the framework's home."}
+  SCD1:    {indication: CRC, modality: small_molecule, outcome: active, deciding_axis: lineage_selectivity, deciding_axis_coverage: captured, agreement: agree, severity: validated_lane, note: "lone gate-C win in the SL cohort — lineage-context is the one flavor the wired card handles."}
+  BRAF:    {indication: SKCM, modality: small_molecule, outcome: approved_class, deciding_axis: V600E_addiction, deciding_axis_coverage: partial, agreement: agree_fragile, severity: validated_lane, note: "melanoma-concentrated tail near 5% floor — fragile pass."}
+  EGFR:    {indication: LUAD, modality: small_molecule, outcome: approved_class, deciding_axis: mutation_context, deciding_axis_coverage: partial, agreement: agree_conditional, severity: validated_lane, note: "captured ONLY if v1.2.0 biomarker-suppressor fires + stratum powered; else false-negative."}
+  WRN:     {indication: COADREAD, modality: small_molecule, outcome: advanced, deciding_axis: synthetic_lethal_MSI_H, deciding_axis_coverage: captured, agreement: agree, severity: validated_lane, note: "MOLECULAR-subtype-primary anchor (promoted from staging 2026-09-02, VERIFIED live --subtypes MSI_H,MSS): WRN is a dependency ONLY in MSI-H. Framework CAPTURES it — dependency=partner_conditional_dependent (WRN×MSI SL card) + subtype_fit=subtype_specific_non_dependence (flags MSS non-dependence). Caveat: subtype_fit is NEGATIVE-SELECTION-only (frames MSS non-dependence as hold; never mints a POSITIVE per-stratum MSI_H nomination). The clean subtype_fit positive control."}
+
+  # --- Tier-2 NEGATIVES: real declined/failed programs the framework must NOT nominate (promoted from
+  #     staging 2026-09-02, each VERIFIED by a live LLM-free emit; expands the scarce negative class). ---
+  PLK1:    {indication: multi, modality: small_molecule, outcome: declined, deciding_axis: window_pan_essential, deciding_axis_coverage: captured, agreement: agree, severity: validated_lane, note: "Correctly-declined negative (VERIFIED live 2026-09-02, PLK1/COADREAD SM → forced_recommendation=veto). PLK1 inhibitors (volasertib Ph3 AML, onvansertib) failed on a narrow therapeutic index. Framework CAPTURES the liability: dependency=pan_essential_killer (PLK1 is genuinely pan-essential — the mitotic kinase) + safety=highly_constrained + selectivity no-therapeutic-window-veto → declines for the pan-essential/no-window reason, MATCHING the declined outcome (RBM39 pattern, high fidelity)."}
+  AURKA:   {indication: SCLC, modality: small_molecule, outcome: declined, deciding_axis: constrained_safety_normal_liability, deciding_axis_coverage: captured, agreement: agree, severity: validated_lane, note: "Correctly-declined negative (VERIFIED live 2026-09-02, AURKA/SCLC SM → forced_recommendation=hold). Alisertib (AURKA inhibitor) failed Ph3 (PTCL) + mixed SCLC on tox/insufficient efficacy. Framework does NOT nominate: safety=highly_constrained + selectivity=selective_with_normal_liability (sc-normal-critical-organ-veto) + dependency=discordant → holds on the broad-proliferating-tissue liability (the real tox mode). Correctly cautious."}
+  MMP9:    {indication: multi, modality: small_molecule, outcome: declined, deciding_axis: no_therapeutic_window_broad_normal, deciding_axis_coverage: captured, agreement: agree, severity: validated_lane, note: "Correctly-declined failed-class negative (VERIFIED live 2026-09-02, MMP9/COADREAD SM → forced_recommendation=veto). Broad-spectrum MMP inhibitors were a repeated oncology failure (musculoskeletal-syndrome tox + lack of efficacy). Framework vetoes on non_dependent (MMP9 is a SECRETED protease — non-cell-autonomous, so monoculture CRISPR reads non-dependent) + no-therapeutic-window (broadly normal expression) + normal-tissue safety. FIDELITY NUANCE: the non_dependent leg is the secreted→non_dependent inversion (low fidelity, cf POSTN), but the no-window/normal-tissue-liability leg has REAL fidelity to the broad-expression tox that actually sank the class — so scored validated_lane (correctly declines on a genuine liability), not honest_blind."}
+  # Tier-2 negatives round-2 (2026-09-02, each VERIFIED by a live LLM-free emit). MCL1 is the key
+  # SPECIFICITY-STRESS anchor (all efficacy signals positive — only the safety axis is load-bearing);
+  # WEE1/CHEK1/KIF11 build a well-powered pan-essential-veto family (with PLK1 = 4 anchors, so per-family
+  # capture-rate is a real metric, not 1-2-target noise).
+  MCL1:    {indication: SCLC, modality: small_molecule, outcome: declined, deciding_axis: gnomad_constraint_cardiotox, deciding_axis_coverage: captured, agreement: agree, severity: validated_lane, note: "SPECIFICITY-STRESS anchor + proof the SAFETY axis is LOAD-BEARING (VERIFIED live 2026-09-02, MCL1/SCLC SM → forced_recommendation=hold). Every EFFICACY signal is positive — dependency=lineage_selective, tractability=well_covered, expression=broadly_high, genomic=moderate_biomarker_dependency — yet the framework HOLDS on safety=highly_constrained alone (no positive efficacy signal can override it). High fidelity: all clinical MCL1 inhibitors (S64315/MIK665, AMG 176, AZD5991) were halted for CARDIOTOXICITY (MCL1 essential in cardiomyocytes = exactly the gnomAD LoF constraint). The framework correctly declines a target it otherwise looks great on — the strongest specificity demonstration in the panel."}
+  WEE1:    {indication: OV, modality: small_molecule, outcome: declined, deciding_axis: window_pan_essential, deciding_axis_coverage: captured, agreement: agree, severity: validated_lane, note: "Correctly-declined negative (VERIFIED live 2026-09-02, WEE1/OV SM → forced_recommendation=veto). Adavosertib (WEE1 inhibitor) had modest/mixed ovarian activity and stalled on tox + narrow index. Framework vetoes: dependency=pan_essential_killer (WEE1 is a broadly-essential cell-cycle checkpoint kinase) + safety=highly_constrained + no-therapeutic-window. Pan-essential-family anchor (high fidelity)."}
+  CHEK1:   {indication: COADREAD, modality: small_molecule, outcome: declined, deciding_axis: window_pan_essential, deciding_axis_coverage: captured, agreement: agree, severity: validated_lane, note: "Correctly-declined negative (VERIFIED live 2026-09-02, CHEK1/COADREAD SM → forced_recommendation=veto). Prexasertib (CHK1 inhibitor) failed to advance as monotherapy (tox/insufficient single-agent efficacy). Framework vetoes: dependency=pan_essential_killer + safety=pan_essential_broad_tox_concern + no-therapeutic-window. Pan-essential-family anchor."}
+  KIF11:   {indication: COADREAD, modality: small_molecule, outcome: declined, deciding_axis: window_pan_essential, deciding_axis_coverage: captured, agreement: agree, severity: validated_lane, note: "Correctly-declined negative (VERIFIED live 2026-09-02, KIF11/COADREAD SM → forced_recommendation=veto). Eg5/KIF11 kinesin inhibitors (ispinesib, filanesib) failed clinically (narrow index, neutropenia). Framework vetoes: dependency=pan_essential_killer (KIF11 is essential for mitotic spindle) + safety=highly_constrained + no-therapeutic-window; tractability=discordant adds an off-target-warning flavor. Pan-essential-family anchor."}
+  IDO1:    {indication: SKCM, modality: small_molecule, outcome: declined, deciding_axis: IO_immune_efficacy_ECHO301, deciding_axis_coverage: out_of_scope, agreement: out_of_scope_tier2, severity: honest_blind, note: "RIGHT-ANSWER, ORTHOGONAL-REASON (VERIFIED live 2026-09-02, IDO1/SKCM SM → forced_recommendation=veto). IDO1's decline (epacadostat ECHO-301 melanoma Ph3 fail) was an IO-COMBINATION EFFICACY failure — IDO1 is an immunomodulatory kynurenine-pathway enzyme, NOT a tumor-cell-autonomous dependency. Framework vetoes on cell-autonomous non_dependent + no-window (matches 'don't nominate as a cytotoxic tumor target') but is BLIND to the IO mechanism that was the actual hypothesis AND the actual failure. Same class as POSTN/CTHRC1 (secreted/TME, C inverts → non_dependent, matches decline with zero fidelity to why). NOT scored (honest_blind) — a documented out-of-scope gap, not a specificity win."}
+
+# =============================================================================================
+# reference_profiles_staging — DRAFT panel-expansion entries (2026-09-02). NOT YET CONSUMED.
+#
+# Read by NO consumer yet (the discrimination harness + eval/run_known_target_panel both read
+# `reference_profiles`, not this block), so staging here cannot shift the pinned discrimination
+# metrics or break CI. Promotion to `reference_profiles` is a COORDINATED follow-up that must:
+#   (1) VERIFY each entry with a live emit (agreement/severity below are PROVISIONAL — measured:false);
+#   (2) update the PINNED counts in tests/calibration/test_framework_discrimination.py (adding
+#       profiles shifts n_approved / silent_false_negatives / blind_rate);
+#   (3) land AFTER the parallel METex14/CNDP2 session's calibration flip (same file) — apply --3way.
+#
+# SCOPE NOTE (two senses of "subtype"): the framework's `subtype_fit` axis is MOLECULAR subtype
+# (CMS / MSI / CIMP — the --subtypes path axis). MUTATION-subtypes (KRAS-G12C, EGFR-ex19del,
+# BRAF-V600E, ERBB2-amp, PIK3CA-mut, METex14) are the GENOMIC-ALTERATION axis (the parallel
+# session's territory) — cross-referenced under tier_s_mutation_subtype_XREF, NOT added here as
+# subtype_fit entries, to avoid colliding with that work.
+# =============================================================================================
+reference_profiles_staging:
+
+  # --- Tier-S: WRN PROMOTED 2026-09-02 → live reference_profiles above (subtype_fit positive control). ---
+  # (The `subtype` field is a panel-emit hint; reference_profiles has no subtype field, so the panel's
+  #  emit-subtype-aware path reads it from staging — WRN's live emit already passed --subtypes MSI_H,MSS.)
+
+  # --- Tier-2: DECOYS moved 2026-09-02 → the top-level `decoy_controls:` block (end of file). ---
+  # MEASUREMENT-INTEGRITY (why decoys are NOT reference_profiles): the discrimination harness counts EVERY
+  # reference_profile in blind_rate / by_outcome; captured non-target decoys would DILUTE blind_rate and
+  # inflate negative_declined. So decoys live in their own block the eval PANEL scores for specificity
+  # ("does the framework nominate noise?") but the discrimination harness IGNORES. ACTB/GAPDH promoted there.
+  #
+  # MMP9 PROMOTED 2026-09-02 → live reference_profiles above. Retry emit succeeded (MMP9/COADREAD SM →
+  # forced_recommendation=veto via non_dependent-killer + no-therapeutic-window-veto + normal-tissue
+  # safety). It is a real failed-CLASS program (a genuine outcome), not a synthetic decoy, so it belongs
+  # in reference_profiles (like CEACAM5/MUC13/GRIN2D), scored as a validated_lane negative.
+
+  # --- Tier-S MUTATION-subtype cross-reference (GENOMIC-ALTERATION axis; coordinate, do NOT add here) ---
+  tier_s_mutation_subtype_XREF:
+    note: "These ARE subtype-primary but on the genomic-alteration / mutation-stratified axis, not
+      subtype_fit — owned by the parallel METex14/GoF session. Handle/verify WITH that work:
+      KRAS-G12C (LUAD/COADREAD), EGFR-ex19del/L858R/ex20ins (LUAD), BRAF-V600E (SKCM vs COADREAD),
+      ERBB2-amp-vs-mut (BRCA/STAD), PIK3CA-mut (BRCA), METex14 (LUAD — parallel CASE-002, real splice GoF),
+      IDH1-R132 neomorphic-GoF (parallel). NOTE: CNDP2 REMOVED from this GoF group — it has NO GoF
+      mutation (see CNDP2_corrected below); the parallel 'CNDP2 GoF' scope was misdirected."
+
+  # --- CASE-006 CORRECTION: CNDP2 is NOT a neomorphic GoF (curator biology 2026-09-02) ---
+  # CNDP2_corrected — SUPERSEDED 2026-09-02: the parallel session already landed this exact correction
+  # to the LIVE reference_profiles CNDP2 entry (deciding_axis noncell_autonomous_metabolic_dependency_
+  # KEAP1_NRF2, out_of_scope_tier2, honest_blind) + re-pinned discrimination (silent_FN 12→11). Our
+  # staging draft converged on the identical biology; nothing to promote. (Retained as a pointer.)
+
+
+# =============================================================================================
+# decoy_controls — SPECIFICITY controls (2026-09-02). NOT read by the discrimination harness.
+#
+# Non-target genes that a correct framework must NEVER nominate (pan-essential housekeeping,
+# etc.). Consumed by eval/run_known_target_panel.py to score SPECIFICITY (a decoy that comes
+# back `nominate` is a false-positive; hold/veto/None = pass). Deliberately SEPARATE from
+# reference_profiles: the discrimination harness (validate_framework_discrimination) reads only
+# reference_profiles, so decoys here cannot dilute blind_rate / by_outcome (a captured non-target
+# would otherwise game a metric meant for real nomination targets).
+# =============================================================================================
+decoy_controls:
+
+  ACTB:
+    indication: COADREAD
+    modality: small_molecule
+    expect_not: nominate                 # a correct framework never nominates a housekeeping gene
+    measured: true
+    note: "VERIFIED 2026-09-02: beta-actin (pan-essential housekeeping) correctly HELD via
+      safety:highly_constrained_safety_concern, never nominated. Specificity pass. (The guard fires on
+      SAFETY / gnomAD constraint, not a pan_essential dependency veto — either route is correct.)"
+  GAPDH:
+    indication: COADREAD
+    modality: small_molecule
+    expect_not: nominate
+    measured: true
+    note: "VERIFIED 2026-09-02: correctly HELD via safety:normal_tissue_protein_safety_concern, never
+      nominated. Specificity pass."
+
+# ---------------------------------------------------------------------------
+# biology_anchors — T4 (plan foamy-bird I.2). Field-grain directional biology.
+# ---------------------------------------------------------------------------
+# The buckets above pin only the TOP-LINE class per snapshot (selectivity_class /
+# dependency_verdict / surface_modality_verdict). These anchors promote the SAME
+# committed snapshots to FIELD grain: they assert the SUPPORTING fields that DRIVE
+# that top-line class, each grounded in known biology of an approved/validated
+# target. Non-duplicative by construction — no anchor asserts a field an entry above
+# already owns (see tests/calibration/test_known_target_calibration.py
+# test_biology_anchor_ownership_is_disjoint). Consumer: the same test module,
+# test_biology_anchor (parametrized per assertion) + the mutation/vacuity guards.
+#
+# Each assertion pins the CURRENT measured value of a driving field, tagged with the
+# biology it encodes. A data fix that flips the biology (a wrong join/denominator/
+# comparator that moves a driving field) reds the anchor even when the top-line class
+# is unchanged — that is the intended field-grain regression signal. All values were
+# verified against the committed snapshots (depmap-consortium-26q1). Ops:
+#   equals | in | not_in | gte | lte | gt | lt | matches (case-insensitive regex)
+# `matches`/`not_in`/numeric ops are guarded: a missing/typo'd field or a non-numeric
+# value FAILS (never silently passes) — see test_biology_anchor_field_present_guard
+# and test_biology_anchor_numeric_guard.
+biology_anchors:
+
+  DLL3:
+    indication: SCLC
+    skill: tumor-selectivity
+    snapshot: dll3_sclc.tumor-selectivity.json
+    outcome: approved_class            # tarlatamab (DLL3xCD3 TCE), approved SCLC
+    biology: "neuroendocrine-restricted; strong tumor axis with a real CNS/neuronal normal liability"
+    assertions:
+      - {field: axis_a_selectivity_class, op: equals, value: strong_tumor_selective,
+         because: "axis-A tumor-vs-normal separation is strong for DLL3 in SCLC"}
+      - {field: sc_normal_safety_essential_class, op: equals, value: critical_organ_liability,
+         because: "the single-cell normal signal is a critical-organ (neuronal) cell type — the CNS liability"}
+      - {field: sc_normal_max_detection_cell_type, op: matches, value: "neuron|forebrain|neural|neuroendocrine",
+         because: "the driving normal cell type is neuronal (forebrain neuron in 26q1), not housekeeping epithelium"}
+      - {field: max_abs_log2fc, op: gte, value: 3.0,
+         because: "DLL3 shows a large tumor-vs-normal fold change (approved-antigen-grade separation)"}
+
+  KLK3:
+    indication: PRAD
+    skill: tumor-selectivity
+    snapshot: klk3_prad.tumor-selectivity.json
+    outcome: active                    # KLK3/PSA, prostate-restricted
+    biology: "prostate lineage-restricted antigen (PSA) — strong selectivity, NO critical-organ liability"
+    assertions:
+      - {field: axis_a_selectivity_class, op: equals, value: strong_tumor_selective,
+         because: "PSA is strongly tumor/lineage-restricted across comparators"}
+      - {field: sc_normal_safety_essential_class, op: equals, value: none,
+         because: "prostate-restricted expression carries NO critical-organ normal liability — the contrast to DLL3/ERBB2"}
+      - {field: sc_normal_max_detection_cell_type, op: matches, value: "prostate",
+         because: "the max normal detection is a prostate luminal epithelial cell (the tissue of origin), not an off-target organ"}
+
+  ERBB2:
+    indication: BRCA
+    skill: tumor-selectivity
+    snapshot: erbb2_brca.tumor-selectivity.json
+    outcome: approved_class            # trastuzumab / T-DXd
+    biology: "HER2 amplification-driven — extreme expression rank, strong axis, named nephron/cardiac liability"
+    assertions:
+      - {field: axis_a_selectivity_class, op: equals, value: strong_tumor_selective,
+         because: "amplification drives strong tumor-vs-normal axis-A separation"}
+      - {field: selectivity_allgene_percentile_class, op: equals, value: top_1pct,
+         because: "HER2 amplification pushes expression into the extreme all-gene percentile — the amplification signature"}
+      - {field: max_abs_log2fc, op: gte, value: 3.0,
+         because: "amplification-driven expression yields a large fold change (5.2 in 26q1)"}
+
+  FOLR1:
+    indication: OV
+    skill: tumor-selectivity
+    snapshot: folr1_ov.tumor-selectivity.json
+    outcome: approved_class            # mirvetuximab soravtansine, approved OV
+    biology: "folate receptor alpha — very high tumor expression, broadly malignant, renal normal liability"
+    assertions:
+      - {field: max_abs_log2fc, op: gte, value: 3.0,
+         because: "FOLR1 shows a very large tumor-vs-normal fold change in ovarian (9.9 in 26q1)"}
+      - {field: sc_tumor_expression_class, op: equals, value: malignant_broadly_detected,
+         because: "FOLR1 is broadly detected across malignant cells (a homogeneous ADC antigen)"}
+      - {field: sc_normal_safety_essential_class, op: equals, value: critical_organ_liability,
+         because: "the known renal (proximal-tubule/loop-of-Henle) normal expression surfaces as a named liability"}
+
+  MSLN:
+    indication: PAAD
+    skill: tumor-selectivity
+    snapshot: msln_paad.tumor-selectivity.json
+    outcome: approved_class            # mesothelin ADC/TCE programs
+    biology: "mesothelin — mesothelial (serosal) normal expression is its real serositis dose-limiting tox"
+    assertions:
+      - {field: sc_normal_max_detection_cell_type, op: matches, value: "mesothel",
+         because: "the driving normal cell type is mesothelial (pleura) — the anatomic basis of MSLN serositis tox"}
+      - {field: sc_normal_safety_essential_class, op: equals, value: critical_organ_liability,
+         because: "the mesothelial normal expression surfaces as a named safety liability"}
+      - {field: sc_tumor_expression_class, op: equals, value: malignant_subset_detected,
+         because: "MSLN is detected on a malignant subset (heterogeneous), not broadly"}
+
+  MET:
+    indication: COADREAD
+    skill: tumor-selectivity
+    snapshot: met_coadread.tumor-selectivity.json
+    outcome: active
+    biology: "MET — strong tumor enrichment with a named renal collecting-duct normal liability"
+    assertions:
+      - {field: axis_a_selectivity_class, op: equals, value: strong_tumor_selective,
+         because: "axis-A separation is strong for MET in COADREAD"}
+      - {field: percentile_crossing_class, op: equals, value: strongly_tumor_enriched,
+         because: "MET crosses into strong tumor enrichment on the percentile axis"}
+      - {field: sc_tumor_expression_class, op: equals, value: malignant_subset_detected,
+         because: "MET is detected on a malignant subset in single-cell tumor data"}
+
+  APC:
+    indication: COADREAD
+    skill: tumor-selectivity
+    snapshot: apc_coadread.tumor-selectivity.json
+    outcome: not_a_selectivity_target  # tumor suppressor, not over-expressed
+    biology: "NEGATIVE control — a tumor suppressor is not tumor-over-expressed; no selectivity axis"
+    assertions:
+      - {field: axis_a_selectivity_class, op: equals, value: not_selective,
+         because: "a tumor suppressor shows no tumor-over-expression axis-A signal"}
+      - {field: max_abs_log2fc, op: lt, value: 1.0,
+         because: "APC shows essentially no tumor-vs-normal separation (0.94 in 26q1) — the negative anchor"}
+      - {field: percentile_crossing_class, op: equals, value: not_enriched,
+         because: "APC is not tumor-enriched on the percentile axis"}
+
+  KRAS:
+    indication: COADREAD
+    skill: functional-requirement
+    snapshot: kras_coadread.functional-requirement.json
+    outcome: active                    # KRAS dependency in CRC
+    biology: "RAS-family paralog biology — CRISPR-selective, NRAS is the strongest paralog buffer"
+    assertions:
+      - {field: crispr_call, op: equals, value: strongly_selective,
+         because: "KRAS is a strongly selective CRISPR dependency in its lineage"}
+      - {field: strongest_paralog_symbol, op: equals, value: NRAS,
+         because: "KRAS's strongest paralog is NRAS (the RAS family) — a hard gene-identity biology anchor"}
+      - {field: paralog_buffering_class, op: equals, value: strong,
+         because: "RAS paralog redundancy gives strong buffering — why single-gene KO can under-call dependency"}
+
+  CTNNB1:
+    indication: COADREAD
+    skill: functional-requirement
+    snapshot: ctnnb1_coadread.functional-requirement.json
+    outcome: active                    # beta-catenin, WNT-driven CRC
+    biology: "beta-catenin — WNT-lineage dependency in colorectal, concordant across CRISPR + RNAi"
+    assertions:
+      - {field: crispr_call, op: equals, value: strongly_selective,
+         because: "CTNNB1 is a strongly selective CRISPR dependency in WNT-driven CRC"}
+      - {field: rnai_call, op: equals, value: strongly_selective,
+         because: "the dependency replicates on the orthogonal RNAi platform (concordant evidence)"}
+      - {field: lineage_selectivity, op: equals, value: lineage_selective,
+         because: "the dependency is lineage-selective (colorectal), not pan-essential"}
+
+  HTR1D:
+    indication: COADREAD
+    skill: surface-modality-fit
+    snapshot: htr1d_coadread.surface-modality-fit.json
+    outcome: honest_insufficient       # surface derived products not yet on S3
+    biology: "5-HT1D is a GPCR — the family classifier must read gpcr even when the fit verdict abstains"
+    assertions:
+      - {field: family_class, op: equals, value: gpcr,
+         because: "HTR1D (5-HT1D receptor) is a G-protein-coupled receptor; family classification is data-independent of the abstaining fit verdict"}

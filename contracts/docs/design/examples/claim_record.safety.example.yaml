@@ -1,0 +1,33 @@
+# Factored claim record — WORKED EXAMPLE (safety, the modality-conditional WT-loss case, KRAS-like).
+# Illustrative only; ZERO runtime consumers at M0.
+# Demonstrates the distinction the single scalar token could NOT hold (VERDICT_REPRESENTATION §8):
+# a WT-loss safety concern is modality-CONDITIONAL — it opposes an engages-WT biologic (degrader)
+# but is only conditional for an allele-selective small molecule that spares wild-type protein.
+# The record carries that per-channel via modality_scope; the token flattened it to one verdict.
+axis: safety
+finding:
+  state: highly_constrained_safety_concern
+  direction: opposes
+  magnitude:
+    level: strong
+    value: 0.08                       # e.g. gnomAD LOEUF — strongly constrained
+    scale: loeuf
+    distance_to_cut: -0.27            # cut at 0.35 => well below (more constrained)
+  availability: measured_positive
+mechanism:
+  classes: [haploinsufficiency]
+  role: GoF                           # driver role: makes an allele-selective SM eligible, does NOT clear safety
+modality_scope:
+  small_molecule: conditional         # allele-selective agent spares WT => conditional, not unfavorable
+  biologics: unfavorable              # a degrader engages/depletes WT => the concern applies
+  _refinements:
+    degrader: unfavorable             # named discriminator: WT engagement (wt_engagement=engages_wt)
+certainty:
+  level: medium                       # == coverage (corroboration unmeasured)
+  coverage: medium
+  corroboration: unmeasured           # safety's independent lines are all verdict-driving => no disjoint corroborator
+  unknown_mass: 0.0
+provenance:
+  fired_rule_ids: [highly-constrained-safety-warning, activating-driver-role-safety-context]
+  cards: [gnomad-constraint, alteration-role]
+  versions: {resolver: 2.0.0}

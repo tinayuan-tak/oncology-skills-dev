@@ -1,0 +1,107 @@
+# Card — COMBINATORIAL-KO DEPENDENCY (paralog genetic interaction)
+#
+# The dual-knockout / genetic-interaction panel of a target's dependency picture: when
+# {target} is co-knocked-out with a paralog partner, does the pair kill MORE than the
+# additive single-KO expectation (synthetic lethality / buffering) — and is that interaction
+# CONSTITUTIVE (broad across cell lines) or CONTEXT/GENOTYPE-CONDITIONAL (a minority of lines /
+# specific lineages)?
+#
+# Consumes depmap-paralog-genetic-interaction-per-pair-v1 (DepMap ParalogV2 26Q1 dual-KO),
+# via methods/paralog_genetic_interaction. GI = dual_ko - (single_a + single_b) on the Chronos
+# scale; NEGATIVE = synthetic-lethal / buffering.
+#
+# WHY THIS CARD (vs the single-gene dependency cards): a gene buffered by its paralog reads
+# NON-ESSENTIAL in a single-KO screen (pan-cancer-crispr-dependency-distribution) yet is a real
+# co-dependency once the partner is lost (CDK2/CDK4, KAT6A/KAT6B, MARK2/MARK3). This card is the
+# only one that sees that — the biggest uncovered theme in the TIDVAL target-project benchmark.
+#
+# DISTINCT from paralog-buffering (Card, dependency veto-suppressor): that is a PER-GENE
+# asymmetric annotation ("does a buffering paralog exist" → suppresses the non-dependent veto).
+# THIS is the SYMMETRIC per-pair genetic-interaction with its lineage conditionality, emitting a
+# combinatorial_dependency_class that a NEW self-contained verdict skill resolves.
+#
+# Emits descriptive categoricals + numerics ONLY. Therapeutic interpretation lives in the
+# Tier-2 rules layer (interpretation-rules/combinatorial-dependency.rules.yaml).
+
+card_id: combinatorial-dependency
+version: 1.0.0
+question: "When {target.symbol} is co-knocked-out with a paralog partner, is there a synthetic-lethal / buffering genetic interaction, and is it constitutive or context-conditional?"
+
+applies_when:
+  - "context.data_sources.depmap_paralog_gi_available == true"
+
+required_inputs:
+  - product_id: depmap-paralog-genetic-interaction-per-pair-v1
+
+methods:
+  - call: paralog-genetic-interaction
+    args:
+      target: "{target.symbol}"
+
+outputs:
+  summary_fields:
+    - combinatorial_dependency_class    # PRIMARY categorical (drives Tier-2 rules)
+    - n_paralog_partners_screened       # int — partners tested in the ParalogV2 library
+    - n_interacting_partners            # int — partners with a non-neutral interaction_class
+    - strongest_partner                 # str — most synthetic-lethal partner (most-negative mean GI)
+    - strongest_partner_mean_gi         # float — its mean GI across cell lines (Chronos scale)
+    - strongest_partner_class           # str — its interaction_class (constitutive/context/suppressive)
+    - top_partners                      # list<struct> — ranked partners w/ mean_gi, p-value, n_lines,
+                                        #   frac_lines_strong_gi, min_gi_lineage, n_lineages_strong
+    - combinatorial_context             # str — narrative summary (measured-vs-null honest)
+
+  summary_fields_vocabulary:
+    combinatorial_dependency_class:
+      - strong_synthetic_lethal         # >=1 partner constitutive_buffering (broad, mean GI<=-0.25 AND frac strong lines>=0.4)
+      - context_synthetic_lethal        # else >=1 partner context_buffering (minority of lines / conditional)
+      - suppressive_interaction         # else >=1 partner suppressive (positive GI / masking)
+      - no_interaction                  # partners screened, none interacting beyond additive
+      - no_paralog_screened             # gene absent from the ParalogV2 library (COVERAGE GAP, not negative)
+      - data_unavailable                # product read failure
+
+  figures:
+    - id: paralog_gi_partner_ranking
+      type: ranked_partner_table_with_gi
+      description: "Partners ranked by mean GI (most synthetic-lethal first) with n_lines, p-value, frac strong lines, and constitutive-vs-context class. Context-conditional pairs flagged for the lineage breakdown."
+      preferred_surfaces: [markdown, decision_memo]
+      primary: true
+
+thresholds:
+  strong_gi_chronos: -0.5              # a "strong" per-line synthetic-lethal / buffering GI (reader STRONG_GI)
+  constitutive_mean_gi: -0.25          # broad additive-negative (mean across lines; reader CONSTITUTIVE_MEAN)
+  frac_lines_strong_gi: 0.4            # specificity gate: MAJORITY-ish of lines strongly buffered required
+                                       #   for a constitutive_buffering call (reader FRAC_STRONG_CONSTITUTIVE).
+                                       #   The reader does NOT gate on a p-value (significance-at-large-n is
+                                       #   inert here); effect size, not significance, is the discriminator.
+
+warning_predicates:
+  - warning_id: single_partner_only
+    if: "n_paralog_partners_screened <= 1"
+    message: "Only one paralog partner screened for {target.symbol} — the interaction picture is thin; absence of a second partner is a library-coverage limit, not biology."
+  - warning_id: strongest_partner_underpowered
+    if: "top_partners.0.n_lines < 20"
+    message: "Strongest partner's GI rests on <20 cell lines — treat the mean GI cautiously; read the per-line / lineage breakdown."
+  - warning_id: context_conditional_needs_stratification
+    if: "combinatorial_dependency_class == 'context_synthetic_lethal'"
+    message: "Interaction is CONTEXT-dependent (a minority of lines). The verdict is conditional — the therapeutically relevant question is WHICH lineage/genotype; read lineage_breakdown_for_pair and, where the partner is a tumor suppressor, condition on partner LOSS status."
+
+caveats:
+  - "GI = dual_ko - (single_a + single_b) on the Chronos scale; negative = the pair is required together beyond the additive single-KO expectation (synthetic lethality / buffering)."
+  - "DepMap ParalogV2 is a PARALOG library — it screens curated paralog pairs, NOT arbitrary gene pairs. Absence of a partner is a coverage gap (no_paralog_screened), never evidence of no interaction (measured-vs-null discipline)."
+  - "GENOTYPE-CONDITIONAL synthetic lethality (e.g. SMARCA2 dependency conditional on SMARCA4 loss) may read as no_interaction / context on the pan-line summary if the panel is thin in the conditioning genotype. The honest path to it is a per-line join to the partner's ALTERATION status — a follow-on to this card, not resolvable from GI alone."
+  - "Cell-line dual-KO does not guarantee in-vivo combinatorial dependency; this answers 'is there a real genetic interaction in cellular models?' — translational validation is separate."
+  - "A strong mean GI with an unfamiliar/implausible partner (e.g. a non-paralog co-occurring in the library) can be a statistical artifact — carry n_lines + p-value and read the partner biology before nominating a co-target."
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `combinatorial_ko_dependency` claim (symmetric
+# paralog genetic interaction). NEW measurement_type (measured dual-KO GI), distinct from the
+# single-gene crispr_lof_dependency and from the paralog-buffering annotation.
+measurement_type: combinatorial_ko_dependency
+# P4: routing key — a combinatorial dependency is a genetic-target rationale for co-targeting
+# (small-molecule/degrader of BOTH nodes, or of the buffered node in the partner-loss context).
+modality_relevance: [small_molecule, degrader]
+entity_grains: [target, target_pair]
+schema_version: 1
+threshold_roles:
+  constitutive_mean_gi:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the combinatorial_ko_dependency reference frame over `strongest_partner_mean_gi` (gi_chronos), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'

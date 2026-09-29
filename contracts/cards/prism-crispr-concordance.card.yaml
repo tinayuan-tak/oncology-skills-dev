@@ -1,0 +1,212 @@
+# Card E7 — PRISM × CRISPR × RNAi TRIANGULATED CONCORDANCE  (v1)
+#
+# Answers: "Do the same cell lines that need the gene by CRISPR-KO AND
+# RNAi-KD also die when hit by compounds annotated as targeting it? If both
+# genetic assays concord with the compound's kill pattern, that's cross-
+# modality cross-perturbation triangulated evidence for ON-TARGET engagement."
+#
+# This is the framework's target-engagement inference card. PRISM's compound-
+# to-target annotations are curated but imperfect — many compounds annotate as
+# "targeting gene X" via literature/MoA but actually kill cells through
+# unrelated mechanisms. E7 tests whether the compound's activity ACROSS the
+# cell-line panel *tracks* with the gene's genetic dependency, using two
+# orthogonal genetic assays (CRISPR = complete KO, RNAi = partial KD) for
+# maximum robustness.
+#
+# Structural relationship to other cards:
+#   - E1a/E1b/E1c: CRISPR + RNAi + CRISPR-RNAi concordance (genetic-only).
+#     E1c answers "do CRISPR and RNAi agree that this gene is a dependency?"
+#   - E6: PRISM compound activity (chemical, standalone) — "does the compound
+#     kill cells?"
+#   - E7: THIS card. "Do the compound's kills TRACK with the CRISPR AND RNAi
+#     dependency pattern?" — chemical-genetic-genetic triangulation.
+#
+# Data provenance (v1):
+#   Reads from the SAME v4 derived parquet as E6 (depmap-prism-activity-v4).
+#   The sister precompute (methods.depmap_prism_precompute) computes
+#   per-(gene, compound) Spearman correlations:
+#     - rho(PRISM-LFC-per-line, CRISPR-Chronos-per-line) across ≥20-line overlap
+#     - rho(PRISM-LFC-per-line, RNAi-DEMETER2-per-line) across ≥20-line overlap
+#   with LFC preferred over Log2AUC for the correlation (LFC preserves fold-
+#   change spread that Log2AUC compresses). CCLE→ModelID bridge (Model.csv)
+#   used to align DEMETER2 (CCLE-keyed) to CRISPR/PRISM (ModelID-keyed).
+#
+# Sign convention:
+#   Chronos ↓ = CRISPR-dependent. RNAi ↓ = KD-dependent. LFC ↓ = compound-killed.
+#   Target-engaged: dependent cells (negative genetic score) die from compound
+#   (negative LFC) → the two negatives correlate POSITIVELY → rho > 0.
+#
+# Dual-responder concept:
+#   Beyond per-compound correlations, E7 identifies specific cell lines
+#   dual-validated as (a) CRISPR-dependent (Chronos < -0.5) AND (b) compound-
+#   responsive (best LFC across annotated compounds < -1.0). These are the
+#   natural biomarker-cohort intersection — the cells where "gene is needed
+#   AND drug works" — useful for downstream mutation/lineage biomarker analysis.
+#
+# Interpretation surface:
+#   `triangulated_target_engaged`      → STRONG supportive for small_molecule;
+#                                        supports degrader (target biology validated)
+#   `crispr_confirmed_engagement`      → supportive for small_molecule; NEUTRAL degrader
+#     (may indicate paralog compensation revealed only by full KO — degrader
+#      might not fully deplete if paralog buffer intact)
+#   `rnai_confirmed_engagement`        → weak-supportive; rare case
+#   `mixed_engagement`                 → neutral (partial engagement inconclusive)
+#   `discordant_off_target_likely`     → *WARNING*, not killer — compound
+#     activity in PRISM doesn't validate target engagement, but doesn't
+#     invalidate the target itself (a different chemical scaffold may work)
+#   `thin_evidence`                    → insufficient (coverage gap)
+#   `data_unavailable`                 → CRISPR AND RNAi both absent for this gene
+
+card_id: prism-crispr-concordance
+version: 1.0.0
+question: "For compounds annotated as targeting {target.symbol}, does their per-cell-line kill pattern correlate with CRISPR-KO Chronos AND RNAi-KD dependency across the DepMap cell-line panel? Which specific cell lines are dual-validated as both CRISPR-dependent AND compound-responsive?"
+
+applies_when:
+  - "context.data_sources.depmap_prism_available == true"
+
+# Shares the v4 derived parquet with E6 (prism-compound-activity). Same
+# manifest at s3://onc-compbio/data-catalog/derived/depmap-prism-activity-v4/
+# — the parquet carries both cards' fields; each card reads different columns.
+required_inputs:
+  - product_id: depmap-prism-activity-v4
+    release_pin: "prism-activity-v4"
+
+methods:
+  - call: depmap-prism-crispr-concordance
+    module: depmap_prism_crispr_concordance
+    entrypoint: read_prism_crispr_concordance
+    args:
+      target: "{target.symbol}"
+      release_pin: "prism-activity-v4"
+
+outputs:
+  summary_fields:
+    - crispr_prism_concordance_class        # DESCRIPTIVE — drives Tier-2 rules
+    - n_compounds_evaluated                 # count of compounds with sufficient overlap for correlation
+    - best_spearman_r_crispr                # max rho across compounds vs CRISPR Chronos
+    - best_spearman_r_rnai                  # max rho across compounds vs RNAi DEMETER2
+    - per_compound_concordance              # list<struct> per compound:
+                                              # {compound_id, drug_name, n_intersected_crispr,
+                                              #  spearman_r_crispr, n_intersected_rnai,
+                                              #  spearman_r_rnai, metric_used}
+    - n_dual_responders                     # count of cell lines dual-validated
+    - dual_responders                       # list<struct> (top-K CRISPR-dependent-and-compound-responsive):
+                                              # {model_id, lineage, chronos_dep,
+                                              #  best_compound_lfc, best_compound_id}
+
+  summary_fields_vocabulary:
+    crispr_prism_concordance_class:
+      - triangulated_target_engaged         # BOTH CRISPR rho ≥ 0.30 AND RNAi rho ≥ 0.30
+      - crispr_confirmed_engagement         # CRISPR ≥ 0.30; RNAi < 0.30 or unavailable
+      - rnai_confirmed_engagement           # RNAi ≥ 0.30; CRISPR < 0.30 (rare)
+      - mixed_engagement                    # best pair-wise rho in [0.10, 0.30) — partial
+      - discordant_off_target_likely        # all pair-wise rho < 0.10
+      - thin_evidence                       # insufficient cell-line overlap
+      - data_unavailable                    # CRISPR AND RNAi both absent for this gene
+
+  figures:
+    - id: concordance_scatter
+      type: two_d_scatter_correlation
+      description: "2D scatter: rho(PRISM, CRISPR-Chronos) on x-axis, rho(PRISM, RNAi-DEMETER2) on y-axis, one point per annotated compound. Quadrant coloring: upper-right (both ≥ 0.30) = triangulated navy; right-only = CRISPR-confirmed light-blue; upper-only = RNAi-confirmed light-green; other = gray. Dashed reference lines at 0.10 (weak) and 0.30 (strong). Named point labels for top compounds. Direct visual of triangulation strength."
+      preferred_surfaces: [markdown, ppt, decision_memo]
+      primary: true
+    - id: dual_responders_bar
+      type: horizontal_bar_paired_dual_responders
+      description: "Horizontal paired bars: for each dual-responder cell line, |Chronos-dep| (red) alongside |best-compound-LFC| (navy). Sorted by CRISPR-dep magnitude descending. Right-annotated with the driving compound ID. Answers 'which specific cell models are dual-validated?' — natural biomarker cohort for the target."
+      preferred_surfaces: [markdown, ppt, decision_memo]
+    - id: concordance_vocab_panel
+      type: text_summary_panel
+      description: "Text card: class label + best rho vs CRISPR + best rho vs RNAi + n_dual_responders + top-3 dual-responder cell lines with their Chronos + LFC values."
+      preferred_surfaces: [markdown, ppt]
+
+thresholds:
+  min_lines_for_concordance: 20             # ≥20 intersecting cell lines required for Spearman
+  concordance_strong_spearman: 0.30         # rho ≥ this → target-engaged call per assay
+  concordance_weak_spearman: 0.10           # 0.10 ≤ rho < 0.30 → mixed
+  dual_responder_chronos: -0.5              # cell line "dependent" by CRISPR
+  dual_responder_lfc: -1.0                  # cell line "responsive" by PRISM (any compound)
+  dual_responders_max_entries: 20           # cap top-K dual-responders in the list
+
+warning_predicates:
+  - warning_id: e7_data_unavailable
+    if: "crispr_prism_concordance_class == 'data_unavailable'"
+    message: "Neither CRISPR Chronos nor RNAi DEMETER2 data available for this gene. Cannot validate compound target engagement via genetic-chemical concordance. Coverage gap; not a discordance signal."
+  - warning_id: e7_off_target_flag
+    if: "crispr_prism_concordance_class == 'discordant_off_target_likely'"
+    message: "PRISM compound activity does NOT correlate with CRISPR-KO or RNAi-KD dependency. Annotated compounds may work via off-target mechanisms. Target itself may still be valid; a different chemical scaffold could engage. Compound-annotation warning, NOT target killer."
+  - warning_id: e7_no_dual_responders_despite_engagement
+    if: "crispr_prism_concordance_class == 'triangulated_target_engaged' && n_dual_responders == 0"
+    message: "Triangulated concordance is strong (both CRISPR + RNAi track with compound activity) but NO individual cell line clears both dual-responder thresholds. Response may be graded rather than distinct responders; consult per_compound_concordance."
+  - warning_id: e7_crispr_only_paralog_risk
+    if: "crispr_prism_concordance_class == 'crispr_confirmed_engagement'"
+    message: "CRISPR-confirmed but not RNAi-corroborated engagement may indicate paralog compensation revealed only by full KO. Consider whether degrader-modality (full depletion) engages the same biology; RNAi KD-residual suggests remaining protein activity is sufficient."
+
+caveats:
+  - |
+    Correlation is Spearman rank (robust to outliers) computed across cell
+    lines that appear in BOTH the CRISPR/RNAi panel AND the compound's PRISM
+    screen. Minimum 20 lines required. Genes/compounds with sparser overlap
+    return thin_evidence.
+  - |
+    RNAi (DEMETER2) uses shRNA — partial KD, not full KO. Genes that require
+    complete inhibition (e.g. some kinases, degrader-only targets) may show
+    CRISPR-only concordance because the RNAi-KD residual is sufficient to
+    rescue viability. This is the crispr_confirmed_engagement class; not a
+    signal that the compound is off-target.
+  - |
+    Correlation direction: positive rho = target-engaged. Both Chronos and
+    LFC are NEGATIVE for dependent/killed cells; two negatives correlate
+    positively when concordant.
+  - |
+    discordant_off_target_likely is a compound-annotation warning, NOT a
+    target killer. If PRISM's annotated compounds don't validate target
+    engagement, the target may still be biologically valid — a different
+    chemical scaffold could engage it. Interpret alongside E1 (dependency)
+    and E5 (predictability) for the target-itself signal.
+  - |
+    dual_responders are cell lines meeting both hard thresholds (Chronos <
+    -0.5 AND best-compound-LFC < -1.0). Triangulated targets with graded
+    responses across the panel may have strong rho but few individual
+    dual-responder lines. The correlation (per_compound_concordance) is the
+    primary signal; dual_responders is the discrete-cohort follow-up.
+  - |
+    RNAi panel is smaller (~700 lines) than CRISPR (~1500 lines), and the
+    CCLE→ModelID bridge drops ~11 lines whose CCLEName lookup fails. When
+    n_intersected_rnai << n_intersected_crispr for the same compound, RNAi
+    concordance carries more variance; interpret rnai_confirmed_engagement
+    with caution when n < 30.
+
+# DATA_TO_SKILL_CONTRACT Rule 1/4 — view of the DERIVED `chemical_genetic_concordance` claim (does
+# compound kill-pattern track CRISPR+RNAi dependency = on-target engagement?), derived_from
+# [prism_compound_activity, crispr_lof_dependency, rnai_lof_dependency]. This is the E7 target-
+# engagement corroboration that feeds BOTH Required (gate C) and Tractability (E1) — flow-pattern 2.
+measurement_type: chemical_genetic_concordance
+# P4 (2026-07-24): declaration-only routing key — on-target engagement → strong SM support, degrader supported. Matching rule pre-exists in interpretation-rules/intracellular-intrinsic.rules.yaml.
+modality_relevance: [small_molecule, degrader]
+entity_grains: [target]
+schema_version: 1
+threshold_roles:
+  concordance_strong_spearman:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the chemical_genetic_concordance reference frame over `best_spearman_r_crispr` (spearman_r), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'
+  concordance_weak_spearman:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the chemical_genetic_concordance reference frame over `best_spearman_r_crispr` (spearman_r), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'
+  # UPSTREAM precompute parameters. read_prism_crispr_concordance reads one gene row from the FROZEN
+  # v4 parquet (depmap-prism-activity-v4); no card predicate compares these. Verified consumed in the
+  # sister precompute depmap_prism_precompute/cli.py: MIN_LINES_FOR_CONCORDANCE=20 (:102, applied :889),
+  # DUAL_RESPONDER_CHRONOS=-0.5 (:115) + DUAL_RESPONDER_LFC=-1.0 (:116) applied in the dual-responder
+  # builder (:1042-1043), and the top-K cap max_entries=20 (:1044, applied :1082 dual.head(max_entries)).
+  # min_lines_for_concordance is also echoed into the derived manifest at :1376.
+  min_lines_for_concordance:
+    role: method_parameter
+    consumed_by: depmap-prism-crispr-concordance
+  dual_responder_chronos:
+    role: method_parameter
+    consumed_by: depmap-prism-crispr-concordance
+  dual_responder_lfc:
+    role: method_parameter
+    consumed_by: depmap-prism-crispr-concordance
+  dual_responders_max_entries:
+    role: method_parameter
+    consumed_by: depmap-prism-crispr-concordance

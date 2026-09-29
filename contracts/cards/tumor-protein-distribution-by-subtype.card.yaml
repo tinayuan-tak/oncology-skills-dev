@@ -1,0 +1,228 @@
+# Card — TUMOR PROTEIN DISTRIBUTION BY MOLECULAR SUBTYPE (CPTAC)
+#
+# The target_subtype-grain SIBLING of tumor-protein-abundance-cptac. Same measurement_type
+# (tumor_protein_abundance), same CPTAC whole-cell-lysate TMT substrate (tumor-vs-reference log2
+# ratio) — but recomputes the distribution WITHIN each molecular-subtype member-set of the
+# indication's CPTAC tumor aliquots, emitting a per-stratum panorama. The PROTEIN analogue of
+# tumor-rna-distribution-by-subtype.
+#
+# Framework grain-split convention: a POOLED card (tumor-protein-abundance-cptac) beside a SEPARATE
+# tier:subtype card (this one). The GRAIN-CHECK validator enforces that a card declaring
+# per_subgroup_metrics binds a per-sample stratified reader; cptac-protein-distribution IS one
+# (read_stratified_protein + build_protein_subtype_panorama) — it recomputes per stratum via
+# subgroup_common.panorama.build_panorama over the CPTAC assignment shard, keyed by
+# aliquot_submitter_id (bridged aliquot->case->Patient_ID).
+#
+# PRESENCE-side (Gate A / tumor-presence). DESCRIPTIVE / verdict-inert: subtype is CONTEXT for
+# patient-selection, NEVER a veto — the pooled tumor-protein-abundance-cptac card carries the
+# protein read; this card enriches it. COMPUTE-ALL-SPOTLIGHT-ONE.
+
+card_id: tumor-protein-distribution-by-subtype
+version: 0.1.0
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
+question: "How does {target.symbol} tumor protein abundance (CPTAC TMT) DISTRIBUTE across the molecular subtypes of {indication.label} — which strata are enriched or depleted vs the pooled cohort?"
+
+tier: subtype
+
+subgroup_stratification:
+  eligible: true
+  status: live
+  axes: [molecular_subtype]
+  rationale: "CPTAC tumor protein abundance can vary by molecular stratum (e.g. an antigen tracking with MSI status). Backed by cptac-protein-distribution, which recomputes the per-aliquot log2-ratio distribution within each stratum's member-set of the CPTAC assignment shard — not an emit-time aggregate."
+
+applies_when:
+  # COADREAD-only for the pattern proof: cptac-subgroup-assignments-coadread-v1 (MSI_H / MSS from
+  # MMR-IHC) is the only landed CPTAC assignment shard today. Additional indications / strata follow
+  # as their CPTAC assignment shards land — extend this allowlist in lockstep with the skills
+  # dispatcher's _TUMOR_PROTEIN_SUBTYPE_ASSIGNMENTS map. Not listed -> subtype_axis_available:false.
+  - "context.indication in ['COADREAD', 'COAD', 'READ']"
+  - "indication.subgroup_catalog_available == true"
+
+required_inputs:
+  - product_id: cptac-protein-tumor-vs-normal-per-sample-v1  # per-aliquot log2 ratios (the substrate)
+  - product_id: cptac-subgroup-assignments-coadread-v1       # the CPTAC MSI assignment shard
+
+methods:
+  - call: cptac-protein-distribution
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - per_subgroup_metrics                      # the per-stratum panorama (record schema below)
+    - subtype_axis_available                    # is a CPTAC shard landed for this indication?
+    - subtype_axis_quality                      # honest capability grade — SIX tokens, see the vocabulary
+                                                # below (this comment used to list only four, stale since
+                                                # AM #659 added `exploratory` + `unevaluable`). MSI_H is
+                                                # frequently below the n-floor in CPTAC's small cohorts.
+                                                # Verdict-inert.
+    - n_subtypes_measured                       # strata clearing the n-floor (>=30 aliquots)
+    - n_subtypes_enriched                       # strata whose median log2-ratio is >= subtype_enrich_log2_delta
+                                                # above pooled — the cut is DECLARED in `thresholds` below as of
+                                                # 2026-09-18; this field's "delta" had no declared value before.
+    - n_subtypes_depleted                       # strata whose median is >= delta below pooled
+    - subtype_stratification_class              # subtype_enriched | subtype_depleted | subtype_variable | pan_subtype_uniform
+                                                # One-directional CONTEXT — NEVER moves presence_verdict.
+    - pooled_cohort_median_log2_ratio           # the enrichment baseline (all tumor aliquots)
+  summary_fields_vocabulary:
+    # Ordered most→least usable, mirroring subgroup_common.panorama.axis_quality. `exploratory` and
+    # `unevaluable` are AM #659's two additive grades, opt-in per reader; the method's contract is that
+    # a reader opts in only after its card declares the wider enum. `unevaluable` is load-bearing on
+    # THIS arm specifically: ~43% of CPTAC aliquots are is_member=null because MMR-IHC was never run on
+    # them, and a null is an abstention, not a measured negative — grading it `empty` would launder
+    # "we never tested" into "we tested and nobody qualified".
+    subtype_axis_quality:
+      - powered                                  # >=2 strata clear the n-floor -> cross-subtype contrast supportable
+      - exploratory                              # <2 measured but >=2 measured-OR-exploratory (10-29 aliquots):
+                                                 # hypothesis-grade contrast only. NOT a relaxation of the n-floor.
+      - underpowered                             # axis has aliquots but <2 measured strata -> context only
+      - unevaluable                              # nothing on the axis was classified. Ranked ABOVE `empty`: `empty`
+                                                 # asserts a measured absence and there is no such measurement here.
+      - empty                                    # every stratum EVALUATED and none has members
+      - unavailable                              # no CPTAC assignment shard for this indication
+    subtype_stratification_class:
+      - subtype_enriched
+      - subtype_depleted
+      - subtype_variable
+      - pan_subtype_uniform
+      - subtype_axis_unavailable
+  summary_fields_record_schemas:
+    per_subgroup_metrics:
+      stratum: string
+      class: {enum: [protein_elevated, protein_neutral, protein_reduced, insufficient], type: string}
+      # VOCABULARY ALIGNMENT, 2026-09-18 — MIGRATION COMPLETE. Same change, same reasoning and the
+      # same three-step migration as cellline-rna-distribution-by-subtype (which carries the full
+      # rationale); the target is the PREFIXED form because three interpretation rules key on it and
+      # ZERO key on the bare form, and because this card's own summary_fields_vocabulary
+      # .subtype_stratification_class is ALREADY prefixed ([subtype_enriched, subtype_depleted,
+      # subtype_variable, pan_subtype_uniform, subtype_axis_unavailable]) — the bare per-stratum
+      # tokens were the odd ones out within this card too. The union was transitional: both spellings
+      # were legal from TC#816 (98a7990) until cptac_protein_distribution/read.py returned the prefixed
+      # ones in AM#667 (45eb5d2, its two internal comparisons moving with it); this PR REMOVES the bare
+      # half. The union was required and not merely cautious: this enum is the half an emitted row is
+      # validated against, so declaring only the prefixed form before the method migrated would have
+      # made it emit rows its own card rejects.
+      #
+      # `subtype_restricted` is deliberately ABSENT here, exactly as on the cell-line arm: it is a
+      # DETECTABILITY claim and this arm's classifier takes two medians with no detectability input,
+      # so the token could not be emitted however the enum were written.
+      #
+      # ARM-SPECIFIC, and load-bearing for any consumer that joins the arms: this classifier returns
+      # None when either median is missing, so `uniform` on THIS card always means a comparison ran
+      # and found no shift. Both RNA arms instead FALL THROUGH to their uniform token on a missing
+      # median, where it is an abstention wearing a measured token. A concordance read that compares
+      # tokens alone would therefore score two failed comparisons as AGREEMENT; the discriminator is
+      # `subtype_enrich_log2_delta`, which all three arms null when no cut was applied.
+      subtype_signal:
+        # prefixed-only; the transitional bare half was removed 2026-09-18 once AM#667 (45eb5d2)
+        # stopped the method emitting it — step 3 (REMOVE) of the migration described above.
+        enum: [subtype_enriched, subtype_depleted, subtype_uniform]
+        type: string
+      # The enrichment cutoff ACTUALLY APPLIED to produce `subtype_signal` on this row, in log2 units.
+      # Declared 2026-09-18 alongside the same field on the two RNA arms, and this arm is the reason the
+      # field is necessary rather than merely tidy. RE-MEASURED 2026-09-18 against AM trunk 3b05f2c (the
+      # b95a8b6 reading below had gone stale in ONE row — see the correction). The three arms apply THREE
+      # different cuts, and the protein one was the least visible:
+      #   tumor RNA      0.585  SUBTYPE_ENRICH_LOG2_DELTA   (tcga_gtex_expression_distribution/read.py:865)
+      #                         ^ PUBLIC name, no leading underscore — this card said `_SUBTYPE_...` and a
+      #                           literal grep for that string does NOT match this definition.
+      #   cell-line RNA  1.0    _SUBTYPE_ENRICH_LOG2_DELTA  (depmap_expression_distribution/read.py:31)
+      #   tumor protein  0.25   _SUBTYPE_ENRICH_LOG2_DELTA  (cptac_protein_distribution/read.py:141,
+      #                         applied at :148 and :150)
+      # CORRECTED 2026-09-18: this block used to say the protein cut was "NO NAMED CONSTANT — an inline
+      # literal, twice, at read.py:125 (>= 0.25) and :127 (<= -0.25)". AM #666 NAMED it (behaviour-neutral,
+      # value unchanged) and the card was not updated. Both halves of the old claim were false: the symbol
+      # exists, and :125/:127 now hold `source_cohort` and a blank line. That is the self-masking failure
+      # mode of a LINE citation — :125 still exists and still contains plausible code, so a reader who
+      # follows it lands on something real and gets no signal they are on the wrong line. A SYMBOL is a
+      # strictly stronger anchor than a number, which is exactly why naming the constant was worth doing.
+      # BOTTOM LINE for a cross-layer read: `enriched` on this row is a WEAKER claim than `enriched` on
+      # either RNA arm — this arm cuts at 0.25 while the RNA arms cut at 0.585 and 1.0 — and worse, the
+      # RNA cuts are deltas of a log2(TPM+1) MEDIAN while this is a delta of a tumor-vs-reference log2
+      # RATIO, so the three are not commensurable in UNITS either. "Align the constants" is not a
+      # coherent option here; emitting the applied delta is the only honest one. Emitting it moves no
+      # cut: a consumer can normalise, or can decline to join arms whose deltas differ, which today it
+      # cannot even detect.
+      subtype_enrich_log2_delta: number
+      # WIDENED 2026-09-18 for AM #659 — the restrictive half of the two declarations, i.e. what an
+      # emitted row is actually validated against (summary_fields_vocabulary above is permissive).
+      # REACHABILITY, verified 2026-09-18 against AM trunk b95a8b6: both new tokens are live on this arm,
+      # but by a THIRD shape distinct from either RNA arm. `exploratory` comes from
+      # read.py:101, which passes `exploratory_floor=`. `unevaluable` comes from the ZERO-MEMBER template
+      # at read.py:74, which passes `evaluated=_stratum_evaluated` — and read.py:101 OMITS `evaluated=`
+      # ON PURPOSE: evidence_state() consults it only at subgroup_n == 0, and the `n == 0` early return
+      # above :101 makes that unreachable on the measured path, so passing it there would be an inert
+      # argument. Do NOT "finish the job" by adding `evaluated=` at :101 — the omission is the correct
+      # reading of evidence_state's contract, not an oversight. (Contrast the tumor RNA arm, where
+      # `unevaluable` is unreachable BY CONSTRUCTION; here it is reachable and load-bearing, because
+      # ~43% of CPTAC aliquots are is_member=null.)
+      evidence_state: {enum: [measured, exploratory, underpowered, unevaluable, absent], type: string}
+      median_log2_ratio: number
+      detectable_fraction: number
+      subgroup_n: integer
+      subgroup_n_floor_met: boolean
+      source_cohort: string
+
+# FIRST `thresholds:` block on this card (2026-09-18). Its absence was itself the defect: the card
+# asserted `n_subtypes_enriched` counts strata ">= delta above pooled" and declared no delta, and
+# asserted `n_subtypes_measured` counts strata clearing "the n-floor (>=30 aliquots)" with the 30
+# appearing only in a prose comment. Three numbers govern every row this arm emits and none of them
+# were reviewable here.
+thresholds:
+  # Per-stratum enrichment cutoff vs the pooled-cohort median, in log2 tumor-vs-reference RATIO units
+  # (NOT the log2(TPM+1) median units the two RNA arms cut on — see the per-record note above).
+  # CORRECTED 2026-09-18 (re-measured against AM trunk 3b05f2c): this used to say the cut had NO named
+  # constant and was an inline literal at read.py:125 / :127. AM #666 named it —
+  # `_SUBTYPE_ENRICH_LOG2_DELTA = 0.25` at cptac_protein_distribution/read.py:141, applied at :148 and
+  # :150 — so all three arms now carry a greppable symbol. Declaring the value here still does not
+  # create it; it makes the applied value reviewable. And the staleness risk is UNCHANGED by the naming:
+  # if the constant's value ever moves, this declaration goes stale SILENTLY — validate_cards.py checks
+  # that `consumed_by` names a method call on this card, it does NOT check the method reads this value.
+  subtype_enrich_log2_delta: 0.25
+  subgroup_n_floor: 30                           # underpowered stratum -> null signal, never a scoped call
+  # SECOND, LOWER band — NOT a relaxation of subgroup_n_floor, which keeps its one meaning (>=30) on
+  # every substrate. INCLUSIVE (`subgroup_n >= exploratory_floor`), mirroring
+  # subgroup_common.SUBGROUP_EXPLORATORY_FLOOR. CPTAC cohorts are the smallest of the three arms
+  # (~100 COAD tumor aliquots before the MSI split, ~43% of them unclassified), so a floor calibrated
+  # on TCGA patient cohorts leaves little above it. NOT MEASURED per stratum on this arm — the band
+  # contents quoted on the cell-line card come from that arm's landed shards, and no equivalent
+  # tabulation was run here, so this declaration is the floor's VALUE only and makes no claim about
+  # which CPTAC strata land in the band.
+  subgroup_exploratory_floor: 10
+
+threshold_roles:
+  # `role: method_parameter` asserts the cutoff is applied UPSTREAM by the named method, so the card
+  # documents rather than governs it. RE-VERIFIED BY HAND 2026-09-18 against AM trunk 3b05f2c — every
+  # line below was read, not carried over; the first entry had drifted and is corrected:
+  #   subtype_enrich_log2_delta -> read.py:148 / :150 (`_SUBTYPE_ENRICH_LOG2_DELTA`, defined :141)
+  #   subgroup_n_floor          -> read.py:90  (`n >= SUBGROUP_N_FLOOR`)
+  #   subgroup_exploratory_floor-> read.py:101 (`exploratory_floor=SUBGROUP_EXPLORATORY_FLOOR`)
+  subtype_enrich_log2_delta:
+    role: method_parameter
+    consumed_by: cptac-protein-distribution
+  subgroup_n_floor:
+    role: method_parameter
+    consumed_by: cptac-protein-distribution
+  subgroup_exploratory_floor:
+    role: method_parameter
+    consumed_by: cptac-protein-distribution
+
+caveats:
+  - "DESCRIPTIVE / verdict-inert: subtype is confidence/context for patient selection, NOT a new veto — the pooled tumor-protein-abundance-cptac card carries the protein read; this card enriches it."
+  - "COADREAD-only (2026-08-21): cptac-subgroup-assignments-coadread-v1 (MSI_H/MSS from MMR-IHC) is the only landed CPTAC assignment shard. MSI is an MMR-IHC surrogate; ~43% of aliquots are is_member=null (not tested). Other indications return subtype_axis_available:false until their shards land."
+  - "CPTAC whole-cell-lysate TMT measures PRODUCED protein (tumor-vs-reference log2 ratio), NOT surface-accessible antigen; small per-stratum n means MSI_H is frequently underpowered (see subtype_axis_quality)."
+  - "Cross-arm comparability (2026-09-18): `enriched` is NOT the same claim across the three by-subtype arms. This arm cuts at a 0.25 log2 tumor-vs-reference RATIO shift; tumor RNA cuts at 0.585 and cell-line RNA at 1.0, both on log2(TPM+1) medians. The cuts differ in VALUE and in UNITS, so they are not commensurable. Each row now emits the applied subtype_enrich_log2_delta, so a cross-layer read can normalise or decline to join the arms instead of silently equating them."
+  - "A stratum in the 10-29 exploratory band (subgroup_exploratory_floor) emits its distribution stats with evidence_state: exploratory and never a scoped call. This is a SECOND, lower visibility band, not a relaxation of subgroup_n_floor, which keeps its one meaning (>=30) on every substrate."
+
+measurement: bulk_protein_ms
+sample_context: tumor         # patient tumor (CPTAC per-cohort, per-subtype strata) — orthogonal to measurement
+
+measurement_type: tumor_protein_abundance
+# Mirror the measurement-type twin tumor-protein-abundance-cptac: tumor_protein_abundance routes to
+# the modality-fit gates, so the subtype-grain sibling declares the SAME modality vector (was omitted
+# → P4 modality_relevance_missing warn). ADVISORY routing metadata; verdict-inert.
+modality_relevance: [small_molecule, degrader, adc, bite_tce, antibody]
+entity_grains: [target_subtype]
+schema_version: 1

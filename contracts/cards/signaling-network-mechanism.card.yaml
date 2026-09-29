@@ -1,0 +1,181 @@
+# Card — SIGNALING NETWORK MECHANISM
+#
+# Emits a directed signaling-network summary keyed on the target's UniProt-AC.
+# The network is COMPOSED (methods/mechanism_composed.read_target_summary) from a
+# UNION of curated edges — SIGNOR (Jul2026 source release; curator-tight, causal;
+# primary) + CollecTRI ONLY — whose edges set network_class. Reactome is layered as
+# pathway CONTEXT (membership/MoA), NOT counted in the edge total. A kinome-atlas
+# PREDICTION lane and a DepMap co-essentiality FUNCTIONAL lane are carried alongside
+# (surfaced in source_counts/sources_wired, weighted lower, never merged into
+# network_class). This card does NOT read OmniPath. The versioned MoA ontology
+# (methods/signor_mechanism_network/moa_ontology.py; 31 classes at v1.0.0) maps each
+# curated edge to a rules-firing MoA class + modality-relevance tuple.
+#
+# Interpretation surface (network_class is the PRIMARY categorical for rules):
+#   `well_characterized` → >= 3 upstream regulators AND >= 3 downstream effectors
+#   `partial`            → >= 1 upstream OR >= 1 downstream (but not both >=3)
+#   `sparse`             → 0-1 total edges to the target
+#   `data_unavailable`   → target absent from the composed curated sources
+
+card_id: signaling-network-mechanism
+version: 1.0.0
+question: "What is the upstream+downstream signaling context of {target.symbol}, and which MoA classes are candidate hooks?"
+
+tier: target   # signaling-network context is a property of the gene/protein, independent of indication
+
+applies_when:
+  - "context.data_sources.signor_available == true"
+
+# The reader's PRIMARY pushdown is the derived per-gene product signor-mechanism-network-per-gene-v1
+# (DERIVED_MANIFEST_ID in methods/signor_mechanism_network); the SIGNOR Jul2026 SOURCE release
+# (.../sources/signor/jul2026/SIGNOR_Jul2026_release.txt) is composed on-read for network refresh.
+required_inputs:
+  - product_id: signor-mechanism-network-per-gene-v1   # derived per-gene product — primary pushdown
+  - product_id: signor-jul2026                         # SIGNOR source — composed on-read
+
+derived_from:
+  - card_id: target-identity-summary  # UniProt-AC resolution
+
+methods:
+  - call: signor-mechanism-network
+    module: mechanism_composed
+    entrypoint: read_target_summary
+    args:
+      target: "{target.symbol}"
+      target_uniprot_ac: "{target.uniprot_canonical}"
+
+outputs:
+  summary_fields:
+    - network_class                         # PRIMARY categorical: well_characterized | partial | sparse | data_unavailable
+    - n_upstream_regulators                 # count of distinct upstream partners
+    - n_downstream_effectors                # count of distinct downstream partners
+    - upstream_regulators                   # list<struct: partner_uniprot_ac, partner_gene_symbol, raw_mechanism, moa_class, modality_relevance>
+    - downstream_effectors                  # list<struct: partner_uniprot_ac, partner_gene_symbol, raw_mechanism, moa_class, pd_marker_relevance>
+    - moa_classes_present                   # list<string> — unique MoA classes hit by upstream partners
+    - pd_marker_classes_present             # list<string> — unique MoA classes hit by downstream partners
+    - has_actionable_moa                    # bool — >= 1 upstream partner with modality_relevance intersect actionable_modalities
+    - has_pd_marker                         # bool — >= 1 downstream partner
+    - moa_ontology_version                  # string — pin for reproducibility
+    - moa_ontology_unmapped_fraction        # float — fraction of edges that fell to 'unmapped' class
+    # PROVENANCE / QUORUM fields the mechanism_composed reader ALREADY emits (declared 2026-09-04 so the
+    # mechanism-and-pharmacology skill's verdict-INERT provenance/actionable-MoA-inflation surfacing can read
+    # them under the card-field-conformance contract). None feeds a resolver rung — verdict is byte-stable.
+    - high_confidence_edges_count            # int — curated edges supported by >= 2 sources (the QUORUM signal;
+                                             #       0 = single-source-dominant, the common case)
+    - source_counts                          # map<source, int> — per-source curated + prediction/functional
+                                             #       edge counts (signor / collectri / reactome /
+                                             #       kinome_atlas_prediction / depmap_coessentiality)
+    - sources_wired                          # list<string> — which sources contributed edges for this target
+    - kinome_atlas_predictions               # struct — the kinome-atlas PWM PREDICTION lane (network_class,
+                                             #       n_upstream_predicted_kinases, n_downstream_predicted_
+                                             #       substrates, ...); carried ALONGSIDE, never merged into
+                                             #       network_class / has_actionable_moa
+    - coessentiality_context                 # struct — the DepMap co-essentiality FUNCTIONAL lane
+                                             #       (data_available, n_partners, n_cell_lines, top_partners);
+                                             #       correlational, not a curated mechanism edge
+
+  summary_fields_vocabulary:
+    # bool field keyed by has-pd-marker-supportive (equals: 'true'). String vocab (schema requires
+    # strings); rule engine + validator coerce bool<->'true'/'false' (ENFORCED 2026-08-15).
+    has_pd_marker:
+      - 'true'
+      - 'false'
+    network_class:
+      - well_characterized
+      - partial
+      - sparse
+      - data_unavailable
+    moa_classes_present:
+      - upstream_gap_modulation
+      - upstream_gef_modulation
+      - upstream_kinase_modulation
+      - upstream_ppase_modulation
+      - upstream_ubl_modulation
+      - upstream_dub_modulation
+      - upstream_methyltransferase_modulation
+      - upstream_hat_modulation
+      - upstream_hdac_modulation
+      - upstream_protease_modulation
+      - upstream_transcriptional_modulation
+      - upstream_stimulator                   # directional edge classes (composed from moa_ontology)
+      - upstream_inhibitor
+      - upstream_transcriptional_activator
+      - upstream_transcriptional_repressor
+      - molecular_glue_disruptor
+      - unmapped
+    pd_marker_classes_present:
+      - downstream_pd_marker
+      - downstream_pd_kinase
+      - downstream_pd_dephospho
+      - downstream_pd_ubiquitin
+      - downstream_pd_gap
+      - downstream_pd_gef
+      - transcriptional_pd_marker
+      - downstream_pd_cleavage
+      - downstream_pd_methylation
+      - downstream_activation_readout          # directional downstream readout classes (from moa_ontology)
+      - downstream_repression_readout
+      - downstream_transcriptional_activation_readout
+      - downstream_transcriptional_repression_readout
+      - unmapped
+
+  figures:
+    - id: signaling_network_summary
+      type: directed_network_table_with_moa_annotation
+      description: "Table view: upstream regulators (top) + downstream effectors (bottom) with mechanism + MoA class + modality-relevance tag. Rules-firing MoA classes highlighted; unmapped rows called out with citation link to moa_ontology.py version."
+      preferred_surfaces: [markdown, decision_memo]
+      primary: true
+
+# CANONICAL SOURCE for the network_class edge-count cutoffs. These are coarse
+# annotation-DENSITY heuristics (not biological cutoffs) applied to deduped-union
+# edge counts. This block is the single authoritative definition; the analysis-
+# methods readers (methods/mechanism_composed/read.py, methods/signor_mechanism_network/read.py)
+# hold module-constant MIRRORS pinned to these values by a drift-guard test
+# (tests/methods/mechanism_composed/test_network_class_threshold_mirror_guard.py).
+# Whether to replace the 4-bucket enum with a graded edge-density measure is
+# tracked separately (target-contracts #971); do not re-value here without it.
+thresholds:
+  min_edges_well_characterized: 3
+  max_edges_sparse: 1
+
+warning_predicates:
+  - warning_id: moa_ontology_unmapped_high
+    if: "moa_ontology_unmapped_fraction > 0.05"
+    message: "More than 5% of SIGNOR edges for {target.symbol} fell to 'unmapped' MoA class. Extend moa_ontology.py or accept the reduced classification coverage; see the run's _unmapped_mechanisms.jsonl."
+  - warning_id: signor_only_one_direction
+    if: "n_upstream_regulators == 0 || n_downstream_effectors == 0"
+    message: "Signaling network is one-directional in the composed curated sources (only upstream OR only downstream partners characterized). Interpret MoA / PD-marker calls cautiously — the other direction may exist in sources not composed here (e.g. IntAct)."
+
+caveats:
+  - |
+    PROVENANCE / COMPOSITION. methods.call=signor-mechanism-network names SIGNOR as the primary
+    curated source, but the live dispatch composes the network via the mechanism_composed method:
+    a UNION of curated edges — SIGNOR (Jul2026 source release; curator-tight, causally-directed,
+    ~30k human interactions) + CollecTRI ONLY — whose edges set network_class. Reactome is layered
+    as pathway CONTEXT (reactome_pathway_context), NOT counted in the network_class edge total.
+  - |
+    Alongside the curated edges, kinome-atlas PREDICTION and DepMap co-essentiality FUNCTIONAL lanes
+    are surfaced in source_counts/sources_wired (weighted lower, never merged into network_class), so
+    the emitted network can carry more than SIGNOR-only edges. This card does NOT read OmniPath.
+  - |
+    moa_ontology_version is stamped in every emitted row and in this card's
+    output. A bump in the ontology (methods/signor_mechanism_network/moa_ontology.py)
+    triggers a new versioned derived manifest; consumers pin against a
+    specific ontology snapshot for reproducibility.
+  - |
+    Modality-relevance tuples on each MoA class are candidate hooks — they
+    identify what modality could act at that mechanism, NOT what modality
+    will succeed against this target. The tractability-small-molecule and
+    surface-modality-fit skills perform the joint reasoning across
+    MoA-relevance + structural features + surface-topology to reach
+    modality-fit conclusions.
+  - |
+    Reproducibility: the per-gene network is served from the derived signor-mechanism-network-per-gene-v1
+    product (primary pushdown); the composed MoA/context layer is composed on-read from the signor-jul2026
+    SOURCE release. A source re-pull surfaces as a new dated SIGNOR release, giving consumers an explicit
+    version-bump signal.
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `signaling_network_mechanism` claim.
+measurement_type: signaling_network_mechanism
+entity_grains: [target]
+schema_version: 1

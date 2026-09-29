@@ -1,0 +1,210 @@
+# Card 1 of 5 — iter-1 vertical slice
+# See plan § Target Profile Composition — Iter-1 Scope § Vertical-slice reframing (A4)
+# and § Scaffolding § Iter-1 cards (B1) for context. This card exercises:
+#   - reuse of an already-shipped product (coadread-dge-*)
+#   - the baseline DGE pattern (tumor vs paired adjacent normal)
+
+card_id: tumor-rna-vs-adjacent
+version: 2.1.0                                  # bumped 2026-07-08: TPM fields now backed by real data (Gencode v26 gene-length norm)
+question: "Is {target.symbol} upregulated in tumor vs matched adjacent normal in {indication.label}?"
+
+# Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a
+# non-verdict-driving field on this card; declare the rule-keyed primary + salient categoricals.
+# VERDICT-INERT projection (see capsule contract migration).
+capsule:
+  primary_class: expression_call_class
+  categorical_fields:
+    - expression_call_class
+    - allgene_percentile_class
+
+tier: indication   # indication-scoped tumor-vs-adjacent contrast; subtype-eligible once a per-sample expression reader ships
+
+# BLOCKED (2026-07-16): tumor-vs-adjacent log2FC varies by molecular subgroup
+# (filter 1 met), but dge-deseq2 emits a whole-cohort aggregate (filter 2 FAILS).
+# Tagged not-live; a per-sample stratified expression reader is the prerequisite
+# to graduate this to a live per-subgroup panorama. Related: [[subgroup-stratified-expression]].
+subgroup_stratification:
+  eligible: true
+  status: blocked_needs_per_sample_reader
+  axes: [msi_status]
+  rationale: "tumor-vs-adjacent log2FC varies by subgroup but dge-deseq2 is a whole-cohort aggregate; needs a per-sample expression reader."
+
+applies_when:
+  - "target.tumor_expression_p95 >= THRESHOLD.expression_p95_min"
+  - "indication.paired_normals.count >= THRESHOLD.paired_normals_min"
+
+required_inputs:
+  - product_id: expression-rna-tumor-vs-adjacent   # products.yaml registry id; catalog carries it per-indication (e.g. coadread-dge-df06320) via each manifest's product_id: field
+    indication: "{indication}"
+    release_pin: "{release_pin}"
+
+methods:
+  - call: dge-deseq2
+    args:
+      indication: "{indication}"
+      release_pin: "{release_pin}"
+      contrast: tumor_vs_adjacent
+
+outputs:
+  summary_fields:
+    - log2_fc
+    - q_value
+    # NOTE: per-cohort median TPM/CPM display fields (tumor/adjacent_median_log2tpm/cpm) were removed
+    # 2026-09-01 — the DESeq2 reader emits log2_fc/q_value/expression_call_class, not per-sample
+    # medians (never computed; the reader had hard-coded them to None). See card-review sweep.
+    - n_tumor
+    - n_adjacent
+    # Upstream DE provider's OWN verdict (2026-09-27, #942): the DESeq2-style reader EMITS its own
+    # significance + direction call and an absolute-expression floor, but they were previously UNDECLARED
+    # — so outside the skill's disposition/census/capsule system (not even in the utilization denominator)
+    # and read by ZERO skill code. Declared so the skill can consume the provider's INDEPENDENT call as a
+    # corroboration arm rather than re-deriving expression_call_class from log2_fc + q_value. VERDICT-INERT
+    # here (no interpretation rule keys on them); scalar types declared in summary_fields_scalar_types below.
+    - is_significant_provider_call              # provider's own significance verdict (bool)
+    - is_upregulated_provider_call              # provider's own direction verdict (bool)
+    - base_mean                                 # absolute expression floor (DESeq2 baseMean) that qualifies a fold-change (float)
+    - expression_call_class                     # DESCRIPTIVE CATEGORICAL (drives Tier-2 rules)
+    # GTEx-normal contrast (additive DISPLAY facet, 2026-08-17): the sensitivity product's cell C
+    # (tumor vs GTEx population-normal, raw) surfaced ALONGSIDE the adjacent contrast so the DEG card
+    # shows tumor vs adjacent-normal AND vs GTEx-normal in one place. VERDICT-INERT — NO rule keys on
+    # these; expression_call_class / presence_verdict stay driven by the adjacent contrast (cell A)
+    # only, preserving the Phase-A/Phase-B boundary (tumor-vs-GTEx selectivity is owned by
+    # tumor-selectivity). Populated for indications with a *-dge-tumor-vs-normal-sensitivity-v1 product.
+    - gtex_log2_fc                              # cell C: tumor vs GTEx-normal log2 fold-change (display)
+    - gtex_q_value                              # cell C: BH q-value (display)
+    # All-gene percentile null (additive, 2026-08-05): where log2_fc falls among ALL genes
+    # in the SAME per-indication DGE product (context named in allgene_percentile_context).
+    # Contextualizes the absolute fold-change; comparator-dependent (adjacent-margin
+    # compresses FC vs GTEx) so the context string is load-bearing. One-directional display
+    # facet — never moves expression_call_class / presence_verdict.
+    - allgene_percentile                        # float 0-100 (or null)
+    - allgene_percentile_class                  # categorical (drives rules if wired)
+    - allgene_percentile_context                # string — the DGE manifest + metric the null was drawn from
+
+  # Scalar (non-categorical) provider-call + expression-floor fields (#942). Booleans are the provider's
+  # own significance/direction verdict, not string categoricals (so scalar_types, not vocabulary — the
+  # synthetic-lethal-partners has_experimental_partner convention). A runtime null is permitted (provider
+  # call absent / target unquantified); the schema types the non-null case.
+  summary_fields_scalar_types:
+    is_significant_provider_call: boolean
+    is_upregulated_provider_call: boolean
+    base_mean: number
+
+  summary_fields_vocabulary:
+    expression_call_class:
+      - strong_upregulation                     # q < 0.05 AND log2_fc >= 1.5
+      - modest_upregulation                     # q < 0.05 AND 0.5 <= log2_fc < 1.5
+      - not_informative                         # q >= 0.05 OR -0.5 < log2_fc < 0.5 (truly flat)
+      - modest_downregulation                   # q < 0.05 AND -1.5 < log2_fc <= -0.5
+      - strong_downregulation                   # q < 0.05 AND log2_fc <= -1.5
+      - data_unavailable                        # DGE derived-product unreachable / target absent
+    allgene_percentile_class:
+      - top_1pct
+      - top_decile
+      - mid
+      - bottom_decile
+      - data_unavailable
+
+  # The derivation edge (2026-09-18) — the hop the DESeq2 reader's Python performs to bin the
+  # numeric fields into the categorical class tokens. Previously this lived only in the
+  # summary_fields_vocabulary comments above (lines 77-88) and a code comment, so the package was
+  # not re-binnable: a consumer could see `expression_call_class: strong_upregulation` but not the
+  # log2_fc cut that produced it. `cutpoints` names the threshold_roles (role: class_cutpoint) that
+  # supply the boundaries; `derives_from` names the numeric fields — the metrics a re-binning
+  # consumer must route through (NEVER the headline *_class token, which may be gauged on a
+  # different value). Banding is UNCHANGED; this only exposes the same cuts declaratively.
+  derivations:
+    expression_call_class:
+      derives_from: [log2_fc, q_value]
+      cutpoints: [modest_upregulation_log2fc, strong_upregulation_log2fc, call_significance_q]
+    allgene_percentile_class:
+      derives_from: [allgene_percentile]
+      cutpoints: [allgene_top_1_percentile, allgene_top_decile, allgene_bottom_decile]
+
+  # Field semantics (aligned to actual data v2.1.0):
+  # - log2tpm fields: length-normalized (Gencode v26 union-of-exons), library-normalized.
+  #   Cross-tissue comparable. Preferred unit for absolute-expression comparisons.
+  # - log2cpm fields: library-normalized only (no gene-length). Retained for backward compat
+  #   with the DEG pipeline's internal normalization and legacy consumers.
+  # v2.0 card mistakenly declared `tumor_mean_tpm`/`adjacent_mean_tpm` before the read
+  # layer supported TPM. v2.1.0 (2026-07-08) closes that schema-vs-data drift.
+
+  figure: violin_paired_with_significance
+  plot_data: long_format_paired_samples
+
+# interpretation_hints REMOVED 2026-07-01 (v2 refactor) — normative interpretation
+# moved to target-contracts/interpretation-rules/intracellular-intrinsic.rules.yaml.
+# Rules consume expression_call_class directly.
+
+thresholds:
+  expression_p95_min: 1.0       # TPM; iter-1 conservative default — see A2 calibration disclosure
+  paired_normals_min: 8         # DESeq2 minimum-fit heuristic
+  # expression_call_class log2_fc cuts — promoted from the summary_fields_vocabulary comments (lines
+  # 77-81) to named, single-sourced thresholds so the interpretation-encoding distance_to_cut ruler
+  # (SALIENCE_SPECS[tumor_vs_adjacent_expression]) references them instead of re-hardcoding the cut. The
+  # method's expression_call_class banding is UNCHANGED; these only expose the same cuts declaratively.
+  modest_upregulation_log2fc: 0.5   # |log2_fc| >= 0.5 (with q < call_significance_q): the elevated-call boundary
+  strong_upregulation_log2fc: 1.5   # log2_fc >= 1.5 (with q < call_significance_q): strong upregulation
+  call_significance_q: 0.05         # q-value gate for a directional (up/down) call
+  # all-gene percentile-class cutoffs (method bins allgene_percentile → allgene_percentile_class)
+  allgene_top_1_percentile: 99.0
+  allgene_top_decile: 90.0
+  allgene_bottom_decile: 10.0
+
+caveats:
+  - "RNA expression does not imply protein abundance; pair with proteomics card when available."
+  - "TCGA adjacent-normal samples are not random; surgical-margin selection bias may inflate apparent differential."
+
+measurement: bulk_rna
+sample_context: tumor         # patient tumor vs adjacent normal (TCGA) — orthogonal to measurement (2026-07-21)
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `tumor_vs_adjacent_expression` claim.
+measurement_type: tumor_vs_adjacent_expression
+entity_grains: [target_indication]
+schema_version: 1
+threshold_roles:
+  # class_cutpoint (2026-09-18): each of these is the boundary the method uses to bin a numeric
+  # field into a class token, AND the cut the skill-side reader (evidence_salience.contract_threshold)
+  # re-uses to anchor the display ruler + claim_record.magnitude.distance_to_cut over `of`. The
+  # derivation edge is now declared in outputs.derivations above; these entries supply its cutpoints.
+  # None is predicate-referenced, so THRESHOLD_UNUSED was a false positive on a live derivation cut.
+  #
+  # expression_call_class = f(log2_fc, q_value):
+  modest_upregulation_log2fc:
+    role: class_cutpoint
+    bins: expression_call_class
+    of: log2_fc
+    boundary: modest_upregulation
+    scale: log2FC
+  strong_upregulation_log2fc:
+    role: class_cutpoint
+    bins: expression_call_class
+    of: log2_fc
+    boundary: strong_upregulation
+    scale: log2FC
+  call_significance_q:
+    role: class_cutpoint
+    bins: expression_call_class
+    of: q_value
+    scale: q_value
+    # No `boundary`: this is the conjunctive significance gate (q < 0.05) that qualifies EVERY
+    # directional call rather than admitting one class — the same shape as an in_record power guard.
+  # allgene_percentile_class = f(allgene_percentile):
+  allgene_top_1_percentile:
+    role: class_cutpoint
+    bins: allgene_percentile_class
+    of: allgene_percentile
+    boundary: top_1pct
+    scale: percentile
+  allgene_top_decile:
+    role: class_cutpoint
+    bins: allgene_percentile_class
+    of: allgene_percentile
+    boundary: top_decile
+    scale: percentile
+  allgene_bottom_decile:
+    role: class_cutpoint
+    bins: allgene_percentile_class
+    of: allgene_percentile
+    boundary: bottom_decile
+    scale: percentile

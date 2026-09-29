@@ -1,0 +1,23 @@
+{
+  "target": "MSLN",
+  "indication": "PAAD",
+  "vectors_fixture": "tumor_normal_tpm/recount3_gtex__percentile_crossing_vectors.parquet",
+  "vectors_fixture_cohort": "tumor",
+  "n_tumor_samples": 178,
+  "expected_tumor_expression_class": "broadly_high",
+  "expected_median_log2tpm": 7.513943672180176,
+  "expected_p95_log2tpm": 9.543678045272827,
+  "expected_p99_log2tpm": 10.024307470321656,
+  "expected_min_log2tpm": 0.0,
+  "expected_max_log2tpm": 10.672986030578613,
+  "expected_coefficient_of_variation": 0.9977980203709093,
+  "expected_distribution_pattern": "continuous",
+  "expected_detectable_fraction": 0.9438202247191011,
+  "expected_moderate_fraction": 0.8820224719101124,
+  "expected_high_fraction": 0.8089887640449438,
+  "_source": {
+    "product": "recount3 TCGA/non-TCGA tumor long product (same slice as the percentile_crossing anchor for this pair)",
+    "captured_utc": "2026-09-29T01:42:02.043124+00:00",
+    "note": "reuses the percentile_crossing anchor's committed vectors_fixture; no new parquet"
+  }
+}

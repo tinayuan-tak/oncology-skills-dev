@@ -1,0 +1,68 @@
+# Card — CLINICAL PRECEDENT (WIRED 2026-08-21, AACT)
+# The framework's translational-maturity lens: for {target} in {indication}, what is the highest
+# clinical stage reached by a drug that ENGAGES the target, how many active trials, which approved
+# agents, and what notable failures (terminated trials)?
+#
+# WIRED to AACT (CTTI's public-domain ClinicalTrials.gov mirror) via the aact_clinical_precedent
+# method, which composes: indication_crosswalk.mesh_terms (OncoTree->MeSH) + dgidb-drug-target-
+# directional-v1 (drug ENGAGES target — directional-interaction filter, biomarker noise removed) +
+# aact-oncology-trial-precedent-per-condition-intervention-v1 (per condition x drug trial rollup).
+# PRECEDENT SEMANTICS: a drug that ENGAGES the target counts (not sole-target) — a multi-target drug
+# legitimately contributes precedent for each target it engages. This SUPERSEDES the never-landed
+# literature-snapshot placeholder + the query-target-evidence retrieval binding.
+
+card_id: clinical-precedent
+version: 1.1.0
+# interpretation (descriptive): emits no categorical class.
+interpretation: descriptive
+status: wired
+question: "What is the clinical precedent for {target.symbol} {context.modality if specified else 'across modalities'} in {indication.label}?"
+
+applies_when: []                                # always applies; degrades to insufficient off-scope
+
+required_inputs:
+  - product_id: aact-oncology-trial-precedent-per-condition-intervention-v1
+  - product_id: dgidb-drug-target-directional-v1
+
+methods:
+  - call: aact-clinical-precedent
+    module: aact_clinical_precedent       # generic-dispatch wiring (no bespoke _dispatch_* needed);
+    entrypoint: read_clinical_precedent   # read_live_summary -> _generic_dispatch calls fn(target=, indication=)
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+      modality: "{context.modality}"
+
+outputs:
+  summary_fields:
+    - highest_clinical_stage
+    - approved_agents
+    - n_active_trials
+    - modality_precedent
+    - notable_failures
+    - resistance_mechanisms_reported
+  figure: clinical_landscape_table
+  plot_data: per_program_clinical_state
+
+interpretation_hints:
+  - if: "highest_clinical_stage == 'approved'"
+    call: "validated target with approved agents"
+  - if: "highest_clinical_stage == 'phase_3' || highest_clinical_stage == 'pivotal'"
+    call: "late-stage clinical validation"
+  - if: "highest_clinical_stage in ['phase_2', 'phase_1b']"
+    call: "early clinical validation"
+  - if: "highest_clinical_stage in ['phase_1', 'preclinical']"
+    call: "preclinical / early discovery only"
+  - if: "highest_clinical_stage == 'none' || highest_clinical_stage == null"
+    call: "no published clinical precedent"
+
+caveats:
+  - "Precedent = trials of a drug that ENGAGES the target (DGIdb DIRECTIONAL interaction), not sole-target — a multi-target drug (e.g. imatinib) counts for each target it engages. This is the right recall semantic for 'has a target-engaging agent been trialed here', NOT a claim that the target is the drug's primary MoA."
+  - "Indication coverage = the framework's mesh_terms crosswalk (currently the 9 iter-1 indications); an off-crosswalk indication returns insufficient. A target with no DIRECTIONAL DGIdb drug returns no_known_agent (coverage gap, not 'never trialed')."
+  - "resistance_mechanisms_reported is NOT derivable from AACT structured fields (needs trial-results / literature mining) — always null here. AACT snapshot 2026-07; approved_agents leans on DGIdb drug_is_approved + AACT phase (highest_clinical_stage=approved requires an approved engaging drug trialed in-indication)."
+  - "ClinicalTrials.gov is U.S.-government public domain (17 U.S.C. §105); CTTI packaging requires source acknowledgment. Legal review recommended before portfolio-facing use."
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `clinical_precedent` claim.
+measurement_type: clinical_precedent
+entity_grains: [target_indication]
+schema_version: 1

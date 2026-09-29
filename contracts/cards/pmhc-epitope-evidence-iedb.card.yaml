@@ -1,0 +1,76 @@
+# Card — EXPERIMENTALLY-VALIDATED pMHC EPITOPE EVIDENCE (IEDB; v1)
+#
+# The EXPERIMENTALLY-VALIDATED peptide-centric axis. Complements pmhc-presentation (HLA Ligand Atlas
+# benign normal-tissue immunopeptidome BREADTH) with IEDB epitope / MHC-binding GROUND TRUTH: have the
+# target's peptides been experimentally OBSERVED presented on human HLA (MHC-ligand elution / binding)
+# and/or RECOGNIZED by T cells, on which HLA class / how many alleles, in a cancer context. For a
+# TCR-mimetic T-cell engager reaching an intracellular oncoprotein via the peptide-MHC complex
+# (KRAS-G12V, WT1, PRAME, MAGE-A4 class), experimentally-validated epitopes + T-cell recognition are
+# the strongest confirmation the peptide is a real pMHC target — an axis surface presence cannot see.
+#
+# Substrate: iedb-epitope-mhc-per-protein-v1 — the human source-protein (cancer / self-antigen)
+# MINORITY of IEDB, rolled up per UniProt from POSITIVE assays (Vita et al. 2019 NAR, PMID 30395297).
+#
+# VERDICT-INERT DISPLAY CARD: no interpretation rule maps this card and no resolver rung consumes it.
+# The surface_modality fit_class resolves off adc-tce-modality-fit; this card adds pMHC narrative
+# context (does experimental epitope ground truth exist for this target) — it moves no verdict.
+#
+# ASSAY ASYMMETRY: absence from IEDB is a WEAK negative (not_observed) — a peptide-centric CANDIDATE
+# not yet experimentally characterised, NEVER a proven non-epitope.
+
+card_id: pmhc-epitope-evidence-iedb
+version: 1.0.0
+
+question: "Does {target.symbol} have experimentally-validated epitopes in IEDB — peptides observed presented on human HLA and/or recognized by T cells (which class / how many alleles, in a cancer context)?"
+
+tier: target   # experimental epitope evidence for a protein is a protein property (indication-independent)
+
+applies_when:
+  - "target.uniprot_canonical != null"   # need a UniProt AC to look up per-protein epitope evidence; else data_unavailable
+
+required_inputs:
+  - product_id: iedb-epitope-mhc-per-protein-v1
+
+methods:
+  - call: iedb-epitope
+    module: iedb_epitope
+    entrypoint: read_target_summary
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - epitope_evidence_class                     # PRIMARY categorical
+    - n_epitopes                                 # distinct positive-assay peptides mapping to the protein
+    - n_mhc_class_i_epitopes                     # distinct peptides observed with an HLA class-I restriction
+    - n_mhc_class_ii_epitopes                    # distinct peptides observed with an HLA class-II restriction
+    - n_hla_alleles                              # distinct SPECIFIC HLA alleles across positive rows
+    - has_tcell_positive                         # any positive T-cell-recognition assay for this antigen
+    - has_cancer_context                         # any positive row in a cancer / neoplasm disease context
+    - example_hla_alleles                        # ';'-joined up to 5 example specific HLA alleles
+    - uniprot_ac
+
+  summary_fields_vocabulary:
+    epitope_evidence_class:
+      - tcell_validated                          # >=1 positive epitope AND a positive T-cell assay — experimentally T-cell-RECOGNIZED (strongest pMHC ground truth; ERBB2/NY-ESO-1/MAGE-A3 archetype)
+      - presented_not_tcell_confirmed            # >=1 positive epitope with MHC-ligand presentation observed but no recorded positive T-cell assay (presented; recognition uncharacterised)
+      - no_positive_epitopes                     # protein in IEDB but no positive-assay epitope — a WEAK negative (assay asymmetry), not a confirmed non-epitope
+      - not_observed                             # absent from IEDB entirely — WEAK negative; a peptide-centric CANDIDATE not yet experimentally characterised
+      - data_unavailable                         # target not resolvable to a UniProt AC / product unreadable
+
+caveats:
+  - "IEDB experimentally-annotated epitopes: the CANCER / self-antigen minority filtered to HUMAN source protein + human MHC (HLA allele or blank). Presentation / immunogenicity GROUND TRUTH complementing hla-ligand-atlas-presentation-per-protein-v1 (benign normal-tissue immunopeptidome breadth); the two are distinct pMHC lenses."
+  - "Presentation / recognition != expression, and != PREDICTED binding: this is experimental epitope evidence (what has been observed in positive assays), distinct from mRNA / protein abundance and from in-silico HLA-binding prediction."
+  - "ASSAY ASYMMETRY: a positive assay is strong evidence; ABSENCE (not_observed / no_positive_epitopes) is WEAK — a peptide below assay coverage may still be a real epitope. Never read absence as a confirmed non-epitope. This card is IEDB tumor-context-agnostic: a cancer-context flag, not a tumor-restriction call."
+  - "VERDICT-INERT display card: no interpretation rule maps it and no resolver rung consumes it. It adds pMHC narrative context to surface-modality-fit; the biologics fit_class resolves off adc-tce-modality-fit. Per-peptide / per-allele / quantitative-affinity detail stays in the IEDB source CSVs."
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the DERIVED `pmhc_epitope_evidence` claim (experimentally-
+# validated epitope / MHC evidence). A DISTINCT pMHC lens from pmhc_presentation (benign-atlas breadth):
+# IEDB is positive-assay epitope + T-cell recognition GROUND TRUTH.
+measurement_type: pmhc_epitope_evidence
+# P4 modality routing: experimentally-validated pMHC epitopes gate the TCR-mimetic T-cell-engager
+# modality only (a pMHC TCE); an ADC / naked antibody binds the folded surface protein, not the pMHC complex.
+modality_relevance: [bite_tce]
+entity_grains: [target]
+schema_version: 1

@@ -1,0 +1,20 @@
+{
+  "target": "ERBB2",
+  "release_pin": "26q1",
+  "skill": "tumor-presence",
+  "card_id": "cellline-rna-distribution",
+  "class_field": "expression_class",
+  "vector_fixture": "expression_vectors/erbb2_26q1.cellline_rna_distribution.parquet",
+  "n_cell_lines_evaluated": 2446,
+  "expected_class": "broadly_high",
+  "expected_fraction_expressed": 0.9836467702371219,
+  "expected_fraction_highly_expressed": 0.36017988552739166,
+  "expected_n_lineage_restricted_lineages": 0,
+  "snapshot_class_cross_ref": null,
+  "_captured_at": "2026-09-21T17:01:39.065566+00:00",
+  "_sibling_shas": {
+    "analysis-methods": "e13d0f2",
+    "data-catalog": "161d13e"
+  },
+  "_provenance": "live cbg read via load_expression_files('26q1', 'ERBB2'); fixture = gene's log2(TPM+1) per DepMap cell line + resolved lineage (2446 models); re-derive with methods.depmap_expression_distribution.cli.compute_summary_stats."
+}

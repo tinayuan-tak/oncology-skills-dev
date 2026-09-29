@@ -1,0 +1,86 @@
+# Card — ICI-RESPONSE EXPRESSION ASSOCIATION (bulk_rna; open-GEO melanoma anti-PD-1 cohorts)
+#
+# The ICI-BIOMARKER lane for the immune-context skill — a VERDICT-INERT display/context card. The
+# CIBERSORT effector-context card (immune-context) asks "is there a CD8 population to redirect?"; THIS
+# card asks the complementary, outcome-anchored "is the target's baseline expression higher in patients
+# who RESPONDED to an immune-checkpoint inhibitor than in non-responders?" — a per-gene responder-vs-
+# non-responder association from open-GEO melanoma anti-PD-1 cohorts (Riaz GSE91061 nivolumab, Hugo
+# GSE78220 pembrolizumab) with a direction-aware cross-cohort Stouffer rollup.
+#
+# MELANOMA (SKCM) scope only — the product is built exclusively from commercial-clean open-GEO melanoma
+# cohorts (dbGaP/EGA ICI cohorts excluded). A non-melanoma query resolves data_unavailable. DISPLAY-ONLY:
+# fires no rule, moves no verdict; per-gene p-values are not individually significant by design (the ICI
+# signal is a coordinated program at n~10-40, not single-gene) — read as directional context.
+#
+# ici_response_class (PRIMARY): higher_in_responders | higher_in_nonresponders | no_ici_association |
+#   data_unavailable.
+
+card_id: ici-response-association
+version: 0.2.0   # 2026-09-13: `indication` is the indication ASKED, not the product's hardcoded scope;
+                 # + indication_scope.
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
+question: "Is baseline {target.symbol} expression higher in melanoma patients who RESPONDED to an anti-PD-1 immune-checkpoint inhibitor than in non-responders (open-GEO cohorts + cross-cohort Stouffer rollup)?"
+
+tier: target   # a per-gene ICI-response association (melanoma-scoped); target-grain
+
+applies_when:
+  # MELANOMA only — the product covers open-GEO melanoma anti-PD-1 cohorts (SKCM). Outside melanoma the
+  # reader resolves data_unavailable (honest scope ceiling).
+  - "context.indication in ['SKCM']"
+
+required_inputs:
+  - product_id: ici-response-expression-per-gene-v1   # per-(gene, cohort) ICI responder-vs-non-responder association
+
+methods:
+  - call: ici-response-association
+    module: ici_response          # generic-dispatch wiring (no bespoke _dispatch_* needed)
+    entrypoint: read_target_summary
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"   # melanoma-scope guard applied in the reader
+
+outputs:
+  summary_fields:
+    - ici_response_class             # PRIMARY categorical (verdict-INERT; ICI-biomarker axis)
+    - direction_higher_in            # responder | non_responder | tie (rollup direction, else single cohort)
+    - median_log2fc_resp_vs_nonresp  # log2fc responder-vs-non-responder (rollup, else per-cohort)
+    - rollup_stouffer_z              # direction-aware Stouffer combined Z (rollup only; null if 1 cohort)
+    - rollup_stouffer_p              # two-sided p from the Stouffer Z (rollup only)
+    - n_cohorts_concordant           # cohorts (0-2) whose per-cohort log2fc sign matches the rollup direction
+    - n_cohorts                      # number of per-cohort observations for the gene
+    - any_cohort_significant         # bool — any per-cohort Mann-Whitney p < 0.05 (uncorrected; display flag)
+    - min_mannwhitney_p              # smallest per-cohort Mann-Whitney p
+    - cohorts                        # list<str> — contributing per-cohort ids
+    - ici_agents                     # list<str> — the anti-PD-1 agents (nivolumab / pembrolizumab)
+    # `indication` used to be a hardcoded "SKCM" — i.e. the PRODUCT's scope wearing the caller's field
+    # name, so a non-melanoma query got a melanoma answer labelled as its own indication. Since
+    # 2026-09-13 the reader echoes what was ASKED here and names what the product COVERS separately (and
+    # its scope gate is fail-CLOSED, so a non-melanoma indication resolves data_unavailable).
+    - indication                     # the indication ASKED (echoed back)
+    - indication_scope               # SKCM — what the melanoma ICI product actually covers
+    - product_id                     # provenance
+
+  summary_fields_vocabulary:
+    ici_response_class:
+      - higher_in_responders         # baseline expression higher in ICI responders (candidate response-up marker)
+      - higher_in_nonresponders      # baseline expression higher in non-responders
+      - no_ici_association           # tie / no directional difference
+      - data_unavailable             # non-melanoma indication, no product, or gene absent (coverage gap)
+
+warning_predicates:
+  - warning_id: ici_per_gene_not_significant
+    if: "any_cohort_significant == false"
+    message: "No individual cohort reaches Mann-Whitney p<0.05 for {target.symbol}. Expected at n~10-40 responders-vs-non-responders — the ICI-response signal is a coordinated program, not single-gene. Read direction_higher_in as directional context, not a validated biomarker (display-only)."
+
+caveats:
+  - "VERDICT-INERT display/context card for the immune-context ICI-biomarker lens. Fires no interpretation rule and moves no gate verdict; it adds outcome-anchored ICI-response direction alongside the CD8 effector-context call."
+  - "MELANOMA (SKCM) scope only: built from commercial-clean OPEN-GEO melanoma anti-PD-1 cohorts (Riaz GSE91061 nivolumab; Hugo GSE78220 pembrolizumab). dbGaP/EGA ICI cohorts (Van Allen/Liu/Gide) and non-melanoma cohorts are excluded; a non-melanoma query resolves data_unavailable."
+  - "Per-gene p-values are NOT multiple-testing corrected and are individually non-significant by design (n~10-40 per arm); the pan-melanoma-rollup direction-aware Stouffer combine is the cross-cohort read. SD is classed as non-responder (durable-benefit convention: responder in {CR,PR}). Baseline (pre-treatment) expression only."
+  - "Bulk RNA-seq FPKM responder-vs-non-responder association — an association, not causation, and not a spatial/single-cell read. Pair with the CIBERSORT effector-context call and the surface/protein cards for a TCE/IO decision."
+
+measurement: bulk_rna
+sample_context: tumor
+measurement_type: ici_response_expression
+entity_grains: [target]
+schema_version: 1

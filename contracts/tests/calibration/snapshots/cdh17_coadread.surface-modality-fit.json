@@ -1,0 +1,25 @@
+{
+  "skill": "surface-modality-fit",
+  "target": "CDH17",
+  "indication": "COADREAD",
+  "generated_at": "2026-07-18T19:04:57+00:00",
+  "headline": {
+    "surface_modality_verdict": "insufficient",
+    "driving_rule_id": null,
+    "fit_class": null,
+    "topology_class": null,
+    "family_class": "other_surface",
+    "hotspot_pocket_adjacency_call": "no_structure",
+    "surface_density_class": null,
+    "cards_available": 2,
+    "cards_missing": [
+      "surface-topology-and-ptm",
+      "surface-abundance-density",
+      "adc-tce-modality-fit"
+    ],
+    "_partial_status_note": "Most surface derived products (structure-features, surfaceome-family, cohort-ranking) are not yet on S3; verdict is honest-insufficient until they land.",
+    "isoform_selective_warning": false,
+    "isoform_selective_dominant_isoform": null
+  },
+  "_snapshot_note": "Minimal live-captured decision snapshot for calibration harness. See known_target_calibration_set.yaml."
+}

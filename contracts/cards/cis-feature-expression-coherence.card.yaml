@@ -1,0 +1,205 @@
+# Card — CIS-FEATURE → OWN-EXPRESSION COHERENCE  (pure-data, target-only, v2)
+#
+# THE MISSING LEG. The framework measures three axes independently — is the target ALTERED
+# (genomic-alteration-profile), is it EXPRESSED (tumor-presence), is it REQUIRED
+# (functional-requirement) — but nothing tests whether the target's OWN cis genomic feature
+# CAUSALLY EXPLAINS its OWN expression. This card measures exactly that: does the target's own
+# relative copy-number predict its own mRNA level across the DepMap panel (cis-dosage coupling)?
+#
+# This is NOT amp-expr-stratified-dependency. That card conjoins amplified∩overexpressed and asks
+# "is the conjoint subset MORE DEPENDENT" — it presumes overexpression follows amplification and
+# never TESTS the CN→expression step. This card tests that step directly (the feature→expression
+# leg), so the cis-coherence resolver can distinguish amplification-DRIVEN overexpression (ERBB2/MYC:
+# CN and expression coupled) from CN-independent (trans-regulated) expression that happens to
+# co-occur with a passenger amplicon.
+#
+# DECOUPLED FROM INDICATION (mirrors the stratified-dependency siblings): evaluates the FULL DepMap
+# panel via the shared lineage ladder; per-indication cis-dosage is a downstream synthesis question.
+# Consumed by cis_coherence.resolver.yaml as the leg-1 signal; VERDICT-INERT at the composed layer.
+#
+# Expected demonstration cases (live-verified 2026-09-12):
+#   - ERBB2       : pan-panel Spearman r=0.23 is DILUTED by the diploid body, but the amplified subset
+#                   over-expresses (+1.64 median log2TPM) → cn_dosage_coupled_moderate via the
+#                   focal_amplification_subset driver (cis-driven; see the focal-amp subset escape below)
+#   - KRAS / MYC  : pan-panel CN predicts expression        → cn_dosage_coupled_* (pan_panel_correlation)
+#   - a lineage-TF (trans-regulated) : expressed, CN-flat   → cn_dosage_uncoupled        (NOT cis)
+#   - near-diploid-panel target       : no CN variance      → cn_invariant_panel         (untestable)
+#   - CDH1        : amplified group is EPITHELIAL, neutral group is not → +3.26 log2TPM pan-panel that
+#                   FLIPS to -0.70 within lineage → the v1.1.0 lineage control withholds the subset
+#                   escape → cn_dosage_uncoupled (it was cn_dosage_coupled_strong on confound alone)
+#   - PTEN / RB1  : coupled via the DELETED arm → cis_dosage_direction=deletion_coupled (v1.1.0), the
+#                   suppressor reading the class alone could not distinguish from an amplicon driver
+#
+# Inputs (DepMap 26Q1 — co-resident, ZERO new ingest):
+#   - OmicsCNGeneWGS.csv (relative CN, primary; legacy WES fallback) — the cis feature term.
+#     NOTE (#704 6a): migrated 2026-09-11 — depmap_cn_distribution.load_cn_files now selects the
+#     DepMap-CANONICAL WGS CN as primary (WES CN is LEGACY, kept only as a fallback for genes absent
+#     from the WGS matrix). WGS and WES share the SAME relative-CN scale (diploid ~1.0), verified
+#     empirically, so the focal-amp thresholds carry over unchanged; WGS also has broader coverage
+#     (n=2219 vs 1954 cell lines). The reader change lives in analysis-methods.
+#   - OmicsExpressionTPMLogp1HumanProteinCodingGenes.csv (log2TPM) — the own-expression term
+#   - Model.csv — lineage metadata for the ladder
+
+card_id: cis-feature-expression-coherence
+version: 1.1.0
+question: "Across DepMap cell lines, does {target.symbol}'s own relative copy-number predict its own mRNA expression (cis-dosage coupling)? — i.e. is expression amplification-DRIVEN, or copy-number-independent?"
+
+applies_when:
+  - "target.depmap_screened == true"
+  - "target.depmap_expression_measured == true"
+
+required_inputs:
+  - product_id: depmap-consortium-26q1
+    release_pin: "{release_pin}"
+
+methods:
+  - call: depmap-cis-dosage
+    module: depmap_cis_dosage
+    entrypoint: read_cis_dosage
+    args:
+      target: "{target.symbol}"
+      release_pin: "{release_pin}"
+
+outputs:
+  summary_fields:
+    # === Panel context (target-only) ===
+    - n_cell_lines_evaluated                     # cells with BOTH relative CN AND expression coverage
+    # === cis-dosage primary metrics (CN → own-expression) ===
+    - cn_expr_spearman_r                         # rank correlation CN vs log2TPM (primary; robust to outliers)
+    - cn_expr_spearman_p
+    - cn_expr_pearson_r
+    - cn_expr_pearson_p
+    - cn_expr_slope_log2tpm_per_cn               # OLS slope: log2TPM change per unit relative CN (provenance)
+    # === Variance context — cis-dosage is untestable without CN variation ===
+    - relative_cn_p10_p90_spread                 # p90-p10 CN spread; the invariant-panel GATE (tail-sensitive)
+    - relative_cn_iqr                            # middle-50% CN spread — provenance ONLY (NOT the gate; blind to the amplified tail)
+    - log2tpm_iqr
+    - median_relative_cn
+    - median_log2tpm
+    # === Amplified-vs-neutral expression contrast (interpretability aid; not the class driver) ===
+    - n_amplified                                # relative CN > amplification_threshold
+    - mean_log2tpm_amplified
+    - mean_log2tpm_neutral
+    - delta_log2tpm_amplified_vs_neutral         # positive = amplified cells over-express (dosage effect)
+    - amplification_threshold_relative_cn        # FOCAL_AMP cutoff used (provenance)
+    # === Focal-amplification SUBSET escape (the amplified-tail path the pan-panel Spearman dilutes) ===
+    - subset_delta_log2tpm_amplified_vs_neutral  # median log2TPM (amplified - neutral); the focal-amp subset driver
+    - subset_mannwhitney_p                       # one-sided Mann-Whitney (amplified > neutral) for the subset escape
+    # === LINEAGE CONTROL on the subset escape (v1.1.0) — the amplified group must beat its OWN lineage ===
+    - subset_within_lineage_delta_log2tpm        # pooled WITHIN-lineage median delta (amplified - neutral); the escape GATE
+    - subset_n_lineages_compared                 # lineages jointly powered (>=3 lines a side) in the within-lineage pooling
+    - amplified_dominant_lineage_fraction        # largest single lineage's share of the amplified group (confound exposure)
+    # === DELETION arm — the other half of the dosage contrast, and the direction discriminator (v1.1.0) ===
+    - n_deleted                                  # relative CN < deletion_threshold
+    - deleted_subset_delta_log2tpm               # median log2TPM (deleted - mid-CN); negative = deletion suppresses expression
+    - deleted_within_lineage_delta_log2tpm       # its within-lineage counterpart (same control as the amplified arm)
+    - deleted_subset_mannwhitney_p               # one-sided Mann-Whitney (deleted < mid-CN)
+    - deletion_threshold_relative_cn             # DELETION cutoff used (provenance)
+    - cis_dosage_direction                       # WHICH CN arm carries the coupling (amplification_coupled | deletion_coupled)
+    - cis_dosage_direction_basis                 # how direction was decided (amplified_vs_deleted_contrast | cn_distribution_asymmetry)
+    - cis_dosage_driver                          # which path drove the coupled call (pan_panel_correlation | focal_amplification_subset)
+    # === Categorical (Tier-2 vocabulary; drives cis-coherence.rules.yaml) ===
+    - cis_dosage_class
+    # Indication-conditioning provenance (mirrors amp-expr-stratified-dependency):
+    - evidence_scope                             # within_indication | within_indication_mut_vs_pan_wt | pan_lineage_evidence_only | pan_no_indication
+
+  summary_fields_vocabulary:
+    cis_dosage_class:
+      - cn_dosage_coupled_strong                 # pan-panel spearman r >= 0.4, OR focal-amp subset median Δ >= 2.0 log2TPM (both p <= 0.01)
+      - cn_dosage_coupled_moderate               # pan-panel spearman r >= 0.25, OR focal-amp subset median Δ >= 1.0 log2TPM (both p <= 0.01)
+      - cn_dosage_uncoupled                      # CN varies across panel but does NOT predict expression (trans-regulated)
+      - cn_invariant_panel                       # relative_cn_p10_p90_spread < min — no CN variation to test cis-dosage (untestable, honest)
+      - data_unavailable
+    cis_dosage_driver:                           # which path established a coupled call (null when uncoupled/invariant/unavailable)
+      - pan_panel_correlation                    # the pan-panel CN↔expression Spearman crossed the gate
+      - focal_amplification_subset               # pan-panel Spearman diluted below the gate, but the amplified subset over-expresses (ERBB2 archetype)
+    cis_dosage_direction:                        # WHICH arm of the CN distribution carries the coupling (null unless coupled_*)
+      - amplification_coupled                    # gain drives expression UP — the oncogene/amplicon reading (ERBB2, MYC, AURKA, MITF, FOXA1)
+      - deletion_coupled                         # loss drives expression DOWN — the suppressor/LoF reading (PTEN, RB1, SMAD4, APC, STK11, NF1, CDKN2A)
+    cis_dosage_direction_basis:                  # how the direction was established (provenance for the resolver)
+      - amplified_vs_deleted_contrast            # >=1 arm was powered and cleared the magnitude floor → prevalence-weighted arm comparison
+      - cn_distribution_asymmetry                # NEITHER arm powered/above floor → fall back to which CN tail is longer about the median
+    evidence_scope: [within_indication, within_indication_mut_vs_pan_wt, pan_lineage_evidence_only, pan_no_indication]
+
+  figures:
+    - id: cn_vs_expression_scatter
+      type: cn_expression_scatter
+      description: "Scatter of relative CN (x) vs log2TPM (y) across DepMap lines, lineage-colored, OLS fit with 95% CI. Vertical reference at the amplification threshold (relative CN 1.5); annotated with Spearman r/p + slope. The cis-dosage plot the framework was missing."
+      preferred_surfaces: [markdown, ppt, decision_memo]
+      primary: true
+  plot_data: per_cell_line_cn_tpm_with_lineage
+
+thresholds:
+  strong_dosage_spearman_r: 0.4                  # cn_dosage_coupled_strong
+  moderate_dosage_spearman_r: 0.25               # cn_dosage_coupled_moderate
+  significance_alpha: 0.01                       # Bonferroni-relaxed; pan-panel n>=50 reaches this
+  min_cell_lines_for_correlation: 50
+  min_relative_cn_p10_p90_spread: 0.2            # p90-p10 CN spread floor — below this the panel is near-diploid (untestable).
+                                                 # Tail-sensitive by design: focal-amp oncogenes (ERBB2/MYC) are bulk-diploid
+                                                 # with an amplified tail, so their IQR is ~0 but the tail carries real coupling
+                                                 # signal (ERBB2 live: IQR 0.18, p90-p10 0.55, Spearman r=0.26 p=1e-15). Gating on
+                                                 # IQR wrongly called ERBB2 invariant (calibration fix 2026-08-20).
+  amplification_threshold: 1.5                   # FOCAL_AMP — reused from depmap_cn_distribution (relative CN; diploid ~ 1.0)
+  # Focal-amplification SUBSET escape (2026-09-12): a focal-amp oncogene is bulk-diploid with an amplified
+  # TAIL, so the pan-panel Spearman is diluted below the moderate gate (ERBB2 r=0.23) even though the
+  # amplified subset over-expresses. When the pan-panel r is sub-gate but the amplified subset (relative
+  # CN > amplification_threshold) over-expresses strongly + significantly, classify coupled via the subset
+  # path (cis_dosage_driver=focal_amplification_subset). Only ever PROMOTES an otherwise-uncoupled call.
+  min_amplified_for_subset: 20                   # min amplified lines to run the focal-amp subset contrast
+  min_neutral_comparator: 30                     # min non-amplified comparator lines
+  strong_focal_amp_delta: 2.0                    # amplified-neutral median log2TPM → cn_dosage_coupled_strong
+  moderate_focal_amp_delta: 1.0                  # amplified-neutral median log2TPM → cn_dosage_coupled_moderate
+  # LINEAGE CONTROL on the subset escape (v1.1.0, round-2 panel calibration 2026-09-12). The escape was an
+  # UNSTRATIFIED group contrast, so a lineage-restricted gene passed on a LINEAGE difference: CDH1's
+  # amplified group is epithelial, its neutral group is largely non-epithelial, giving +3.26 log2TPM
+  # pan-panel that collapses to -0.70 WITHIN lineage (a sign flip) — cn_dosage_coupled_strong on pure
+  # confound. The escape now requires min(pan delta, within-lineage delta) to clear the moderate floor.
+  # ERBB2 survives (+1.64 pan → +1.70 within): a real amplicon beats its own lineage too. The control is
+  # applied ONLY when lineage labels are supplied (Model.csv unreachable → legacy uncontrolled behaviour).
+  min_per_lineage_side: 3                        # a lineage joins the within-lineage pooling only with >=3 lines a side
+  # DELETION arm + DIRECTION (v1.1.0). cis_dosage_class alone cannot tell an amplification-driven driver
+  # from a deletion-driven suppressor — both are "coupled" — which forced the resolver to treat CDKN2A-class
+  # suppressors and MET-class amplicons identically (the documented MET-class residual). Direction compares
+  # the two arms by |delta| x sqrt(n_arm) — the arms' own Mann-Whitney z scaling, so a large effect on 15
+  # lines cannot outrank a moderate effect on 338 (PTEN: +1.06 on 15 amplified vs -0.76 on 338 deleted reads
+  # deletion_coupled, correctly). Magnitude alone mislabels PTEN; n alone mislabels MITF/FOXA1.
+  deletion_threshold: 0.75                       # relative CN below which a line counts as deleted (diploid ~ 1.0)
+  min_deleted_for_subset: 20                     # min deleted lines to run the deletion arm (power floor, mirrors the amp arm)
+  min_arm_delta_for_direction: 0.25              # |median log2TPM delta| an arm must clear to be eligible to set direction
+
+threshold_roles:
+  amplification_threshold:
+    role: method_parameter
+    consumed_by: depmap-cis-dosage
+  deletion_threshold:
+    role: method_parameter
+    consumed_by: depmap-cis-dosage
+  significance_alpha:
+    role: method_parameter
+    consumed_by: depmap-cis-dosage
+warning_predicates:
+  - warning_id: low_n_cell_lines
+    if: "n_cell_lines_evaluated < THRESHOLD.min_cell_lines_for_correlation"
+    message: "Fewer than 50 cell lines with both CN + expression data; cis-dosage correlation has a wide CI. Read alongside the scatter."
+  - warning_id: near_diploid_panel
+    if: "relative_cn_p10_p90_spread < THRESHOLD.min_relative_cn_p10_p90_spread"
+    message: "Relative-CN p90-p10 spread is narrow (< 0.2); cis-dosage is untestable when CN does not vary → cn_invariant_panel (honest untestable, NOT uncoupled). The gate uses p90-p10, not IQR, so amplified-tail oncogenes stay testable."
+
+caveats:
+  - "cis-dosage coupling is CORRELATIONAL, not a formal mediation test: a strong CN↔expression correlation is consistent with amplification driving expression, but a co-amplified neighbor or a shared trans-regulator can produce the same signal. It establishes the feature→expression LEG of the coherence chain, not sole causality."
+  - "cn_dosage_uncoupled (CN varies but does not predict expression) is the informative NEGATIVE: it says expression is copy-number-INDEPENDENT (trans/lineage-regulated). Combined with a dependency signal in the cis-coherence resolver, it routes to dependency_without_cis_dosage (a trans-driven, not amplification-driven, dependency)."
+  - "cn_invariant_panel is NOT cn_dosage_uncoupled: no CN variation means untestable, not that the feature fails to drive expression. A distinct honest bin so the resolver abstains. The untestable gate keys on the p90-p10 spread, NOT the IQR — focal-amp oncogenes (ERBB2/MYC) are bulk-diploid with an amplified tail (IQR ~0 but real tail signal); IQR-gating wrongly called them invariant (fix 2026-08-20)."
+  - "relative CN is focal-amp convention (diploid ~ 1.0, NOT log2), matching depmap_cn_distribution / amp-expr-stratified-dependency; log2TPM is log2(TPM+1) bulk mRNA (not protein)."
+  - "cis_dosage_direction names WHICH CN arm carries the coupling — an amplification-driven driver (amplification_coupled) vs a deletion-driven suppressor (deletion_coupled). cis_dosage_class cannot: PTEN, RB1, CDKN2A and ERBB2 all read coupled. Populated only for coupled_* classes, so it never fires alongside cn_dosage_uncoupled."
+  - "cis_dosage_direction is a RANKING of the two arms, not an independent significance claim. With cis_dosage_direction_basis=cn_distribution_asymmetry neither arm was powered or above the magnitude floor and the direction is read off the CN distribution's longer tail — weak evidence, so read the arm deltas rather than quoting the direction alone."
+  - "The focal-amplification subset escape is lineage-CONTROLLED (v1.1.0): the amplified group must over-express relative to NEUTRAL LINES OF THE SAME LINEAGE, not just the panel. Without that control a lineage-restricted gene passes on lineage separation alone (CDH1: +3.26 log2TPM pan-panel, -0.70 within lineage). subset_within_lineage_delta_log2tpm and subset_n_lineages_compared are the audit trail; subset_n_lineages_compared=0 means no lineage was jointly powered and the escape is withheld."
+  - "Cell-line cis-dosage is necessary but NOT sufficient for a patient cis-driver claim — it needs orthogonal patient validation, now provided by the sibling patient-cis-coherence card (patient CN↔expression join at the case barcode via tcga-sample-id-crosswalk-v1, R4). ERBB2/BRCA and CDKN2A/HNSC replicate the cell-line coupling in patient tumours (live)."
+
+# DATA_TO_SKILL_CONTRACT Rule 1/4 — view of the DERIVED `cis_dosage_coupling` claim (does the target's
+# own copy-number predict its own expression?), derived_from [copy_number_alteration,
+# cell_line_rna_expression]. Comparison-is-the-claim → derived even though both terms are DepMap-co-
+# resident (mirrors expression-dependency-correlation's derived-from-single-source appendix case).
+measurement_type: cis_dosage_coupling
+modality_relevance: [small_molecule, degrader]
+entity_grains: [target]
+schema_version: 1

@@ -1,0 +1,22 @@
+{
+  "target": "KLK3",
+  "indication": "PRAD",
+  "skill": "tumor-selectivity",
+  "field": "selectivity_allgene_percentile",
+  "class_field": "selectivity_allgene_percentile_class",
+  "manifest_id": "prad-dge-tumor-vs-normal-sensitivity-v1",
+  "cell_column": "log2fc_A",
+  "null_fixture": "nulls/prad-dge-tumor-vs-normal-sensitivity-v1__log2fc_A.parquet",
+  "n_null": 30259,
+  "target_log2fc": 0.6125434198716718,
+  "expected_percentile": 81.76906044482634,
+  "expected_class": "mid",
+  "snapshot_class_cross_ref": "mid",
+  "_captured_at": "2026-09-21T04:00:43.075245+00:00",
+  "_sibling_shas": {
+    "analysis-methods": "d67ac70",
+    "data-catalog": "161d13e"
+  },
+  "_s3_uri": "s3://onc-compbio/data-catalog/derived/prad-dge-tumor-vs-normal-sensitivity-v1/sensitivity.parquet",
+  "_provenance": "live cbg read of s3://onc-compbio/data-catalog/derived/prad-dge-tumor-vs-normal-sensitivity-v1/sensitivity.parquet; null = full log2fc_A column (30259 non-null genes); re-derive with methods.percentile_null.percentile_rank."
+}

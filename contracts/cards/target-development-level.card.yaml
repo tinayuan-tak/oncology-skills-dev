@@ -1,0 +1,67 @@
+# Card — TARGET DEVELOPMENT LEVEL (Pharos/IDG TDL; target-intrinsic druggability/novelty tier)
+#
+# TARGET-INTRINSIC (indication-independent): what is {target}'s DRUGGABILITY / NOVELTY tier? The
+# Pharos/IDG Target Development Level (TDL) — a PRE-INTEGRATED NCATS TCRD classification over ChEMBL
+# activity + drug approvals + ligand/antibody availability + bibliometrics:
+#   Tclin → an approved drug acts via this target's mode (clinically drugged)
+#   Tchem → potent small-molecule ligands exist, but no approved drug (chemically probed)
+#   Tbio  → biology known, no chemical probe / approved drug (biologically studied)
+#   Tdark → understudied ("dark"): minimal biology, no probe
+# Plus the target FAMILY (Kinase/Enzyme/GPCR/TF/IC/Transporter/NR/Epigenetic/Other) and a NOVELTY score.
+#
+# WHY IT MATTERS: the framework's novelty/druggability-TIER handle — "is this target clinically drugged,
+# chemically tractable, or dark/novel?" — sourced via a CC0 route (OpenTargets target_prioritisation,
+# already pulled, covers only OT's SAFETY columns + is verdict-inert). Complements the SM-tractability
+# structural/PRISM signals with an integrated development-status prior.
+#
+# FACET-ONLY / VERDICT-INERT: the novelty score is literature/grant-driven — this card is DISPLAY/context
+# only, touches NO resolver rung, and must NEVER fire a killer (same guardrail as the OT association score:
+# a Tdark target is UNDERSTUDIED, not un-druggable; novelty is not a verdict).
+
+card_id: target-development-level
+version: 1.0.0
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
+question: "What is {target.symbol}'s Target Development Level (Pharos/IDG TDL) — clinically drugged, chemically probed, biologically studied, or dark — and its target family?"
+
+tier: target   # indication-independent property of the gene/protein (target-intrinsic)
+
+applies_when:
+  - "true"   # any target; data_unavailable-safe when not in TCRD
+
+required_inputs:
+  - product_id: pharos-idg-tcrd-snapshot-2026-08-10   # per-gene TDL snapshot (18,400 genes)
+
+methods:
+  - call: pharos-tdl
+    module: pharos_tdl
+    entrypoint: read_pharos_tdl
+    args:
+      target: "{target.symbol}"
+
+outputs:
+  summary_fields:
+    - tdl_class                                  # PRIMARY (Tclin | Tchem | Tbio | Tdark | data_unavailable)
+    - tdl_meaning                                # human-readable interpretation of the tier
+    - target_family                              # Kinase / Enzyme / GPCR / TF / IC / Transporter / NR / Epigenetic / Other
+    - novelty_score                              # literature-novelty score (LOWER = more-studied)
+
+  summary_fields_vocabulary:
+    tdl_class:
+      - Tclin
+      - Tchem
+      - Tbio
+      - Tdark
+      - data_unavailable
+
+  figure: target_development_level_card
+
+caveats:
+  - "FACET-ONLY / VERDICT-INERT: TDL is a development-STATUS prior, not a target-quality verdict. A Tdark (understudied) target is NOT thereby a bad target — it is under-explored, which for a novel program may be a FEATURE. Novelty is literature/grant-driven; it must never fire a killer (the OT-association-score guardrail)."
+  - "TDL reflects the CURRENT drug-development landscape (approved drugs, ligands, publications) — it is time-varying and lags. Tclin means SOME approved drug acts via the target's mode, not that THIS indication is drugged."
+  - "Target family (fam) is the Pharos/IDG protein-class assignment; it complements (does not replace) the framework's own surfaceome-family / protein-domains-class cards."
+  - "Indication-independent (tier: target): the same TDL applies across all indications for a given target."
+
+measurement_type: target_development_level
+entity_grains: [target]
+schema_version: 1

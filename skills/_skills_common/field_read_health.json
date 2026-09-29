@@ -1742,6 +1742,17 @@
         "window_best_partner",
         "window_verdict"
       ],
+      "surface-localization-concordance": [
+        "cellline_median_enrichment_log2ratio",
+        "cellline_n_lines_enrichment_evaluated",
+        "cellline_surface_localization_class",
+        "concordance_substrate",
+        "method_version",
+        "orthogonal_measured_in_cspa",
+        "orthogonal_n_celllines_detected",
+        "orthogonal_surface_confirmation_class",
+        "surface_context_concordance_class"
+      ],
       "surface-topology-and-ptm": [
         "ecd_engineerability_class",
         "ecd_orientation",
@@ -2191,8 +2202,8 @@
     "n_meta_key": 3,
     "n_no_reads_detected": 7,
     "n_reads_detected": 594,
-    "n_roster_cards": 149,
-    "n_roster_fields": 1859,
+    "n_roster_cards": 150,
+    "n_roster_fields": 1868,
     "n_undeclared_pairs": 6,
     "n_units": 23,
     "n_units_with_undeclared_reads": 2

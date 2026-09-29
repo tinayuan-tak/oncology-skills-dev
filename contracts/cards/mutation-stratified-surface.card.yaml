@@ -1,0 +1,100 @@
+# Card Phase-F — MUTATION-STRATIFIED SURFACE WINDOW (v1; E4-A2)
+#
+# A patient-selection-aware surface presence facet for biologics. The framework's
+# tumor-vs-normal surface window is gene-level-AVERAGED over an indication and misses
+# antigens elevated only in a DRIVER's MUTANT subset. This card asks: is surface antigen
+# {target} more highly expressed in the {driver}-MUTANT tumor subset than {driver}-WT — a
+# biologics handle on the (otherwise-undruggable-by-antibody) driver's mutant context?
+#
+# v1 COVERAGE: the KRAS x NSCLC archetype (mutation-stratified-surface-window-v1). A target
+# outside the built (driver, indication) slice reads not_in_product — an honest coverage gap,
+# NOT a negative. The pan-driver / pan-indication generalization is a documented follow-on.
+#
+# Interpretation surface (mutant_stratified_surface_class is PRIMARY):
+#   `mutant_up_surface`    → antigen ELEVATED in the driver-mutant subset (q<=0.10, delta_log2>=0.5)
+#                            — supportive for a biologics program enriched in the mutant patients.
+#   `mutant_down_surface`  → DEPLETED in the mutant subset (a mutant-subset caution).
+#   `not_stratified`       → tested, no significant mutant-vs-WT difference (the gene-level window applies).
+#   `underpowered`         → an arm below the sample floor (inadmissible, not a negative).
+#   `not_in_product`       → target/driver/indication outside the built slice (coverage gap).
+#
+# ADDITIVE, verdict-inert: the composed surface-modality verdict resolves off
+# adc-tce-modality-fit.fit_class; this card contributes a mutant-subset presence SIGNAL
+# (a supportive rule) that raises/annotates confidence, it does not mint the verdict.
+
+card_id: mutation-stratified-surface
+version: 1.0.0
+question: "Is the surface antigen {target.symbol} differentially expressed in the {driver}-mutant subset of {indication} tumors vs {driver}-WT — a biologics handle on the driver-mutant patient subset?"
+
+tier: indication   # the stratification is computed within a (driver, indication) cohort
+
+applies_when: []
+
+required_inputs:
+  - product_id: mutation-stratified-surface-window-v1
+
+methods:
+  - call: mutation-stratified-surface-lookup
+    args:
+      target: "{target.symbol}"
+      driver: KRAS          # v1 archetype; pan-driver generalization is a follow-on
+      indication: NSCLC
+
+outputs:
+  summary_fields:
+    - mutant_stratified_surface_class     # PRIMARY categorical (see vocabulary)
+    - driver_gene                         # the stratifying driver (KRAS in v1)
+    - indication                          # the cohort (NSCLC in v1)
+    - delta_log2                          # median log2(TPM+1) mutant minus WT; positive = elevated in mutant
+    - q_value                             # BH-FDR across the tested surface genes
+    - n_mutant                            # driver-mutant sample count
+    - n_wt                                # driver-WT sample count
+    - mutation_stratified_context         # human-readable rationale (audit / LLM)
+    - method_version
+
+  summary_fields_vocabulary:
+    mutant_stratified_surface_class:
+      - mutant_up_surface        # elevated in the driver-mutant subset (q<=0.10, delta_log2>=0.5)
+      - mutant_down_surface      # depleted in the mutant subset (q<=0.10, delta_log2<=-0.5)
+      - not_stratified           # tested, not significant / small effect
+      - underpowered             # an arm below the sample floor (inadmissible, not a negative)
+      - not_in_product           # target/driver/indication outside the built slice (coverage gap)
+
+warning_predicates:
+  - warning_id: mutant_up_surface_handle
+    if: "mutant_stratified_surface_class == 'mutant_up_surface'"
+    message: "{target.symbol} is elevated on the surface in the {driver}-mutant subset of {indication} (delta_log2={delta_log2}, q={q_value}) — a candidate biologics handle enriched in the {driver}-mutant patient population. Confirm mutant-subset antigen density before nomination."
+  - warning_id: mutation_stratified_not_in_product
+    if: "mutant_stratified_surface_class == 'not_in_product'"
+    message: "{target.symbol} / {driver} / {indication} is outside the built mutation-stratified surface slice (v1 = KRAS x NSCLC). COVERAGE GAP — not a determination that the antigen is un-stratified. The gene-level tumor-vs-normal window still applies."
+
+caveats:
+  - |
+    A patient-selection-aware SURFACE presence facet: is an antigen elevated in a driver's MUTANT
+    subset (a biologics handle on the mutant patient population), NOT whether the driver mutation
+    is itself druggable. Meaningful only for a biologics (antibody/ADC/TCE) lens. ADDITIVE +
+    verdict-inert: the surface-modality verdict resolves off adc-tce-modality-fit.fit_class; this
+    contributes a supportive presence signal, not the verdict.
+  - |
+    v1 covers ONE archetype: KRAS x NSCLC (LUAD+LUSC). A target/driver/indication outside that
+    slice reads not_in_product — an honest coverage gap, NEVER a negative. The pan-driver /
+    pan-indication generalization is a documented follow-on (the derive is parameterized).
+  - |
+    Statistics: Mann-Whitney U (mutant vs WT log2-TPM) + BH-FDR across the tested surface genes, on
+    recount3-uniform TCGA tumor expression joined to MC3 by TCGA case barcode. mutant_up_surface
+    needs q<=0.10 AND delta_log2>=0.5; underpowered (arm<10) is inadmissible, not a negative.
+    Biology-validated: KRAS-mut NSCLC surfaces MSLN/CEACAM5/MUC1 (clinical ADC antigens); EGFR reads
+    mutant-down (EGFR-mut & KRAS-mut mutually exclusive) — a correct negative control.
+  - |
+    An expression difference is not an antigen-density guarantee: a mutant_up_surface call is a
+    bulk-RNA subset signal, not a per-cell protein-copy measurement. Confirm surface protein
+    density + homogeneity (surface-abundance-density, tumor-scrna-celltype-expression) in the
+    mutant subset before an ADC/TCE nomination premised on mutant-patient selection.
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `mutation_stratified_surface` claim.
+measurement_type: mutation_stratified_surface
+# E4-A2 (2026-08-07): declaration-only routing key — a mutant-subset-elevated surface antigen is a
+# biologics presence signal (adc/bite_tce/antibody). Matching rule in surface-intrinsic.rules.yaml.
+modality_relevance: [adc, bite_tce, antibody]
+entity_grains: [target_indication]
+schema_version: 1

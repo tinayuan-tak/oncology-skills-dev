@@ -1,0 +1,27 @@
+{
+  "target": "KRAS",
+  "indication": "COADREAD",
+  "skill": "tumor-presence",
+  "card_id": "expression-purity-confound",
+  "class_field": "purity_confound_class",
+  "expr_fixture": "purity_confound_vectors/kras_coadread.expression_purity_confound.expr.parquet",
+  "purity_fixture": "purity_confound_vectors/kras_coadread.expression_purity_confound.purity.parquet",
+  "expr_md5": "8852b2864f8b0cb88de2429fc29b48a1",
+  "purity_md5": "a283af7c726d096fbc837f525978ea52",
+  "n_expr_rows": 669,
+  "n_purity_cases": 529,
+  "n_paired_samples": 529,
+  "expected": {
+    "purity_confound_class": "purity_independent",
+    "expression_purity_pearson_r": -0.1408,
+    "expression_purity_pearson_p": 0.00117,
+    "expression_purity_spearman_r": -0.1219,
+    "n_paired_samples": 529,
+    "n_expr_samples": 624,
+    "median_purity": 0.66,
+    "purity_range_iqr": 0.24,
+    "purity_spread_underpowered": false
+  },
+  "_captured_at": "2026-09-29T05:08:21.572336+00:00",
+  "_provenance": "live cbg read via read_tumor_samples_with_case('KRAS', 'COADREAD') (recount3 tumor, case-bridged) + _load_purity_by_case() (ABSOLUTE pancanatlas static snapshot); fixtures = the per-sample [case, log2_tpm] rows + the per-case ABSOLUTE purity for those cases; re-derive with methods.expression_purity_confound.read.read_expression_purity_confound (mock the two loaders)."
+}

@@ -1,0 +1,84 @@
+[project]
+name = "rnd-computational-biology-oncology-analysis-methods"
+version = "0.1.0"
+description = "Deterministic analytical methods for the Takeda v2 oncology target-evaluation framework."
+authors = ["Ryan Abo <rabo@takeda.com>"]
+channels = ["conda-forge", "bioconda"]
+platforms = ["linux-64"]
+
+[dependencies]
+python = ">=3.11,<3.13"
+pyarrow = "*"
+pandas = "*"
+numpy = "*"
+pyyaml = "*"
+jsonschema = "*"
+click = "*"                      # CLI scaffolding for method entrypoints
+pytest = "*"
+pytest-xdist = "*"               # parallel test execution (-n auto in CI, -n 8 fixed in preland.sh)
+boto3 = "*"                      # S3 client for pull/prep stages
+openpyxl = "*"                   # Excel parsing (CPTAC clinical XLSX + SURFY)
+plotly = "*"                     # interactive figure specs (emit_plotly_specs → figure_*.plotly.json)
+scipy = "*"                      # gaussian_kde for density-plot emitters (expression + protein-abundance)
+duckdb = "*"                     # SQL-over-parquet in 6 methods (tcga_gtex_tpm_quantiles, tcga_tpm_precompute,
+                                 # stemness_index, progeny_pathway_activity, pair_selectivity_gate,
+                                 # sc_normal_expression). Each does a LAZY `import duckdb` inside the function
+                                 # that needs it, so the modules import fine and the omission stayed invisible.
+
+# R + bioconductor (for dge_deseq2 + cooccurrence_fisher_pancohort + any future R-driven methods)
+r-base = ">=4.3"
+r-tidyverse = "*"
+r-arrow = "*"                    # write parquet from R
+r-optparse = "*"                 # CLI arg parsing in R stage scripts
+r-biocmanager = "*"              # dge_deseq2: 05_provenance.R records BiocManager::version() (Bioconductor release) in provenance.yaml
+r-devtools = "*"                 # cooccurrence_fisher_pancohort: install DISCOVER from GitHub via setup.R
+r-remotes = "*"                  # cooccurrence_fisher_pancohort: devtools 2.5+ delegates install_github to remotes
+"r-data.table" = "*"             # cooccurrence_fisher_pancohort: fast MAF parse + binary matrix build
+"r-r.utils" = "*"                # cooccurrence_fisher_pancohort: peer dep of data.table for gz reads
+r-igraph = "*"                   # cooccurrence_fisher_pancohort: SELECT dependency (Mina 2020)
+r-matrix = "*"                   # cooccurrence_fisher_pancohort: SELECT dependency (sparse matrices)
+r-matrixstats = "*"              # cooccurrence_fisher_pancohort: SELECT dependency (column-wise stats)
+r-foreach = "*"                  # cooccurrence_fisher_pancohort: SELECT dependency (parallel loops)
+r-doparallel = "*"               # cooccurrence_fisher_pancohort: SELECT dependency (parallel backend)
+bioconductor-birewire = "*"      # cooccurrence_fisher_pancohort: SELECT dependency (bipartite network null model)
+bioconductor-deseq2 = "*"
+bioconductor-apeglm = "*"        # dge_deseq2: lfcShrink() adaptive-prior shrinkage (03_deseq2.R)
+bioconductor-sva = "*"           # combat-seq batch correction
+bioconductor-ruvseq = "*"        # dge_deseq2 v2: RUVg latent-factor correction of the cross-cohort (TCGA-vs-GTEx) contrast; pulls in edgeR as a declared transitive dep
+bioconductor-msstatstmt = "*"    # cptac_protein_deg: CPTAC TMT protein DEG with plex-batch mixed model
+bioconductor-limma = "*"         # cptac_protein_deg: MSstatsTMT peer dep (eBayes under the hood); ALSO CMScaller dep
+bioconductor-biobase = "*"       # subgroup_assigner_classifier (CMS): CMScaller dependency (ExpressionSet/NTP)
+scikit-learn = ">=1.9.0,<2"
+matplotlib-base = ">=3.11.1,<4"  # headless SVG figure rendering (emit_*_svg / plot_data); -base = no GUI backends
+polars = ">=1.44.2,<2"          # PILOT, 1 method (hpa_normal_tissue_liability). pandas stays the
+                                 # default reader everywhere else — this is a scoping experiment, not
+                                 # a migration. Version-RANGED deliberately, unlike the "*" pins
+                                 # above: polars 2.x will change API surface, and a "*" pin is how
+                                 # local (pandas 2.3.3) and CI (3.0.3) drifted apart in the first place.
+
+# depmap_predictability_precompute's second model + its attribution backend. Both were UNDECLARED
+# until 2026-09-17 for the same reason duckdb was (above): the precompute LAZY-imports them inside
+# train_gene() behind `try: ... except ImportError`, and each guard has a silent FALLBACK, so the
+# modules import fine, the suite is green, and the omission stayed invisible. It is not a cosmetic
+# gap — the shipped depmap-predictability-26q1-v3 product ran with `shap` absent and therefore
+# emitted RF impurity importances in BOTH top-feature columns, while its manifest advertised XGB
+# gain importances (retracted in data-catalog, same date). A dependency whose absence silently
+# CHANGES WHAT A COLUMN MEANS has to be declared, or the artifact is not reconstructible from the
+# producing commit. Declaring them here also makes the v4 re-materialization reproducible.
+# Version-RANGED like polars/scikit-learn above. NOTE these are NEWER than the versions v3 ran with
+# (xgboost 2.1, shap absent), so v4 will not reproduce v3's numbers bit-for-bit by construction.
+# NOT added to pyproject.toml's `compute` extra, deliberately: scikit-learn — the precompute's other
+# hard dependency — is pixi-only too, because this is a heavy batch precompute, not a read path.
+# (methods/depmap_predictability/read.py is the framework-runtime reader and imports neither.)
+xgboost = ">=3.4.2,<4"
+shap = ">=0.52.0,<0.53"
+
+[pypi-dependencies]
+# (target_id_resolver itself; installed as editable pip package once carved over)
+
+[tasks]
+# Mirrors .github/workflows/methods-validate.yml. --import-mode=importlib is REQUIRED: without it
+# the ~21 duplicate test basenames (test_plotly_spec.py, test_render_from_plot_data.py, ...) collide
+# on module name and collection aborts, so `pixi run test` could never run the suite CI runs.
+test = "pytest methods/ tests/ --import-mode=importlib"
+lint = "python -m py_compile $(find methods -name '*.py')"

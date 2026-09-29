@@ -1,0 +1,82 @@
+# biology_axis.enum.yaml
+# Controlled vocabulary: the biology axis of a target — the structural property that
+# drives which evidence cards are required. This is a TARGET attribute, not a query input.
+# A target's axis is sourced from target_biology_axis_lookup.yaml (curated) or, for
+# uncurated targets, defaults to `unknown` and the framework surfaces the gap explicitly.
+#
+# See plan § Evidence Card Framework (A2) + § Target Dashboard Architecture (A3).
+# The biology axis selects the BASE dashboard_spec; modality modules layer on top.
+
+enum_id: biology_axis
+version: 1.0.0
+description: |
+  The biology axis of a target — the structural property that drives which evidence
+  cards are required for first-pass evaluation. Four values: intracellular_intrinsic,
+  surface_intrinsic, extrinsic, mixed. Iter-1b operationalizes the two intrinsic axes;
+  extrinsic and mixed are deferred to iter-2 (require microenvironment cards + dual-panel
+  rendering).
+
+values:
+  - value: intracellular_intrinsic
+    label: "Intracellular intrinsic"
+    description: |
+      Target biology operates inside tumor cells via an intracellular protein, enzyme,
+      kinase, transcription factor, or scaffold. Examples: KRAS, EGFR-mutant kinases,
+      CDK family, BCL2, MYC, BRD4, BCAT1.
+    base_dashboard: intracellular-intrinsic-base
+    plausible_modalities_iter1b: [small_molecule, degrader]
+    iter1b_status: active
+
+  - value: surface_intrinsic
+    label: "Surface intrinsic"
+    description: |
+      Target biology operates via a tumor-cell-surface protein, antigen, receptor, or
+      transporter — accessible to extracellular agents but functionally tumor-intrinsic.
+      Examples: TROP2, DLL3, CLDN18.2, HER2, MET, EGFR (as a surface antigen), CEACAM5.
+    base_dashboard: surface-intrinsic-base
+    plausible_modalities_iter1b: [adc, bite_tce, antibody]
+    iter1b_status: active
+
+  - value: extrinsic
+    label: "Extrinsic (TME / immune / stromal)"
+    description: |
+      Target biology operates through non-malignant cells or structures in the tumor
+      microenvironment — immune checkpoints, myeloid suppression, stromal barrier,
+      fibroblast biology, angiogenesis, cytokine axes, antigen-presentation context.
+      Examples: PD-1, CTLA-4, LAG3, TGFB1, VEGFA, CXCR1.
+    base_dashboard: extrinsic-base
+    plausible_modalities_iter1b: [antibody]
+    iter1b_status: deferred_to_iter2
+    iter1b_deferred_reason: |
+      Requires microenvironment cards (cell-type-specific expression, immune-state
+      association, ligand-receptor context) that depend on scRNA-seq + immune-deconv
+      ingestion not yet wired into the catalog.
+
+  - value: mixed
+    label: "Mixed (intrinsic + extrinsic mechanisms)"
+    description: |
+      Target has both tumor-cell-autonomous AND microenvironmental mechanisms.
+      Examples: PD-L1 (tumor cell expression + immune cell expression), TGFB1
+      (tumor + stromal compartments), some HER family members in specific contexts.
+    base_dashboard: mixed-base
+    plausible_modalities_iter1b: [antibody]
+    iter1b_status: deferred_to_iter2
+    iter1b_deferred_reason: |
+      Mixed targets require dual-panel rendering — separate intrinsic and extrinsic
+      claims with their own evidence. Stage 2+ feature; not iter-1b scope.
+
+  - value: unknown
+    label: "Unknown (uncurated)"
+    description: |
+      The target's biology axis has not been curated in target_biology_axis_lookup.yaml.
+      Framework default for any target not in the curated list. Compose-dashboard
+      surfaces the gap honestly: synthesis emits "biology axis uncurated; framework
+      cannot select a base dashboard until axis is assigned."
+    base_dashboard: null
+    plausible_modalities_iter1b: []
+    iter1b_status: active
+    fallback_behavior: emit_unknown_axis_evidence_package
+
+# Note: iter-2 plans to ship the extrinsic and mixed bases when the microenvironment
+# card surface is built. The vocabulary structure here is forward-compatible — adding
+# extrinsic-base and mixed-base dashboard_specs requires no schema changes.

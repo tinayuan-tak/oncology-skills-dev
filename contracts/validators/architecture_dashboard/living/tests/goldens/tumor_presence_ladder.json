@@ -1,0 +1,234 @@
+{
+  "gate": null,
+  "ladders": [
+    {
+      "layer": "bulk_rna",
+      "name": "_EXPRESSION_RANK",
+      "rungs": [
+        {
+          "layer": "bulk_rna",
+          "rule_id": "expression-broadly-high-supportive",
+          "tier": 0,
+          "verdict": "broadly_high_expression"
+        },
+        {
+          "layer": "bulk_rna",
+          "rule_id": "expression-strong-upregulation-supportive",
+          "tier": 1,
+          "verdict": "strongly_upregulated_in_tumor"
+        },
+        {
+          "layer": "bulk_rna",
+          "rule_id": "tumor-expression-broadly-high-supportive",
+          "tier": 2,
+          "verdict": "tumor_broadly_expressed"
+        },
+        {
+          "layer": "bulk_rna",
+          "rule_id": "tumor-expression-subset-high-supportive",
+          "tier": 3,
+          "verdict": "tumor_subset_high_expression"
+        },
+        {
+          "layer": "bulk_rna",
+          "rule_id": "expression-modest-upregulation-neutral",
+          "tier": 4,
+          "verdict": "modestly_upregulated_in_tumor"
+        },
+        {
+          "layer": "bulk_rna",
+          "rule_id": "tumor-expression-broadly-moderate-neutral",
+          "tier": 5,
+          "verdict": "tumor_moderately_expressed"
+        },
+        {
+          "layer": "bulk_rna",
+          "rule_id": "expression-lineage-restricted-supportive",
+          "tier": 6,
+          "verdict": "lineage_restricted"
+        },
+        {
+          "layer": "bulk_rna",
+          "rule_id": "expression-broadly-moderate-neutral",
+          "tier": 7,
+          "verdict": "broadly_moderate_expression"
+        },
+        {
+          "layer": "bulk_rna",
+          "rule_id": "tumor-expression-broadly-low-neutral",
+          "tier": 8,
+          "verdict": "tumor_sparsely_expressed"
+        },
+        {
+          "layer": "bulk_rna",
+          "rule_id": "expression-modest-downregulation-opposing",
+          "tier": 9,
+          "verdict": "modestly_downregulated_in_tumor"
+        },
+        {
+          "layer": "bulk_rna",
+          "rule_id": "expression-strong-downregulation-degrader-killer",
+          "tier": 10,
+          "verdict": "strongly_downregulated_in_tumor"
+        },
+        {
+          "layer": "bulk_rna",
+          "rule_id": "expression-broadly-low-degrader-killer",
+          "tier": 11,
+          "verdict": "broadly_low_expression"
+        },
+        {
+          "layer": "bulk_rna",
+          "rule_id": "expression-call-not-informative-degrader-killer",
+          "tier": 12,
+          "verdict": "not_informative"
+        },
+        {
+          "layer": "bulk_rna",
+          "rule_id": "expression-data-unavailable-insufficient",
+          "tier": 13,
+          "verdict": "data_unavailable"
+        },
+        {
+          "layer": "bulk_rna",
+          "rule_id": "expression-call-data-unavailable-insufficient",
+          "tier": 14,
+          "verdict": "data_unavailable"
+        },
+        {
+          "layer": "bulk_rna",
+          "rule_id": "tumor-expression-data-unavailable-insufficient",
+          "tier": 15,
+          "verdict": "data_unavailable"
+        }
+      ]
+    },
+    {
+      "layer": "bulk_protein_ms",
+      "name": "_PROTEIN_RANK",
+      "rungs": [
+        {
+          "layer": "bulk_protein_ms",
+          "rule_id": "protein-strongly-up-supportive",
+          "tier": 0,
+          "verdict": "protein_strongly_upregulated"
+        },
+        {
+          "layer": "bulk_protein_ms",
+          "rule_id": "protein-abundance-broadly-high-supportive",
+          "tier": 1,
+          "verdict": "protein_broadly_high"
+        },
+        {
+          "layer": "bulk_protein_ms",
+          "rule_id": "protein-abundance-lineage-restricted-supportive",
+          "tier": 2,
+          "verdict": "protein_lineage_restricted"
+        },
+        {
+          "layer": "bulk_protein_ms",
+          "rule_id": "protein-modestly-up-neutral",
+          "tier": 3,
+          "verdict": "protein_modestly_upregulated"
+        },
+        {
+          "layer": "bulk_protein_ms",
+          "rule_id": "tumor-breadth-broadly-supportive",
+          "tier": 4,
+          "verdict": "broadly_tumor_elevated"
+        },
+        {
+          "layer": "bulk_protein_ms",
+          "rule_id": "tumor-breadth-multi-supportive",
+          "tier": 5,
+          "verdict": "multi_tumor_elevated"
+        },
+        {
+          "layer": "bulk_protein_ms",
+          "rule_id": "protein-abundance-broadly-moderate-neutral",
+          "tier": 6,
+          "verdict": "protein_broadly_moderate"
+        },
+        {
+          "layer": "bulk_protein_ms",
+          "rule_id": "tumor-breadth-single-neutral",
+          "tier": 7,
+          "verdict": "single_tumor_elevated"
+        },
+        {
+          "layer": "bulk_protein_ms",
+          "rule_id": "tumor-breadth-not-elevated-neutral",
+          "tier": 8,
+          "verdict": "not_tumor_elevated"
+        },
+        {
+          "layer": "bulk_protein_ms",
+          "rule_id": "protein-modestly-down-opposing",
+          "tier": 9,
+          "verdict": "protein_modestly_downregulated"
+        },
+        {
+          "layer": "bulk_protein_ms",
+          "rule_id": "protein-strongly-down-opposing",
+          "tier": 10,
+          "verdict": "protein_strongly_downregulated"
+        },
+        {
+          "layer": "bulk_protein_ms",
+          "rule_id": "protein-abundance-broadly-low-degrader-killer",
+          "tier": 11,
+          "verdict": "protein_broadly_low"
+        },
+        {
+          "layer": "bulk_protein_ms",
+          "rule_id": "protein-data-unavailable-insufficient",
+          "tier": 12,
+          "verdict": "data_unavailable"
+        },
+        {
+          "layer": "bulk_protein_ms",
+          "rule_id": "protein-abundance-data-unavailable-insufficient",
+          "tier": 13,
+          "verdict": "data_unavailable"
+        },
+        {
+          "layer": "bulk_protein_ms",
+          "rule_id": "tumor-breadth-data-unavailable-insufficient",
+          "tier": 14,
+          "verdict": "data_unavailable"
+        }
+      ]
+    },
+    {
+      "layer": "sc_rna",
+      "name": "_SC_RNA_RANK",
+      "rungs": [
+        {
+          "layer": "sc_rna",
+          "rule_id": "sc-expression-malignant-broadly-detected-supportive",
+          "tier": 0,
+          "verdict": "sc_malignant_detected"
+        },
+        {
+          "layer": "sc_rna",
+          "rule_id": "sc-expression-microenvironment-dominant-neutral",
+          "tier": 1,
+          "verdict": "sc_microenvironment_dominant"
+        },
+        {
+          "layer": "sc_rna",
+          "rule_id": "sc-expression-broadly-low-neutral",
+          "tier": 2,
+          "verdict": "sc_broadly_low"
+        },
+        {
+          "layer": "sc_rna",
+          "rule_id": "sc-expression-data-unavailable-insufficient",
+          "tier": 3,
+          "verdict": "data_unavailable"
+        }
+      ]
+    }
+  ],
+  "verdict_source": "python_ladder"
+}

@@ -1,0 +1,153 @@
+# Card — gnomAD LoF CONSTRAINT (v1)
+#
+# Wires the gnomAD constraint signal into the framework via the gene-keyed
+# derived product gnomad-constraint-per-gene-v1 (distilled from the v4.1.1
+# source). Adds a germline LoF-tolerance safety signal to on-target-safety-liability.
+#
+# Interpretation surface (constraint_class is PRIMARY). Semantics are OR across
+# metrics — a gene qualifies for a band if EITHER pLI OR LOEUF clears it (LOEUF
+# primary, pLI corroborating). OR (not AND) is deliberate for a safety-SENSITIVITY
+# signal: a false negative (missing a genuinely constrained gene) is worse than a
+# false positive, and an outlier-missing metric must not silently downgrade a gene.
+#   `highly_constrained`     → pLI >= 0.9 OR LOEUF <= 0.45 — LoF is highly
+#                              disallowed at population scale; safety concern
+#                              for targets with essential-function requirement.
+#                              (LOEUF cutoff is gnomAD's v4-recommended 0.45,
+#                              raised from 0.35 with the v4.1.1 recompute.)
+#   `moderately_constrained` → pLI >= 0.5 OR LOEUF <= 0.6
+#   `tolerant`               → pLI < 0.5 AND LOEUF > 0.6 — LoF is tolerated
+#                              in gnomAD population; less safety concern
+#   `indeterminate`          → not covered in gnomAD constraint table
+
+card_id: gnomad-lof-constraint
+version: 1.1.0
+question: "How constrained is {target.symbol} against loss-of-function variants in the gnomAD population, and what does this imply for on-target safety?"
+
+tier: target   # scope-invariant: population LoF constraint is a property of the human gene, not of any tumor subgroup. Never stratifies.
+
+applies_when: []
+
+required_inputs:
+  - product_id: gnomad-constraint-per-gene-v1
+
+methods:
+  - call: gnomad-constraint-lookup
+    module: gnomad_constraint
+    entrypoint: read_target_summary
+    args:
+      gene_symbol: "{target.symbol}"
+
+outputs:
+  summary_fields:
+    - constraint_class                              # PRIMARY categorical
+    - pli_score                                     # float; probability of LoF-intolerance (gnomAD pLI)
+    - loeuf_score                                   # float; LoF observed/expected upper fraction (gnomAD LOEUF)
+    - mis_z_score                                   # float; missense Z-score
+    - syn_z_score                                   # float; synonymous Z-score (sanity check)
+    - obs_lof_count                                 # int; observed LoF variants
+    - exp_lof_count                                 # float; expected LoF variants under neutrality
+    - gene_length_bp                                # int; for context
+    # Human OBSERVED-KO facet (additive). The DIRECT-observation
+    # complement to constraint_class: constraint INFERS LoF intolerance; obs_hom_lof OBSERVES
+    # healthy individuals HOMOZYGOUS for a predicted-LoF variant (natural human knockouts). A
+    # natural KO is the strongest on-target safety reassurance for a full-KO modality (degrader,
+    # RNA therapeutic). From the v2.1.1 obs_hom_lof column joined into gnomad-constraint-per-gene-v1.
+    # ASYMMETRIC: obs_hom_lof>=1 is a strong positive; absence (0/null) is WEAK (hom-LoF is rare in
+    # 125k) and defers to constraint_class — NEVER asserts essentiality. Verdict-inert: display + LLM.
+    - human_ko_observed_class                       # categorical (see vocabulary); verdict-inert
+    - obs_hom_lof_count                             # int/null; healthy homozygous-LoF individuals (v2.1.1 natural KOs)
+    - exp_hom_lof_count                             # float/null; expected homozygous-LoF count (context)
+    - human_ko_context                              # string; human-readable observed-KO summary (audit)
+    - method_version
+
+  summary_fields_vocabulary:
+    constraint_class:
+      - highly_constrained
+      - moderately_constrained
+      - tolerant
+      - indeterminate
+    human_ko_observed_class:
+      - natural_ko_observed        # obs_hom_lof >= 1 — healthy humans tolerate full loss (KO-tolerated reassurance)
+      - constrained_no_ko          # obs_hom_lof == 0 AND LoF-constrained — essentiality signal is the CONSTRAINT, not the zero
+      - no_natural_ko              # obs_hom_lof == 0, not constrained — uninformative in a ~125k cohort; defer to constraint_class
+      - data_unavailable           # gene absent from the v2.1.1 hom-LoF join (not zero)
+
+  figure: constraint_scores_gauge_panel
+
+thresholds:
+  high_pli: 0.9
+  moderate_pli: 0.5
+  high_loeuf: 0.45   # gnomAD v4-recommended cutoff (raised from 0.35 with the v4.1.1 recompute)
+  moderate_loeuf: 0.6
+
+threshold_roles:
+  high_loeuf:
+    role: method_parameter
+    consumed_by: gnomad-constraint-lookup
+  high_pli:
+    role: method_parameter
+    consumed_by: gnomad-constraint-lookup
+  moderate_loeuf:
+    role: method_parameter
+    consumed_by: gnomad-constraint-lookup
+  moderate_pli:
+    role: method_parameter
+    consumed_by: gnomad-constraint-lookup
+warning_predicates:
+  - warning_id: high_constraint_safety_concern
+    if: "constraint_class == 'highly_constrained'"
+    message: "{target.symbol} is highly LoF-constrained in gnomAD (pli>=0.9 or loeuf<=0.45). Population evidence suggests LoF is not tolerated — on-target safety risk if the therapy fully abrogates protein function. Consider partial-agonism, allosteric, or dose-controlled strategies vs full-KO modalities."
+  - warning_id: syn_z_outlier
+    if: "syn_z_score > 3.0 || syn_z_score < -3.0"
+    message: "Synonymous Z-score is an outlier — the constraint calibration may be unreliable for {target.symbol}. Interpret pli + loeuf cautiously."
+  - warning_id: indeterminate_common_target
+    if: "constraint_class == 'indeterminate'"
+    message: "{target.symbol} is not in the gnomAD constraint table (possibly on non-canonical chromosomes, or excluded by quality filters). No germline LoF-tolerance signal available."
+
+caveats:
+  - |
+    pLI (probability of LoF-intolerance) and LOEUF (loss-of-function
+    observed/expected upper fraction) are gnomAD's canonical constraint
+    metrics. Highly-constrained genes (pLI >= 0.9) are enriched for
+    haploinsufficiency + developmental disorders — a therapy that fully
+    abrogates function may recapitulate the disease phenotype systemically.
+  - |
+    Constraint signals are BULK-POPULATION averages; they do NOT capture
+    tissue-specific or age-specific requirements. A gene that is constrained
+    at the germline / developmental level may be dispensable in adult
+    tissues (e.g. hedgehog pathway components tolerated post-development).
+    Governance readers should cross-reference IMPC mouse-KO phenotypes
+    for tissue-specific requirements.
+  - |
+    LOEUF is preferred over pLI for confidence intervals — pLI is a binary-
+    ish score whereas LOEUF encodes uncertainty directly. Recent literature
+    (Karczewski et al 2020) recommends LOEUF as the primary constraint
+    metric.
+  - |
+    Constraint does NOT preclude therapeutic development — many well-
+    validated oncology targets (e.g. TP53) are highly constrained. The
+    signal informs modality choice + safety monitoring, not go/no-go.
+  - |
+    Future upgrades: pair with IMPC mouse KO phenotypes (tissue-specific
+    lethality), ClinVar germline (population variant health outcomes),
+    OMIM disease associations (autosomal dominant / recessive contexts).
+    All three are expansions beyond this card.
+  - |
+    human_ko_observed_class complements constraint_class with DIRECT observation: obs_hom_lof
+    counts healthy individuals HOMOZYGOUS for a predicted-LoF variant (natural human knockouts).
+    `natural_ko_observed` (obs_hom_lof>=1) is strong safety reassurance for a full-KO modality.
+    Sourced from gnomAD v2.1.1 (~125k genomes) joined by gene symbol onto the v4.1.1 row — a
+    deliberate cross-release choice (v2.1.1 is the standard hom-KO reference; v4 omits it).
+  - |
+    ASYMMETRY (do not misread a zero): observing a natural KO is meaningful, but its ABSENCE
+    is weak — homozygous LoF is rare in 125k people (only ~12% of genes have any), so
+    obs_hom_lof=0 does NOT imply essentiality. That inference belongs to pLI/LOEUF:
+    `constrained_no_ko` = zero + constrained (essentiality from the constraint), `no_natural_ko`
+    = zero + tolerant (uninformative), `data_unavailable` = absent from the v2 join (not zero).
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `gnomad_lof_constraint` claim.
+measurement_type: gnomad_lof_constraint
+# declaration-only routing key — high LoF-constraint = full-KO safety concern → discriminating on SM/degrader (a degrader/full-inhibition risk the SM active-site story may partly spare). Matching rule pre-exists in interpretation-rules/intracellular-intrinsic.rules.yaml.
+modality_relevance: [small_molecule, degrader]
+entity_grains: [target]
+schema_version: 1

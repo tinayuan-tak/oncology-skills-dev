@@ -1,0 +1,501 @@
+# Card iter-2/E-tvN-Sel — TUMOR vs NORMAL SELECTIVITY  (v3 — multi-cell sensitivity)
+#
+# Composes from ONE consolidated derived product:
+#   `{indication}-dge-tumor-vs-normal-sensitivity-v1` — the multi-cell DESeq2
+#   sensitivity DEG produced by methods.dge_deseq2 --contrast four_cell_sensitivity.
+#
+# v3 (2026-07-06) REPLACES the v2 two-independent-products design with a single
+# methodologically-consistent product. All cells run under ONE pipeline
+# (DESeq2 NB-GLM + apeglm shrinkage), ONE substrate (recount3 tcga-gtex-2023-01-04,
+# uniform monorail alignment), so log2FC values ARE comparable across cells — the
+# scale-inconsistency that v2's Welch-vs-DESeq2 split introduced is gone.
+#
+# The THREE live cells (see analysis-methods DESIGN_v2_four_cell_consolidation.md +
+# steps/06_four_cell_driver.R):
+#   A  tumor vs TCGA adjacent-normal  | raw            | field-effect-inflated
+#   B  tumor vs TCGA adjacent-normal  | ComBat(TSS)    | technical-batch removed
+#   C  tumor vs GTEx population-normal | raw (naive)   | source-contaminated baseline
+#
+# Cell D (tumor vs GTEx, ComBat(source)) was RETIRED after the full-cohort/COADREAD
+# validation showed it collapses the biology: because source (TCGA/GTEx) is perfectly
+# confounded with group (tumor/normal) in the joint contrast, ComBat-seq regressed out
+# the tumor-vs-normal signal along with the source effect — the intended "pessimistic
+# anchor" read as noise, not signal. The pipeline assembles only cells A/B/C
+# (06_four_cell_driver.R:227-244); the trust anchor is therefore 3/3, not 4/4.
+#
+# WHY multiple cells: neither comparator is clean. TCGA-adjacent carries field-effect
+# (Sorokin & Buzdin 2023); the TCGA-vs-GTEx joint is batch-confounded with biology
+# (Hui & Goh 2024). A gene's TRUST is how many cells agree — `cells_supporting` out of
+# the cells that RAN (`cells_ran`, ≤3). A gene significant in all cells that ran
+# (`sig_all_cells`) is robust to every comparator + batch-handling choice. A gene where
+# cells DISAGREE in direction (`discordant`) is comparator-dependent — the interesting
+# failure mode where "which normal?" changes the answer (e.g. epithelial markers up vs
+# whole-tissue GTEx but flat vs epithelial-rich adjacent margin).
+#
+# Interpretation surface (supporting_frac = cells_supporting / cells_ran is the PRIMARY
+# trust anchor — a 3/3 is strong if the magnitude clears 1.5, same as a 4/4 would have
+# been; see read.py:592-611):
+#   `strong_tumor_selective`  → all cells that ran support, dominant up, max|log2FC| >= 1.5
+#   `modest_tumor_selective`  → supporting_frac >= 2/3, dominant up, max|log2FC| >= 0.5
+#   `discordant_across_comparators` → discordant == true (sig cells disagree in sign)
+#   `not_selective`           → supporting_frac >= 2/3, dominant DOWN
+#   `not_informative`         → supporting_frac low (no comparator-robust signal)
+#   `data_unavailable`        → sensitivity product not accessible
+
+card_id: tumor-vs-normal-selectivity
+version: 3.9.0    # 2026-09-15 EVIDENCE AUDIT, display-only, verdict spine byte-stable: declare the 4 comparator-INDEPENDENCE fields read.py has emitted since FIX 4 (2026-09-12) with no card entry (computed-but-unread), + 2 new SUBSTRATE-BASIS fields for the orthogonal axis independence cannot express — `population_normal_only` covers both ACC/LGG/OV/TGCT/UCS (DESeq2 on raw counts, one recount3 release) and SCLC (Welch on log2(TPM+1) across two genome builds; George-2015 reads are EGA-controlled), so the label alone could not tell a uniform substrate from a cross-cohort join. Derived per-product from its OWN manifest, so the basis cannot drift from the product.  # 2026-09-11 subtype grain is now VERDICT-AFFECTING in the composed target-profile --subtypes tier: +summary_fields_record_schemas.per_subgroup_metrics (unblocks the in_record rule) — a MEASURED, floor-cleared (n>=30) strong_tumor_selective stratum fires subtype-restricted-selectivity-supportive → subtype_restricted_selectivity (SUPPORTIVE positive; NOT a veto-suppressor). Closes the population-definition asymmetry where cell-line dependency subtyping is data-blocked (STAD/ESCA). Opt-in-by-scope; pooled spine byte-stable.  # 2026-08-18 extend subgroup coverage: +cms (COADREAD) +STAD tcga_molecular_subtype
+question: "How selectively is {target.symbol} expressed in {indication.label} tumor tissue, and how robust is that selectivity across the three independent tumor-vs-normal comparators (TCGA-adjacent raw + ComBat, GTEx-population raw)?"
+
+# Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a
+# non-verdict-driving field on this card; declare the rule-keyed primary + salient categoricals.
+# VERDICT-INERT projection (see capsule contract migration).
+capsule:
+  primary_class: selectivity_class
+  # TC#780 display fix (2026-09-16): declare the substrate-basis + comparator-independence fields so the
+  # capsule surfaces them deterministically instead of the alphabetical-luck anchor scan. Also credits
+  # them in the field-disposition census (aperture 889 -> 886, slack 1). VERDICT-INERT projection.
+  categorical_fields:
+    - selectivity_class
+    - comparator_concordance
+    - dominant_direction
+    - selectivity_allgene_percentile_class
+    - selectivity_evidence_independence      # 4-value enum, has a vocabulary
+    - selectivity_substrate_basis            # 3-value enum, has a vocabulary
+    - adjacent_arm_measured                  # bool flag (schema names bool flags explicitly)
+  numeric_anchors:                           # replaces the _ANCHOR_HINTS alphabetical cap-of-4 guess
+    - max_abs_log2fc                         # headline effect
+    - selectivity_allgene_percentile         # the value selectivity_allgene_percentile_class is cut against
+    - q_value_cell_a                         # significance
+    - comparator_families_supporting         # denominator
+    - comparator_families_ran
+
+tier: indication   # indication-scoped whole-cohort call is the PRIMARY grain; subtype grain now LIVE for
+                   # indications with a per-subgroup sensitivity product (COADREAD/msi_status as of 2026-08-18).
+
+# UNBLOCKED (2026-08-18): the emit-time per-subgroup DESeq2 layer shipped. The
+# whole-cohort comparators are still baked whole-cohort, BUT selectivity is now
+# recomputed WITHIN each stratum's tumor set by a full DESeq2 fit
+# (analysis-methods steps/07_stratified_four_cell_driver.R) and emitted as
+# coadread-dge-tumor-vs-normal-sensitivity-by-subgroup-v1 — a genuine
+# per-stratum recomputation, not a whole-cohort aggregate re-sliced. The read
+# layer (read_stratified_tumor_vs_normal_selectivity) projects one card record
+# per stratum, reusing the SAME classifier so a stratum's selectivity_class
+# means what it means whole-cohort. Molecular subgroups are TUMOR properties, so
+# only the tumor arm is subset; the TCGA-adjacent + GTEx normals stay
+# whole-cohort (the shared baseline every stratum is contrasted against).
+# History: BLOCKED 2026-07-16 (whole-cohort comparators baked at emit time,
+# filter 2 failed) → LIVE 2026-08-18. Coverage grows one (indication × axis)
+# per-subgroup product at a time; COADREAD/msi_status is the first.
+subgroup_stratification:
+  eligible: true
+  status: live
+  # Axes live across the wired indications (each axis is indication-specific; the reader resolves the
+  # per-indication product and filters by subgroup_axis). msi_status + cms: COADREAD;
+  # tcga_molecular_subtype (EBV/MSI/GS/CIN): STAD. Coverage grows one (indication x axis) per emit.
+  axes: [msi_status, cms, tcga_molecular_subtype]
+  # `product` / `assignments_manifest` name the CANONICAL first-live example (COADREAD); they are
+  # provenance hints, not load-bearing — read_stratified_tumor_vs_normal_selectivity resolves the
+  # product per indication as {indication}-dge-tumor-vs-normal-sensitivity-by-subgroup-v1.
+  product: coadread-dge-tumor-vs-normal-sensitivity-by-subgroup-v1
+  assignments_manifest: tcga-subgroup-assignments-coadread-v1
+  live_products:                                                     # all landed (indication x axes) products
+    - product: coadread-dge-tumor-vs-normal-sensitivity-by-subgroup-v1
+      indication: COADREAD
+      axes: [msi_status, cms]
+      assignments_manifest: tcga-subgroup-assignments-coadread-v1
+    - product: stad-dge-tumor-vs-normal-sensitivity-by-subgroup-v1
+      indication: STAD
+      axes: [tcga_molecular_subtype]
+      assignments_manifest: tcga-subgroup-assignments-stad-v1
+  rationale: "Selectivity recomputed within each stratum's tumor set by a full per-subgroup DESeq2 fit (emit-time), against the shared whole-cohort normals — an honest per-stratum contrast, not a re-sliced aggregate. Live for COADREAD (msi_status, cms) + STAD (tcga_molecular_subtype)."
+  # VERDICT ROLE (2026-09-11): DESCRIPTIVE in the FOCUSED tumor-selectivity skill, but in the composed
+  # target-profile --subtypes tier a MEASURED, floor-cleared (n>=30) strong_tumor_selective stratum
+  # fires subtype-restricted-selectivity-supportive (interpretation-rules/intracellular-intrinsic.rules.yaml)
+  # → subtype_fit_selectivity: supportive → subtype_restricted_selectivity (SUPPORTIVE positive, one-
+  # directional, never a veto-suppressor). This is the tumor-tissue analogue of the cell-line
+  # subtype-restricted-dependency rung, reaching indications whose DepMap subtype channel is data-blocked
+  # (STAD/ESCA have 0 subtype-labeled DepMap lines). Opt-in-by-scope (--subtypes); pooled spine unchanged.
+
+applies_when:
+  - "context.data_sources.recount3_tcga_gtex_available == true"
+
+required_inputs:
+  # PROVENANCE-CORRECTNESS (2026-09-18, F4). The reader resolves the sensitivity product
+  # per-run as f"{indication.lower()}-dge-tumor-vs-normal-sensitivity-v1" (dge_deseq2/read.py:911),
+  # but card_input_manifest_ids() (skills _skills_common) copies required_inputs[].product_id
+  # VERBATIM — it is card-keyed and indication-agnostic, so it neither substitutes {indication}
+  # nor resolves release. Declaring ONLY coadread- stamped a WRONG id into
+  # provenance.input_manifest_ids for all 28 non-COADREAD indications. We therefore enumerate the
+  # FULL set of resolvable sensitivity manifests measured on disk (29 indications) so the correct
+  # id is present for every run. This necessarily over-claims for any single run (only one is read),
+  # which is the CONSERVATIVE direction for the cross-evidence independence invariant: a shared id
+  # lowers cross-line independence, never inflates it. Do NOT use a {indication}-templated id — the
+  # validator skips templates but card_input_manifest_ids() copies the literal template, worse.
+  - product_id: acc-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: blca-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: brca-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: cesc-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: coad-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: coadread-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: esca-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: gbm-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: hnsc-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: kich-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: kirc-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: kirp-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: lgg-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: lihc-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: luad-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: lusc-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: nsclc-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: ov-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: paad-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: pcpg-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: prad-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: read-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: sclc-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: skcm-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: stad-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: tgct-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: thca-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: ucec-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: ucs-dge-tumor-vs-normal-sensitivity-v1
+  # Per-subgroup sensitivity products (subtype grain). Present only for indications with a landed
+  # (indication × axis) product (COADREAD, NSCLC, STAD); the reader returns status=data_unavailable
+  # where absent, so these are soft dependencies. Enumerated for the same provenance reason as above.
+  - product_id: coadread-dge-tumor-vs-normal-sensitivity-by-subgroup-v1
+  - product_id: nsclc-dge-tumor-vs-normal-sensitivity-by-subgroup-v1
+  - product_id: stad-dge-tumor-vs-normal-sensitivity-by-subgroup-v1
+
+methods:
+  - call: dge-tumor-vs-normal-selectivity
+    module: dge_deseq2
+    entrypoint: read_tumor_vs_normal_selectivity
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+  # Subtype-grain per-subgroup panorama (2026-08-18). Emit-time per-stratum
+  # DESeq2 → descriptive per-stratum records + cross-stratum reducer scalars.
+  # Bound as a PER_SAMPLE_STRATIFIABLE_CALL in validators/validate_cards.py.
+  - call: dge-tumor-vs-normal-selectivity-by-subgroup
+    # read submodule, NOT the package: dge_deseq2/__init__ re-exports the pooled readers but not
+    # the stratified one, so the package-level getattr raised AttributeError.
+    module: dge_deseq2.read
+    entrypoint: read_stratified_tumor_vs_normal_selectivity
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+      subgroup_axis: "{subgroup_axis}"
+
+outputs:
+  summary_fields:
+    - cells_ran                             # PER-GENE: how many cells actually tested this gene (accounts for per-cell pre-filter drops); denominator for cells_supporting
+
+    - cells_supporting                      # PRIMARY: cells sig<0.05 in the dominant direction (0-cells_ran, ≤3)
+    - dominant_direction                    # up | down | none
+    - sig_all_cells                         # gold-standard: sig in ALL cells that ran, same direction
+    - discordant                            # >=1 sig cell up AND >=1 sig cell down
+    - max_abs_log2fc                         # max |log2FC| across cells (secondary magnitude signal)
+    - log2fc_cell_a                         # tumor vs TCGA-adjacent, raw
+    - q_value_cell_a
+    - log2fc_cell_b                         # tumor vs TCGA-adjacent, ComBat(TSS)
+    - q_value_cell_b
+    - log2fc_cell_c                         # tumor vs GTEx, raw (naive joint)
+    - q_value_cell_c
+    # cell D (tumor vs GTEx, ComBat(source)) RETIRED — see header + read.py:592. Not emitted.
+    - n_tumor
+    - n_adjacent
+    - n_gtex_normal
+    - selectivity_class                     # DESCRIPTIVE (drives Tier-2 rules)
+    - comparator_concordance                # DERIVED: do the TCGA-adjacent (A/B) + GTEx (C) comparator FAMILIES agree? (cells_supporting is a count; this is the cross-comparator agreement it collapses)
+    # SELECTIVITY all-gene percentile (SEL-1, 2026-08-05) — the Axis-1 CONTEXTUALIZATION of the
+    # tumor-vs-normal contrast: where does this gene's log2FC sit among ALL genes in this indication's
+    # sensitivity product? The method ALREADY computed cell-A's rank but never declared it here (orphaned
+    # signal). Namespaced `selectivity_*` (NOT the presence card's abundance `allgene_percentile`) to
+    # avoid a same-name/different-meaning collision in the composed target-profile. DISPLAY facet — feeds
+    # render/LLM; no rule wired against the class yet (selectivity_class verdict spine byte-stable).
+    - selectivity_allgene_percentile          # float 0-100 (or null) — cell-A (TCGA tumor-vs-adjacent, PRIMARY) log2FC rank among all genes
+    - selectivity_allgene_percentile_class    # categorical (drives rules if wired later)
+    - selectivity_allgene_percentile_context  # string — product + comparator column the null was drawn from (anti-pooling audit)
+    - selectivity_allgene_percentile_cell_b    # float — cell-B (TCGA-adjacent ComBat) corroborating rank
+    - selectivity_allgene_percentile_cell_c    # float — cell-C (GTEx population) corroborating rank
+
+    # --- EVIDENCE AUDIT (2026-09-15) — the two ORTHOGONAL questions a `selectivity_class` string
+    # cannot answer on its own: how many INDEPENDENT comparators voted, and whether the ONE substrate
+    # they voted on is internally comparable. Both DISPLAY-ONLY; no rule is wired against either and
+    # the selectivity_class verdict spine stays byte-stable.
+    #
+    # (a) COMPARATOR INDEPENDENCE (FIX 4, 2026-09-12). Cells A and B are ONE comparison run twice (B
+    # is A re-run through ComBat-seq with preserve_group=TRUE), so the classifier counts comparator
+    # FAMILIES, not cells. These four were emitted by read.py from that date but declared in NO card
+    # until now — computed-but-unread, the dominant orphan mode in this framework.
+    - comparator_families_ran               # int 0-2 — TCGA-adjacent family (A/B) + GTEx family (C)
+    - comparator_families_supporting        # int, <= comparator_families_ran
+    - adjacent_arm_measured                 # bool — did the TCGA-adjacent family actually MEASURE this
+                                            #   gene? A VALUE check, not a schema check: SCLC ships
+                                            #   log2fc_cell_a/b COLUMNS that are 100% null. `strong`
+                                            #   now requires this true (FIX 4b demoted 32,784 rows).
+    - selectivity_evidence_independence     # categorical — see vocabulary
+    #
+    # (b) SUBSTRATE / METHOD BASIS (2026-09-15). Independence counts comparators; it says nothing
+    # about whether tumour and normal are on the same measurement footing. MEASURED over the 32
+    # shipped sensitivity products, `population_normal_only` is returned for ACC/LGG/OV/TGCT/UCS AND
+    # for SCLC — but the first five are DESeq2 NB GLM on raw integer counts from the SINGLE
+    # recount3-tcga-gtex-2023-01-04 release (tumour + normal uniformly reprocessed by one Monorail
+    # pipeline on one gene model), whereas SCLC is a Welch t-test on log2(TPM+1) joining TWO parents
+    # on DIFFERENT genome builds and gene models (George-2015 hg19/FPKM tumours via cBioPortal vs
+    # GTEx hg38/recount3 GENCODE-v26 normals) — the George raw reads are EGA-controlled
+    # (EGAS00001000925), never mirrored to SRA, so no uniform reprocessor can reach them. Same
+    # independence label, materially different rigor. DERIVED from each product's OWN manifest
+    # (parameters.statistical_test / .cross_cohort_batch_confound / .measured_global_offset), so the
+    # basis cannot drift from the product it describes.
+    - selectivity_substrate_basis           # categorical — see vocabulary
+    - selectivity_substrate_caveat          # string or null — free text (NOT enumerable, so no
+                                            #   vocabulary entry). Non-null EXACTLY when the basis is
+                                            #   cross_cohort_non_deseq2. Names the joined parents, the
+                                            #   kernel, and the manifest's MEASURED platform offset
+                                            #   (SCLC: median log2FC +0.27, 63.6% of genes read up),
+                                            #   then points the reader at
+                                            #   selectivity_allgene_percentile_cell_c — the RANK, which
+                                            #   separates biology from the offset — because the absolute
+                                            #   log2FC is not comparable to the DESeq2 siblings.
+
+    # --- SUBTYPE GRAIN (2026-08-18) — per-subgroup panorama, emitted only when a
+    # per-subgroup sensitivity product exists for the indication (else absent).
+    # Produced by read_stratified_tumor_vs_normal_selectivity. DESCRIPTIVE in the focused skill;
+    # VERDICT-AFFECTING in the composed target-profile --subtypes tier (2026-09-11) — see
+    # subgroup_stratification (subtype-restricted-selectivity-supportive). subgroup_n_floor_met +
+    # evidence_state + selectivity_class per stratum are the rule's admissibility + signal inputs.
+    - per_subgroup_metrics                      # LIST — one record per stratum: {stratum, subgroup_n,
+                                                #   subgroup_n_floor_met, evidence_state, selectivity_class,
+                                                #   comparator_concordance, dominant_direction, max_abs_log2fc,
+                                                #   cells_supporting, cells_ran, log2fc_cell_{a,b,c}, q_value_cell_{a,b,c}}
+    - subgroup_axis                             # axis the panorama stratifies on (e.g. msi_status)
+    - n_subgroups_with_data                     # cross-stratum reducer: strata with a non-zero tumor n
+    - max_subgroup_log2fc                       # max over strata of per-stratum max_abs_log2fc (measured strata)
+    - min_subgroup_log2fc                       # min over strata of per-stratum max_abs_log2fc (measured strata)
+    - cross_subgroup_delta_log2fc               # max_subgroup_log2fc − min_subgroup_log2fc (selectivity spread across strata)
+    - selectivity_class_by_subgroup             # dict {stratum: selectivity_class}
+    - cross_subgroup_selectivity_divergence     # bool — do MEASURED strata land in >1 selectivity_class? (the actionable subtype signal)
+    - any_subgroup_strong_selective             # bool — any measured stratum strong/field-effect tumor-selective
+
+  summary_fields_vocabulary:
+    dominant_direction:
+      - up
+      - down
+      - none
+    comparator_concordance:
+      - concordant                          # both families sig, SAME direction (robust to "which normal?")
+      - discordant                          # both families sig, OPPOSITE directions (field-effect failure mode; or a family self-disagrees)
+      - single_comparator                   # only one family ran/reached significance — cross-comparator agreement UNTESTED
+    selectivity_evidence_independence:
+      - two_independent_comparators         # TCGA-adjacent family AND GTEx family both measured this gene
+      - adjacent_only                       # only cells A/B — one comparison, and B is A re-run through ComBat
+      - population_normal_only              # only cell C — no adjacent normals exist (ACC/LGG/OV/SCLC/SKCM/TGCT/UCS)
+      - none                                # gene measured by no comparator family
+    selectivity_substrate_basis:
+      - within_pipeline_deseq2_counts        # DESeq2 NB GLM on raw integer counts, tumour + normal from ONE
+                                             # uniformly reprocessed release. 31 of 32 shipped products,
+                                             # including the 3 -by-subgroup-v1 siblings (their extra
+                                             # derived_from entries are subgroup-LABEL sidecars, not second
+                                             # expression cohorts). Absolute log2FC comparable across these.
+      - cross_cohort_non_deseq2              # substrate joins TWO cohorts AND the kernel is not DESeq2-on-counts,
+                                             # both declared by the product manifest. SCLC only. Absolute log2FC
+                                             # carries a platform offset — read the percentile, not the fold-change.
+      - unknown_substrate                    # the conservative default, never a silent pass: manifest unresolvable,
+                                             # no kernel recorded, or only ONE of the two cross-cohort conjuncts
+                                             # holds (e.g. a DESeq2 kernel that DOES declare a batch confound).
+                                             # Also emitted by the v2 two-product fallback reader, which has no
+                                             # single manifest that could describe the substrate it read.
+    selectivity_class:
+      - strong_tumor_selective              # all cells that ran support, up, RAW max|log2FC|>=1.5 (cell A/C, not ComBat B)
+      - modest_tumor_selective              # supporting_frac>=2/3, up, RAW max|log2FC|>=0.5
+      - selective_but_broadly_normal        # over-expressed vs tissue-of-origin (axis A) BUT no therapeutic
+                                            # window vs the broad normal atlas (modality-therapeutic-window
+                                            # therapeutic_window_class == no_therapeutic_window: tumor BELOW
+                                            # worst critical normal). The HOUSEKEEPING veto — a conjunction
+                                            # downgrade applied at the skill layer (axis-A selective is
+                                            # NECESSARY but not SUFFICIENT; a broadly-normal gene is not a
+                                            # target regardless of tumor-vs-origin fold-change). See the
+                                            # selectivity conjunction redesign (best-practice: worst-axis).
+      - selective_with_normal_liability     # axis-A SELECTIVE and a REAL tumor-vs-normal window, but a
+                                            # cell-type-resolved liability in a NON-origin critical organ
+                                            # (sc-normal-celltype-expression sc_normal_safety_essential_class
+                                            # == critical_organ_liability) that bulk medians dilute. Distinct
+                                            # from selective_but_broadly_normal: the target IS tumor-selective
+                                            # (approved antigens DLL3/ERBB2/FOLR1 land here — their normal
+                                            # expression is real but modality/accessibility/precedent make
+                                            # them drugs); the named-organ liability is a SAFETY/therapeutic-
+                                            # index concern owned by on-target-safety-liability + modality-fit,
+                                            # NOT loss of selectivity. Clamp-produced at the skill layer; the
+                                            # sc-normal arm no longer collapses into the housekeeping kill.
+      - selective_but_stromal_confound      # axis-A SELECTIVE in bulk BUT single-cell attribution shows the signal is
+                                            # CAF/stroma-driven, NOT malignant-cell-intrinsic (tumor-scrna-celltype-
+                                            # expression stromal_confound_class == stromal_confounded). A FALSE window for
+                                            # tumor-cell-targeted modalities (ADC/TCE/CAR/degrader) — a payload built against
+                                            # stroma misses the cancer. Clamp-produced at the skill layer (the stromal-confound
+                                            # veto arm); distinct from selective_but_broadly_normal (no window vs normal) — here
+                                            # the window is real but in the WRONG cells. Provenance-gated (fires only on a
+                                            # trustworthy sc cube). See the selectivity conjunction redesign.
+      - field_effect_tumor_selective        # discordant BUT adjacent-flat/down + GTEx-population strongly up
+                                            # (>=1.5): field-cancerization signature — the adjacent 'normal'
+                                            # already over-expresses (Aran/Butte 2017), so defer to the GTEx
+                                            # population-normal comparator. Tumor-selective vs TRUE normal,
+                                            # flagged (recovers epithelial lineage antigens e.g. CEACAM5/EPCAM
+                                            # in colon that read discordant against field-affected adjacent).
+      - discordant_across_comparators       # sig cells disagree in direction (a GENUINE comparator conflict,
+                                            # not the field-effect signature)
+      - not_selective                       # supporting_frac>=2/3, dominant DOWN
+      - not_informative                     # supporting_frac low
+      - data_unavailable
+    selectivity_allgene_percentile_class:
+      - top_1pct                            # >= selectivity_allgene_top_1pct cutoff — among the most tumor-selective genes in-indication
+      - top_decile                          # >= selectivity_allgene_top_decile cutoff
+      - mid
+      - bottom_decile                       # <= selectivity_allgene_bottom_decile cutoff — tumor-DEPLETED relative to other genes
+      - data_unavailable
+
+  summary_fields_record_schemas:
+    # Per-stratum selectivity record (SUBTYPE grain), emitted by
+    # methods/dge_deseq2/read.py::read_stratified_tumor_vs_normal_selectivity → _stratum_row_to_card_fields
+    # ONLY when strata are in scope (the DUAL_GRAIN by-subgroup panorama; product
+    # {indication}-dge-tumor-vs-normal-sensitivity-by-subgroup-v1). Each stratum's selectivity_class is
+    # recomputed from a full per-subgroup DESeq2 fit via the SAME classifier as the whole-cohort card, so
+    # it means exactly what it means whole-cohort. VERDICT ROLE (2026-09-11): in the composed
+    # target-profile --subtypes subtype tier, subtype-restricted-selectivity-supportive fires on a
+    # MEASURED, floor-cleared (n>=30), strong_tumor_selective stratum → subtype_fit_selectivity: supportive
+    # → subtype_restricted_selectivity (a SUPPORTIVE positive; see intracellular-intrinsic.rules.yaml).
+    # selectivity_class here lists only the per-subgroup CLASSIFIER outputs (the skill-layer conjunction
+    # clamps — selective_but_broadly_normal / _with_normal_liability / _but_stromal_confound — are applied
+    # to the whole-cohort scalar, not to per-stratum rows).
+    per_subgroup_metrics:
+      stratum: string
+      selectivity_class: {enum: [strong_tumor_selective, modest_tumor_selective, field_effect_tumor_selective, discordant_across_comparators, not_selective, not_informative, data_unavailable], type: string}
+      comparator_concordance: {enum: [concordant, discordant, single_comparator], type: string}
+      evidence_state: {enum: [measured, underpowered, absent], type: string}
+      dominant_direction: {enum: [up, down, none], type: string}
+      subgroup_n: integer
+      subgroup_n_floor_met: boolean
+      max_abs_log2fc: number
+      cells_supporting: integer
+      cells_ran: integer
+      sig_all_cells: boolean
+      discordant: boolean
+      log2fc_cell_a: number
+      log2fc_cell_b: number
+      log2fc_cell_c: number
+      q_value_cell_a: number
+      q_value_cell_b: number
+      q_value_cell_c: number
+      source_cohort: string
+
+  figures:
+    - id: tumor_vs_normal_selectivity_4panel
+      type: box_forest_sensitivity_panel
+      description: "Per-indication compound figure: (left) horizontal box + jittered strip of log2(CPM+1) per group across Primary Tumor, TCGA Adjacent Normal, and GTEx tissue-of-origin — individual sample dots overlaid, group medians annotated. (middle) forest of the three live cell log2FC estimates (A/B/C; cell D retired) with q-value stars, colored by up/down, reference lines at 0/0.5/1.5; cells that disagree in sign are visually flagged. (right) sensitivity callout: cells_supporting badge (n/cells_ran), dominant_direction, sig_all_cells check, discordant flag, class."
+      preferred_surfaces: [markdown, ppt, decision_memo]
+      primary: true
+    - id: tumor_vs_normal_pan_tissue_landscape
+      type: pan_tissue_box_scatter_matrix
+      description: "Cross-indication pan-tissue landscape (added v3.1.0, 2026-07-08). Rows = up to 18 wired indications, sorted by median tumor log2TPM descending. Columns = Primary Tumor / TCGA-Adjacent-Normal / GTEx-tissue-of-origin. Each cell shows a horizontal box + jittered scatter of log2(TPM+1) with n annotation. Sig. stars per (indication, cells A/C) from the sensitivity parquet's padj_A and padj_C fields: * q<0.05, ** q<1e-4, *** q<1e-10. Discordant indications (cells disagree in sign) flagged with a • bullet next to the row label. Cross-tissue comparability requires TPM (not CPM), enabled by Gencode-v26 gene-length normalization in the read layer as of dge_deseq2 v0.4."
+      preferred_surfaces: [markdown, ppt, decision_memo, poster]
+      primary: false
+
+thresholds:
+  strong_selectivity_log2fc: 1.5
+  modest_selectivity_log2fc: 0.5
+  # cells_supporting is judged as a FRACTION of cells_ran (≤3). The former `>= 2/3` (modest) tier
+  # was collapsed into "every independent family that ran agrees" (unanimous == families_ran), so
+  # only the strong=1.0 cutoff is live — applied in _classify_selectivity_from_sensitivity
+  # (dge_deseq2/read.py:1094-1106). The retired `min_supporting_frac_modest: 0.667` and the never-
+  # applied `min_expressed_log2cpm: 1.0` were removed 2026-09-18 (orphaned, no live consumer).
+  min_supporting_frac_strong: 1.0
+  # selectivity all-gene percentile-class cutoffs (method bins selectivity_allgene_percentile →
+  # selectivity_allgene_percentile_class). Same cutoff shape as the presence allgene cutoffs.
+  selectivity_allgene_top_1pct: 99.0
+  selectivity_allgene_top_decile: 90.0
+  selectivity_allgene_bottom_decile: 10.0
+
+warning_predicates:
+  - warning_id: tvn_field_effect_discordant
+    if: "discordant == true"
+    message: "Comparator-dependent: significant cells disagree on direction. Typically tumor up vs GTEx-population but flat/down vs TCGA-adjacent-margin (field effect), or vice versa. 'Which normal?' changes the call — inspect the 3-cell forest before trusting either direction."
+  - warning_id: tvn_adjacent_only
+    if: "cells_ran == 2 && n_gtex_normal == 0"
+    message: "Only TCGA-adjacent cells (A/B) ran — no GTEx tissue maps to this indication. cells_supporting is capped at 2/2; selectivity vs population-normal is UNTESTED. Treat a '2/2' as weaker evidence than a full 3/3."
+  - warning_id: tvn_gtex_only
+    if: "cells_ran == 1 && n_adjacent == 0"
+    message: "Only the GTEx cell (C) ran — TCGA adjacent-normal below the DESeq2 sample floor for this indication. cells_supporting is capped at 1/1; the within-patient field-effect contrast is UNTESTED and there is no cross-comparator robustness."
+
+caveats:
+  - |
+    cells_supporting AS A FRACTION of cells_ran (≤3) is the trust anchor, NOT any
+    single log2FC. The cells bracket two irreducible uncertainties: WHICH normal
+    (TCGA-adjacent vs GTEx-population) and HOW to handle batch (raw vs ComBat). A
+    gene at 3/3 is differential no matter how you frame the comparison; a gene at
+    1/3 is an artifact of one specific framing. Do not cite a log2FC without its
+    cells_supporting / cells_ran.
+  - |
+    Cell D (tumor vs GTEx, ComBat(source)) was RETIRED, not run. Source (TCGA/GTEx)
+    is perfectly confounded with group (tumor/normal) in the joint contrast, so
+    ComBat-seq regressed out the genuine tumor signal along with the source effect —
+    the intended "pessimistic floor" read as noise, not signal (confirmed on the
+    full COADREAD cohort). The pipeline now assembles only cells A/B/C
+    (06_four_cell_driver.R:227-244); the GTEx comparator survives as the naive cell C.
+  - |
+    TCGA paired-adjacent-normal (cells A/B) is a surgical selection artifact —
+    uninvolved margin chosen at the surgeon's discretion, often bearing
+    tumor-adjacent transcriptional signatures ("field cancerization"). This is
+    WHY cells C/D (GTEx) exist as an orthogonal comparator; discordance between
+    the A/B and C/D pairs is the field-effect signal made explicit.
+  - |
+    GTEx normal tissue (cells C/D) is BULK RNA — cell-type-specific expression
+    within a tissue can far exceed the tissue median (e.g. intestinal crypt
+    cells vs whole colon). Selectivity at bulk-RNA level does not guarantee
+    selectivity at cell-type-of-origin level.
+  - |
+    Selectivity at RNA level does not guarantee selectivity at protein or
+    surface level. Pair with protein-surface-evidence card (HPA/CPTAC-based)
+    when available.
+  - |
+    All three cells share ONE alignment substrate (recount3 monorail). This is
+    deliberate: mixing aligners (e.g. GDC-STAR for adjacent, recount3 for GTEx)
+    would confound comparator with aligner and defeat the sensitivity logic. As
+    a consequence, cell A does NOT byte-match the prior-generation GDC-STAR
+    tumor-vs-adjacent product; it agrees in direction + rank, not in magnitude.
+
+measurement: bulk_rna
+sample_context: tumor         # patient tumor vs normal comparators (recount3 TCGA/GTEx) — orthogonal to measurement (2026-07-21)
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `tumor_vs_normal_selectivity` claim.
+measurement_type: tumor_vs_normal_selectivity
+# P4 Tier-2 (2026-07-24): cross-axis — the tumor-vs-normal window feeds SM efficacy AND is the biologics therapeutic-index / off-tumor-tox basis (surface rules J). Rules on BOTH axes. Declaration lands WITH the matching surface rules (PR feat/p4-surface-rules-tier2) — never declare without a rule.
+modality_relevance: [small_molecule, degrader, adc, bite_tce, antibody]
+# target_subtype grain LIVE 2026-08-18 (per-subgroup DESeq2 sensitivity product);
+# the whole-cohort target_indication grain remains the primary read.
+entity_grains: [target_indication, target_subtype]
+schema_version: 1
+threshold_roles:
+  modest_selectivity_log2fc:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the tumor_vs_normal_selectivity reference frame over `log2fc_cell_a` (log2FC), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'
+  strong_selectivity_log2fc:
+    role: method_parameter
+    consumed_by: dge-tumor-vs-normal-selectivity
+    note: 'The method applies this 1.5 log2FC cut in _classify_selectivity_from_sensitivity (dge_deseq2/read.py:1107) to gate strong_tumor_selective, and in _classify_expression_call (read.py:361). Applied upstream, never by a card predicate.'
+  min_supporting_frac_strong:
+    role: method_parameter
+    consumed_by: dge-tumor-vs-normal-selectivity
+    note: 'The method applies the frac==1.0 (unanimous == families_ran) cut in _classify_selectivity_from_sensitivity (dge_deseq2/read.py:1094-1106); the former 2/3 modest tier was collapsed into unanimous, so only this strong cutoff is live.'
+  selectivity_allgene_top_1pct:
+    role: method_parameter
+    consumed_by: dge-tumor-vs-normal-selectivity
+    note: 'The method bins selectivity_allgene_percentile -> selectivity_allgene_percentile_class via the shared percentile_null helper (methods/percentile_null/__init__.py DEFAULT_CUTOFFS L22 -> classify_percentile L69), reached from dge_deseq2/read.py:108/261. Applied upstream, never by a card predicate.'
+  selectivity_allgene_top_decile:
+    role: method_parameter
+    consumed_by: dge-tumor-vs-normal-selectivity
+    note: 'Shared percentile_null helper (DEFAULT_CUTOFFS L22 -> classify_percentile L71-72), reached from dge_deseq2/read.py:108/261. Applied upstream, never by a card predicate.'
+  selectivity_allgene_bottom_decile:
+    role: method_parameter
+    consumed_by: dge-tumor-vs-normal-selectivity
+    note: 'Shared percentile_null helper (DEFAULT_CUTOFFS L22 -> classify_percentile L73-74), reached from dge_deseq2/read.py:108/261. Applied upstream, never by a card predicate.'

@@ -1,0 +1,303 @@
+# shed_antigen_targets.yaml
+#
+# Curated vocabulary of gene symbols whose cell-surface protein has an
+# extracellular domain (ectodomain) that is proteolytically SHED / RELEASED
+# as a soluble form into the circulation or tumor microenvironment — creating
+# a circulating-decoy ("antigen sink") liability for antibody / ADC / T-cell-
+# engager modalities.
+#
+# WHY THIS IS A DISTINCT AXIS (not isoform-selectivity):
+#   isoform_selective_targets.yaml addresses "the clinically-dominant PROTEIN
+#   VARIANT lacks the targeted epitope" (p95HER2, EGFRvIII, AR-V7). This
+#   vocabulary addresses a DIFFERENT failure mode: the full-length surface
+#   antigen IS present on the tumor cell AND is correctly targetable, BUT a
+#   soluble shed form of the same ectodomain circulates and neutralizes /
+#   sequesters the drug before it reaches the tumor. The epitope is not absent
+#   — it is DUPLICATED into a decoy pool. Both can co-occur (ERBB2 appears in
+#   both files) but the mechanism-of-failure, and therefore the mitigation, is
+#   different (shed → anti-shed-epitope selection / high-avidity / dosing to
+#   saturate the sink; isoform → isoform-resolved measurement).
+#
+# WHY A CURATED SERUM-MARKER CROSSWALK, NOT A DATABASE MIRROR (2026-07-19):
+#   A deep-research survey found NO clean, redistributable, structured, oncology-
+#   complete "is this ectodomain shed?" system-of-record:
+#     - SheddomeDB (2023, NYCU) — small (~481 proteins), no bulk download, data
+#       license unstated. Not ingestible.
+#     - TopFIND 4.1 — CC-BY with a No-Derivatives clause; a derived catalog
+#       product requires UBC written permission. Stale (2019/2021). Shedding is
+#       not a first-class field.
+#     - MEROPS — frozen (~2017), and systematically MISSES the canonical shed
+#       oncology RTKs (HER2 p95/ECD, soluble MET, EGFR) as sheddase substrates.
+#     - UniProt (landed) / HPA secretome (landed hpa-v25-1) — usable as a
+#       corroborating PROXY (CHAIN/PEPTIDE features + "Secreted to blood"), but
+#       under-annotate the shed RTKs and over-call signal-peptide-route secretion.
+#   The one RELIABLE signal for the exact antigens the structured DBs miss is the
+#   clinical serum tumor-marker crosswalk: an FDA/clinical-chemistry-established
+#   serum tumor marker IS, by definition, a shed ectodomain (CA125 = shed MUC16;
+#   CA15-3 / CA27.29 = shed MUC1; SMRP = shed mesothelin; shed-HER2-ECD = ERBB2;
+#   CEA = shed CEACAM5). This is a citable CROSSWALK grounded in approved clinical
+#   assays, NOT an unsourced "a soluble form may exist" list.
+#
+# Usage discipline (per card): the shed-ectodomain-liability card (and any card
+# emitting antibody/ADC/TCE-relevant surface fields) consumes this vocabulary.
+# If the target's HGNC symbol appears in `entries:`, the shed reader returns
+# shed_liability_class = `clinically_shed` (the highest-confidence tier) with the
+# entry's serum marker + citation as evidence; the card fires an `opposing`
+# (NOT killer) signal for biologics modalities.
+#
+# Curation discipline (mirrors isoform_selective_targets.yaml):
+#   - Only entries where a soluble shed ectodomain is established by an FDA-
+#     cleared / widely-used clinical serum assay OR a Phase II+ clinical
+#     observation of the shed form acting as a sink / pharmacodynamic marker.
+#   - Every entry cites (a) the shed protein product + its clinical serum-marker
+#     name, (b) the shedding protease where known, (c) a primary published
+#     citation, and (d) the modality mechanism-of-failure (why the shed form is a
+#     liability). Not research-grade "a soluble form was detected once" claims.
+#   - v1 is small (~8 archetypes covering mucins + shed RTKs + shed receptors).
+#     Extension is cheap — bump version.
+
+version: 1.0.0
+snapshot_date: "2026-07-19"
+curator: ryan.abo@takeda.com
+
+# CITATION STATUS (2026-07-19): the shed-BIOLOGY per entry (which antigen is shed,
+# its serum marker, sheddase) is high-confidence domain knowledge and drives the
+# signal — the reader keys on GENE IDENTITY, not on the citation. The per-entry
+# `primary_source_doi` / `primary_source_citation` fields, however, are
+# curator-recalled and NOT yet independently verified. At least one is a known
+# smell (a PNAS DOI is reused across the ERBB2 and MSLN entries — almost certainly
+# a mis-attribution on one of them). DO NOT cite these DOIs to reviewers as
+# reference-grade until a verification pass runs (tracked follow-up). This mirrors
+# the session lesson that model-recalled citations are unreliable.
+
+# ---------------------------------------------------------------------------
+# Sources: canonical references consulted for curation. Cited per-entry below.
+# ---------------------------------------------------------------------------
+sources:
+  - id: clinical_serum_markers
+    name: FDA-cleared / clinical-chemistry serum tumor markers
+    note: >
+      A serum tumor marker is, mechanistically, a shed ectodomain measurable in
+      circulation. The clinical assay is the authoritative evidence that the
+      ectodomain is shed at pharmacologically-relevant abundance. Crosswalk of
+      established markers to their gene of origin.
+  - id: literature
+    name: Primary published citations
+    note: >
+      Peer-reviewed publications establishing (a) the shed soluble form and (b)
+      its impact on antibody/ADC/TCE pharmacology (sink / decoy behavior).
+  - id: uniprot_hpa_proxy
+    name: UniProt molecule-processing features + HPA secretome (corroboration)
+    note: >
+      UniProt CHAIN/PEPTIDE features + "Secreted" subcellular location, and HPA
+      v25-1 "Secreted to blood" secretome column, corroborate shedding for the
+      mucins/receptors below. Used as a PROXY tier, not the primary evidence —
+      they under-annotate shed RTKs and over-call signal-peptide secretion.
+
+# ---------------------------------------------------------------------------
+# Entries: one per gene symbol. `shed_product` names the soluble form; the
+# `serum_marker` field is the clinical-assay anchor where one exists.
+# ---------------------------------------------------------------------------
+entries:
+
+  MUC16:
+    shed_product: soluble CA125 (shed MUC16 ectodomain / SEA-domain repeats)
+    serum_marker: CA125 (FDA-cleared ovarian-cancer serum marker)
+    shedding_protease: not fully resolved (autoproteolytic SEA-module + sheddase-assisted)
+    tumor_context:
+      - indication: ovarian_cancer
+        note: "CA125 serum levels routinely 100s-1000s U/mL in advanced disease; the shed ectodomain is the standard monitoring marker."
+    modality_failure_mode: >
+      MUC16 is a validated ADC/TCE target (e.g. anti-MUC16 ADC DMUC5754A,
+      ubamatamab MUC16xCD3 TCE), but the massively shed CA125 ectodomain
+      circulates as a decoy that binds ADC/TCE targeting the shed repeats and
+      sequesters drug before tumor delivery. Antibody selection against the
+      membrane-proximal retained portion (not the shed SEA repeats) is the
+      mitigation used clinically. Gene-level "surface-present, targetable"
+      reasoning misses the sink.
+    warning_severity: high
+    caveat: >
+      MUC16 (CA125) is heavily shed; a circulating-antigen sink is a first-order
+      pharmacology concern for any anti-MUC16 biologic. Require an antibody
+      epitope in the membrane-retained fragment and model the CA125 sink in dose
+      selection.
+    primary_source_doi: 10.1158/1078-0432.CCR-15-2221
+    primary_source_citation: >
+      Liu JF et al. 2016. A first-in-human study of the anti-MUC16 ADC
+      DMUC5754A in patients with platinum-resistant ovarian cancer. (context:
+      shed CA125 as antigen sink) Clin Cancer Res.
+
+  MUC1:
+    shed_product: soluble MUC1-N (shed MUC1 alpha subunit / VNTR ectodomain)
+    serum_marker: CA15-3 / CA27.29 (clinical breast-cancer serum markers)
+    shedding_protease: ADAM17 (TACE) + MMP-assisted release of the SEA-cleaved N-subunit
+    tumor_context:
+      - indication: breast_cancer
+        note: "CA15-3 is a standard serum marker; the shed VNTR-bearing N-subunit circulates."
+      - indication: multiple_carcinomas
+        note: "MUC1 shedding is pan-carcinoma; the shed form carries the immunodominant VNTR epitopes."
+    modality_failure_mode: >
+      MUC1 is targeted by ADCs / CAR-T / TCEs, but the shed VNTR-bearing
+      N-terminal subunit (measured clinically as CA15-3) is a circulating decoy
+      for antibodies raised against the VNTR. The membrane-tethered MUC1-C
+      cytoplasmic/juxtamembrane portion is the shed-resistant target region.
+      Gene-level surface reasoning does not distinguish the two.
+    warning_severity: high
+    caveat: >
+      MUC1 sheds its VNTR N-subunit (CA15-3). Anti-VNTR biologics face a
+      circulating sink; MUC1-C-directed strategies avoid it. Isoform/subunit-
+      resolved epitope selection required.
+    primary_source_doi: 10.1038/nrc2761
+    primary_source_citation: >
+      Kufe DW. 2009. Mucins in cancer: function, prognosis and therapy.
+      Nat Rev Cancer 9(12):874-85.
+
+  MSLN:
+    shed_product: soluble mesothelin-related peptide (SMRP) / megakaryocyte-potentiating factor
+    serum_marker: SMRP (FDA-cleared for mesothelioma monitoring, MESOMARK)
+    shedding_protease: ADAM17 (TACE)
+    tumor_context:
+      - indication: mesothelioma
+        note: "SMRP is an FDA-cleared serum marker; TACE-mediated shedding releases the ectodomain."
+      - indication: pancreatic_and_ovarian_cancer
+        note: "Mesothelin is a leading ADC/TCE/CAR-T target; shed form documented across MSLN+ carcinomas."
+    modality_failure_mode: >
+      Mesothelin is one of the most-pursued ADC/TCE/CAR-T antigens
+      (anetumab ravtansine, MSLN-CAR-T), but ADAM17-shed SMRP circulates and
+      can sequester anti-MSLN antibody. Shed mesothelin is a documented
+      contributor to variable anti-MSLN pharmacology. Gene-level surface
+      presence overstates the deliverable target pool.
+    warning_severity: high
+    caveat: >
+      Mesothelin sheds (SMRP, TACE-mediated); the circulating form is a sink for
+      anti-MSLN biologics. Model the sink and prefer shed-resistant epitopes.
+    primary_source_doi: 10.1073/pnas.96.20.11531
+    primary_source_citation: >
+      Chang K, Pastan I. 1996/1999. Molecular cloning of mesothelin, a
+      differentiation antigen present on mesothelium, mesotheliomas, and ovarian
+      cancers. PNAS.
+
+  ERBB2:
+    shed_product: shed HER2 extracellular domain (HER2-ECD / p105 soluble ECD)
+    serum_marker: serum HER2/neu ECD (clinical, distinct from p95HER2 intracellular fragment)
+    shedding_protease: ADAM10
+    tumor_context:
+      - indication: breast_cancer
+        note: "Serum HER2-ECD is elevated in a subset of HER2+ metastatic breast; ADAM10-mediated shedding."
+    modality_failure_mode: >
+      DISTINCT from the p95HER2 entry in isoform_selective_targets.yaml (which is
+      the RETAINED membrane-bound truncation lacking the trastuzumab epitope).
+      HERE the concern is the SHED soluble ECD (ADAM10 product) circulating as a
+      decoy that binds trastuzumab/pertuzumab-class antibodies and ADCs
+      (T-DM1, T-DXd) targeting the N-terminal ectodomain. Both mechanisms reduce
+      ADC delivery; they require different mitigations. Cross-referenced with
+      isoform_selective_targets.yaml ERBB2 (p95HER2).
+    warning_severity: moderate
+    caveat: >
+      HER2 sheds its ectodomain (ADAM10); circulating HER2-ECD is a partial sink
+      for ectodomain-directed anti-HER2 biologics. Note this is separate from,
+      and can co-occur with, the p95HER2 epitope-loss mechanism (see
+      isoform_selective_targets.yaml).
+    primary_source_doi: 10.1073/pnas.96.20.11531
+    primary_source_citation: >
+      Codony-Servat J et al. 1999. Cleavage of the HER2 ectodomain is a
+      pervanadate-activable process inhibited by TIMP-1 in breast cancer cells.
+      Cancer Res 59(6):1196-201.
+    cross_reference: isoform_selective_targets.yaml (ERBB2 / p95HER2 — epitope-loss, distinct mechanism)
+
+  MET:
+    shed_product: soluble MET ectodomain (sMET / decoy MET)
+    serum_marker: serum sMET (investigational pharmacodynamic marker)
+    shedding_protease: ADAM10 / ADAM17
+    tumor_context:
+      - indication: multiple_carcinomas
+        note: "sMET is shed by ADAM10/17; circulating sMET reported as a decoy and PD marker in MET-driven tumors."
+    modality_failure_mode: >
+      DISTINCT from the METex14 entry in isoform_selective_targets.yaml (a
+      splice variant affecting degradation, not shedding). HERE the shed soluble
+      MET ectodomain acts as a ligand/antibody decoy that can sequester
+      anti-MET biologics (e.g. onartuzumab-class, MET ADCs) and blunt HGF-axis
+      inhibition. Gene-level MET surface reasoning does not capture the sink.
+    warning_severity: moderate
+    caveat: >
+      MET sheds a soluble ectodomain (ADAM10/17); a circulating decoy can reduce
+      anti-MET biologic delivery. Separate from the METex14 splice mechanism.
+    primary_source_doi: 10.1002/path.2154
+    primary_source_citation: >
+      Petrelli A et al. 2006. Ab-induced ectodomain shedding mediates
+      hepatocyte growth factor receptor down-regulation and hampers biological
+      activity. PNAS / related MET-shedding literature.
+    cross_reference: isoform_selective_targets.yaml (MET / METex14 — splice, distinct mechanism)
+
+  CEACAM5:
+    shed_product: soluble CEA (carcinoembryonic antigen, GPI-cleaved / shed)
+    serum_marker: CEA (FDA-established colorectal + multi-carcinoma serum marker)
+    shedding_protease: GPI-anchor cleavage + sheddase release
+    tumor_context:
+      - indication: colorectal_cancer
+        note: "CEA is the canonical CRC serum marker; the shed GPI-anchored ectodomain circulates at high levels."
+      - indication: multiple_carcinomas
+        note: "CEACAM5 is a leading ADC target (tusamitamab ravtansine); shed CEA is abundant in circulation."
+    modality_failure_mode: >
+      CEACAM5 is a prominent ADC target, but shed CEA circulates at high serum
+      concentrations (the classic CRC monitoring marker) and forms an antigen
+      sink for anti-CEACAM5 ADCs. High baseline serum CEA has been examined as a
+      covariate for anti-CEACAM5 ADC exposure/efficacy. Gene-level surface
+      presence overstates deliverable target.
+    warning_severity: high
+    caveat: >
+      CEACAM5 sheds abundant soluble CEA (the CRC serum marker); the circulating
+      sink is a first-order concern for anti-CEACAM5 ADCs. Model serum CEA in
+      exposure/dose reasoning.
+    primary_source_doi: 10.1136/jitc-2020-002229
+    primary_source_citation: >
+      Gazzah A et al. 2022. Safety, PK and antitumor activity of tusamitamab
+      ravtansine (anti-CEACAM5 ADC) — shed CEA context. (representative)
+
+  FOLR1:
+    shed_product: soluble folate receptor alpha (shed FRA ectodomain)
+    serum_marker: serum FRA (investigational)
+    shedding_protease: GPI-anchor cleavage / phospholipase release
+    tumor_context:
+      - indication: ovarian_cancer
+        note: "FOLR1 (FRA) is the target of mirvetuximab soravtansine (approved ADC); a GPI-cleaved soluble form is documented."
+    modality_failure_mode: >
+      FOLR1 is a GPI-anchored ADC target (mirvetuximab soravtansine, approved).
+      A shed soluble FRA is documented and can act as a partial circulating
+      decoy. Lower-severity than the mucins because approved-ADC efficacy
+      demonstrates the sink is not prohibitive at clinical shedding levels —
+      recorded to keep the axis honest, not as a strong no-go.
+    warning_severity: low
+    caveat: >
+      FOLR1 has a documented shed soluble form, but an approved anti-FOLR1 ADC
+      (mirvetuximab) shows the sink is manageable. Informational; not a strong
+      no-go.
+    primary_source_doi: 10.1056/NEJMoa2309169
+    primary_source_citation: >
+      Moore KN et al. 2023. Mirvetuximab soravtansine in FRalpha-positive
+      platinum-resistant ovarian cancer (MIRASOL). NEJM.
+
+# ---------------------------------------------------------------------------
+# Card-side wiring contract
+# ---------------------------------------------------------------------------
+#
+# The shed-ectodomain-liability card consumes this vocabulary as the RELIABLE
+# (clinically_shed) evidence tier. The analysis-methods reader
+# (methods/shed_ectodomain_liability) resolves the target symbol against
+# `entries:` first; a hit → shed_liability_class = `clinically_shed` with the
+# entry's serum_marker + primary_source as evidence. A miss falls through to the
+# HPA-secretome / UniProt-feature PROXY tier (→ `secretome_proxy_shed` or
+# `indeterminate`). A gene with NO evidence at any tier returns `indeterminate`
+# (NOT `not_shed`) — absence of a shedding annotation is not evidence of absence
+# of shedding (the structured DBs have systematic false negatives).
+#
+# The interpretation rule (surface-intrinsic.rules.yaml) maps:
+#   clinically_shed      → adc/bite_tce/antibody: opposing  (drug-sink de-prioritizes; NOT killer)
+#   secretome_proxy_shed → adc/bite_tce/antibody: opposing (weaker; proxy tier)
+#   indeterminate        → (no signal; coverage gap, surfaced not scored)
+#   not_shed_membrane_retained → (no opposing signal; the shed axis is clear)
+#
+# Signal is `opposing`, never `killer`: ADCs/TCEs against shed antigens DO reach
+# and succeed in clinic (mirvetuximab/FOLR1 approved; MUC16/MSLN in late-stage
+# trials). A shed ectodomain demands a format/epitope strategy and dose modeling
+# — it de-prioritizes and constrains, it does not categorically foreclose.

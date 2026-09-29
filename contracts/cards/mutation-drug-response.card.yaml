@@ -1,0 +1,156 @@
+# GENOTYPE × DRUG-RESPONSE biomarker  (pure-data, target-only)
+#
+# The PHARMACOLOGICAL sibling of mutation-stratified-dependency. Where mutation-stratified-dependency asks
+# "are mutant lines more genetically DEPENDENT (CRISPR/Chronos)?", this asks "are mutant lines more
+# SENSITIVE to a DRUG that TARGETS this gene (PRISM Log2AUC)?" — the missing biomarker→drug-response
+# link (PRISM was genotype-blind by design; every prior biomarker contrast used DepMap genetic
+# dependency ONLY). A drug-response biomarker reflects an actual pharmacologic agent, so it is
+# distinct from — and complementary to — the CRISPR-KO dependency biomarker (a KO removes noncatalytic
+# scaffolding functions a small molecule does not).
+#
+# VERDICT-DRIVING on the GENOMIC gate (wired 2026-08-15, doc-parity fix 2026-08-31): the STRONG class
+# (drug_response_stratification_class == mutant_strongly_drug_sensitive) fires
+# mutation-drug-response-strongly-sensitive-supportive → verdict `drug_response_biomarker`
+# (genomic_alteration.resolver.yaml priority 36). It is a DISTINCT verdict, never conflated with the
+# CRISPR-KO biomarker_stratified_dependency (drug-sensitivity != KO-dependency), and sits BELOW the
+# KO-dependency family. The MODERATE class stays a signal-only facet (no rung). The DEPENDENCY spine is
+# byte-stable — only the genomic gate consumes this card.
+#
+# On-target compound selection: PRISM OncRef CompoundList GeneSymbolOfTargets == {target}
+# (BRAF → VEMURAFENIB / DABRAFENIB / ENCORAFENIB, annotated "inhibitor of BRAF p.V600E"). Per-line
+# phenotype = best-responder Log2AUC (min across on-target compounds; deep-responder biology).
+#
+# Demonstration cases (live-verified PRISM OncRef 25q4):
+#   - BRAF (19 on-target cpds): BRAF-mut lines strongly sensitive → mutant_strongly_drug_sensitive
+#           (delta Log2AUC -0.47, q=4.8e-11) — the textbook vemurafenib/dabrafenib positive control
+#   - KRAS (23 on-target cpds): mutant_strongly_drug_sensitive (delta -0.46, q=5e-28) — captures the
+#           G12C/G12D-inhibitor era (adagrasib/garsorasib/BI-2865) the CRISPR-dependency signal can't distinguish
+#   - EGFR (19 on-target cpds): not_drug_response_stratified (delta -0.03, q=0.13) — honest negative
+#           (EGFR-mut cell lines sparse + cell-panel PRISM != NSCLC-patient EGFR-TKI biomarker)
+#
+# Inputs:
+#   - PRISMOncologyReferenceLumLog2AUCMatrix.csv + CompoundList (prism-oncref-dmc-25q4)
+#   - OmicsSomaticMutationsMatrixHotspot.csv + Damaging.csv (depmap-consortium-26q1; the "any" vector)
+
+card_id: mutation-drug-response
+version: 1.0.0
+question: "Are cell lines carrying an alteration in {target.symbol} more SENSITIVE to a drug that targets {target.symbol} (PRISM Log2AUC) across the DepMap panel? (Genotype→drug-response biomarker hypothesis.)"
+
+# Evidence-capsule projection contract. Eight fields matched the hints and the alphabetical first four
+# were all CLASSIFIER metrics (base_rate/ppv/ppv_lift), so the two AUC arms and the delta between them
+# — the numbers the strong/moderate effect cuts are taken on — never appeared. VERDICT-INERT
+# projection.
+capsule:
+  primary_class: drug_response_stratification_class
+  categorical_fields:
+    - drug_response_stratification_class
+    - on_target_compounds
+  numeric_anchors:
+    - drug_response_effect_size
+    - delta_log2auc_mut_vs_wt      # the quantity strong/moderate_effect_delta gauge
+    - median_log2auc_mutant
+    - median_log2auc_wildtype
+    - drug_response_mannwhitney_q
+    - drug_response_ppv
+    - drug_response_base_rate      # PPV is only readable against its base rate
+    - n_mutant
+
+
+applies_when:
+  - "target.depmap_screened == true"
+
+required_inputs:
+  - product_id: depmap-consortium-26q1
+    release_pin: "{release_pin}"
+  - product_id: prism-oncref-dmc-25q4
+    release_pin: "{release_pin}"
+
+methods:
+  - call: depmap-mutation-drug-response
+    module: depmap_mutation_drug_response
+    entrypoint: read_mutation_drug_response
+    args:
+      target: "{target.symbol}"
+      release_pin: "{release_pin}"
+
+outputs:
+  summary_fields:
+    # === On-target compound provenance ===
+    - n_on_target_compounds                          # PRISM compounds whose GeneSymbolOfTargets == target
+    - on_target_compounds                            # [{name, moa}] — the drugs defining the response vector
+    # === Genotype × drug-response stratification ===
+    - n_mutant                                       # altered lines with a measured on-target Log2AUC
+    - n_wildtype                                     # WT lines with a measured on-target Log2AUC
+    - median_log2auc_mutant
+    - median_log2auc_wildtype
+    - delta_log2auc_mut_vs_wt                        # mutant - WT (negative = mutant more drug-sensitive)
+    - drug_response_mannwhitney_p
+    - drug_response_mannwhitney_q                    # single test → q == p (no multi-tier BH)
+    - drug_response_mannwhitney_q_reverse            # second-pass reverse (resistance direction)
+    - drug_response_effect_size                      # rank-biserial correlation
+    # === Drug-sensitivity classification performance (responder = Log2AUC <= -0.5, deep-responder cut) ===
+    - drug_response_ppv                              # P(responder | mutant); DRUG-RESPONSE, not clinical PPV
+    - drug_response_ppv_lift                         # PPV / base-rate
+    - drug_response_sensitivity
+    - drug_response_specificity
+    - drug_response_base_rate
+    # === Categorical (Tier-2 vocabulary) ===
+    - drug_response_stratification_class
+
+  summary_fields_vocabulary:
+    drug_response_stratification_class:
+      - mutant_strongly_drug_sensitive               # mutant median Log2AUC significantly below WT (delta <= -0.20)
+      - mutant_moderately_drug_sensitive             # significant but smaller effect (delta <= -0.08)
+      - mutant_drug_resistant                        # reverse: WT more sensitive / mutant resistant (second-pass, strong positive delta)
+      - not_drug_response_stratified                 # no significant mutant-vs-WT drug-response difference
+      - insufficient_mutant_or_drug_data             # <5 mutant or <30 WT lines with a measured on-target Log2AUC
+      - no_on_target_compound                        # no PRISM compound targets this gene (honest 'no drug' state)
+      - data_unavailable
+
+  # No figure declared in v1 (verdict-inert facet — the class + stats + compound provenance are the
+  # payload). A per-genotype Log2AUC strip plot + emitter is a follow-up if this graduates to display.
+  plot_data: per_cell_line_log2auc_with_mutation_status
+
+thresholds:
+  min_mutant_lines: 5
+  min_wildtype_lines: 30
+  stratification_alpha: 0.05
+  # Log2AUC dynamic range is narrower than Chronos → milder effect cutoffs (calibrated to the
+  # precompute's documented BRAF-Skin Log2AUC median ~ -0.50 anchor).
+  strong_effect_delta: -0.20
+  moderate_effect_delta: -0.08
+  responder_log2auc_threshold: -0.5                  # deep-responder cut for the PPV confusion matrix
+
+threshold_roles:
+  moderate_effect_delta:
+    role: method_parameter
+    consumed_by: depmap-mutation-drug-response
+  stratification_alpha:
+    role: method_parameter
+    consumed_by: depmap-mutation-drug-response
+  strong_effect_delta:
+    role: method_parameter
+    consumed_by: depmap-mutation-drug-response
+warning_predicates:
+  - warning_id: few_on_target_compounds
+    if: "n_on_target_compounds < 3"
+    message: "Fewer than 3 on-target PRISM compounds; the best-responder Log2AUC vector rests on a thin drug set. Interpret drug_response_stratification_class cautiously."
+  - warning_id: significant_but_small_effect
+    if: "drug_response_mannwhitney_q < 0.05 && delta_log2auc_mut_vs_wt > -0.08"
+    message: "Mutant-vs-WT Log2AUC difference is statistically significant but sub-threshold in effect (delta > -0.08); at panel n small deltas reach significance — not classified as stratified."
+
+caveats:
+  - "PHARMACOLOGICAL, not genetic: this measures sensitivity to a DRUG that targets the gene (PRISM Log2AUC), distinct from the CRISPR-KO dependency biomarker (mutation-stratified-dependency). A KO removes noncatalytic scaffolding a small molecule leaves intact, so the two can disagree — they are complementary, not interchangeable."
+  - "On-target compound = PRISM CompoundList GeneSymbolOfTargets includes the target (gene-level annotation; a compound with off-target polypharmacology is still counted if it lists the gene). Per-line phenotype is the best-responder (min) Log2AUC across those compounds — the deep-responder tail, not the mean."
+  - "Two directional passes: a FORWARD one-sided MW (mutant more sensitive, lower Log2AUC) drives the mutant_*_drug_sensitive classes; a SECOND-PASS reverse MW (mutant more resistant) makes mutant_drug_resistant reachable, gated on its own q + a strong positive delta. Verdict-inert either direction (v1)."
+  - "Cell-line drug response is NECESSARY but NOT SUFFICIENT for a clinical predictive biomarker — cell-panel PRISM does not recapitulate patient PK/PD, tumor microenvironment, or resistance evolution (EGFR is the cautionary live example: mutation-stratified in patients, not in the PRISM cell panel)."
+  - "VERDICT-DRIVING on the GENOMIC gate: the STRONG class (mutant_strongly_drug_sensitive) fires drug_response_biomarker (genomic_alteration.resolver.yaml priority 36), a distinct verdict never conflated with the CRISPR biomarker_stratified_dependency; the MODERATE class is signal-only. The DEPENDENCY spine stays byte-stable (only the genomic gate consumes this card)."
+
+# DATA_TO_SKILL_CONTRACT — the DERIVED genotype→drug-response claim, derived_from
+# [mutation_status, prism_compound_activity]. The pharmacological analog of
+# mutation_stratified_dependency (which is derived_from [mutation_status, crispr_lof_dependency]).
+measurement_type: mutation_drug_response
+# modality_relevance routing key — a genotype→drug-response biomarker informs small-molecule patient-selection.
+modality_relevance: [small_molecule]
+entity_grains: [target]
+schema_version: 1

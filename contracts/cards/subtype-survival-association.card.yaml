@@ -1,0 +1,71 @@
+# Card — SUBTYPE SURVIVAL ASSOCIATION (does OS differ across the indication's molecular subtypes? Q2-subtype)
+#
+# The SUBTYPE arm of the differentiation prognostic question (the expression + alteration arms are
+# expression-clinical-association / alteration-clinical-association). Omnibus (k-group) OS log-rank
+# ACROSS the indication's molecular-subtype strata (from the TCGA-side subgroup-assignment shard).
+# INDICATION-level (target-INDEPENDENT) — a HYPOTHESIS-GENERATING prognostic association, NOT a claim:
+#   - subtype_stratifies_survival        → OS differs significantly across subtypes (omnibus log-rank).
+#   - no_subtype_survival_association     → no significant cross-subtype survival difference.
+#
+# ZERO new ingestion — reuses the TCGA-side subtype subgroup-assignment shard (resolved from the
+# indication) + PanCanAtlas TCGA-CDR (Liu 2018) OS. The subtype conditioner applied to the prognostic
+# question; frames patient-selection (which subtype carries the worse outcome).
+#
+# ROUTES INTO GATES (master-sequencing Part 3): Patient-population / clinical context + the BIOMARKER
+# FACET (subtype prognostic stratification). Biology axis; no modality-gate facet. Verdict-INERT.
+
+card_id: subtype-survival-association
+version: 1.0.0
+question: "Does overall survival differ across {indication.label}'s molecular subtypes (subtype × OS) — is molecular subtype prognostic in this indication?"
+
+tier: indication
+
+applies_when:
+  # needs a TCGA-side molecular-subtype shard for the indication (COADREAD/NSCLC/ESCA/HNSC/PAAD today).
+  - "indication.subgroup_catalog_available == true"
+
+required_inputs:
+  - product_id: gdc-pancanatlas-clinical-2018     # TCGA-CDR (Liu 2018) curated survival endpoints
+  - product_id: subgroup-catalog                  # the indication's molecular-subtype strata (TCGA-side shard)
+    indication: "{indication}"
+    subgroup_catalog: "{subgroup_spec}"
+
+methods:
+  - call: subtype-survival-association
+    args:
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - subtype_survival_association_class      # PRIMARY categorical (drives Tier-2 rules)
+    - logrank_p
+    - logrank_chi2
+    - logrank_df
+    - n_patients                              # patients (across admissible strata) with OS
+    - n_events                                # deaths
+    - n_admissible_strata                     # strata clearing the per-arm floor (entered the omnibus test)
+    - per_stratum                             # [{stratum, n, n_events, median_ostime_days}]
+    - dropped_underpowered_strata             # [{stratum, n, reason}] — below the per-arm floor, reported
+    - endpoint                                # OS
+    - survival_source
+  summary_fields_vocabulary:
+    subtype_survival_association_class: [subtype_stratifies_survival, no_subtype_survival_association, insufficient_survival_data, data_unavailable]
+  figure: subtype_survival_association_card
+
+thresholds:
+  min_events: 10             # below → insufficient_survival_data
+  min_per_arm: 15            # a stratum below this is DROPPED from the omnibus test (reported)
+  significance_alpha: 0.05   # omnibus log-rank p at/below → subtypes stratify survival
+
+caveats:
+  - "HYPOTHESIS-GENERATING, NOT a clinical claim: a univariate omnibus (k-group) log-rank UNADJUSTED for stage/age/grade. A significant cross-subtype OS difference is expected for well-established subtype systems (e.g. CMS in CRC) and is prognostic CONTEXT, not a target-specific signal."
+  - "TARGET-INDEPENDENT: this is an indication-level property (does molecular subtype stratify OS), read as patient-selection context — it does not speak to {target} directly. Pair it with the by-subtype dependency / expression cards to localize {target}'s subtype."
+  - "Subtypes below the per-arm floor are DROPPED from the omnibus test and listed in dropped_underpowered_strata — an intrinsically small subtype does not force or block the call."
+  - "OS only (CDR also carries PFI/DSS/DFI). per_stratum median_ostime_days are raw medians for context, NOT Kaplan-Meier estimates."
+  - "Requires a TCGA-side subtype shard registered for the indication; indications without one read data_unavailable."
+
+# DATA_TO_SKILL_CONTRACT Rule 1/4 — view of the DERIVED `subtype_survival_association` claim,
+# derived_from [patient_molecular_subtype, patient_survival_cdr].
+measurement_type: subtype_survival_association
+entity_grains: [target_indication]
+schema_version: 1

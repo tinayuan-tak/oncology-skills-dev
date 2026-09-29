@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/oneTakeda/rnd-computational-biology-oncology-claude-oncology-skills/core-artifacts-schema/products/dependency-depmap-chronos.result.schema.json",
+  "title": "dependency-depmap-chronos — result payload schema",
+  "description": "Result payload for dependency-depmap-chronos. One evidence.json per (gene, indication, subtype). The 'indication' is mapped from DepMap cell-line lineage; 'subtype' may stratify by mutation context (e.g., KRAS-mut vs WT lineage subset) when the indication config provides it.",
+  "type": "object",
+  "required": [
+    "chronos_score_median",
+    "chronos_score_n_lines",
+    "lineage_selectivity_zscore",
+    "is_lineage_selective_dependency"
+  ],
+  "additionalProperties": false,
+  "not": {
+    "$comment": "Mutual exclusion (Finding A): a gene cannot be both pan-cancer-essential (broadly essential across >80% of lineages) AND lineage-selective (selectively essential in THIS lineage). This 'not' matches only when both keys are present and both true, so it rejects that contradiction while leaving all other combinations — including is_pan_cancer_essential absent, the common case — valid.",
+    "properties": {
+      "is_pan_cancer_essential": { "const": true },
+      "is_lineage_selective_dependency": { "const": true }
+    },
+    "required": ["is_pan_cancer_essential", "is_lineage_selective_dependency"]
+  },
+  "properties": {
+    "chronos_score_median": {
+      "type": "number",
+      "description": "Median Chronos score across cell lines in the indication-mapped subset. Negative values indicate essentiality; -1 is a common 'common essential' threshold."
+    },
+    "chronos_score_mean": {
+      "type": "number",
+      "description": "Mean Chronos score (alternative summary; median is preferred)."
+    },
+    "chronos_score_q25": { "type": "number" },
+    "chronos_score_q75": { "type": "number" },
+    "chronos_score_n_lines": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Number of cell lines contributing to the indication-subset summary."
+    },
+    "lineage_selectivity_zscore": {
+      "type": "number",
+      "description": "Z-score of this lineage's median vs the pan-cancer median. More negative = more selectively essential in this lineage."
+    },
+    "is_lineage_selective_dependency": {
+      "type": "boolean",
+      "description": "Convenience: chronos_score_median < -0.5 AND lineage_selectivity_zscore < -1.5. Threshold matches DepMap's 'lineage-selective' calls."
+    },
+    "is_pan_cancer_essential": {
+      "type": "boolean",
+      "description": "Convenience: gene is essential across most lineages (chronos_score_median < -1 in >80% of lineages). Suggests broad toxicity risk. NOTE: this is a GENE-LEVEL rollup (>80% of ALL lineages) surfaced in a per-(gene,indication,subtype) payload — it cannot be recomputed from the fields present here. Follow-up: move to a gene-level sidecar product. Until then it is mutually exclusive with is_lineage_selective_dependency (see top-level 'not' constraint): a gene cannot be both broadly essential everywhere AND selectively essential in this lineage."
+    },
+    "top_codependencies": {
+      "type": "array",
+      "description": "Top-N co-essential genes by Pearson correlation across the cell-line subset. Useful for paralog and pathway-redundancy detection.",
+      "maxItems": 25,
+      "items": {
+        "type": "object",
+        "required": ["partner_gene_symbol", "partner_hgnc_id", "pearson_r"],
+        "properties": {
+          "partner_gene_symbol": { "type": "string" },
+          "partner_hgnc_id": {
+            "type": ["string", "null"],
+            "pattern": "^HGNC:[0-9]+$",
+            "description": "HGNC ID of the co-dependency partner, or null. DepMap's co-essentiality universe includes pseudogenes and readthrough loci that lack a registered HGNC ID; those partners set this to null rather than failing validation. When present it must match ^HGNC:[0-9]+$."
+          },
+          "pearson_r": { "type": "number", "minimum": -1, "maximum": 1 },
+          "is_paralog": { "type": "boolean" }
+        }
+      }
+    },
+    "by_mutation_context": {
+      "type": "object",
+      "description": "OPTIONAL — sub-summaries by mutation context within the indication (e.g., KRAS-mut vs WT). Keys are mutation-context slugs; values are objects with chronos_score_median, n_lines.",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["chronos_score_median", "n_lines"],
+        "properties": {
+          "chronos_score_median": { "type": "number" },
+          "n_lines": { "type": "integer", "minimum": 1 }
+        }
+      }
+    }
+  }
+}

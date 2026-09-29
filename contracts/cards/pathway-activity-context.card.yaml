@@ -1,0 +1,74 @@
+# Card — PROGENy PATHWAY-ACTIVITY COHORT CONTEXT  (Track PROGENy; pre-integrated mechanism facet)
+#
+# INDICATION-LEVEL, TARGET-INDEPENDENT context: which of the 14 PROGENy cancer-signaling pathways are
+# relatively ACTIVE in this indication's TCGA cohort? A pre-integrated multi-omics RESULT — the PROGENy
+# model (Schubert 2018, Apache-2.0) infers pathway activity from a downstream transcriptional FOOTPRINT
+# (responsive genes), scored (decoupler MLM) against the recount3/TCGA expression already in the catalog.
+# A target maps in as (a) which indication's pathway landscape, and (b) which PROGENy pathway(s) the
+# target is itself a responsive gene of (target_pathway_membership).
+#
+# WHY IT MATTERS: upgrades the Mechanism gate from network-TOPOLOGY-only (SIGNOR/OmniPath edges,
+# signaling-network-mechanism) to QUANTITATIVE per-indication pathway ACTIVITY. Frames "is my target's
+# pathway actually active in this indication?" — a mechanism-context prior, NOT a dependency claim.
+#
+# HONEST FRAMING (verdict-inert + relative-not-absolute): PROGENy activity is interpretable RELATIVE
+# to other cohorts (a cross-indication z), NOT as an absolute per-cohort on/off — the raw MLM sign
+# depends on normalization. The card reads relatively_high / relatively_low / average from the z.
+#
+# Interpretation surface (pathway_activity_class is PRIMARY):
+#   relatively_high    → >=1 pathway at cross-indication z >= +1 (a standout-active pathway; e.g.
+#                        Androgen in PRAD, Estrogen in BRCA, Hypoxia in KIRC — validated 2026-08-10)
+#   profiled           → activity computed, no pathway clears the +1 z standout bar
+#   data_unavailable   → indication not in the PROGENy activity product
+#
+# DISPLAY facet — VERDICT-INERT. Surfaces the cohort pathway-activity landscape; touches NO resolver rung.
+
+card_id: pathway-activity-context
+version: 1.0.0
+# interpretation (informational): pathway_activity_class relatively_high/profiled is cohort-level.
+interpretation: informational
+question: "Which PROGENy cancer-signaling pathways are relatively active in the {indication.label} cohort, and is {target.symbol} a responsive gene of any of them?"
+
+tier: indication   # per-indication cohort property; target-independent (target adds pathway-membership only).
+
+applies_when:
+  - "true"   # any indication; data_unavailable-safe when not in the PROGENy activity product
+
+required_inputs:
+  - product_id: progeny-pathway-activity-per-indication-v1   # per-(pathway x indication) activity rollup
+
+methods:
+  - call: progeny-pathway-activity
+    module: progeny_pathway_activity
+    entrypoint: read_progeny_pathway_activity
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - pathway_activity_class                     # PRIMARY categorical (relatively_high | profiled | data_unavailable)
+    - relatively_high_pathways                   # pathways at cross-indication z >= +1
+    - relatively_low_pathways                    # pathways at z <= -1
+    - n_pathways_profiled                        # pathways with data for this indication (<=14)
+    - target_pathway_membership                  # PROGENy pathway(s) the target is a responsive gene of
+    - per_pathway                                # per-pathway {pathway, activity_z, median_activity, relative_class}
+    - pooled_from                                # TCGA codes pooled (e.g. [COAD, READ] for COADREAD)
+
+  summary_fields_vocabulary:
+    pathway_activity_class:
+      - relatively_high
+      - profiled
+      - data_unavailable
+
+  figure: pathway_activity_context_card
+
+caveats:
+  - "Cohort-level RELATIVE pathway-activity landscape, NOT a per-target or per-patient activity call. A target in a cohort where its pathway is relatively_high is not thereby dependent on that pathway — this is a mechanism-context prior, not a dependency or efficacy claim."
+  - "PROGENy activity (decoupler MLM) is interpretable RELATIVE to other cohorts (cross-indication z), NOT as an absolute per-cohort on/off — the raw sign depends on the MLM normalization. relatively_high/low key on z>=+1 / z<=-1. Validated cross-cohort: Androgen top in PRAD, Estrogen in BRCA, Hypoxia in KIRC."
+  - "Activity is inferred from a downstream transcriptional FOOTPRINT (responsive genes), NOT pathway-member expression — this is PROGENy's design (member expression is a poor activity proxy). Top-100 responsive genes/pathway."
+  - "VERDICT-INERT: drives no resolver rung. Sibling of phospho-pathway-activity / signaling-network-mechanism in the Mechanism space; upgrades that gate from topology-only to quantitative activity as advisory context."
+
+measurement_type: pathway_activity_context
+entity_grains: [cohort]
+schema_version: 1

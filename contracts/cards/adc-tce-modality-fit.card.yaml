@@ -1,0 +1,167 @@
+# Card Phase-F — ADC/TCE MODALITY FIT (v1)
+#
+# Reviewer-driven Phase F COMPOSED card. Consumes surface-topology-and-ptm
+# + surfaceome-family-classification + structure-features-static. Emits
+# BIOLOGY-FIRST categorical (`fit_class`) unconditionally AND lens-conditional
+# LETTER GRADES (`adc_grade`, `tce_grade`) only when the modality lens is
+# invoked at runtime.
+#
+# ARCH A1 (2026-07-08): This is a COMPOSED CARD — its `derived_from:` block
+# declares upstream card_ids that must exist. The card.schema.json validator
+# walks this graph to verify all upstream cards have dispatchers, ensuring
+# fail-fast at compose time if an upstream drops a required field.
+#
+# ARCH A2 (2026-07-08): summary_fields is SPLIT into biology-agnostic
+# (unconditional emission) and lens-conditional (emitted ONLY when
+# the modality lens is invoked at runtime). Downstream rules-engine + LLM
+# synthesis treat lens_conditional fields as absent when the lens is not
+# invoked. Prevents `adc_grade` letter from leaking into biology-first
+# invocations.
+#
+# ARCH A3 (2026-07-08): If surface-topology-and-ptm's isoform_selective_
+# warning fires (target has curated clinically-dominant alt isoform),
+# letter grades are SUPPRESSED unconditionally — even when the modality
+# lens is invoked. The isoform-selective vocabulary is authoritative.
+
+card_id: adc-tce-modality-fit
+version: 1.1.0
+question: "For {target.symbol} in {indication.label}, which biologic modalities are viable candidates (ADC / TCE / both / neither)?"
+
+applies_when:
+  - "context.data_sources.surface_topology_available == true"
+
+derived_from:                                     # ARCH A1
+  - card_id: surface-topology-and-ptm
+  - card_id: surfaceome-family-classification
+  - card_id: structure-features-static
+
+required_inputs: []                               # composed cards have no direct product_id; upstream cards supply
+
+methods:
+  - call: adc-tce-modality-fit
+    args:
+      target: "{target.symbol}"
+
+outputs:
+  summary_fields:
+    # ============= BIOLOGY-AGNOSTIC (unconditional emission) =============
+    - fit_class                                   # PRIMARY biology-agnostic categorical
+    - fit_rationale                               # human-readable rationale list
+    - is_adc_topology_favorable                   # bool — biology-only signal
+    - is_tce_topology_favorable                   # bool — biology-only signal
+    - endocytosis_confidence                      # 'high' | 'moderate' | 'low' | 'clinically_internalizing' | 'unmeasured'
+    - biologics_precedented                       # bool — 2026-09-04 Phase-6: target ∈ biologics_precedent_targets.yaml (widened ADC/TCE/CAR/mAb crosswalk). A regulatory/trial fact of surface accessibility; feeds the clinically_precedented tier of surface_confirmation_state so a validated antigen a CSPA panel MISSES (e.g. DLL3) is not false-demoted.
+    - surface_confirmation_state                  # 2026-09-04 Phase-6 (VERDICT-MOVING): confirmed_protein | clinically_precedented | annotation_only | not_applicable — DERIVED cross-card by the surface_modality card preprocessor (adc-tce fit_class/endocytosis/biologics_precedented + protein-surface-evidence CSPA/multimodal + cd-antigen-backbone). Classes whether a POSITIVE fit_class rests on measured/precedented surface protein vs family/topology ANNOTATION only. annotation_only fires surface-annotation-only-unconfirmed-opposing → the surface_annotation_only_unconfirmed verdict rung. not_applicable when fit_class is non-positive (the derivation is a no-op).
+    - surface_family_class                        # from surfaceome-family-classification
+    - isoform_selective_suppressed                # bool — TRUE if letter grades were suppressed (in-context isoform)
+    - isoform_selective_offcontext                # bool — 2026-08-14: gene HAS a curated dominant alt isoform but NOT in this indication → fit_class NOT suppressed, caveat only
+    - isoform_mechanism_caveat                    # str|null — 2026-08-14 mechanism-aware: in-context isoform whose mechanism does NOT ablate the ectodomain epitope (ectodomain_intact / neoepitope / resistance_acquired / ...) → fit_class NOT suppressed, mechanism surfaced
+    - isoform_epitope_caveat                      # str|null — 2026-08-24 v1.3.0 dominance-gate: in-context + ectodomain-ABLATING but the alt isoform is a MINORITY species (p95HER2) → fit_class STANDS favorable + this high-severity caveat surfaces the subpopulation epitope loss (confirm isoform-resolved expression)
+    - method_version
+
+    # ============= LENS-CONDITIONAL: modality (ARCH A2) =============
+    # These fields are emitted ONLY when the modality lens is invoked at runtime.
+    # Rules engine treats as absent when lens not invoked.
+    - name: adc_grade
+      lens_conditional_on: modality
+      description: "ADC letter grade (A-D). Emitted only when --modality lens invoked. Suppressed if isoform_selective_suppressed=true."
+    - name: adc_score
+      lens_conditional_on: modality
+      description: "ADC raw score 0-100 from modality_rubric.yaml weights. Provides uncertainty context alongside letter grade."
+    - name: adc_grade_stability
+      lens_conditional_on: modality
+      description: "Bootstrap perturbation stability of ADC grade under ±20% weight perturbation. 'stable' | 'sensitive' | 'unstable'."
+    - name: tce_grade
+      lens_conditional_on: modality
+      description: "TCE letter grade (A-D). Emitted only when --modality lens invoked. Suppressed if isoform_selective_suppressed=true."
+    - name: tce_score
+      lens_conditional_on: modality
+      description: "TCE raw score 0-100 from modality_rubric.yaml weights."
+    - name: tce_grade_stability
+      lens_conditional_on: modality
+      description: "Bootstrap perturbation stability of TCE grade under ±20% weight perturbation."
+    - name: rubric_version
+      lens_conditional_on: modality
+      description: "modality_rubric.yaml version pin. Governance readers use this to reproduce grades."
+    - name: modality_lens_provenance
+      lens_conditional_on: modality
+      description: "Structured provenance for lens-conditional emission: {rubric_version, weights_used, inputs_used}."
+
+  summary_fields_vocabulary:
+    fit_class:
+      - ADC_preferred
+      - TCE_preferred
+      - both_viable
+      - neither_viable
+      - modality_ambiguous                        # both A/B grades or biology conflicts
+      - isoform_dependent_undefined               # arch A3 — isoform-selective warning fired
+      - data_unavailable
+    endocytosis_confidence:
+      - high
+      - moderate
+      - low
+      - clinically_internalizing   # curated clinical-ADC precedent tier (internalizing_antigen_targets.yaml); a
+                                   # measured-positive that supersedes topology-only 'unmeasured'. Emitted by the composed dispatcher.
+      - unmeasured
+    surface_confirmation_state:    # 2026-09-04 Phase-6 (VERDICT-MOVING). DERIVED cross-card by the surface_modality preprocessor.
+      - confirmed_protein          # CSPA/HPA-IF measured cell-surface protein (surface_confirmation_class ∈ {confirmed_high, confirmed} or multimodal corroborated_surface).
+      - clinically_precedented     # endocytosis clinically_internalizing OR CD/IO backbone OR biologics_precedented (validated ADC/TCE/CAR/mAb) — a CSPA false-negative rescued by regulatory fact.
+      - annotation_only            # positive fit_class resting on surfaceome-family + predicted-topology ANNOTATION with NO confirmed protein and NO clinical precedent (the surface INFLATION over-call).
+      - not_applicable             # fit_class is non-positive (neither_viable / modality_ambiguous / isoform_dependent_undefined / data_unavailable) — the derivation is a no-op.
+
+  figure: modality_fit_2x2_grid                   # ADC-vs-TCE dual scoring visualization
+
+thresholds:
+  grade_threshold_A: 90
+  grade_threshold_B: 70
+  grade_threshold_C: 50
+
+warning_predicates:
+  - warning_id: isoform_selective_grades_suppressed
+    if: "isoform_selective_suppressed == true"
+    message: "Letter grades were SUPPRESSED for {target.symbol}. Upstream surface-topology-and-ptm card flagged a clinically-dominant alt isoform — see that card's warnings for isoform-specific context. Do not cite letter grades in decks; use fit_class biology-agnostic categorical instead."
+  - warning_id: fit_grade_stability_sensitive
+    if: "adc_grade_stability == 'sensitive' || tce_grade_stability == 'sensitive'"
+    message: "Letter grade sits near a rubric threshold (bootstrap perturbation ±20% flips the grade). Governance readers should treat the grade as tier-boundary rather than a settled call."
+  - warning_id: modality_ambiguous_needs_biology_context
+    if: "fit_class == 'modality_ambiguous'"
+    message: "Both ADC and TCE grades are A or B, or biology signals conflict. Biology context (indication, ligand-independence, resistance emergence) is needed to disambiguate — modality lens output alone is insufficient."
+
+caveats:
+  - |
+    fit_class is BIOLOGY-AGNOSTIC and emitted unconditionally. Letter grades
+    (adc_grade, tce_grade, adc_score, tce_score) are LENS-CONDITIONAL — emitted
+    only when the `--modality` lens is invoked at target-profile runtime.
+    Invocations without the modality lens produce biology-first output only.
+    This is enforced by the card.schema.json arch A2 extension.
+  - |
+    Rubric weights are exposed in modality_rubric.yaml (versioned, editable
+    per-program). Governance readers can reproduce any letter grade from
+    (rubric_version, biology inputs). Rubric weight tuning is a governance
+    decision, not a per-target decision.
+  - |
+    Isoform-selective suppression (arch A3): if surface-topology-and-ptm
+    flags the target as having a clinically-dominant alt isoform in the
+    isoform_selective_targets vocabulary, letter grades are suppressed
+    regardless of modality-lens invocation. fit_class becomes
+    'isoform_dependent_undefined' to force isoform-resolved reasoning.
+  - |
+    Verification Test 5 (rigor R3): rubric grades are benchmarked against
+    a curated clinical-precedent anchor set (~30 known-ADC + ~20 known-TCE
+    clinical-precedented targets). If concordance drops < 80% AUROC on
+    that anchor set, letter grades ship as `_validation_status:
+    exploratory_not_benchmark_validated` in provenance.
+  - |
+    Grade stability is bootstrap-computed by perturbing each rubric weight
+    by ±20%. 'sensitive' means the grade tier shifts under perturbation —
+    treat as tier-boundary. 'stable' means grade holds across the full
+    perturbation range.
+
+# DATA_TO_SKILL_CONTRACT Rule 1/4 — view of the DERIVED `adc_tce_modality_fit` claim (which biologic
+# modalities are viable), derived_from [surface_topology, surfaceome_family, structure_druggability].
+measurement_type: adc_tce_modality_fit
+# P4 modality-vector (2026-08-07 adoption sweep): this IS the composed ADC/TCE modality-fit card —
+# its fit_class output is the biologics-modality call, so it is pulled by the ADC + TCE modality gates.
+modality_relevance: [adc, bite_tce]
+entity_grains: [target]
+schema_version: 1

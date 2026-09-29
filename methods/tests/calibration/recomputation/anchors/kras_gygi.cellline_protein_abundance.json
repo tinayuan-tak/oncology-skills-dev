@@ -1,0 +1,20 @@
+{
+  "target": "KRAS",
+  "accession": "P01116",
+  "skill": "tumor-presence",
+  "card_id": "cellline-protein-abundance",
+  "class_field": "protein_expression_class",
+  "vector_fixture": "protein_vectors/kras_gygi.cellline_protein_abundance.parquet",
+  "null_fixture": "protein_vectors/depmap_gygi_allgene_median_null.parquet",
+  "n_panel": 375,
+  "n_cell_lines_evaluated": 312,
+  "expected_class": "broadly_high",
+  "expected_fraction_detected": 0.832,
+  "expected_median_log2_abundance_panel": 0.00705326760040305,
+  "expected_p5_log2_abundance_panel": -1.172159926255537,
+  "expected_p95_log2_abundance_panel": 1.1702557759047973,
+  "expected_n_lineages_evaluated": 16,
+  "expected_n_lineage_restricted_lineages": 0,
+  "_captured_at": "2026-09-29T01:43:25.230454+00:00",
+  "_provenance": "live cbg read via resolve_accession('KRAS') -> load_abundance_column('P01116'); fixture = gene's log2-abundance per DepMap cell line (Gygi TMT MS, 312 models) + lineage; re-derive with methods.depmap_protein_abundance.cli.compute_summary."
+}

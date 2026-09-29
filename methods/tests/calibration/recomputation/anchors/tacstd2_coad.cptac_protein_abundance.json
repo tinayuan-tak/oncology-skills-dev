@@ -1,0 +1,40 @@
+{
+  "target": "TACSTD2",
+  "indication": "COADREAD",
+  "matched_cohort": "COAD",
+  "product_id": "cptac-protein-tumor-vs-normal-per-cohort-v1",
+  "reader": "methods.cptac_protein_deg.read.read_target_summary(target, indication)",
+  "target_rows_fixture": "dge_rows/tacstd2.cptac_target_rows.parquet",
+  "target_rows_fixture_md5": "61334ea5881a712083cca0c33881becf",
+  "allgene_effect_null_fixture": "dge_rows/tacstd2_coad.cptac_allgene_effect_null.parquet",
+  "allgene_effect_null_fixture_md5": "b54a59ff9ded71a7e2f8510299d3479d",
+  "n_cohort_rows": 9,
+  "n_allgene_null": 7418,
+  "expected": {
+    "cohort": "COAD",
+    "protein_expression_class": "modest_up",
+    "protein_contrast_estimable": true,
+    "protein_effect_size": 0.831081889936636,
+    "allgene_percentile": 98.84739822054462,
+    "allgene_percentile_class": "top_decile",
+    "allgene_percentile_context": "cptac-protein-tumor-vs-normal cohort=COAD metric=protein_effect_size",
+    "protein_bh_q_value": 6.6860028996197e-05,
+    "protein_p_value": 3.83151770373192e-05,
+    "protein_median_log2_tumor": -0.326866779728215,
+    "protein_median_log2_normal": -0.58651837103213,
+    "n_tumor_samples": 97,
+    "n_normal_samples": 100,
+    "protein_effect_size_se": 0.191769145184881,
+    "protein_effect_standardized_t": 4.3338,
+    "protein_effect_cohens_d": 0.6176,
+    "protein_effect_standardized_class": "medium",
+    "protein_effect_standardized_method": "moderated_se_exact",
+    "stat_test_used": "msstatstmt_limma_ebayes_moderated",
+    "method_version": "1.2.0",
+    "_data_source": "cptac-protein-tumor-vs-normal-per-cohort-v1"
+  },
+  "_source": {
+    "captured_utc": "2026-09-29T04:21:12.171482+00:00",
+    "boundary": "validates the read/aggregation path (indication->CPTAC-cohort resolution, the representative-cohort pick on the |Cohen's d| axis, _row_to_summary, _standardized_effect, and the WITHIN-cohort all-gene effect percentile), NOT the upstream MSstatsTMT DEG run. #1664/#1512: CPTAC TMT effect sizes are pooled-reference-relative ratios; every anchored indication is a LEAF -> a single cohort, so no cross-cohort aggregation of non-comparable ratios occurs on this path. The all-gene percentile is a within-cohort rank."
+  }
+}

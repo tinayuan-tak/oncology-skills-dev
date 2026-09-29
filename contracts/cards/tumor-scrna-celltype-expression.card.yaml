@@ -1,0 +1,294 @@
+# Card — SINGLE-CELL PER-COMPARTMENT TUMOR EXPRESSION (sc_rna; CELLxGENE Census donor pseudobulk)
+#
+# The single-cell analogue of tumor-expression-distribution. The bulk cards (cellline-rna-distribution
+# = DepMap cell lines; tumor-expression-distribution = TCGA per-sample tumor) all average expression
+# over a bulk population. This card answers what bulk CANNOT: at SINGLE-CELL resolution, in how many
+# cells of each tumor COMPARTMENT (malignant / immune / stromal / endothelial) is the target detected,
+# and is a detectable tumor signal TUMOR-CELL-INTRINSIC (malignant compartment) or MICROENVIRONMENTAL
+# (immune/stromal)? The two single-cell-native signals are detection_fraction (fraction of a
+# compartment's cells expressing the target — dropout-aware) and compartment attribution.
+#
+# PRESENCE-side card (Gate A / tumor-presence skill) — fills the sc_rna/tumor bucket that
+# MODALITY_TAXONOMY.md named as an unbuilt gap. A presence/abundance signal, NOT a tumor-vs-normal
+# contrast (that is tumor-vs-normal-selectivity, Gate B) and NOT the bulk per-sample distribution
+# (tumor-expression-distribution). The microenvironment-vs-intrinsic attribution is the sc-unique
+# answer to the question expression-purity-confound only ESTIMATES from bulk expression × purity.
+
+card_id: tumor-scrna-celltype-expression
+version: 0.1.0
+question: "At single-cell resolution, in how many cells of each tumor compartment (malignant / immune / stromal / endothelial) is {target.symbol} detected in {indication.label}, and is a detectable signal tumor-cell-intrinsic (malignant) or microenvironmental?"
+
+# Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a
+# non-verdict-driving field on this card; declare the rule-keyed primary + salient categoricals.
+# VERDICT-INERT projection (see capsule contract migration).
+capsule:
+  primary_class: sc_expression_class
+  categorical_fields:
+    - sc_expression_class
+    - tce_antigen_escape_class
+    - within_tumor_coverage_class
+    - inter_donor_consistency_class
+    - caf_vs_malignant_class
+    - tce_homogeneity_class
+
+tier: indication   # the per-indication single-cell compartment landscape; per-cell subtype grain is a later slice
+
+subgroup_stratification:
+  eligible: true
+  status: out_of_scope   # per-cell molecular-subtype stratification (subtype x compartment) is a later
+                         # slice; this card carries the pooled per-indication compartment landscape.
+  axes: [molecular_subtype]
+  rationale: "Per-cell subtype stratification needs a per-cell subtype label the donor-pseudobulk product does not carry (the emit aggregates per dataset_id x donor_id x compartment). Deferred to a later single-cell slice; this card stays at target_indication grain."
+
+applies_when:
+  # ONLY the indications whose atlases carry a per-cell MALIGNANT annotation AND enough donors for
+  # the donor-is-replicate roll-up have a landed product. CELLxGENE Census: COADREAD (v2), NSCLC,
+  # LUSC. 3CA atlas (Gavish 2023): PAAD, HNSC, KIRC, OV. Others are excluded at compose time (honest
+  # capability ceiling — the skill reads data_unavailable for any indication not listed, never a
+  # silent coarser fall-back). NB KIRC's 3CA kidney cube is MULTI-ENTITY POOLED (ccRCC-dominant but
+  # includes papillary/chromophobe/Wilms/normal — no cancer_type filter); it is a pan-renal presence
+  # readout, not a ccRCC-pure denominator. KIRP/KICH stay excluded (the pooled cube has no
+  # entity-specific denominators for them). OV's 3CA ovarian cube is likewise MULTI-ENTITY POOLED /
+  # pan-gynecologic (ovarian-dominant but includes carcinosarcoma/endometrial/GIST/peritoneal — no
+  # cancer_type filter); a pan-gynecologic presence readout, NOT HGSOC-pure.
+  - "context.indication in ['COADREAD', 'COAD', 'READ', 'NSCLC', 'LUAD', 'LUSC', 'PAAD', 'HNSC', 'KIRC', 'OV', 'STAD', 'BRCA']"
+
+required_inputs:
+  - product_id: sc-pseudobulk-tumor-crc-coadread-v1          # COADREAD — CRC core atlas (Marteau 2025) tumor pseudobulk: 45 studies / 420 tumor-origin donors / 509,819 malignant cells, with an EXPLICIT 'Cancer cell' malignant call distinct from normal 'Epithelial cell' (the Census coadread-v2 inferred the malignant compartment via compartment_of, conflating malignant with normal colonic epithelium). Reader repointed AM#312 (same pattern as NSCLC->LuCA). Superseded: sc-pseudobulk-donor-celltype-coadread-v2 (Census, 749 donors, inferred malignant).
+  - product_id: sc-pseudobulk-tumor-luca-nsclc-v1            # NSCLC/LUAD — LuCA (Salcher 2022) tumor pseudobulk: 193 tumor pts / 21 integrated datasets (upgrade from the smaller Census sc-pseudobulk-donor-celltype-nsclc-v1; reader repointed AM#310)
+  - product_id: sc-pseudobulk-donor-celltype-lusc-v1         # LUSC (Census) donor x compartment pseudobulk
+  - product_id: sc-pseudobulk-tumor-3ca-pancreas-v1          # PAAD (3CA atlas) tumor pseudobulk
+  - product_id: sc-pseudobulk-tumor-3ca-hnsc-v1              # HNSC (3CA atlas) tumor pseudobulk
+  - product_id: sc-pseudobulk-tumor-3ca-kidney-v1            # KIRC (3CA atlas) tumor pseudobulk — pan-renal pooled (ccRCC + papillary/chromophobe/Wilms); 125 donors / 74 malignant
+  - product_id: sc-pseudobulk-tumor-3ca-ovarian-v1           # OV (3CA atlas) tumor pseudobulk — pan-gynecologic pooled (ovarian + carcinosarcoma/endometrial/GIST/peritoneal); 115 donors / 106 malignant
+  - product_id: sc-pseudobulk-tumor-stad-golim-v1            # STAD — Go/Lim integrated gastric atlas (2026); malignant = Epithelial ∩ Phenotype==GC (adenocarcinoma proxy, no inferCNV); 95 donors / malignant in 88; CLDN18(.2) 1.23 malignant vs 0.06. Fills the previously-excluded gastric gap (Census tumor label 'unknown' + no 3CA bucket).
+  - product_id: sc-pseudobulk-tumor-brca-wu-v1               # BRCA — Wu/Swarbrick breast atlas (GSE176078; Nat Genet 2021); malignant = 'Cancer Epithelial' author annotation (curated, verbatim); 26 primary tumours (11 ER+ / 5 HER2+ / 10 TNBC), 20/26 donors with malignant cells. ERBB2 malignant 0.28 / TACSTD2 0.76 / EPCAM 0.74. Fills the previously-empty breast tumour scRNA gap.
+
+methods:
+  - call: sc-tumor-expression-celltype
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - sc_expression_class                       # PRIMARY categorical (drives Tier-2 rules) — PRESENCE axis
+    - tce_homogeneity_class                      # biologics lens (Phase 3.2): within-tumor antigen homogeneity
+                                                 # from the SAME malignant_detection_fraction — a TCE-escape signal,
+                                                 # independent of the presence class. Drives surface-intrinsic rules.
+    - malignant_detection_fraction              # cross-donor median detection in the malignant compartment
+    - malignant_abundance_log1p_cp10k           # cross-donor median abundance (malignant)
+    - malignant_compartment_available           # false → indication's atlases lack a malignant label (honest gap)
+    - malignant_n_donors                         # reliable donors backing the malignant call (floor = MIN_RELIABLE_DONORS)
+    - malignant_n_cells                          # total malignant cells over reliable donors (floor = MIN_MALIGNANT_CELLS_TOTAL);
+                                                 # the power behind malignant_detection_fraction — a ~509k-cell COADREAD call
+                                                 # vs a thin pooled cube (analysis-methods G3 floor)
+    - top_microenvironment_compartment          # immune | stromal | endothelial — the top-detecting microenv compartment
+    - top_microenvironment_detection_fraction   # its cross-donor median detection
+    - n_compartments_measured
+    - n_donor_groups                            # (dataset_id, donor_id) replicate count — the donor-is-replicate n
+    - n_datasets                                # contributing CELLxGENE datasets
+    - compartment_detection                     # {compartment: cross-donor median detection_fraction}
+    - per_compartment                            # v1 sc-presence depth: FULL per-compartment vector
+                                                 # [{compartment, median_detection_fraction, median_abundance_log1p_cp10k,
+                                                 #   n_donors, n_cells_total, is_caf}] — the whole compartment cube the
+                                                 # presence ladder collapses; surfaces malignant + CAF/stromal + immune +
+                                                 # endothelial + epithelial_normal + other side by side (display-only).
+    - caf_vs_malignant_class                     # explicit CAF/stromal-vs-malignant contrast (the tumor-vs-CAF dual-target
+                                                 # axis: caf_dominant / malignant_dominant / shared_caf_malignant / caf_low /
+                                                 # data_unavailable) — display-only, does NOT alter sc_expression_class
+    - caf_detection_fraction                     # cross-donor median detection in the stromal/CAF compartment
+    - caf_abundance_log1p_cp10k                  # cross-donor median abundance (stromal/CAF)
+    - caf_compartment_available                  # false → no stromal compartment measured (abstain)
+    - stromal_confound_class                     # VERDICT-DRIVING (tumor-selectivity stromal-confound veto): is a bulk
+                                                 # selective signal CAF/stroma-driven (a false window) vs malignant-intrinsic?
+                                                 # provenance-gated — only a trustworthy cube fires the veto. See vocabulary.
+    # Two-axis TCE antigen-escape readout (2026-08-20) — the honest heterogeneity call that supersedes
+    # the single-number tce_homogeneity_class (kept above for back-compat). Separates WITHIN-tumour
+    # coverage (detection fraction) from INTER-tumour consistency (per-donor detection dispersion).
+    # Display-only / verdict-inert here (primary consumer is surface-modality-fit's TCE lens).
+    - within_tumor_coverage_class                # high / partial / low — fraction of malignant cells expressing
+    - inter_donor_consistency_class              # consistent / variable / underpowered — across patients
+    - tce_antigen_escape_class                   # combined escape-risk call (see vocabulary)
+    - malignant_detection_donor_iqr              # inter-donor IQR of malignant detection fraction (None if <3 donors)
+    - fraction_donors_broadly_detecting          # fraction of donors with malignant detection >= 0.5 (None if <3 donors)
+    # WITHIN-EXPRESSER SHAPE / BIMODALITY headline (#695, consumes #668 within-expressing-cell shape
+    # stats). Sarle's bimodality coefficient BC = (skewness^2 + 1) / (excess_kurtosis + 3), computed
+    # NOT over one pooled per-cell distribution but from the CROSS-DONOR MEDIAN of each donor's
+    # within-expresser (detecting-malignant-cell) skewness and excess-kurtosis — a donor-is-replicate
+    # summary, consistent with every other statistic on this card (a strictly pooled per-cell
+    # distribution is not reconstructable at read time: the product stores per-donor derived shape
+    # moments, not sum-mergeable power sums). malignant_n_detected (the gate denominator) is the total
+    # detecting/expressing malignant cells summed over reliable donors, NOT malignant_n_cells (the
+    # total cells). Answers what the mean + detection fraction cannot: among expressing tumor cells, is
+    # the target level UNIMODAL or split into an antigen-high vs antigen-low mode (a TCE-escape-relevant
+    # reservoir). Display-only / VERDICT-INERT here (no ladder rung keys off it); the emitting reader
+    # lands separately (#695), so it is absent until the within-expresser shape emit is republished + wired.
+    - malignant_expresser_bimodality_class       # PRIMARY new categorical — the within-expresser shape headline
+    - malignant_expresser_bimodality_coefficient # Sarle's BC formed from the cross-donor median within-expresser skewness/excess-kurtosis (the headline score; None below the n_detected floor / null shape stats)
+    - malignant_expresser_skewness               # cross-donor median of the per-donor within-expresser skewness (source 3rd moment; a donor is null if <3 expressers or zero among-expresser variance)
+    - malignant_expresser_excess_kurtosis        # cross-donor median of the per-donor within-expresser EXCESS kurtosis (Pearson - 3; source 4th moment; null per-donor as above)
+    - malignant_n_detected                       # total detecting (expressing) malignant cells summed over reliable donors — the gate denominator for the bimodality headline (distinct from malignant_n_cells, the total malignant cells, and from any per-donor count)
+    # QC + malignant-annotation PROVENANCE (2026-09-03, #984 Tier-1) — reader-emitted trust qualifiers that
+    # temper how much a malignant-DETECTION call should be believed. Display/confidence-only here (consumed
+    # by tumor-presence claim-C corroboration + caveat, VERDICT-INERT — no ladder rung keys off them).
+    - ambient_contamination_risk                 # G8 soup-leakage heuristic on a malignant-subset call
+    - malignant_annotation_method                # provenance of the malignant label (curated > inferred > proxy)
+    - entity_purity                              # was the cube entity-specific or multi-entity pooled?
+    - indication
+    - product_id
+
+  summary_fields_vocabulary:
+    sc_expression_class:
+      - malignant_broadly_detected              # malignant median detection >= 0.5 — target in most tumor cells
+      - malignant_subset_detected               # 0.1 <= malignant detection < 0.5 — a real target-high tumor-cell subset
+      - microenvironment_dominant               # low malignant detection but a microenvironment compartment detects >= 0.25 — present in the tumor but NOT tumor-cell-intrinsic
+      - broadly_low                             # detected in only a minority of cells in every compartment
+      - data_unavailable                        # no landed product for the indication, gene absent from product, OR no malignant compartment to anchor (coverage gap, NOT a measured negative)
+    tce_homogeneity_class:                       # biologics within-tumor homogeneity lens (Phase 3.2), from
+                                                 # malignant_detection_fraction. A TCE program-killer is antigen
+                                                 # HETEROGENEITY (antigen-low malignant cells escape redirected
+                                                 # killing — no bystander payload). Split at 0.25 (design call).
+      - homogeneous                             # malignant detection >= 0.5 — uniform expression, low escape risk
+      - moderately_homogeneous                  # 0.25 <= detection < 0.5 — a real subset; NEUTRAL (don't over-penalize)
+      - heterogeneous                           # detection < 0.25 (malignant compartment present) — escape reservoir
+      - data_unavailable                        # no malignant compartment / detection — abstain (never a measured zero)
+    caf_vs_malignant_class:                      # v1 sc-presence depth: CAF/stromal-vs-malignant contrast (display-only,
+                                                 # the tumor-vs-CAF dual-target axis — e.g. POSTN/CTHRC1 CAF targets vs
+                                                 # tumor-cell-intrinsic targets). Does NOT alter sc_expression_class.
+      - caf_dominant                            # stromal detection >= 0.25 AND clearly exceeds malignant — a CAF target
+      - malignant_dominant                      # malignant detection >= 0.10 AND clearly exceeds stromal — tumor-cell-intrinsic
+      - shared_caf_malignant                    # both compartments detect it within 0.15 — a dual-compartment target
+      - caf_low                                 # stromal below 0.25 — not a CAF target
+      - data_unavailable                        # no stromal compartment measured — abstain (never a measured zero)
+    stromal_confound_class:                      # VERDICT-DRIVING attribution for the tumor-selectivity stromal-confound
+                                                 # veto: is a bulk tumor-vs-normal SELECTIVE signal driven by CAF/stroma
+                                                 # rather than the malignant cells (a false window for tumor-cell-targeted
+                                                 # modalities — ADC/TCE/CAR/degrader)? Provenance-gated so only a trustworthy
+                                                 # (curated/inferCNV, entity-specific) cube can MOVE the verdict.
+      - stromal_confounded                      # veto-firing: microenvironment_dominant + caf_dominant + stromal top compartment on a trustworthy cube
+      - malignant_intrinsic                     # a real tumor-cell signal (malignant_broadly/subset_detected) — explicitly NOT confounded
+      - inconclusive_low_confidence             # stromal signature present but on a weak-provenance cube (phenotype_proxy / multi_entity_pooled) — surface only, does NOT move the verdict
+      - not_stromal_confounded                  # measured, none of the above (broadly_low, immune/endothelial-dominant, or shared/malignant-dominant CAF)
+      - data_unavailable                        # no sc coverage / underpowered cube — abstain (never fires; absence is not counter-evidence)
+    within_tumor_coverage_class:                 # WITHIN-tumour axis: fraction of malignant cells expressing (detection)
+      - high                                    # >= 0.75 malignant detection — uniform within a tumour (low escape)
+      - partial                                 # 0.5-0.75 — a broad subset; dropout-aware caution
+      - low                                     # < 0.5 — an antigen-negative escape reservoir within the tumour
+      - data_unavailable                        # no malignant compartment / detection
+    inter_donor_consistency_class:               # INTER-tumour axis: does malignant detection hold ACROSS patients
+      - consistent                              # tight per-donor IQR AND most donors broadly detect
+      - variable                                # detection varies donor-to-donor (a patient-selection problem)
+      - underpowered                            # < 3 donors — dispersion untestable (honest gap)
+      - data_unavailable                        # no malignant compartment / detection
+    tce_antigen_escape_class:                    # combined TCE antigen-escape call (coverage x consistency).
+                                                 # Supersedes tce_homogeneity_class (which re-binned detection
+                                                 # fraction alone with a lenient 0.5 homogeneous bar).
+      - escape_risk_low                         # high coverage AND consistent across donors — TCE-favourable
+      - escape_risk_moderate                    # partial coverage, consistent — a real subset (dropout-aware caution)
+      - escape_risk_patient_variable            # coverage ok but INCONSISTENT across donors — patient-selection risk
+      - escape_risk_high                        # within-tumour coverage LOW (<0.5) — escape reservoir (coverage-first)
+      - coverage_high_donor_underpowered        # high coverage but too few donors to test consistency (honest gap)
+      - data_unavailable                        # no malignant compartment / detection
+    malignant_expresser_bimodality_class:        # WITHIN-EXPRESSER shape headline (#695): the SHAPE of the
+                                                 # within-expresser (detecting-malignant-cell) target-expression
+                                                 # distribution, from Sarle's bimodality coefficient (BC) built on
+                                                 # the CROSS-DONOR MEDIAN of each donor's within-expresser skewness
+                                                 # and excess-kurtosis (donor-is-replicate, NOT one pooled per-cell
+                                                 # distribution). Distinct from coverage (detection fraction) and
+                                                 # from inter-donor consistency — those ask HOW MANY / HOW
+                                                 # REPRODUCIBLE; this asks whether the expressing cells sit in ONE
+                                                 # mode or split into an antigen-high vs antigen-low mode the mean
+                                                 # cannot see. Split at BC = 5/9 (~0.556, the uniform-distribution
+                                                 # value; the standard Sarle/SAS cutoff). Display-only / VERDICT-INERT.
+      - bimodal                                 # BC > ~0.556, gated on malignant_n_detected >= min_detected_for_shape — a separable antigen-high vs antigen-low expresser split (a within-tumor escape reservoir the mean hides)
+      - unimodal                                # BC <= ~0.556 — a single expresser mode (no separable antigen-low subpopulation on this axis)
+      - underpowered                            # too few detecting malignant cells (malignant_n_detected < min_detected_for_shape) OR null shape stats (a donor's per-donor moments null at < 3 expressers / zero among-expresser variance) — shape untestable (honest gap, never a measured unimodal/bimodal call)
+      - data_unavailable                        # no malignant compartment / detection — abstain (never a measured zero)
+    ambient_contamination_risk:                  # G8 soup-leakage QC on a malignant-subset detection call
+      - possible                                # detection may be ambient/soup leakage — trust-tempering
+      - low                                     # unlikely to be ambient
+      - data_unavailable                        # not assessed (e.g. not a malignant-subset call)
+    malignant_annotation_method:                 # provenance of the per-cell malignant label
+      - curated                                 # author-curated malignant annotation (most trustworthy)
+      - infercnv                                # inferred from CNV signal
+      - phenotype_proxy                         # proxy label (least trustworthy) — corroboration-tempering
+      - unspecified                             # provenance not recorded
+    entity_purity:                               # was the pseudobulk cube entity-specific or pooled?
+      - entity_specific                         # single (target, indication) entity
+      - multi_entity_pooled                     # pooled across entities — a coarser read
+      - unspecified
+
+  figures:
+    - id: sc_compartment_detection
+      type: per_compartment_detection_bar
+      description: "Cross-donor median single-cell detection fraction per tumor compartment (malignant highlighted). Shows whether a detectable tumor signal is tumor-cell-intrinsic (malignant bar high) or microenvironmental (immune/stromal bar high)."
+      preferred_surfaces: [markdown, ppt, decision_memo]
+      primary: true
+
+thresholds:
+  # Detection-fraction cutoffs (cross-donor median). Dropout-aware — scRNA under-detects, so these sit
+  # BELOW the bulk TPM-fraction cutoffs by design. Anchored in stats.py; surfaced here for review.
+  malignant_broadly_detected_min: 0.5          # detected in >=50% of malignant cells
+  malignant_subset_detected_min: 0.10          # a real expressing malignant subset
+  microenvironment_detected_min: 0.25          # a microenv compartment counts as "expressing"
+  broadly_low_max: 0.05                        # below this everywhere == effectively undetected
+  # Within-expresser shape / bimodality (#695). Anchored in the reader; surfaced here for review.
+  malignant_expresser_bimodality_min: 0.5556   # Sarle BC > 5/9 (~0.556) => bimodal (uniform=0.556, normal->0.33, bimodal->1.0)
+  min_detected_for_shape: 20                   # detected malignant cells required before the shape headline fires (the 4th moment is outlier-sensitive and noisy below this); fewer => underpowered
+
+threshold_roles:
+  broadly_low_max:
+    role: method_parameter
+    consumed_by: sc-tumor-expression-celltype
+  malignant_broadly_detected_min:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the sc_tumor_celltype_expression reference frame over `malignant_detection_fraction` (detection_fraction), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'
+  malignant_subset_detected_min:
+    role: method_parameter
+    consumed_by: sc-tumor-expression-celltype
+    note: 'The method gates malignant_subset_detected on malignant detection fraction >= 0.10 in sc_tumor_expression_celltype/stats.py:24 (MALIGNANT_SUBSET_DETECTED_MIN), applied at L219/L495. Applied upstream, never by a card predicate.'
+  microenvironment_detected_min:
+    role: method_parameter
+    consumed_by: sc-tumor-expression-celltype
+    note: 'The method gates microenvironment detection on fraction >= 0.25 in stats.py:25 (MICROENV_DETECTED_MIN), applied at L214/L219 and class logic L258-259. Applied upstream, never by a card predicate.'
+  malignant_expresser_bimodality_min:
+    role: method_parameter
+    consumed_by: sc-tumor-expression-celltype
+    note: 'Sarle bimodality-coefficient cutoff (5/9) applied by the within-expresser shape reader to bin malignant_expresser_bimodality_class (BC > cutoff => bimodal), never by a card predicate. Emitting reader lands separately (#695).'
+  min_detected_for_shape:
+    role: method_parameter
+    consumed_by: sc-tumor-expression-celltype
+    note: 'n_detected floor the within-expresser shape reader requires before calling bimodal/unimodal (below it, or with null shape stats, the class is underpowered), never a card predicate. Emitting reader lands separately (#695).'
+warning_predicates:
+  - warning_id: no_malignant_compartment
+    if: "malignant_compartment_available == false"
+    message: "This indication's single-cell atlases carry no per-cell malignant annotation — the malignant-anchored presence call cannot be made and resolves data_unavailable. (Not a measured absence; a compartment-annotation coverage gap.)"
+  - warning_id: microenvironment_dominant_signal
+    if: "sc_expression_class == 'microenvironment_dominant'"
+    message: "Target is detected in the tumor sample but predominantly in the microenvironment (immune/stromal), not malignant cells — the bulk-RNA presence signal may be microenvironment-derived, not tumor-cell-intrinsic. Relevant for tumor-cell-targeted modalities."
+
+caveats:
+  - "Single-cell donor pseudobulk: the DONOR (dataset_id, donor_id) is the biological replicate and compartment statistics are cross-donor MEDIANS, so one large contributing atlas cannot dominate. Sources are curated tumour atlases — COADREAD from the CRC atlas (Marteau 2025), NSCLC/LUAD from LuCA (Salcher 2022), PAAD/HNSC/KIRC/OV from 3CA (Gavish 2023), STAD from the Go/Lim gastric atlas, BRCA from the Wu/Swarbrick atlas — plus the CELLxGENE Census for LUSC."
+  - "detection_fraction is single-cell-native (fraction of cells with UMI>0) and is NOT comparable to bulk TPM or the bulk cards' detectable-fraction; scRNA dropout under-detects lowly-expressed genes."
+  - "compartment is a coarse L1 mapping over the Cell Ontology cell_type (malignant/immune/stromal/endothelial/epithelial_normal/other). The compartment token map is CRC-tuned; lineage-specific NORMAL epithelial cells in non-CRC indications may fall to `other`, but the malignant/immune/stromal/endothelial compartments that drive the presence call are lineage-agnostic."
+  - "Coverage spans 9 products / 12 indication codes: COADREAD/COAD/READ, NSCLC/LUAD, LUSC, PAAD, HNSC, KIRC, OV, STAD, BRCA. Every other indication resolves data_unavailable — an honest capability gap, not a measured negative. LUSC is the only CELLxGENE Census cube; the rest are curated tumour atlases (see the provenance caveat above)."
+  - "Not every covered malignant call is entity-pure or inferCNV-anchored: KIRC is a 3CA pan-renal pooled cube (ccRCC-dominant, includes papillary/chromophobe/Wilms) and OV is 3CA pan-gynecologic pooled (not HGSOC-pure); NSCLC and LUAD share the one LuCA cube (not LUAD-pure); and STAD malignant is a phenotype PROXY (Epithelial ∩ gastric-cancer phenotype, no inferCNV) — the malignant_annotation_method / entity_purity fields carry the per-cube detail."
+  - "tce_homogeneity_class is the LEGACY within-tumour homogeneity readout (a single malignant-detection-fraction bin at a lenient 0.5 bar) and is SUPERSEDED by the two-axis readout — within_tumor_coverage_class (0.75 bar) x inter_donor_consistency_class, combined as tce_antigen_escape_class. It is still emitted for back-compat and the two can disagree; a consumer making a TCE antigen-escape call should trust tce_antigen_escape_class."
+  - "RNA detection does not imply protein presence; pair with the CPTAC protein cards for ADC/TCE decisions. The microenvironment-vs-intrinsic attribution here is a presence-axis readout; the ADC/TCE antigen-reality modality-gate interpretation is a deferred (P4) follow-up."
+  - "malignant_expresser_bimodality_class reflects TRANSCRIPTIONAL STATE, not clonal or genetic structure: it summarises the shape of target expression among the detecting (expressing) malignant cells as a cross-donor median of each donor's within-expresser shape (not one pooled distribution), so a bimodal call is an antigen-high vs antigen-low expression-STATE split. scRNA here carries no per-cell clone/CNA label, so it is NOT evidence of genetically distinct subclones."
+  - "Sarle's bimodality coefficient is built on the 3rd/4th moments (skewness, excess kurtosis) of each donor's within-expresser distribution — taken as the cross-donor MEDIAN before BC is formed — and is OUTLIER-SENSITIVE: a heavy right tail inflates kurtosis and deflates BC, so a few very-high-expressing cells in a donor can mask or fake a mode. Read it alongside malignant_detection_fraction (coverage), never as a standalone shape verdict."
+  - "The shape headline GATES on n_detected: it fires only when enough malignant cells detect the target — malignant_n_detected (the total detecting cells summed over reliable donors) >= min_detected_for_shape. Below that floor, or when the per-donor shape stats are all null (a donor is nulled at < 3 expressers or zero among-expresser variance), the class resolves underpowered — an honest power gap, never a measured unimodal/bimodal call."
+
+measurement: sc_rna
+sample_context: tumor         # patient tumor single-cell (CELLxGENE Census) — orthogonal to measurement
+
+measurement_type: sc_tumor_celltype_expression
+# P4 modality routing (2026-08-06, biologics-augment Phase 3.2): the tce_homogeneity_class facet is a
+# biologics-modality signal — within-tumor antigen homogeneity gates TCE efficacy (heterogeneity =
+# escape reservoir) and, more weakly, ADC. The card's PRIMARY sc_expression_class remains a presence-axis
+# (Gate-A) readout; this modality_relevance declares the surface-gate routing of the homogeneity facet so
+# the surface-intrinsic rules on tce_homogeneity_class land in the biologics modality-fit gate.
+modality_relevance: [bite_tce, adc]
+entity_grains: [target_indication]
+schema_version: 1

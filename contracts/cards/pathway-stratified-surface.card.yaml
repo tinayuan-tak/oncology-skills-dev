@@ -1,0 +1,101 @@
+# Card Phase-F — PATHWAY-STRATIFIED SURFACE WINDOW (v1; E4-A3)
+#
+# A tumor-STATE-conditioned surface presence facet for biologics, sibling of
+# mutation-stratified-surface (E4-A2). The gene-level-averaged tumor-vs-normal surface
+# window misses antigens elevated only in a tumor-STATE subset (e.g. the hypoxic niche).
+# This card asks: is surface antigen {target} elevated in the pathway-HIGH tumor subset
+# (top signature-score tertile) vs pathway-LOW — a biologics handle on that compartment
+# (the CA9 / carbonic-anhydrase-IX hypoxia-ADC archetype)?
+#
+# v1 COVERAGE: HALLMARK_HYPOXIA x NSCLC (pathway-stratified-surface-window-v1). A target
+# outside the built (signature, indication) slice reads not_in_product — a coverage gap,
+# NOT a negative. Pan-signature / pan-indication generalization is a documented follow-on.
+#
+# Interpretation surface (pathway_stratified_surface_class is PRIMARY):
+#   `pathway_high_up_surface`    → ELEVATED in the pathway-HIGH subset (q<=0.10, delta_log2>=0.5)
+#                                  — supportive for a biologics program in that tumor state.
+#   `pathway_high_down_surface`  → DEPLETED in the pathway-HIGH subset.
+#   `not_stratified`             → tested, no significant high-vs-low difference.
+#   `underpowered`               → a tertile arm below the sample floor (inadmissible, not a negative).
+#   `not_in_product`             → target/signature/indication outside the built slice (coverage gap).
+#
+# ADDITIVE, verdict-inert: the composed surface-modality verdict resolves off
+# adc-tce-modality-fit.fit_class; this contributes a state-conditional presence SIGNAL.
+
+card_id: pathway-stratified-surface
+version: 1.0.0
+question: "Is the surface antigen {target.symbol} elevated in the {signature}-HIGH subset of {indication} tumors vs {signature}-LOW — a biologics handle on that tumor compartment?"
+
+tier: indication   # the stratification is computed within a (signature, indication) cohort
+
+applies_when: []
+
+required_inputs:
+  - product_id: pathway-stratified-surface-window-v1
+
+methods:
+  - call: pathway-stratified-surface-lookup
+    args:
+      target: "{target.symbol}"
+      signature: HALLMARK_HYPOXIA    # v1 archetype; pan-signature generalization is a follow-on
+      indication: NSCLC
+
+outputs:
+  summary_fields:
+    - pathway_stratified_surface_class    # PRIMARY categorical (see vocabulary)
+    - signature                           # the HALLMARK signature defining the split (HALLMARK_HYPOXIA in v1)
+    - indication                          # the cohort (NSCLC in v1)
+    - delta_log2                          # median log2(TPM+1) pathway-HIGH minus -LOW; positive = elevated in high
+    - q_value                             # BH-FDR across the tested surface genes
+    - n_high                              # pathway-HIGH tertile sample count
+    - n_low                               # pathway-LOW tertile sample count
+    - pathway_stratified_context          # human-readable rationale (audit / LLM)
+    - method_version
+
+  summary_fields_vocabulary:
+    pathway_stratified_surface_class:
+      - pathway_high_up_surface      # elevated in the pathway-HIGH subset (q<=0.10, delta_log2>=0.5)
+      - pathway_high_down_surface    # depleted in the pathway-HIGH subset (q<=0.10, delta_log2<=-0.5)
+      - not_stratified               # tested, not significant / small effect
+      - underpowered                 # a tertile arm below the sample floor (inadmissible, not a negative)
+      - not_in_product               # target/signature/indication outside the built slice (coverage gap)
+
+warning_predicates:
+  - warning_id: pathway_high_up_surface_handle
+    if: "pathway_stratified_surface_class == 'pathway_high_up_surface'"
+    message: "{target.symbol} is elevated on the surface in the {signature}-HIGH subset of {indication} (delta_log2={delta_log2}, q={q_value}) — a candidate biologics handle enriched in that tumor compartment. Confirm subset antigen density before nomination."
+  - warning_id: pathway_stratified_not_in_product
+    if: "pathway_stratified_surface_class == 'not_in_product'"
+    message: "{target.symbol} / {signature} / {indication} is outside the built pathway-stratified surface slice (v1 = HALLMARK_HYPOXIA x NSCLC). COVERAGE GAP — not a determination that the antigen is un-stratified. The gene-level window still applies."
+
+caveats:
+  - |
+    A tumor-STATE-conditioned SURFACE presence facet: is an antigen elevated in a pathway/stress-HIGH
+    subset (a biologics handle on that compartment), NOT whether the pathway is itself druggable.
+    Meaningful only for a biologics (antibody/ADC/TCE) lens. ADDITIVE + verdict-inert: the
+    surface-modality verdict resolves off adc-tce-modality-fit.fit_class; this contributes a
+    supportive presence signal, not the verdict.
+  - |
+    HONEST CONFOUND: in v1 (HYPOXIA x NSCLC) the top hits are squamous-signature-dominated (DSG3/DSC3/
+    PKP1, GJB3/5/6) — hypoxia correlates with squamous histology (LUSC), so the pathway-HIGH tertile is
+    LUSC-enriched. Read pathway_high_up_surface as "the hypoxic/SQUAMOUS niche", not pure hypoxia; a
+    histology-adjusted split is the refinement. CA9 (girentuximab hypoxia-ADC antigen) still validates
+    as pathway_high_up_surface — an out-of-set positive control.
+  - |
+    v1 covers ONE archetype: HALLMARK_HYPOXIA x NSCLC (LUAD+LUSC). A target/signature/indication outside
+    that slice reads not_in_product — a coverage gap, NEVER a negative. Pan-signature generalization is a
+    documented follow-on (the derive is parameterized by --signature/--indication).
+  - |
+    Statistics: per-sample signature score = mean log2-TPM over the HALLMARK members; tertile split
+    (top vs bottom third, middle excluded); Mann-Whitney U (high vs low) + BH-FDR across surface genes.
+    pathway_high_up_surface requires q<=0.10 AND delta_log2>=0.5. underpowered (a tertile arm < 10) is
+    INADMISSIBLE, not a negative. An expression difference is not an antigen-density guarantee — confirm
+    surface protein density + homogeneity in the pathway-high subset before an ADC/TCE nomination.
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `pathway_stratified_surface` claim.
+measurement_type: pathway_stratified_surface
+# E4-A3 (2026-08-07): declaration-only routing key — a pathway-high-elevated surface antigen is a
+# biologics presence signal (adc/bite_tce/antibody). Matching rule in surface-intrinsic.rules.yaml.
+modality_relevance: [adc, bite_tce, antibody]
+entity_grains: [target_indication]
+schema_version: 1

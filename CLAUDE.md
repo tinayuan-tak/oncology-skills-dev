@@ -5,6 +5,29 @@ may be active across the framework repos. Before doing ANY non-trivial
 write work in this repo you MUST follow the cross-session coordination
 ritual below.
 
+## Consolidated layout (SK#2063, 2026-09-29)
+
+analysis-methods and target-contracts live IN THIS REPO as `methods/` and
+`contracts/` (subtree merges, full history preserved; the old repos are
+archived read-only). What this changes:
+
+- A card/rule/method/skill change is ONE atomic PR here — no sibling pins,
+  no bump PRs, no two-phase landings. The old `methods/CLAUDE.md` and
+  `contracts/CLAUDE.md` still hold their packages' domain rules; their
+  cross-REPO ritual sections are historical.
+- data-catalog is still a SEPARATE sibling repo (stable manifest-ID
+  interface); CI checks it out at ONE pinned SHA (skills-validate.yml) —
+  bump that pin by hand, rarely.
+- Suite invocation is per-package: skills suites as before; methods suite
+  from `methods/` (`pixi run pytest methods/ tests/ -q -rs
+  --import-mode=importlib -n auto`, needs `AWS_PROFILE=cbg` for live-data
+  tests); contracts gates from `contracts/` (`scripts/preland.sh` — plain
+  pytest does NOT run the validators). NEVER run a whole-tree `pytest` from
+  the repo root: duplicate test basenames kill collection.
+- The three root symlinks `rnd-computational-biology-oncology-*` are a
+  TEMPORARY geometry shim for parent-dir path resolution; do not add code
+  that depends on them (package imports / `*_ROOT` env vars instead).
+
 ## Cross-session coordination ritual
 
 Before starting a new workstream in this repo:

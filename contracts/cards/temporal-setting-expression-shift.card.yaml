@@ -1,0 +1,104 @@
+# Card — TEMPORAL / DISEASE-SETTING EXPRESSION SHIFT (primary<->metastatic, naive<->post-treatment)
+#
+# The one card-addressable feed into the BLIND sufficiency:translational axis. Static tumour
+# expression (tumor-rna-distribution) answers 'is the target expressed in the indication'; this card
+# asks the translational-readiness follow-up: 'is it STILL expressed in the setting where the drug is
+# actually given' — metastatic disease, or post-treatment / relapsed tumours — or does antigen/target
+# expression drift (down-regulate under therapy pressure, gain/lose in the metastatic transition)?
+#
+# Distinct from rwd-stratified-expression (RWD line-of-therapy only; pre-aggregated + blocked) and from
+# subgroup-stratified-mutation-frequency (mutation frequency, no expression, no primary/met axis). This
+# card adds the primary->metastatic axis and models the cross-setting SHIFT itself as the claim, sourced
+# from paired/annotated academic cohorts (MSK-MET, GENIE-BPC, paired primary-metastatic RNA).
+#
+# BLOCKED (like rwd-stratified-expression): no per-sample setting-annotated RNA reader has landed, so
+# the per-setting record panorama is deferred; this card emits cross-setting REDUCER SCALARS only.
+# status: placeholder_not_wired (method + product + setting-annotated cohorts not yet built).
+
+card_id: temporal-setting-expression-shift
+version: 1.0.0
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
+status: placeholder_not_wired   # no method/product yet; setting-annotated per-sample RNA cohorts not landed. compose surfaces it in excluded_at_compose (exclusion_source=data_blocked_at_compose); belongs in placeholder_cards, not required_cards.
+question: "Does {target.symbol} expression shift between primary and metastatic (or treatment-naive vs post-treatment/relapsed) {indication.label} tumours — i.e. is the target still expressed in the disease setting where the drug would be used?"
+
+tier: subtype   # stratified WITHIN an indication by disease-setting / treatment-line (may reference indication.* / subtype.*)
+
+measurement: bulk_rna
+sample_context: tumor
+
+# Disease-setting / treatment-line is a stratification axis; biology genuinely varies (antigen loss
+# under therapy, gain/loss in the metastatic transition), but the paired/annotated cohorts have not
+# landed a per-sample reader — so BLOCKED (mirrors rwd-stratified-expression). The per-setting record
+# field is dropped until a per-sample substrate exists; only cross-setting reducer scalars are emitted.
+subgroup_stratification:
+  eligible: true
+  status: blocked_needs_per_sample_reader
+  axes: [disease_setting, treatment_line]
+  rationale: "Target expression can be gained or lost between primary and metastatic disease and between treatment-naive and post-treatment/relapsed tumours (antigen down-regulation under therapy pressure); needs a per-sample setting-annotated cohort (MSK-MET / GENIE-BPC / paired primary-metastatic RNA) reader — not yet landed."
+
+applies_when:
+  - "context.data_sources.setting_annotated_expression_available == true"
+  - "indication.setting_cohort_target_covered == true"
+
+required_inputs:
+  - product_id: setting-annotated-expression-shift
+    indication: "{indication}"
+    release_pin: "{release_pin}"
+
+methods:
+  - call: temporal-setting-shift
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+      release_pin: "{release_pin}"
+
+outputs:
+  # Cross-setting REDUCER SCALARS only — per-setting record panorama dropped while blocked
+  # (no per-sample substrate to recompute a metric within each setting member-set).
+  summary_fields:
+    - temporal_shift_class            # PRIMARY categorical (drives the Tier-2 rules layer)
+    - n_settings_with_data
+    - cross_setting_delta_median      # log2(TPM+1) units; advanced-setting minus primary/naive
+    - highest_expression_setting
+    - lowest_expression_setting
+    - retained_in_advanced_setting    # boolean-ish: target still detectably expressed in the treated/metastatic setting
+    - setting_comparison_note         # narrative summary (measured-vs-null honest)
+  summary_fields_vocabulary:
+    temporal_shift_class:
+      - stable_across_settings
+      - gained_in_advanced_setting
+      - lost_in_advanced_setting
+      - discordant
+      - insufficient_data
+      - data_unavailable
+  figure: setting_shift_bar
+  plot_data: per_setting_aggregate_metrics
+
+interpretation_hints:
+  - if: "temporal_shift_class == 'lost_in_advanced_setting'"
+    call: "expression lost in advanced/post-treatment setting — confirm target in treated population"
+  - if: "temporal_shift_class == 'gained_in_advanced_setting'"
+    call: "expression gained in advanced / post-treatment setting"
+  - if: "temporal_shift_class == 'stable_across_settings' && n_settings_with_data >= THRESHOLD.min_settings_for_call"
+    call: "expression stable across the disease timeline"
+  - if: "temporal_shift_class == 'discordant'"
+    call: "discordant shift across settings"
+  - if: "n_settings_with_data < THRESHOLD.min_settings_for_call || temporal_shift_class == 'insufficient_data'"
+    call: "not informative"
+
+thresholds:
+  min_settings_for_call: 2          # need >=2 measured settings to speak to a cross-setting shift
+
+caveats:
+  - "Setting strata (primary vs metastatic; treatment-naive vs post-treatment/relapsed) come from annotated/paired cohorts (MSK-MET, GENIE-BPC, paired primary-metastatic RNA); these are NOT randomized — a shift may reflect cohort composition (biopsy site, prior-therapy selection), not intrinsic target biology."
+  - "BLOCKED (blocked_needs_per_sample_reader): no per-sample setting-annotated RNA reader has landed; the per-setting record panorama is deferred until a per-sample substrate exists. This card emits cross-setting reducer scalars only."
+  - "A stable or gained call in the advanced/post-treatment setting is the reassuring translational read (target still present where the drug is used); a lost call is a patient-selection / trial-setting caveat, NOT a veto (measured-vs-null: absence of setting data is not evidence of stability)."
+  - "Metastatic-site RNA carries a stromal / microenvironment confound distinct from the primary site; cross-setting deltas implicitly condition on biopsy site."
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the NEW `temporal_expression_shift` claim (the cross-setting
+# SHIFT is the scientific object, distinct from static tumor_rna expression and from the RWD-LOT-only
+# rwd_stratified_expression). Register in measurement_types.yaml before wiring.
+measurement_type: temporal_expression_shift
+entity_grains: [target_indication, target_subtype]
+schema_version: 1

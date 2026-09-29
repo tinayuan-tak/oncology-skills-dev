@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/takeda-rnd/rnd-computational-biology-oncology-target-contracts/schemas/composed_evidence_graph.schema.json",
+  "title": "Composed Evidence Graph",
+  "description": "Schema for the additive, DISPLAY-ONLY composed index emitted at target_report.evidence_graph — the composed (target-level) analog of the per-subskill decision.headline.evidence_graph. It is a one-way projection over target_report: a `verdict` node (= target_call), one `skills[]` node per sub-skill short, and typed cross-lens `edges[]` (deciding_axis / dissent / modality_fit / risk / subtype_convergence) that REFERENCE existing target_report rollups by a `ref` path. It introduces NO new science, recomputes nothing, and feeds NO rule/resolver/gate (target_call owns the recommendation). Fail-soft: absent rollups yield empty node/edge lists. Edge endpoints are typed: a deciding_axis edge's `to` is a sub-skill short; a modality_fit edge's `to` is a modality channel and `from` the limiting sub-skill short; a risk edge's `to` is a governance dimension; a subtype_convergence edge's `to` is a molecular stratum id; a dissent edge's `from` is a signal source (not necessarily a sub-skill).",
+  "type": "object",
+  "required": ["schema", "verdict", "skills", "edges"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {"type": "string", "const": "composed_evidence_graph.v1"},
+    "verdict": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["recommendation", "deciding_shorts"],
+      "properties": {
+        "recommendation": {"type": ["string", "null"]},
+        "confidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {"level": {"type": ["string", "null"]}}
+        },
+        "deciding_shorts": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "skills": {"type": "array", "items": {"$ref": "#/$defs/skill_node"}},
+    "edges": {"type": "array", "items": {"$ref": "#/$defs/edge"}},
+    "_note": {"type": "string"}
+  },
+  "$defs": {
+    "skill_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["short"],
+      "properties": {
+        "short": {"type": "string"},
+        "lens": {"type": ["string", "null"]},
+        "role": {"type": ["string", "null"]},
+        "call": {"type": ["string", "null"]},
+        "polarity": {"type": ["string", "null"]},
+        "confidence": {"type": ["string", "null"]},
+        "deciding": {"type": "boolean"},
+        "has_evidence_graph": {"type": "boolean"},
+        "literature_consistency": {"type": ["string", "null"]}
+      }
+    },
+    "edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "ref"],
+      "properties": {
+        "type": {"type": "string", "enum": ["deciding_axis", "dissent", "modality_fit", "risk", "subtype_convergence"]},
+        "from": {"type": ["string", "null"]},
+        "to": {"type": ["string", "null"]},
+        "signal": {"type": ["string", "null"]},
+        "bin": {"type": ["string", "null"]},
+        "note": {"type": ["string", "null"]},
+        "resolved_to": {"type": ["string", "null"]},
+        "ref": {"type": "string"}
+      }
+    }
+  }
+}

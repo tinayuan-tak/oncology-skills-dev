@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "oncology-analysis-methods"
+version = "0.2.0"
+requires-python = ">=3.11"
+description = "Deterministic analytical methods for the Takeda v2 oncology target-evaluation framework."
+
+# Runtime dependencies are managed by pixi.toml for the canonical environment (it
+# carries the full R/Bioconductor + scipy/plotly stack). The list here is the minimal
+# pip-installable subset so `pip install -e .` makes `methods.*` importable in a plain
+# venv — downstream consumers (skills, notebooks, batch jobs) import without sys.path
+# manipulation. Heavy/optional deps (scipy, R) are pulled per-method by the pixi env,
+# not declared here, so a lightweight consumer that only imports read-path modules
+# isn't forced to install them.
+dependencies = [
+    "pyarrow",
+    "boto3",
+    "pyyaml",
+    "s3fs",
+]
+
+# Optional extras. The base install covers read-path modules (methods.*.read); the
+# `compute` extra adds the deps needed to run the CLI/figure-emitting methods in-process
+# (the compose-dashboard dispatcher imports methods.*.cli). Install with:
+#     pip install -e ".[compute]"
+# R/Bioconductor deps (DESeq2, ComBat-seq, MSstatsTMT) remain pixi-only — they are not
+# pip-installable and are required only by the R-driven methods (dge_deseq2, cptac_protein_deg,
+# cooccurrence_fisher_pancohort), which shell out to Rscript.
+[project.optional-dependencies]
+compute = [
+    "click",        # 32 method cli.py entrypoints
+    "scipy",        # 14 modules: gaussian_kde density emitters, stats
+    "pandas",
+    "numpy",
+    "plotly",       # figure_*.plotly.json emitters
+    "openpyxl",     # CPTAC clinical XLSX / SURFY parsing
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["methods*"]
+# Numbered step/script dirs (methods/*/steps, methods/*/scripts) hold standalone
+# stage scripts run as subprocesses (e.g. 01_panel_intersect.py) — they are NOT
+# importable packages (no __init__.py, digit-leading names) and are auto-excluded
+# by find_packages. Listed here defensively so intent is explicit.
+exclude = ["methods.*.steps", "methods.*.scripts"]

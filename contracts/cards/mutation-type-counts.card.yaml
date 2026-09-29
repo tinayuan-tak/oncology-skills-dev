@@ -1,0 +1,144 @@
+# MUTATION-TYPE COUNTS  (cell-line cohort, MAF-based)
+#
+# Counts mutations per gene across DepMap cell lines, stratified by variant class
+# (missense / nonsense / frameshift / splice / inframe-indel / etc.). The
+# variant-class distribution IS the target biology: oncogenes show
+# missense-dominant profiles (activating hotspots), tumor suppressors show
+# LOF-dominant profiles (nonsense + frameshift + splice), dual-role genes
+# (TP53) show mixed patterns.
+#
+# DISTINCT FROM mutation-hotspot-frequency: that card is TCGA-patient-cohort,
+# codon-resolution ("what % of patients carry G12 mutations?"). This card is
+# CELL-LINE-cohort, variant-class-resolution ("what kinds of mutations does
+# this gene carry in DepMap cell lines?"). Both useful, different questions.
+#
+# Data source: dmc-26q1/OmicsSomaticMutations.csv (738 MB MAF with ~1.5M
+# observations across ~20,500 genes × ~1,800 cell lines).
+#
+# Key column: VariantInfo (VEP sequence-ontology terms). Compound entries like
+# 'stop_gained&frameshift_variant' are split on '&' and assigned to the
+# highest-impact class per VEP severity ranking.
+
+card_id: mutation-type-counts
+version: 1.1.0    # 1.1.0 (2026-09-23): + `underpowered` mutation_landscape_class value (PR-C3 companion, genomic
+                  # n-honesty vertical) — a coverage GAP distinct from both no_mutations (n_mutated==0, a genuine
+                  # measured negative) and mixed (a real dual-signal coding-variant profile). Emitted when 1-4
+                  # cell lines are mutated (too few to characterize a pattern) or when mutated cell lines exist
+                  # but carry zero CODING variants (no missense/LOF/inframe signal to classify at all — the
+                  # previous code called this "mixed", which wrongly implied a measured dual-role signal).
+                  # Consumed by the new mut-underpowered-insufficient rule so it reads insufficient, never
+                  # neutral-via-false-mixed or a measured negative-via-false-no_mutations.
+question: "Across DepMap cell lines, what kinds of mutations does {target.symbol} carry — missense-dominant (oncogene pattern), LOF-dominant (tumor-suppressor pattern), mixed, or no mutations?"
+
+# Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a
+# non-verdict-driving field on this card; declare the rule-keyed primary + salient categoricals.
+# VERDICT-INERT projection (see capsule contract migration).
+capsule:
+  primary_class: mutation_landscape_class
+  categorical_fields:
+    - mutation_landscape_class
+    - mut_dominant_mutation_class
+  numeric_anchors:
+    - mut_fraction_missense       # vs missense_dominant_fraction 0.7 — sets the landscape class
+    - mut_fraction_lof            # vs lof_dominant_fraction 0.5
+    - mut_fraction_inframe_indel
+    - mut_mutation_rate
+    - mut_n_cell_lines_mutated    # vs min_mutated_cell_lines 5
+    - mut_n_cell_lines_total
+
+applies_when:
+  - "context.data_sources.depmap_somatic_mutations_available == true"
+
+required_inputs:
+  - product_id: depmap-consortium-26q1
+    release_pin: "{release_pin}"
+
+methods:
+  - call: depmap-mutation-type-counts
+    module: depmap_mutation_type_counts
+    entrypoint: read_mutation_type_counts
+    args:
+      target: "{target.symbol}"
+      release_pin: "{release_pin}"
+
+outputs:
+  summary_fields:
+    - mut_n_cell_lines_total                # n cell lines with at least one entry in MAF
+    - mut_n_cell_lines_mutated              # n cell lines with any mutation in target
+    - mut_mutation_rate                     # n_mutated / n_total
+    - mut_total_mutations                   # raw count of mutation observations (≥ n_mutated if multi-hit)
+    - mut_n_missense                        # count of missense variants
+    - mut_n_nonsense                        # count of stop_gained
+    - mut_n_frameshift                      # count of frameshift_variant
+    - mut_n_splice                          # splice_acceptor + splice_donor + splice_region
+    - mut_n_inframe_indel                   # inframe_insertion + inframe_deletion
+    - mut_n_synonymous                      # synonymous_variant
+    - mut_n_other                           # all other classes (5'UTR, 3'UTR, intron, etc.)
+    - mut_fraction_missense
+    - mut_fraction_lof                      # nonsense + frameshift + splice
+    - mut_fraction_inframe_indel
+    - mut_dominant_mutation_class           # 'missense' | 'lof' | 'inframe_indel' | 'mixed' | 'none'
+    - mutation_landscape_class              # DESCRIPTIVE CATEGORICAL (drives Tier-2 rules)
+    - mut_top_mutated_lineages              # per-lineage stats (n mutated, fraction)
+    - mut_per_class_counts                  # ordered list of {variant_class, n}
+
+  summary_fields_vocabulary:
+    mutation_landscape_class:
+      - missense_dominant                   # oncogene pattern; ≥70% missense among coding variants
+      - lof_dominant                        # tumor-suppressor pattern; ≥50% nonsense+frameshift+splice
+      - mixed                               # neither single class dominates (dual-role genes)
+      - no_mutations                        # 0 cell lines mutated — a genuine measured negative
+      - underpowered                        # 1-4 cell lines mutated, or mutated but zero coding variants — too thin to characterize a pattern (coverage gap, NOT a measured negative or a real mixed signal)
+      - data_unavailable                    # MAF unreachable or target absent
+    mut_dominant_mutation_class:
+      - missense
+      - lof
+      - inframe_indel
+      - mixed
+      - none
+
+  figures:
+    - id: mutation_class_bar
+      type: stacked_bar
+      description: "Stacked bar of variant-class counts (missense / nonsense / frameshift / splice / inframe-indel / synonymous / other) across all mutated cell lines. Color-coded by class. Reads as: tall missense bar = oncogene, tall LOF bars = tumor suppressor."
+      preferred_surfaces: [markdown, ppt, decision_memo]
+      primary: true
+    - id: mutation_lineage_bar
+      type: per_lineage_stacked_bar
+      description: "Per-lineage stacked bar showing n cell lines mutated by variant class, top 10 lineages by mutation count. Surfaces lineage-specific mutation patterns (e.g. NF1 LOF in NF1-syndrome lines)."
+      preferred_surfaces: [markdown, ppt]
+  plot_data: per_cell_line_per_class_mutation_counts
+
+thresholds:
+  missense_dominant_fraction: 0.70           # ≥70% missense among coding variants → missense_dominant
+  lof_dominant_fraction: 0.50                # ≥50% LOF (nonsense+frameshift+splice) → lof_dominant
+  min_mutated_cell_lines: 5                  # <5 → no_mutations call
+  min_panel_coverage_threshold: 1000
+
+threshold_roles:
+  lof_dominant_fraction:
+    role: method_parameter
+    consumed_by: depmap-mutation-type-counts
+  missense_dominant_fraction:
+    role: method_parameter
+    consumed_by: depmap-mutation-type-counts
+warning_predicates:
+  - warning_id: low_mutation_panel_coverage
+    if: "mut_n_cell_lines_total < THRESHOLD.min_panel_coverage_threshold"
+    message: "MAF panel covers fewer than 1000 cell lines — mutation-rate estimate may be biased."
+  - warning_id: very_rare_mutation
+    if: "mut_n_cell_lines_mutated < THRESHOLD.min_mutated_cell_lines"
+    message: "Fewer than 5 cell lines mutated — classification deferred to 'no_mutations' (0) or 'underpowered' (1-4). Read other evidence threads instead."
+
+caveats:
+  - "Variant-class counts use the Ensembl VEP sequence-ontology terminology (missense_variant, stop_gained, frameshift_variant, splice_acceptor_variant, etc.). Compound VEP annotations (e.g. 'stop_gained&frameshift_variant') are resolved to the highest-impact class."
+  - "Per-cell-line single-most-severe variant: when one cell line has multiple mutations in the gene, we count each observation independently — so the totals can exceed n_mutated_cell_lines. mut_dominant_mutation_class is computed on the OBSERVATION distribution, not the per-line one."
+  - "Mutation profile is descriptive — 'missense_dominant' alone doesn't prove oncogene status (synthetic-lethal partners and DNA-repair genes also show missense-dominant patterns). Pair with dependency cards for therapeutic inference."
+  - "Card uses IsDefaultEntryForModel=Yes filter — collapses to one entry per Model (avoids double-counting cell lines that have multiple ModelConditions)."
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `mutation_variant_class_spectrum` claim.
+measurement_type: mutation_variant_class_spectrum
+# modality_relevance: routing key for downstream modality-fit gates
+modality_relevance: [small_molecule, degrader]
+entity_grains: [target, target_lineage]
+schema_version: 1

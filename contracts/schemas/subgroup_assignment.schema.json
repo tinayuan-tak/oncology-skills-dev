@@ -1,0 +1,159 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/takeda-rnd/rnd-computational-biology-oncology-target-contracts/schemas/subgroup_assignment.schema.json",
+  "title": "Subgroup Assignment Manifest",
+  "description": "Manifest for a per-sample subgroup assignment product. The assignment Parquet itself contains one row per (sample, subgroup_id) — this manifest indexes it in the catalog. Produced by subgroup_assigner_directly_tagged or subgroup_assigner_maf_filter methods (iter-1b) or subgroup_assigner_classifier_run (iter-2). Consumed by cards using --stratify-by subgroup_catalog. Lives at data-catalog/manifests/derived/subgroup-assignments/{indication}/{data_source}/{release_pin}/manifest.yaml.",
+  "type": "object",
+  "required": [
+    "manifest_kind",
+    "assignment_product_id",
+    "indication",
+    "data_source",
+    "release_pin",
+    "subgroup_catalog_ref",
+    "assigner_method",
+    "parquet_s3_uri",
+    "parquet_schema",
+    "n_samples_total",
+    "strata_summary",
+    "generated_at",
+    "generated_by",
+    "schema_version"
+  ],
+  "unevaluatedProperties": false,
+  "properties": {
+    "manifest_kind": {
+      "type": "string",
+      "const": "subgroup_assignment_product"
+    },
+    "assignment_product_id": {
+      "type": "string",
+      "description": "Stable identifier (e.g., 'subgroup-assignments-coadread-tcga-2026-q2').",
+      "pattern": "^subgroup-assignments-[a-z][a-z0-9-]+$",
+      "minLength": 25,
+      "maxLength": 120
+    },
+    "indication": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z_0-9]*$",
+      "minLength": 2,
+      "maxLength": 30
+    },
+    "data_source": {
+      "type": "string",
+      "enum": ["tcga", "depmap", "ccle", "gdsc", "genie", "genie_bpc"],
+      "description": "Which data source's samples are assigned. iter-1b: tcga + depmap. genie = AACR GENIE registry MAF (per-sample mutation strata). genie_bpc = GENIE Biopharma Collaborative curated cohort (per-sample line-of-therapy + treatment strata; landed 2026-07-15). Tempus is excluded — pre-aggregated upstream, per-sample assignment not accessible."
+    },
+    "release_pin": {
+      "type": "string",
+      "minLength": 3,
+      "description": "Catalog release_pin identifier (e.g., '2026-Q2'). Pins the catalog manifest version used as input."
+    },
+    "subgroup_catalog_ref": {
+      "type": "string",
+      "description": "Reference to the subgroup_catalog manifest used to generate these assignments (e.g., 'coadread-subgroups-2026-q2').",
+      "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$"
+    },
+    "subgroup_catalog_content_pin": {
+      "type": "string",
+      "description": "SHA-256 (hex) of the RESOLVED subgroup-catalog file content at generation time. The release_pin label (e.g. '2026-Q2') is a moving target — catalogs are edited in place under a fixed version label (COADREAD/2026-Q2 grew 6→18 strata across 5 in-place edits in 48h). This content-pin makes staleness detectable: an assignments product whose pin differs from the current catalog's hash was derived against a different stratum set, even if release_pin matches. Consumers and the coverage matrix compare this against a freshly-hashed catalog to flag re-emit-needed cells.",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "input_manifest_ids": {
+      "type": "array",
+      "description": "Catalog manifest IDs the assigner method read (e.g., ['tcga-gdc-dr45-0', 'gdc-pancohort-somatic-dr45-0']).",
+      "items": {"type": "string", "minLength": 1},
+      "minItems": 1
+    },
+    "assigner_method": {
+      "type": "string",
+      "enum": [
+        "subgroup_assigner_directly_tagged",
+        "subgroup_assigner_maf_filter",
+        "subgroup_assigner_classifier_run"
+      ],
+      "description": "Which method produced these assignments. iter-1b: directly_tagged + maf_filter. iter-2: classifier_run."
+    },
+    "assigner_method_version": {
+      "type": "string",
+      "description": "Semver of the assigner method at production time.",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-[0-9A-Za-z.-]+)?$"
+    },
+    "parquet_s3_uri": {
+      "type": "string",
+      "description": "S3 URI to the assignment Parquet (or local file:// during development).",
+      "pattern": "^(s3://|file://)[a-zA-Z0-9._/-]+\\.parquet$"
+    },
+    "parquet_schema": {
+      "type": "object",
+      "description": "Per-column schema for the Parquet.",
+      "required": ["columns"],
+      "unevaluatedProperties": false,
+      "properties": {
+        "columns": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "type"],
+            "unevaluatedProperties": false,
+            "properties": {
+              "name": {"type": "string"},
+              "type": {"type": "string", "enum": ["string", "int64", "float64", "timestamp", "bool"]},
+              "nullable": {"type": "boolean"},
+              "description": {"type": "string"}
+            }
+          },
+          "minItems": 5
+        }
+      }
+    },
+    "n_samples_total": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Total number of distinct samples assigned. NOT row count of the Parquet — a sample may appear in multiple strata."
+    },
+    "strata_summary": {
+      "type": "array",
+      "description": "Per-stratum sample counts. Cross-checked against the catalog's expected_n_* fields when present.",
+      "items": {
+        "type": "object",
+        "required": ["subgroup_id", "n_samples"],
+        "unevaluatedProperties": false,
+        "properties": {
+          "subgroup_id": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]*$"},
+          "n_samples": {"type": "integer", "minimum": 0},
+          "derivation_source": {
+            "type": "string",
+            "enum": ["directly_tagged_clinical", "directly_tagged_source_provided", "maf_filter_per_rule", "classifier_run"]
+          },
+          "warnings": {
+            "type": "array",
+            "items": {"type": "string"}
+          }
+        }
+      },
+      "minItems": 1
+    },
+    "review_decision": {
+      "type": "string",
+      "enum": ["pending", "approved", "deprecated"]
+    },
+    "canonical_decision_ref": {
+      "type": "string",
+      "description": "Reference to canonical-decisions record gating this product."
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "generated_by": {
+      "type": "string",
+      "description": "Method invocation provenance (e.g., 'methods/subgroup_assigner_directly_tagged@a1b2c3d').",
+      "pattern": "^methods/[a-z_][a-z0-9_]*@[0-9a-f]+$"
+    },
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    }
+  }
+}

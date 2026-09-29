@@ -1,0 +1,27 @@
+# dge_deseq2 substrate metadata — single source of truth (analysis-methods#733,
+# S1's deferred (b)-half).
+#
+# The four-cell DESeq2 pipeline runs on two independent count substrates:
+#   * recount3  — the classifier/verdict substrate (monorail uniform reprocess).
+#   * xena_toil — a secondary/diagnostic substrate (S1b, analysis-methods#694),
+#                 never a verdict input.
+#
+# Every field here was already hard-coded, verbatim, in exactly one Python module before
+# this file existed (see config/__init__.py's substrates() docstring for the map). This
+# file does not introduce any new fact, only a single declared home for facts that were
+# previously scattered as literals.
+#
+# There is deliberately NO cell-B field: the ComBat-seq cell B was removed entirely from
+# the four-cell pipeline in analysis-methods#727 and never had a substrate axis of its own
+# (it only ever ran on recount3). Do not add one back here.
+substrates:
+  recount3:
+    annotation_version: v26          # Gencode v26 / G026 (recount3 tcga-gtex-2023-01-04)
+    s3_key_infix: ""                 # bare catalog id, e.g. coadread-dge-tumor-vs-normal-sensitivity-v1
+    source_manifest_id: recount3-tcga-gtex-2023-01-04
+    role: verdict-input
+  xena_toil:
+    annotation_version: v23          # GENCODE v23 (UCSC Toil TcgaTargetGtex recompute)
+    s3_key_infix: "-xenatoil"        # e.g. coadread-dge-tumor-vs-normal-sensitivity-xenatoil-v1
+    source_manifest_id: xena-toil-tcga-target-gtex-snapshot-2026-09-20
+    role: secondary-diagnostic

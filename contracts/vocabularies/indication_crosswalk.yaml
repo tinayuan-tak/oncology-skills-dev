@@ -1,0 +1,756 @@
+# indication_crosswalk.yaml
+# Canonical vocabulary: iDAS indication → data-source-specific codes across
+# TCGA study, GDC project, OncoTree, DepMap lineage, CPTAC cohort, GTEx normal,
+# and adjacent-normal manifest. This is the reference vocabulary for methods
+# that iterate across data sources for a single indication — supersedes the
+# six inconsistent `INDICATION_TO_*` Python dicts (dge_deseq2/read.py:157,
+# depmap_chronos/read.py:30, gdc_somatic_hotspot/read.py:26, cptac_protein_deg/
+# read.py:42, dge_deseq2/read.py:620, dge_tcga_gtex_precompute/cli.py:36).
+#
+# See IDAS_SUBTYPE_PIPELINE.md master design + parent plan
+# .claude/plans/deep-foraging-thompson.md Phase 1.
+
+version: 1.5.0   # 1.5.0 (2026-09-18): HNSC `depmap_lineage` REPAIRED `Head_and_Neck` -> `Head and Neck`, and
+                 # DLBCL/UM added as aliases. NOT purely additive: the HNSC line CHANGES a value.
+                 # The underscored spelling matched ZERO of the 96 models in DepMap 26Q1's real
+                 # `Head and Neck` lineage, so every consumer reading this lane for HNSC got a silent
+                 # miss. In the functional-requirement skill that miss is not merely a fallback: because
+                 # HNSC *is* curated here, `_indication_lineage_read` passes the "not in the vocabulary"
+                 # branch and lands on `not_in_panel`, emitting the measured-absence claim
+                 # "Head_and_Neck not among screened lineages" for a lineage with 96 screened models.
+                 # Measured on the 504-pair atlas run population: 40 HNSC pairs carried that false
+                 # absence, and it hid a real enrichment on EGFR/HNSC.
+                 # It was the ONLY underscored value of 34 — `Soft Tissue`, `Adrenal Gland`,
+                 # `Bladder/Urinary Tract`, `Ovary/Fallopian Tube`, `Esophagus/Stomach` and 6 more
+                 # multi-word lineages already used the literal Model.csv spelling, and the
+                 # analysis-methods canonical map (depmap_chronos.read.INDICATION_TO_DEPMAP_LINEAGE) has
+                 # zero underscored values. So this is a one-member typo, NOT a token convention; the
+                 # guards that called it one now compare EXACTLY (see tests/vocabularies/).
+                 # DLBCL and UM are each the `oncotree_code` this file ALREADY declares on its own entry
+                 # (DLBC and UVM respectively), so a caller passing one is passing a string this
+                 # vocabulary itself publishes; neither resolved, so both fell to the no-indication-read
+                 # branch (9 atlas pairs). A new guard makes every declared oncotree_code resolvable.
+                 # 1.4.0 (2026-09-12): + `aliases` lane (sub-indication / synonym codes that resolve to a
+                 # canonical indication) and two DepMap-lineage repairs. Motivation: the analysis-methods
+                 # canonical map (depmap_chronos.cli.INDICATION_LINEAGE) knew LUAD/LUSC/COAD/READ while this
+                 # file did not, so a consumer reading THIS file (e.g. the functional-requirement skill's
+                 # _indication_lineage_map) resolved `--indication LUAD` to nothing and silently fell back to
+                 # pan-lineage scope — even though SKILL.md advertises LUAD as a worked example. These are
+                 # SUB-indications of NSCLC/COADREAD, not new canonical indications, so they land as aliases
+                 # rather than fragmenting the 35-code vocabulary. Also: UVM carried depmap_lineage: null
+                 # although DepMap 26Q1 has an `Eye` lineage (29 lines; OncotreeCode UM = 16 of them, which is
+                 # UVM's own oncotree_code), and COADREAD lacked the depmap_oncotree_codes set that its coarse
+                 # `Bowel` lineage needs (Bowel merges colorectal adenocarcinoma with anal squamous, small-
+                 # bowel and appendiceal cancers). THYM's null lineage is CORRECT and stays — DepMap 26Q1 has
+                 # no Thymus lineage at all. Additive; all prior fields unchanged.
+                 # 1.2.0 (2026-08-24): + efo_ids lane per indication — OncoTree/canonical -> Open
+                 # Targets EFO/MONDO disease ids, the filter the competitor-landscape card uses to
+                 # scope Open Targets drugAndClinicalCandidates rows to an indication. Ids grounded
+                 # in the OT 26.06 disease vocabulary, intersected with the competitor product's
+                 # disease_id universe. Additive; all prior fields unchanged.
+                 # 1.1.0 (2026-08-21): + mesh_terms lane per indication — the OncoTree/canonical ->
+                 # MeSH (ClinicalTrials.gov browse_conditions.downcase_mesh_term) crosswalk that lets a
+                 # method filter the AACT trial-precedent product to an indication. Curated from the
+                 # AACT 2026-07 condition vocabulary. Additive; all prior fields unchanged.
+schema_version: 1
+curation_status: iter1_authored
+
+# iter-1 iDAS scope: 8 indications live + 1 (CML) deferred to iter-1b
+# Strategic-bucket assignments per user 2026-07-14 direction
+
+indications:
+
+  # ===== GI-lower (standalone bucket) =====
+  - canonical_code: COADREAD
+    mesh_terms: ["colorectal neoplasms", "colonic neoplasms", "rectal neoplasms"]   # AACT browse_conditions.downcase_mesh_term
+    efo_ids: [MONDO_0002032, MONDO_0002169, MONDO_0002271, MONDO_0005008, MONDO_0005575, MONDO_0024331, MONDO_0044937]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
+    display_name: "Colorectal Cancer (CRC)"
+    strategic_bucket: Gastric
+    oncotree_code: COADREAD
+    tcga_studies: [TCGA-COAD, TCGA-READ]
+    gdc_project_ids: [TCGA-COAD, TCGA-READ]
+    depmap_lineage: Bowel
+    depmap_oncotree_lineage: Colorectal_Adenocarcinoma
+    # OncotreeCode SET for the sublineage-aware dependency reduction (mirrors NSCLC below). The coarse
+    # DepMap lineage "Bowel" is 133/146 colorectal adenocarcinoma but ALSO carries anal squamous carcinoma,
+    # small-bowel / small-intestinal carcinoma, appendiceal adenocarcinoma and GI neuroendocrine tumours —
+    # so an indication read at coarse grain is confounded. These are the 4 codes whose
+    # OncotreePrimaryDisease == "Colorectal Adenocarcinoma" in 26Q1.
+    depmap_oncotree_codes: [COAD, COADREAD, READ, MACR]
+    # Sub-indication codes: the two TCGA halves of COADREAD. Present in the analysis-methods canonical
+    # lineage map, so they must resolve here too (both → Bowel).
+    aliases: [COAD, READ]
+    cptac_cohort: COAD
+    gtex_normal_tissue: Colon
+    adj_normal_manifest: coadread-dge-df06320   # FIX: was coadread-adj-normal-dge-v1 (nonexistent); df06320 is the real TCGA matched-adjacent DESeq2 product
+    iter1_status: live
+    notes: "Design anchored in .claude/plans/you-are-a-skilled-drifting-pixel.md ~1360-1700"
+
+  # ===== Thoracic bucket =====
+    mesh_ids:
+      - MESH:D003110
+      - MESH:D012004
+      - MESH:D015179
+  - canonical_code: NSCLC
+    mesh_terms: ["carcinoma, non-small-cell lung", "adenocarcinoma of lung", "lung neoplasms"]   # AACT MeSH (lung neoplasms = NSCLC-dominant parent)
+    efo_ids: [EFO_0005288, MONDO_0005061, MONDO_0005097, MONDO_0005233]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
+    display_name: "Non-Small Cell Lung Cancer"
+    strategic_bucket: Thoracic
+    oncotree_code: NSCLC
+    tcga_studies: [TCGA-LUAD, TCGA-LUSC]
+    gdc_project_ids: [TCGA-LUAD, TCGA-LUSC]
+    depmap_lineage: Lung
+    depmap_oncotree_lineage: Non-Small_Cell_Lung_Cancer
+    # OncotreeCode SET for the sublineage-aware dependency reduction (per_oncotree_code_stats, AM #412):
+    # the coarse DepMap lineage "Lung" merges NSCLC + SCLC, so an indication read at coarse grain is
+    # confounded. NSCLC = all OncoTree codes with primary disease "Non-Small Cell Lung Cancer" (26Q1).
+    depmap_oncotree_codes: [LUAD, LUSC, NSCLC, LCLC, LUAS, LUMEC, GCLC, NUTCL, NSCLCPD]
+    # Sub-indication codes: the two histologies routinely requested as indications in their own right
+    # (SKILL.md worked examples use LUAD). Both → Lung, matching the analysis-methods canonical map.
+    # NOTE these are also members of depmap_oncotree_codes above — that is the SUBLINEAGE grain (which
+    # DepMap cell lines belong to NSCLC), while `aliases` is the INPUT grain (which --indication strings
+    # resolve to this canonical code). Overlap is expected and not a duplication.
+    aliases: [LUAD, LUSC]
+    cptac_cohort: LUAD  # note: LUAD only; LUSC is LSCC (separate CPTAC cohort — see LUSC-side of crosswalk if needed)
+    gtex_normal_tissue: Lung
+    adj_normal_manifest: null  # not yet ingested; TCGA-LUAD paired-adjacent exists
+    iter1_status: live
+
+    mesh_ids:
+      - MESH:D000077192
+      - MESH:D002289
+      - MESH:D008175
+  - canonical_code: SCLC
+    mesh_terms: ["small cell lung carcinoma", "carcinoma, small cell"]   # AACT browse_conditions.downcase_mesh_term
+    efo_ids: [MONDO_0008433]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
+    display_name: "Small Cell Lung Cancer"
+    strategic_bucket: Thoracic
+    oncotree_code: SCLC
+    tcga_studies: []  # No TCGA-SCLC cohort (SCLC not in TCGA-standard)
+    gdc_project_ids: []
+    depmap_lineage: Lung  # DepMap groups all lung; filter by OncoTree SCLC subtype
+    depmap_oncotree_lineage: Small_Cell_Lung_Cancer
+    # OncotreeCode SET (per_oncotree_code_stats reduction): SCLC only — small-cell. Excludes LUCA (lung
+    # carcinoid, also neuroendocrine but NOT small-cell) so the SCLC read is not diluted by carcinoids.
+    depmap_oncotree_codes: [SCLC]
+    cptac_cohort: null  # No CPTAC SCLC cohort
+    gtex_normal_tissue: Lung
+    adj_normal_manifest: null
+    iter1_status: live_depmap_only  # Patient-side strata deferred pending SCLC cohort ingestion
+    notes: "SCLC has NO TCGA-standard cohort. iter-1 SCLC is DepMap-only. Patient-cohort ingestion (George 2015, cBioPortal SCLC) is iter-2 unblock."
+
+    mesh_ids:
+      - MESH:D018288
+      - MESH:D055752
+  - canonical_code: HNSC
+    mesh_terms: ["head and neck neoplasms", "squamous cell carcinoma of head and neck"]   # AACT browse_conditions.downcase_mesh_term
+    efo_ids: [MONDO_0005627, MONDO_0010150]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
+    display_name: "Head & Neck Cancer"
+    strategic_bucket: Thoracic
+    oncotree_code: HNSC
+    tcga_studies: [TCGA-HNSC]
+    gdc_project_ids: [TCGA-HNSC]
+    depmap_lineage: Head and Neck  # FIX v1.5.0: was `Head_and_Neck`, which matched ZERO of the 96 models in DepMap 26Q1's real `Head and Neck` OncotreeLineage — verbatim Model.csv spelling, no underscore
+    depmap_oncotree_lineage: Head_and_Neck_Squamous_Cell_Carcinoma  # underscored ON PURPOSE and left alone: this lane is an OncotreeSubtype-style token, is never compared to an OncotreeLineage value, and 10 of its 35 values are underscored
+    cptac_cohort: HNSCC
+    gtex_normal_tissue: null  # No exact GTEx match; Skin - Sun Exposed / Minor Salivary Gland are best-available; verify at Phase 2 wire-in
+    adj_normal_manifest: null
+    iter1_status: live
+    notes: "HPV-status axis is dominant biological + treatment discriminator; see docs/design/idas-strata/hnsc.md"
+
+  # ===== GI-upper bucket =====
+    mesh_ids:
+      - MESH:D000077195
+      - MESH:D006258
+  - canonical_code: STAD
+    mesh_terms: ["stomach neoplasms"]   # AACT browse_conditions.downcase_mesh_term
+    efo_ids: [MONDO_0001056, MONDO_0004950, MONDO_0005036]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
+    display_name: "Gastric Cancer"
+    strategic_bucket: Gastric
+    oncotree_code: STAD
+    tcga_studies: [TCGA-STAD]
+    gdc_project_ids: [TCGA-STAD]
+    depmap_lineage: Esophagus/Stomach  # DepMap 26Q1 has NO "Stomach" lineage — gastric + esophageal are merged into "Esophagus/Stomach"; disambiguate STAD vs ESCA via depmap_oncotree_lineage below (mirrors ESCA)
+    aliases: [GC]   # synonym — gastric cancer; present in the analysis-methods canonical lineage map
+    depmap_oncotree_lineage: Stomach_Adenocarcinoma
+    # OncotreeCode SET (per_oncotree_code_stats reduction): the stomach-adenocarcinoma family. Splits STAD
+    # from ESCA (both roll up to primary "Esophagogastric Adenocarcinoma", so PrimaryDisease can't split
+    # them — OncotreeCode can). Excludes ESCC (esophageal squamous — a distinct entity).
+    depmap_oncotree_codes: [STAD, TSTAD, DSTAD, SSRCC, MSTAD, STAS, STSC]
+    cptac_cohort: null  # Verify PDC has a STAD cohort at Phase 2
+    gtex_normal_tissue: Stomach
+    adj_normal_manifest: null
+    iter1_status: live
+
+    mesh_ids:
+      - MESH:D013274
+  - canonical_code: ESCA
+    mesh_terms: ["esophageal neoplasms", "adenocarcinoma of esophagus", "esophageal squamous cell carcinoma"]   # AACT browse_conditions.downcase_mesh_term
+    efo_ids: [MONDO_0005028, MONDO_0005580, MONDO_0007576, MONDO_0019086]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
+    display_name: "Esophageal Cancer"
+    strategic_bucket: Gastric
+    oncotree_code: ESCA  # (contains both ESCC and EAC — histology stratum distinguishes)
+    tcga_studies: [TCGA-ESCA]
+    gdc_project_ids: [TCGA-ESCA]
+    depmap_lineage: Esophagus/Stomach  # DepMap groups these; filter by OncoTree for ESCA
+    depmap_oncotree_lineage: Esophageal_Adenocarcinoma  # for EAC; ESCC uses different code
+    # OncotreeCode SET (per_oncotree_code_stats reduction): esophageal adenocarcinoma. ESCC (esophageal
+    # SQUAMOUS, OncotreeCode ESCC) is a distinct entity — deliberately excluded from the ESCA (adeno) read.
+    depmap_oncotree_codes: [ESCA]
+    cptac_cohort: null  # No CPTAC ESCA cohort
+    gtex_normal_tissue: Esophagus
+    adj_normal_manifest: null
+    iter1_status: live
+    notes: "ESCC and EAC are biologically distinct — see docs/design/idas-strata/esca.md open question about splitting into two iDAS entries"
+
+    mesh_ids:
+      - MESH:D000077277
+      - MESH:D004938
+  - canonical_code: PAAD
+    mesh_terms: ["carcinoma, pancreatic ductal", "pancreatic neoplasms"]   # AACT browse_conditions.downcase_mesh_term
+    efo_ids: [MONDO_0005184, MONDO_0005192, MONDO_0006047, MONDO_0009831]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
+    display_name: "Pancreatic Ductal Adenocarcinoma (PDAC)"
+    strategic_bucket: Gastric
+    oncotree_code: PAAD
+    tcga_studies: [TCGA-PAAD]
+    gdc_project_ids: [TCGA-PAAD]
+    depmap_lineage: Pancreas
+    aliases: [PDAC]   # synonym — the histology name used by callers; present in the analysis-methods canonical lineage map
+    depmap_oncotree_lineage: Pancreatic_Adenocarcinoma
+    cptac_cohort: PDAC
+    gtex_normal_tissue: Pancreas
+    adj_normal_manifest: null
+    iter1_status: live
+
+  # ===== Heme bucket =====
+    mesh_ids:
+      - MESH:D010190
+      - MESH:D021441
+  - canonical_code: AML
+    mesh_terms: ["leukemia, myeloid, acute"]   # AACT browse_conditions.downcase_mesh_term
+    efo_ids: [MONDO_0018874]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
+    display_name: "Acute Myeloid Leukemia"
+    strategic_bucket: Heme
+    oncotree_code: AML
+    tcga_studies: [TCGA-LAML]
+    gdc_project_ids: [TCGA-LAML, BEATAML1.0-COHORT, TARGET-AML, TARGET-ALL-P2, TARGET-ALL-P3]
+    depmap_lineage: Myeloid
+    aliases: [LAML]   # synonym — the TCGA study code for AML; present in the analysis-methods canonical lineage map
+    depmap_oncotree_lineage: Acute_Myeloid_Leukemia
+    cptac_cohort: null  # CPTAC AML studies are FLT3-inhibitor-resistance cell-line proteomes, not patient-cohort — see notes
+    gtex_normal_tissue: "Whole Blood"  # functional matched-normal; NOT matched-adjacent
+    adj_normal_manifest: null  # AML has no matched-adjacent-normal concept
+    iter1_status: live
+    notes: "Multi-cohort iter-1: TCGA-LAML (~200) + BeatAML1 (~500) + TARGET-AML pediatric. GENIE panels PROV-AMLC + VICC-01-MYELOID. CPTAC has AML drug-resistance cell-line proteomics only (FLT3 gilteritinib/quizartinib resistance) — flag as `cell-line-context-only` if wired downstream."
+
+    mesh_ids:
+      - MESH:D015470
+  - canonical_code: CML
+    mesh_terms: ["leukemia, myelogenous, chronic, bcr-abl positive", "leukemia, myeloid, chronic-phase"]   # AACT browse_conditions.downcase_mesh_term
+    efo_ids: [MONDO_0011996]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
+    display_name: "Chronic Myeloid Leukemia"
+    strategic_bucket: Heme
+    oncotree_code: CML
+    tcga_studies: []  # No TCGA-CML
+    gdc_project_ids: []
+    depmap_lineage: Myeloid  # ~5-6 CML cell lines (K562, KCL-22, KU812, MEG-01, LAMA-84)
+    depmap_oncotree_lineage: Chronic_Myeloid_Leukemia
+    cptac_cohort: null
+    gtex_normal_tissue: "Whole Blood"
+    adj_normal_manifest: null
+    iter1_status: deferred_iter1b  # See docs/design/idas-strata/cml.md for iter-1b prerequisites
+    notes: "iter-1b deferred pending patient-cohort ingestion (cBioPortal CML, ICGC-CMLE, or multi-omics cohort survey)."
+
+  # ===== Coverage expansion 2026-08-21 (user-directed) — 12 additional first-class indications.
+  #   All lanes sourced from the analysis-methods canonical maps (INDICATION_TO_DEPMAP_LINEAGE /
+  #   _GDC_PROJECTS / _GTEX_TISSUE / _CPTAC_COHORT / _TCGA_STUDIES) so depmap_lineage passes the
+  #   cross-repo agreement guard; mesh_terms verified present in AACT browse_conditions.downcase_mesh_term.
+  #   cptac_cohort/adj_normal_manifest null where no product exists; depmap_oncotree_lineage omitted
+  #   (coarse depmap_lineage is the scoping key). Primary driver: broaden clinical-precedent (AACT)
+  #   beyond the iter-1 nine; these carry full TCGA/DepMap/GTEx lanes for on-demand full-axis use. =====
+    mesh_ids:
+      - MESH:D015464
+      - MESH:D015466
+  - canonical_code: BRCA
+    mesh_terms: ["breast neoplasms", "triple negative breast neoplasms", "inflammatory breast neoplasms"]
+    efo_ids: [MONDO_0004989, MONDO_0005494, MONDO_0007254]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
+    display_name: "Breast Cancer"
+    strategic_bucket: Other
+    oncotree_code: BRCA
+    tcga_studies: [TCGA-BRCA]
+    gdc_project_ids: [TCGA-BRCA]
+    depmap_lineage: Breast
+    cptac_cohort: brca
+    gtex_normal_tissue: "Breast"
+    adj_normal_manifest: brca-dge-tumor-vs-normal-sensitivity-v1   # adjacent-normal = cell A (TCGA matched-adjacent) of the fused sensitivity product; well-powered (n_adjacent>=8)
+    iter1_status: live   # coverage expansion 2026-08-21
+    notes: "Added 2026-08-21 (coverage expansion). CPTAC brca cohort available."
+    mesh_ids:
+      - MESH:D001943
+      - MESH:D058922
+      - MESH:D064726
+  - canonical_code: PRAD
+    mesh_terms: ["prostatic neoplasms", "prostatic neoplasms, castration-resistant"]
+    efo_ids: [MONDO_0005082, MONDO_0005159, MONDO_0008315]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
+    display_name: "Prostate Adenocarcinoma"
+    strategic_bucket: Other
+    oncotree_code: PRAD
+    tcga_studies: [TCGA-PRAD]
+    gdc_project_ids: [TCGA-PRAD]
+    depmap_lineage: Prostate
+    cptac_cohort: null
+    gtex_normal_tissue: "Prostate"
+    adj_normal_manifest: prad-dge-tumor-vs-normal-sensitivity-v1   # adjacent-normal = cell A (TCGA matched-adjacent) of the fused sensitivity product; well-powered (n_adjacent>=8)
+    iter1_status: live   # coverage expansion 2026-08-21
+    notes: "Added 2026-08-21 (coverage expansion)."
+    mesh_ids:
+      - MESH:D011471
+      - MESH:D064129
+  - canonical_code: OV
+    mesh_terms: ["ovarian neoplasms", "carcinoma, ovarian epithelial"]
+    efo_ids: [EFO_1001958, MONDO_0005140, MONDO_0005211, MONDO_0008170]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
+    display_name: "Ovarian Cancer"
+    strategic_bucket: Other
+    oncotree_code: OV
+    tcga_studies: [TCGA-OV]
+    gdc_project_ids: [TCGA-OV]
+    depmap_lineage: Ovary/Fallopian Tube
+    cptac_cohort: ov
+    gtex_normal_tissue: "Ovary"
+    adj_normal_manifest: null   # no TCGA adjacent-normal (n=0); GTEx cell C used
+    iter1_status: live   # coverage expansion 2026-08-21
+    notes: "Added 2026-08-21 (coverage expansion). CPTAC ov cohort available."
+    mesh_ids:
+      - MESH:D000077216
+      - MESH:D010051
+  - canonical_code: GBM
+    mesh_terms: ["glioblastoma"]
+    efo_ids: [MONDO_0018177]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
+    display_name: "Glioblastoma"
+    strategic_bucket: Other
+    oncotree_code: GBM
+    tcga_studies: [TCGA-GBM]
+    gdc_project_ids: [TCGA-GBM]
+    depmap_lineage: CNS/Brain
+    cptac_cohort: gbm
+    gtex_normal_tissue: "Brain"
+    adj_normal_manifest: null   # adjacent underpowered (n=5 < card floor 8); GTEx cell C used
+    iter1_status: live   # coverage expansion 2026-08-21
+    notes: "Added 2026-08-21 (coverage expansion). CPTAC gbm cohort available. mesh_terms glioblastoma-specific (contrast LGG)."
+    mesh_ids:
+      - MESH:D005909
+  - canonical_code: LGG
+    mesh_terms: ["glioma", "oligodendroglioma", "astrocytoma"]
+    efo_ids: [MONDO_0016695, MONDO_0019781, MONDO_0021637]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
+    display_name: "Low-Grade Glioma"
+    strategic_bucket: Other
+    oncotree_code: LGG
+    tcga_studies: [TCGA-LGG]
+    gdc_project_ids: [TCGA-LGG]
+    depmap_lineage: CNS/Brain
+    cptac_cohort: null
+    gtex_normal_tissue: "Brain"
+    adj_normal_manifest: null   # no TCGA adjacent-normal (n=0); GTEx cell C used
+    iter1_status: live   # coverage expansion 2026-08-21
+    notes: "Added 2026-08-21 (coverage expansion). 'glioma' is the umbrella MeSH term (may include GBM-tagged trials)."
+    mesh_ids:
+      - MESH:D001254
+      - MESH:D005910
+      - MESH:D009837
+  - canonical_code: SKCM
+    mesh_terms: ["melanoma", "melanoma, cutaneous malignant", "uveal melanoma"]
+    efo_ids: [MONDO_0005012, MONDO_0005105]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
+    display_name: "Skin Cutaneous Melanoma"
+    strategic_bucket: Other
+    oncotree_code: SKCM
+    tcga_studies: [TCGA-SKCM]
+    gdc_project_ids: [TCGA-SKCM]
+    depmap_lineage: Skin
+    aliases: [MELANOMA]   # synonym — the informal name used by callers; present in the analysis-methods canonical lineage map
+    cptac_cohort: null
+    gtex_normal_tissue: "Skin"
+    adj_normal_manifest: null   # no TCGA adjacent-normal (n<=1); GTEx cell C used
+    iter1_status: live   # coverage expansion 2026-08-21
+    notes: "Added 2026-08-21 (coverage expansion)."
+    mesh_ids:
+      - MESH:D000098943
+      - MESH:D008545
+  - canonical_code: BLCA
+    mesh_terms: ["urinary bladder neoplasms", "carcinoma, transitional cell"]
+    efo_ids: [MONDO_0004986, MONDO_0005611, MONDO_0006474, MONDO_0040679]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
+    display_name: "Bladder Urothelial Carcinoma"
+    strategic_bucket: Other
+    oncotree_code: BLCA
+    tcga_studies: [TCGA-BLCA]
+    gdc_project_ids: [TCGA-BLCA]
+    depmap_lineage: Bladder/Urinary Tract
+    cptac_cohort: null
+    gtex_normal_tissue: "Bladder"
+    adj_normal_manifest: blca-dge-tumor-vs-normal-sensitivity-v1   # adjacent-normal = cell A (TCGA matched-adjacent) of the fused sensitivity product; well-powered (n_adjacent>=8)
+    iter1_status: live   # coverage expansion 2026-08-21
+    notes: "Added 2026-08-21 (coverage expansion)."
+    mesh_ids:
+      - MESH:D001749
+      - MESH:D002295
+  - canonical_code: KIRC
+    mesh_terms: ["carcinoma, renal cell", "kidney neoplasms"]
+    efo_ids: [MONDO_0002367, MONDO_0005005, MONDO_0005086, MONDO_0005549]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
+    display_name: "Kidney Renal Clear Cell Carcinoma"
+    strategic_bucket: Other
+    oncotree_code: KIRC
+    tcga_studies: [TCGA-KIRC]
+    gdc_project_ids: [TCGA-KIRC]
+    depmap_lineage: Kidney
+    cptac_cohort: ccrcc
+    gtex_normal_tissue: "Kidney"
+    adj_normal_manifest: kirc-dge-tumor-vs-normal-sensitivity-v1   # adjacent-normal = cell A (TCGA matched-adjacent) of the fused sensitivity product; well-powered (n_adjacent>=8)
+    iter1_status: live   # coverage expansion 2026-08-21
+    notes: "Added 2026-08-21 (coverage expansion). CPTAC ccrcc cohort available. 'kidney neoplasms' broadens beyond clear-cell (precedent recall)."
+    mesh_ids:
+      - MESH:D002292
+      - MESH:D007680
+  - canonical_code: LIHC
+    mesh_terms: ["carcinoma, hepatocellular", "liver neoplasms"]
+    efo_ids: [MONDO_0002691, MONDO_0007256]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
+    display_name: "Hepatocellular Carcinoma"
+    strategic_bucket: Gastric
+    oncotree_code: LIHC
+    tcga_studies: [TCGA-LIHC]
+    gdc_project_ids: [TCGA-LIHC]
+    depmap_lineage: Liver
+    cptac_cohort: null
+    gtex_normal_tissue: "Liver"
+    adj_normal_manifest: lihc-dge-tumor-vs-normal-sensitivity-v1   # adjacent-normal = cell A (TCGA matched-adjacent) of the fused sensitivity product; well-powered (n_adjacent>=8)
+    iter1_status: live   # coverage expansion 2026-08-21
+    notes: "Added 2026-08-21 (coverage expansion)."
+    mesh_ids:
+      - MESH:D006528
+      - MESH:D008113
+  - canonical_code: CESC
+    mesh_terms: ["uterine cervical neoplasms"]
+    efo_ids: [MONDO_0002974, MONDO_0005131]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
+    display_name: "Cervical Cancer"
+    strategic_bucket: Other
+    oncotree_code: CESC
+    tcga_studies: [TCGA-CESC]
+    gdc_project_ids: [TCGA-CESC]
+    depmap_lineage: Cervix
+    cptac_cohort: null
+    gtex_normal_tissue: "Cervix Uteri"
+    adj_normal_manifest: null   # adjacent underpowered (n=3 < card floor 8); GTEx cell C used
+    iter1_status: live   # coverage expansion 2026-08-21
+    notes: "Added 2026-08-21 (coverage expansion)."
+    mesh_ids:
+      - MESH:D002583
+  - canonical_code: UCEC
+    mesh_terms: ["endometrial neoplasms", "uterine neoplasms"]
+    efo_ids: [MONDO_0002447, MONDO_0002715, MONDO_0005461, MONDO_0006003, MONDO_0011962]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
+    display_name: "Uterine Corpus Endometrial Carcinoma"
+    strategic_bucket: Other
+    oncotree_code: UCEC
+    tcga_studies: [TCGA-UCEC]
+    gdc_project_ids: [TCGA-UCEC]
+    depmap_lineage: Uterus
+    cptac_cohort: ucec
+    gtex_normal_tissue: "Uterus"
+    adj_normal_manifest: ucec-dge-tumor-vs-normal-sensitivity-v1   # adjacent-normal = cell A (TCGA matched-adjacent) of the fused sensitivity product; well-powered (n_adjacent>=8)
+    iter1_status: live   # coverage expansion 2026-08-21
+    notes: "Added 2026-08-21 (coverage expansion). CPTAC ucec cohort available."
+    mesh_ids:
+      - MESH:D014594
+      - MESH:D016889
+  - canonical_code: DLBC
+    mesh_terms: ["lymphoma, large b-cell, diffuse", "lymphoma, b-cell"]
+    efo_ids: [MONDO_0018905]   # Open Targets EFO/MONDO disease ids (drug-disease associations) — the competitor-landscape indication filter
+    display_name: "Diffuse Large B-Cell Lymphoma"
+    strategic_bucket: Heme
+    oncotree_code: DLBCL
+    tcga_studies: [TCGA-DLBC]
+    gdc_project_ids: [TCGA-DLBC]
+    depmap_lineage: Lymphoid
+    # v1.5.0: DLBCL is this entry's OWN oncotree_code (above) and the code callers actually pass — the
+    # atlas run population uses it for 7 target-indication pairs. It resolved to nothing, so those runs
+    # took the "not in the framework indication vocabulary" branch and got NO indication-scoped read.
+    # NOTE unlike the v1.4.0 aliases, DLBCL is NOT in the analysis-methods canonical map (which keys
+    # DLBC); the justification here is this file's own oncotree_code lane, not cross-repo parity.
+    aliases: [DLBCL]
+    cptac_cohort: null
+    gtex_normal_tissue: "Whole Blood"
+    adj_normal_manifest: null   # heme — no adjacent-normal concept; no DGE product
+    iter1_status: live   # coverage expansion 2026-08-21
+    notes: "Added 2026-08-21 (coverage expansion). Heme convention: Whole Blood normal, no adj-normal/CPTAC."
+
+# Column-level notes:
+# - `gdc_project_ids` includes non-TCGA GDC-accessible projects (BeatAML,
+#   TARGET, etc.); crosswalk-consumers should filter by project prefix if
+#   only TCGA-native cohorts are relevant to their query
+# - `depmap_oncotree_lineage` is the finer OncoTree stratification within
+#   the DepMap `Model.csv OncotreeLineage` column; needed to distinguish
+#   NSCLC vs SCLC within Lung, or NSCLC-Adeno vs NSCLC-SCC within NSCLC
+# - `cptac_cohort` code differences: CPTAC uses `PDAC` (not `PAAD`),
+#   `LSCC` (not `LUSC`), `HNSCC` (not `HNSC`); consumer methods must
+#   translate via this crosswalk
+# - `adj_normal_manifest: null` means no derived DGE-with-adjacent-normal
+#   product exists yet in data-catalog; TCGA-side paired samples exist
+#   for most solid tumors but no derived manifest has been authored
+    mesh_ids:
+      - MESH:D016393
+      - MESH:D016403
+
+  - canonical_code: BCC
+    display_name: Basal Cell Carcinoma
+    strategic_bucket: Other
+    oncotree_code: BCC
+    tcga_studies: []
+    gdc_project_ids: []
+    depmap_lineage: Skin
+    depmap_oncotree_lineage: Skin
+    cptac_cohort: null
+    gtex_normal_tissue: Skin
+    adj_normal_manifest: null
+    mesh_terms: [carcinoma, basal cell]
+    efo_ids: []
+    mesh_ids:
+      - MESH:D002280
+    iter1_status: provisional
+    notes: "Added 2026-09-01 for discovery-register coverage (non-TCGA skin cancer). mesh_ids curated 2026-09-07 (NCBI MeSH: 'carcinoma, basal cell' -> D002280); efo_ids pending."
+  - canonical_code: NBL
+    display_name: Neuroblastoma
+    strategic_bucket: Other
+    oncotree_code: NBL
+    tcga_studies: []
+    gdc_project_ids: [TARGET-NBL]
+    depmap_lineage: Peripheral Nervous System
+    depmap_oncotree_lineage: Peripheral Nervous System
+    cptac_cohort: null
+    gtex_normal_tissue: null
+    adj_normal_manifest: null
+    mesh_terms: [neuroblastoma]
+    efo_ids: []
+    mesh_ids:
+      - MESH:D009447
+    iter1_status: provisional
+    notes: "Added 2026-09-01 for discovery-register coverage (pediatric, non-TCGA; TARGET-NBL). mesh_ids curated 2026-09-07 (NCBI MeSH: 'neuroblastoma' -> D009447); efo_ids pending."
+  - canonical_code: UVM
+    display_name: Uveal Melanoma
+    strategic_bucket: Other
+    oncotree_code: UM
+    tcga_studies: [TCGA-UVM]
+    gdc_project_ids: [TCGA-UVM]
+    # FIX 2026-09-12: was null. DepMap 26Q1 DOES screen uveal melanoma — the `Eye` lineage has 29 models,
+    # 16 of them OncotreeCode UM / OncotreePrimaryDisease "Ocular Melanoma", and UM is UVM's own
+    # oncotree_code above. The null blocked every DepMap-scoped read for this indication (a pan-lineage
+    # silent fallback), which matters: real uveal-melanoma dependencies sit in this lineage (MDM2 Eye
+    # median Chronos -1.61, CDK4 -1.10, SHOC2 -0.57 on 26Q1). `Eye` is a SHARED lineage — the other 13
+    # models are retinoblastoma (RBL) and non-cancerous immortalized retinal/corneal epithelium — so the
+    # OncotreeCode set is required to read UVM without contamination.
+    depmap_lineage: Eye
+    depmap_oncotree_lineage: Ocular_Melanoma
+    depmap_oncotree_codes: [UM]
+    # v1.5.0: UM is this entry's OWN oncotree_code (above) and the code callers pass — 2 atlas pairs.
+    # It resolved to nothing, so those runs got no indication-scoped read at all. As with NSCLC's
+    # LUAD/LUSC, a code may appear in BOTH lanes without duplication: `depmap_oncotree_codes` is the
+    # SUBLINEAGE grain (which DepMap models are UVM within the shared `Eye` lineage), while `aliases`
+    # is the INPUT grain (which --indication strings resolve to this canonical code).
+    # NOT in the analysis-methods canonical map (which keys UVM); justified by this file's own lane.
+    aliases: [UM]
+    cptac_cohort: null
+    gtex_normal_tissue: null
+    adj_normal_manifest: null
+    mesh_terms: [melanoma, intraocular, uveal melanoma]
+    efo_ids: []
+    mesh_ids:
+      - MESH:D008545
+      - MESH:D014604
+    iter1_status: provisional
+    notes: "Added 2026-09-01 for discovery-register coverage (distinct from SKCM cutaneous; TCGA-UVM). mesh_ids curated 2026-09-07 (NCBI MeSH: 'melanoma' -> D008545 + 'uveal neoplasms' -> D014604, the correct uveal-site + melanoma pair; supplementary 'melanoma, intraocular' -> cutaneous D000098943 deliberately excluded); efo_ids pending."
+  - canonical_code: ACC
+    display_name: Adrenocortical Carcinoma
+    strategic_bucket: Other
+    oncotree_code: ACC
+    tcga_studies: [TCGA-ACC]
+    gdc_project_ids: [TCGA-ACC]
+    depmap_lineage: Adrenal Gland
+    depmap_oncotree_lineage: Adrenal Gland
+    cptac_cohort: null
+    gtex_normal_tissue: Adrenal Gland
+    adj_normal_manifest: null
+    mesh_terms: [adrenocortical carcinoma, adrenal cortex neoplasms]
+    efo_ids: [MONDO_0006639]
+    mesh_ids:
+      - MESH:D018268
+    iter1_status: provisional
+    notes: "Added 2026-09-09 for discovery-register + TCGA-pancan browser coverage (catalog-browser accuracy review #558). oncotree_code uses the TCGA convention (matching KIRC precedent); efo_ids = OLS4-verified MONDO primaries; mesh_ids = NLM-verified descriptors."
+  - canonical_code: CHOL
+    display_name: Cholangiocarcinoma
+    strategic_bucket: Gastric
+    oncotree_code: CHOL
+    tcga_studies: [TCGA-CHOL]
+    gdc_project_ids: [TCGA-CHOL]
+    depmap_lineage: Biliary Tract
+    depmap_oncotree_lineage: Biliary Tract
+    cptac_cohort: null
+    gtex_normal_tissue: null
+    adj_normal_manifest: null
+    mesh_terms: [cholangiocarcinoma, bile duct neoplasms]
+    efo_ids: [MONDO_0019087]
+    mesh_ids:
+      - MESH:D018281
+    iter1_status: provisional
+    notes: "Added 2026-09-09 for discovery-register + TCGA-pancan browser coverage (catalog-browser accuracy review #558). oncotree_code uses the TCGA convention (matching KIRC precedent); efo_ids = OLS4-verified MONDO primaries; mesh_ids = NLM-verified descriptors."
+  - canonical_code: KICH
+    display_name: Kidney Chromophobe
+    strategic_bucket: Other
+    oncotree_code: KICH
+    tcga_studies: [TCGA-KICH]
+    gdc_project_ids: [TCGA-KICH]
+    depmap_lineage: Kidney
+    depmap_oncotree_lineage: Kidney
+    cptac_cohort: null
+    gtex_normal_tissue: Kidney
+    adj_normal_manifest: null
+    mesh_terms: [carcinoma, renal cell, kidney neoplasms]
+    efo_ids: [MONDO_0017885]
+    mesh_ids:
+      - MESH:D002292
+      - MESH:D007680
+    iter1_status: provisional
+    notes: "Added 2026-09-09 for discovery-register + TCGA-pancan browser coverage (catalog-browser accuracy review #558). oncotree_code uses the TCGA convention (matching KIRC precedent); efo_ids = OLS4-verified MONDO primaries; mesh_ids = NLM-verified descriptors."
+  - canonical_code: KIRP
+    display_name: Kidney Renal Papillary Cell Carcinoma
+    strategic_bucket: Other
+    oncotree_code: KIRP
+    tcga_studies: [TCGA-KIRP]
+    gdc_project_ids: [TCGA-KIRP]
+    depmap_lineage: Kidney
+    depmap_oncotree_lineage: Kidney
+    cptac_cohort: null
+    gtex_normal_tissue: Kidney
+    adj_normal_manifest: null
+    mesh_terms: [carcinoma, renal cell, kidney neoplasms]
+    efo_ids: [MONDO_0017884]
+    mesh_ids:
+      - MESH:D002292
+      - MESH:D007680
+    iter1_status: provisional
+    notes: "Added 2026-09-09 for discovery-register + TCGA-pancan browser coverage (catalog-browser accuracy review #558). oncotree_code uses the TCGA convention (matching KIRC precedent); efo_ids = OLS4-verified MONDO primaries; mesh_ids = NLM-verified descriptors."
+  - canonical_code: PCPG
+    display_name: Pheochromocytoma and Paraganglioma
+    strategic_bucket: Other
+    oncotree_code: PCPG
+    tcga_studies: [TCGA-PCPG]
+    gdc_project_ids: [TCGA-PCPG]
+    depmap_lineage: Adrenal Gland
+    depmap_oncotree_lineage: Adrenal Gland
+    cptac_cohort: null
+    gtex_normal_tissue: Adrenal Gland
+    adj_normal_manifest: null
+    mesh_terms: [pheochromocytoma, paraganglioma]
+    efo_ids: [MONDO_0008233, MONDO_0000448]
+    mesh_ids:
+      - MESH:D010673
+      - MESH:D010235
+    iter1_status: provisional
+    notes: "Added 2026-09-09 for discovery-register + TCGA-pancan browser coverage (catalog-browser accuracy review #558). oncotree_code uses the TCGA convention (matching KIRC precedent); efo_ids = OLS4-verified MONDO primaries; mesh_ids = NLM-verified descriptors."
+  - canonical_code: SARC
+    display_name: Sarcoma
+    strategic_bucket: Other
+    oncotree_code: SARC
+    tcga_studies: [TCGA-SARC]
+    gdc_project_ids: [TCGA-SARC]
+    depmap_lineage: Soft Tissue
+    depmap_oncotree_lineage: Soft Tissue
+    cptac_cohort: null
+    gtex_normal_tissue: null
+    adj_normal_manifest: null
+    mesh_terms: [sarcoma]
+    efo_ids: [MONDO_0005089]
+    mesh_ids:
+      - MESH:D012509
+    iter1_status: provisional
+    notes: "Added 2026-09-09 for discovery-register + TCGA-pancan browser coverage (catalog-browser accuracy review #558). oncotree_code uses the TCGA convention (matching KIRC precedent); efo_ids = OLS4-verified MONDO primaries; mesh_ids = NLM-verified descriptors."
+  - canonical_code: TGCT
+    display_name: Testicular Germ Cell Tumors
+    strategic_bucket: Other
+    oncotree_code: TGCT
+    tcga_studies: [TCGA-TGCT]
+    gdc_project_ids: [TCGA-TGCT]
+    depmap_lineage: Testis
+    depmap_oncotree_lineage: Testis
+    cptac_cohort: null
+    gtex_normal_tissue: Testis
+    adj_normal_manifest: null
+    mesh_terms: [testicular neoplasms]
+    efo_ids: [MONDO_0010108]
+    mesh_ids:
+      - MESH:D013736
+    iter1_status: provisional
+    notes: "Added 2026-09-09 for discovery-register + TCGA-pancan browser coverage (catalog-browser accuracy review #558). oncotree_code uses the TCGA convention (matching KIRC precedent); efo_ids = OLS4-verified MONDO primaries; mesh_ids = NLM-verified descriptors."
+  - canonical_code: THCA
+    display_name: Thyroid Carcinoma
+    strategic_bucket: Other
+    oncotree_code: THCA
+    tcga_studies: [TCGA-THCA]
+    gdc_project_ids: [TCGA-THCA]
+    depmap_lineage: Thyroid
+    depmap_oncotree_lineage: Thyroid
+    cptac_cohort: null
+    gtex_normal_tissue: Thyroid
+    adj_normal_manifest: null
+    mesh_terms: [thyroid neoplasms]
+    efo_ids: [MONDO_0015075]
+    mesh_ids:
+      - MESH:D013964
+    iter1_status: provisional
+    notes: "Added 2026-09-09 for discovery-register + TCGA-pancan browser coverage (catalog-browser accuracy review #558). oncotree_code uses the TCGA convention (matching KIRC precedent); efo_ids = OLS4-verified MONDO primaries; mesh_ids = NLM-verified descriptors."
+  - canonical_code: THYM
+    display_name: Thymoma
+    strategic_bucket: Thoracic
+    oncotree_code: THYM
+    tcga_studies: [TCGA-THYM]
+    gdc_project_ids: [TCGA-THYM]
+    depmap_lineage: null
+    depmap_oncotree_lineage: null
+    cptac_cohort: null
+    gtex_normal_tissue: null
+    adj_normal_manifest: null
+    mesh_terms: [thymoma]
+    efo_ids: [MONDO_0006456]
+    mesh_ids:
+      - MESH:D013945
+    iter1_status: provisional
+    notes: "Added 2026-09-09 for discovery-register + TCGA-pancan browser coverage (catalog-browser accuracy review #558). oncotree_code uses the TCGA convention (matching KIRC precedent); efo_ids = OLS4-verified MONDO primaries; mesh_ids = NLM-verified descriptors. depmap_lineage null (no DepMap thymus lineage in 26Q1)."
+  - canonical_code: UCS
+    display_name: Uterine Carcinosarcoma
+    strategic_bucket: Other
+    oncotree_code: UCS
+    tcga_studies: [TCGA-UCS]
+    gdc_project_ids: [TCGA-UCS]
+    depmap_lineage: Uterus
+    depmap_oncotree_lineage: Uterus
+    cptac_cohort: null
+    gtex_normal_tissue: Uterus
+    adj_normal_manifest: null
+    mesh_terms: [carcinosarcoma]
+    efo_ids: [MONDO_0006485]
+    mesh_ids:
+      - MESH:D002296
+    iter1_status: provisional
+    notes: "Added 2026-09-09 for discovery-register + TCGA-pancan browser coverage (catalog-browser accuracy review #558). oncotree_code uses the TCGA convention (matching KIRC precedent); efo_ids = OLS4-verified MONDO primaries; mesh_ids = NLM-verified descriptors."
+  - canonical_code: MESO
+    display_name: Mesothelioma
+    strategic_bucket: Thoracic
+    oncotree_code: MESO
+    tcga_studies: [TCGA-MESO]
+    gdc_project_ids: [TCGA-MESO]
+    depmap_lineage: Pleura
+    depmap_oncotree_lineage: Pleura
+    cptac_cohort: null
+    gtex_normal_tissue: null
+    adj_normal_manifest: null
+    mesh_terms: [mesothelioma]
+    efo_ids: [MONDO_0005065, MONDO_0003308]
+    mesh_ids:
+      - MESH:D008654
+    iter1_status: provisional
+    notes: "Added 2026-09-09 for discovery-register + TCGA-pancan browser coverage (catalog-browser accuracy review #558). oncotree_code uses the TCGA convention (matching KIRC precedent); efo_ids = OLS4-verified MONDO primaries; mesh_ids = NLM-verified descriptors."

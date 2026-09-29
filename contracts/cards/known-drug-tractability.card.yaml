@@ -1,0 +1,124 @@
+# Card — KNOWN-DRUG TRACTABILITY (v1; target-intrinsic; small-molecule PHARMACOLOGY leg)
+#
+# The PHARMACOLOGY leg of tractability-small-molecule, complementing the STRUCTURE leg
+# (structure-features-static). Structure asks "is there a druggable HANDLE"; this asks "has a
+# drug actually been catalogued against this target, and is it in a recognized druggable-genome
+# category?" From DGIdb (dgidb-drug-gene-per-gene-v1): known drug-gene interactions (approved /
+# antineoplastic flags) + druggable-genome category membership.
+#
+# Interpretation surface (known_drug_tractability_class is PRIMARY; approved hoisted above clinical):
+#   approved_drug_tractable  → >=1 APPROVED-drug interaction — a drug against this target is approved
+#   clinically_actionable    → DGIdb CLINICALLY ACTIONABLE category (clinically-relevant drug)
+#   druggable_genome         → DGIdb DRUGGABLE GENOME category (recognized druggable family)
+#   interaction_only         → catalogued drug interactions but no druggable category / approval
+#   category_only            → in a druggable family category but no interaction rows
+#   no_known_drug_evidence   → absent from DGIdb (coverage gap — NOT 'undruggable')
+#
+# FORWARD-vs-RETROSPECTIVE: DGIdb is a target-intrinsic pharmacology prior orthogonal to the PRISM
+# cell-line cards. PRISM asks "does a compound kill THIS cell line"; DGIdb asks "is there ANY
+# catalogued drug-gene interaction + druggable category" — broader, and it credits targets with an
+# approved oncology drug that a given PRISM screen may have missed. Absence in DGIdb is a coverage
+# gap, never evidence of undruggability (measured-vs-null discipline).
+
+card_id: known-drug-tractability
+version: 1.2.0   # +MODALITY metadata (approved_drug_modality / approved_drug_modality_tag) from the curated biologics_precedent_targets.yaml crosswalk + approved_biologic_only value on approved_drug_engagement_class — gates the approved-drug rung on MODALITY (a biologics-only approval must not mint SM tractability; CASE-008)
+                 # 1.1.0: +directness metadata (n_direct_interactions / direct_engagement_class / approved_drug_engagement_class) from dgidb-drug-target-directional-v1 — gates the approved-drug rung on DIRECT engagement
+question: "Has a small-molecule drug been catalogued against {target.symbol} (approved / antineoplastic), and is it in a recognized druggable-genome category?"
+
+tier: target   # known-drug + druggable-category are properties of the gene, independent of indication. Never stratifies.
+
+applies_when: []
+
+required_inputs:
+  - product_id: dgidb-drug-gene-per-gene-v1              # known drug-gene interactions (approved/antineoplastic counts, categories)
+  - product_id: dgidb-drug-target-directional-v1        # directness metadata (n_direct_interactions / direct_engagement_class) — v1.1.0 read, dgidb_drug_gene/read.py:46
+
+methods:
+  - call: known-drug-tractability
+    args:
+      target: "{target.symbol}"
+
+outputs:
+  summary_fields:
+    - known_drug_tractability_class      # PRIMARY categorical (see vocabulary)
+    - druggability_tier                  # DGIdb-native tier passthrough (clinically_actionable/approved_drug/...)
+    - is_druggable_genome                # bool — DGIdb DRUGGABLE GENOME category
+    - is_clinically_actionable           # bool — DGIdb CLINICALLY ACTIONABLE category
+    - has_approved_drug                  # bool — >=1 approved-drug interaction
+    - n_drug_interactions                # int — catalogued drug-gene interactions (any drug)
+    - n_approved_drug_interactions       # int — approved-drug interactions
+    - n_antineoplastic_interactions      # int — antineoplastic-drug interactions (oncology-relevant)
+    - gene_categories                    # string — '|'-joined DGIdb category names
+    # ── DIRECTNESS metadata (v1.1.0) — from dgidb-drug-target-directional-v1 (interaction_types) ──
+    - n_direct_interactions              # int|null — TYPED direct-SM interactions (inhibitor/antagonist/binder/…); null = unmeasured
+    - direct_engagement_class            # categorical (see vocabulary) — the directness read
+    - approved_drug_engagement_class     # categorical (see vocabulary) — RESOLVER-KEYED approved-drug directness+MODALITY gate
+    # ── MODALITY metadata (v1.2.0) — from the curated biologics_precedent_targets.yaml crosswalk ──
+    - approved_drug_modality             # categorical (see vocabulary) — is the approved drug a biologic (ADC/TCE/CAR) vs small-molecule/unknown?
+    - approved_drug_modality_tag         # string|null — raw crosswalk modality tag (adc/tce/adc_tce/car/...) when biologic, else null
+    - known_drug_context                 # string — human-readable rationale (audit / LLM)
+    - directness_context                 # string — human-readable directness rationale (audit / LLM)
+    - modality_context                   # string|null — human-readable modality-mismatch rationale (audit / LLM)
+    - method_version
+
+  summary_fields_vocabulary:
+    known_drug_tractability_class:
+      - approved_drug_tractable          # >=1 approved-drug interaction — drug against target approved
+      - clinically_actionable            # CLINICALLY ACTIONABLE category — clinically-relevant drug exists
+      - druggable_genome                 # DRUGGABLE GENOME category — recognized druggable family
+      - interaction_only                 # drug interactions but no druggable category / approval
+      - category_only                    # family category but no interaction rows
+      - no_known_drug_evidence           # absent from DGIdb (coverage gap, NOT undruggable)
+    direct_engagement_class:
+      - direct_typed                     # >=5 TYPED direct-SM interactions — demonstrated direct engagement
+      - sparse_direct                    # 1-4 typed-direct interactions — a weak/uncorroborated direct hit
+      - indirect_or_untyped_only         # 0 typed-direct — interactions (if any) are indirect/untyped
+      - unmeasured                       # directional product unread (transient) — directness not established
+    approved_drug_engagement_class:      # RESOLVER-KEYED: gates the approved-drug rung on directness + MODALITY
+      - approved_biologic_only           # approved drug is a BIOLOGIC (biologics-only antigen) — NOT SM tractability (CASE-008); precedence over direct/indirect
+      - approved_direct                  # approved drug + DIRECT engagement (or unmeasured — fail toward prior)
+      - approved_indirect_only           # approved drug BUT roster is indirect/sparse — annotation-driven, not direct
+      - not_approved                     # no approved-drug flag (approved rung never applied)
+    approved_drug_modality:              # is the approved drug a biologic vs small-molecule/unknown (from biologics_precedent_targets.yaml)
+      - biologic                         # biologics-only antigen (ADC/TCE/CAR/mAb) with an approved drug — the DRUG flag is a biologic
+      - small_molecule_or_unknown        # approved drug present but NOT a biologics-only antigen (genuine/dual SM target, or absent from crosswalk)
+      - not_applicable                   # no approved-drug flag to characterise
+
+warning_predicates:
+  - warning_id: no_known_drug_evidence
+    if: "known_drug_tractability_class == 'no_known_drug_evidence'"
+    message: "{target.symbol} is absent from DGIdb (no catalogued drug-gene interaction or druggable category). This is a COVERAGE GAP — not evidence of undruggability. Check the structure leg (structure-features-static) for a forward-ligandability handle."
+
+caveats:
+  - |
+    Pharmacology leg (DGIdb) of small-molecule tractability. Answers "has a drug been catalogued
+    against the target + is it a druggable category" — a target-intrinsic prior ORTHOGONAL to the
+    retrospective PRISM cell-line cards. Complements the structure leg (structure-features-static):
+    structure = "is there a handle"; this = "has a drug been made / is it a druggable class".
+  - |
+    DGIdb aggregates ANY catalogued drug-gene interaction — approved drugs, tool compounds, and
+    INDIRECT modulators. So a structurally 'hard' target (e.g. TP53) can carry many interactions
+    (p53-reactivators, indirect modulators). Read the class WITH the structure leg, not instead of
+    it — the two legs measure different things and a rich interaction count is not a pocket.
+  - |
+    Absence is a COVERAGE GAP, never undruggability (measured-vs-null discipline). no_known_drug_evidence
+    means the gene is not in DGIdb, not that it cannot be drugged. approved_drug_tractable is hoisted
+    above clinically_actionable (an approved drug is the harder pharmacology fact).
+  - |
+    MODALITY (v1.2.0, CASE-008): has_approved_drug is modality-BLIND. A biologics-only antigen (approved
+    ADC/TCE/CAR/mAb, no approved SM; biologics_precedent_targets.yaml biologics_only: true) resolves
+    approved_drug_engagement_class=approved_biologic_only, gating off the SM-supportive approved-drug rung.
+    Fail-safe: dual-modality SM targets (EGFR/ERBB2/MET) + FOLH1/PSMA carry no flag → never demoted
+    (osimertinib guard); absence of the flag = prior behaviour.
+  - |
+    STALENESS: the DGIdb source (dgidb-2026-06b) self-reports Data version Dec-2023 / DGIdb v5.0.11
+    despite the 2026 release tag — a repackaging, not fresh curation. Treat the drug-gene + category
+    content as a Dec-2023 snapshot. Cite Cannon et al. 2024 NAR (DGIdb 5.0).
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `known_drug_tractability` claim (target-grain).
+# modality_relevance small_molecule: known-drug + druggable-category evidence is the pharmacology
+# leg of the SM tractability call. Feeds the SM verdict via the E-known-drug intracellular rules.
+measurement_type: known_drug_tractability
+modality_relevance: [small_molecule]
+entity_grains: [target]
+schema_version: 1

@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/takeda-rnd/rnd-computational-biology-oncology-target-contracts/schemas/human_concurrence.schema.json",
+  "title": "Human Concurrence Record",
+  "description": "Schema for human-concurrence records that gate governance-grade evidence packages from being emitted into nomination-grade artifacts. Lives at data-products/{target}/{indication}/{package_id}/concurrence.yaml. Iter-1 integrity primitive: git-signed-commit identity + CODEOWNERS-style reviewer registry. See plan § Evidence Card Framework § Human-concurrence checkpoint (A2) including the post-adversarial-review Integrity primitive subsection.",
+  "type": "object",
+  "required": [
+    "package_id",
+    "package_content_sha256",
+    "reviewer_git_identity",
+    "reviewer_role",
+    "concurrence_state",
+    "review_timestamp",
+    "schema_version"
+  ],
+  "unevaluatedProperties": false,
+  "properties": {
+    "package_id": {
+      "type": "string",
+      "description": "The evidence_package this record concurs with. Must match the package's package_id field exactly.",
+      "pattern": "^ep-[a-z0-9_-]+$",
+      "minLength": 5,
+      "maxLength": 200
+    },
+    "package_content_sha256": {
+      "type": "string",
+      "description": "SHA-256 of the evidence_package.json's deterministic fields, computed at concurrence time. If the package is later modified, this hash mismatches and verify_concurrence.py fails. This is the tamper-evidence primitive — without it, concurrence-after-mutation would be silently accepted.",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "reviewer_git_identity": {
+      "type": "object",
+      "description": "The reviewer's verifiable git identity. NOT a self-typed reviewer_id field — these values are populated from the active git config at concurrence-CLI invocation time and verified against the signed commit that adds this record. See A2 § Integrity primitive: 'the reviewer's identity is not a self-typed reviewer_id field; it is the cryptographically-verified git committer of the commit that adds the concurrence.yaml.'",
+      "required": ["email", "key_fingerprint"],
+      "unevaluatedProperties": false,
+      "properties": {
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Git committer email (must match an entry in data-products/.concurrence-reviewers.yaml)."
+        },
+        "key_fingerprint": {
+          "type": "string",
+          "description": "GPG or SSH key fingerprint used to sign the commit. Format depends on signing scheme; SHA-1 for SSH (40 hex chars) or SHA-256 (64 hex chars for newer GPG).",
+          "pattern": "^[0-9A-Fa-f:]+$",
+          "minLength": 16
+        },
+        "signing_scheme": {
+          "type": "string",
+          "enum": ["gpg", "ssh"]
+        }
+      }
+    },
+    "reviewer_role": {
+      "type": "string",
+      "enum": ["comp_bio_director", "translational_lead", "medical_reviewer"],
+      "description": "Reviewer's authorized role per data-products/.concurrence-reviewers.yaml. Must match concurrence_state.enum.yaml's valid_reviewer_roles list. Iter-1 ships these three roles; iter-2 may add others."
+    },
+    "concurrence_state": {
+      "type": "string",
+      "enum": ["concur", "concur_with_caveats", "dissent"],
+      "description": "See concurrence_state.enum.yaml. The state field that downstream renderers consult to decide whether to emit the package into nomination-grade artifacts."
+    },
+    "caveats_acknowledged": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 5, "maxLength": 1000},
+      "description": "Reviewer's explicit caveats. Required (non-empty) when concurrence_state is concur_with_caveats or dissent; may be empty when concurrence_state is concur."
+    },
+    "cards_individually_reviewed": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$"},
+      "description": "Optional. Card_ids the reviewer inspected individually. Empty / omitted means the package was reviewed as a whole."
+    },
+    "review_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 timestamp of when the concurrence was recorded. Used for supersession ordering when a later concurrence record overrides this one."
+    },
+    "supersedes": {
+      "type": "string",
+      "description": "Optional. If this concurrence record supersedes a prior record (per concurrence_state.enum.yaml supersession semantics — 'a NEW concurrence record with a NEW commit; the most recent commit wins'), references the prior record's commit_sha.",
+      "pattern": "^[0-9a-f]{7,64}$"
+    },
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "concurrence_state": {"enum": ["concur_with_caveats", "dissent"]}
+        },
+        "required": ["concurrence_state"]
+      },
+      "then": {
+        "required": ["caveats_acknowledged"],
+        "properties": {
+          "caveats_acknowledged": {"minItems": 1}
+        }
+      }
+    }
+  ]
+}

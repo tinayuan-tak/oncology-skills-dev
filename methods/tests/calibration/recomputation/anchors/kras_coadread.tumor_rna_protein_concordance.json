@@ -1,0 +1,28 @@
+{
+  "target": "KRAS",
+  "indication": "COADREAD",
+  "skill": "tumor-presence",
+  "card_id": "rna-protein-concordance-tumor",
+  "class_field": "rna_as_biomarker",
+  "matched_rows_fixture": "rna_protein_concordance_vectors/kras_coadread.tumor_rna_protein_concordance.parquet",
+  "matched_rows_md5": "19173a7a347d1e2c3e57de1bb751452d",
+  "cohorts": [
+    "coad"
+  ],
+  "n_matched_rows": 96,
+  "n_paired_tumors": 96,
+  "expected": {
+    "cptac_cohort": "coad",
+    "substrate": "cptac_tumor",
+    "rna_protein_r": 0.0135,
+    "rna_protein_spearman": 0.008,
+    "n_paired_tumors": 96,
+    "rna_as_biomarker": "poor_proxy",
+    "rna_proxy_classified_on": "spearman",
+    "rna_protein_r_ci95_low": -0.2045,
+    "rna_protein_r_ci95_high": 0.2198,
+    "rna_proxy_class_boundary_fragile": false
+  },
+  "_captured_at": "2026-09-29T05:06:15.145274+00:00",
+  "_provenance": "live cbg read via _read_matched_cohorts_map(['coad'], 'KRAS') over cptac-rna-protein-matched-per-sample-v1; fixture = the matched per-tumor (patient_id, gene, rna_log2tpm, protein_log2abundance, cohort) rows; re-derive with methods.depmap_rna_protein_concordance.read.read_tumor_rna_protein_concordance (mock _read_matched_cohort)."
+}

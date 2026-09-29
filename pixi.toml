@@ -7,16 +7,14 @@ version = "0.1.0"
 
 [tasks]
 
-# Tier-1 packaging (PR #3): declare the three sibling framework repos as editable
-# path-dependencies so the skills' `import methods.*` and (future) contracts-loader
-# imports resolve to installed packages, not a sys.path hack. Paths are relative to this
-# repo; they assume the canonical side-by-side clone layout. A consumer who clones
-# elsewhere can either preserve the relative layout OR keep using the *_ROOT env-var
-# fallbacks (the skills still carry those — this is additive). When a hosted index
-# (CodeArtifact) is chosen, these become version pins instead of path deps.
+# Tier-1 packaging (PR #3), updated for the SK#2063 consolidation: analysis-methods and
+# target-contracts live IN THIS REPO (methods/ and contracts/), so their editable installs
+# point in-tree — no sibling checkout or clone layout needed for them. target_id_resolver
+# still comes from the data-catalog sibling (data-catalog stays a separate repo; canonical
+# side-by-side clone layout, or DATA_CATALOG_ROOT env fallback for data access).
 [pypi-dependencies]
-oncology-analysis-methods = { path = "../rnd-computational-biology-oncology-analysis-methods", editable = true }
-oncology-target-contracts = { path = "../rnd-computational-biology-oncology-target-contracts", editable = true }
+oncology-analysis-methods = { path = "./methods", editable = true }
+oncology-target-contracts = { path = "./contracts", editable = true }
 target-id-resolver = { path = "../rnd-computational-biology-oncology-data-catalog/libs/target_id_resolver", editable = true }
 anthropic = ">=1.3.0, <2"
 

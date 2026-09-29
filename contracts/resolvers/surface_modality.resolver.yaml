@@ -1,0 +1,189 @@
+# surface-modality-fit (Gate F/E2) verdict resolver (gap #5, 2026-07-20).
+# Declarative transcription of skills/surface-modality-fit/scripts/run.py::_verdict
+# (incl. the C2 modality_ambiguous branch added 2026-07-20). Resolves from the composed
+# adc-tce-modality-fit fit_class rules.
+#
+# SAFETY/DENSITY INTEGRATION (v1.1.0, 2026-08-09) — the modality-fit review found the verdict
+# keyed ONLY on fit_class (topology+family), so the surface cards' KILLER/downgrade signals
+# (essential-normal-tissue TCE safety, protein-absence, MEASURED low density, dominant shed) fired
+# into the narrative but could NOT move the verdict — a gut-toxic TCE antigen with nice topology read
+# `both_viable`. The framework's own calibration set graded all 11 biologics anchors
+# `deciding_axis_coverage: blind`. These combination rungs (when_all_fired: fit-positive AND a
+# liability rule) let the established, cited-threshold liabilities refine the call. Idiomatic:
+# mirrors genomic_alteration's multi_class cross-product; pattern-matches fired rule IDs only.
+#
+# DESIGN PRINCIPLES (verified against the cards + the CD19/CEACAM5 counterexamples):
+#   - MODALITY-SPECIFIC, not blanket. The essential-normal-tissue + sc-normal killers are bite_tce-ONLY
+#     (TCE has no payload buffer; ADC/antibody get opposing, not killer) — so they DROP the TCE arm but
+#     PRESERVE ADC (CEACAM5 = validated ADC target w/ normal-gut expression must survive).
+#   - protein ihc-not-detected kills BOTH arms (no surface substrate) → neither_viable.
+#   - MEASURED (grade A/B) below-TCE-floor density is a DOWNGRADE, NEVER a veto — CD19 = 110 copies/cell
+#     yet a validated CAR-T/TCE antigen (high-avidity binders work below the soluble-TCE floor). The
+#     density_floor_verdict field is grade-gated at source (_live_readers.py:1046 → unmeasured on grade E),
+#     so an unmeasured target abstains and is never downgraded.
+#   - dominant shed ectodomain (clinically_shed) is an ADC/antibody caveat (soluble decoy sink).
+#   - The v1.1.0 safety/density/shed verdicts are NON-NOMINATING foreclosure/caveat refinements (like the
+#     existing neither_viable). The v1.4.0 pmhc_tce_supported (2026-08-25) is the ONE POSITIVE addition —
+#     a bite_tce-scoped modality positive registered in nomination_verdict_gate.yaml (positive_signals_
+#     modality_scoped, when_modality_in [bite_tce]); it is NOT kill-capable.
+gate: surface_modality
+version: 1.7.0   # 2026-09-04 Phase-6 (VERDICT-MOVING): NEW surface_annotation_only_unconfirmed rung (3c, priority
+                # 25-27) — a positive fit_class resting on surfaceome-family + PREDICTED topology with NO confirmed
+                # surface protein AND no clinical-biologic precedent (surface_confirmation_state==annotation_only,
+                # derived by the surface_modality card preprocessor) is DEMOTED to a NON-NOMINATING caveat. Ranks
+                # above plain fit rungs (renumbered 28-33) but below all liability downgrades. The false-demote of
+                # CSPA-missed validated antigens (DLL3/CEACAM5) is AVOIDED via the clinically_precedented tier.
+                # 1.6.0 (#979): consume the MIDDLE antigen-escape band escape_risk_patient_variable — two
+                # new (1c') rungs (priority 13/14) → positive-caveated adc_preferred_tce_patient_variable /
+                # tce_patient_variable (TCE arm TEMPERED dominant→supportive, NOT foreclosed like escape_risk_high),
+                # so a validated ADC/TCE antigen with normal patient-variability is not over-penalized. Density/shed/
+                # pMHC/plain rungs renumbered 15-30 (order-independent interpreter; relative order preserved).
+                # 1.5.0 2026-08-28: consume 2 already-fired-but-unconsumed safety signals (distillation assessment):
+                # (1b') exon-grain essential-window liability (priority 9/10, mirrors the transcript 7/8 rungs)
+                # → catches a finer-resolution TCE-safety false-negative; (3b') pMHC normal-presentation veto
+                # (priority 19/20) → withdraws an un-earned pmhc_tce_supported promotion to tce_unsafe_normal_
+                # liability when the epitope is BROADLY PRESENTED on normal tissue. Both reuse existing verdicts;
+                # priorities renumbered (order-independent interpreter). 1.4.0: promote IEDB pMHC-epitope evidence to VERDICT-BEARING — new pmhc_tce_supported
+                # positive (bite_tce-scoped) via two when_all_fired rungs [neither-viable-killer +
+                # pmhc-iedb-{tcell-validated,presented}-tce-supportive] at priority 17/18 (the pMHC-TCE route
+                # for a folded-surface-dead intracellular oncoprotein; outranks the bare neither_viable rung
+                # at 22 but only co-fires with it). Plain fit_class rungs renumbered 17-22 -> 19-24 (relative
+                # order preserved; byte-stable). 1.3.0 (2026-08-24): promote modality-therapeutic-window essential_tissue_liability (SAFETY) + the
+                # single-cell tce_antigen_escape_class escape_risk_high (EFFICACY, new adc_preferred_tce_escape_risk
+                # / tce_escape_risk verdicts) to verdict-movers (druggability audit). 1.1.0 (2026-08-09):
+                # safety/density/shed combination rungs (modality-fit review C1 + density-integrity).
+description: Biologics surface-modality fit precedence (from adc-tce-modality-fit fit_class + safety/density/shed liabilities + therapeutic-window safety + single-cell TCE antigen-escape efficacy).
+resolve:
+  # (0) HARD ABSENCE — no protein-level surface substrate → both ADC + TCE dead. Highest precedence:
+  #     an absent antigen forecloses every biologics mechanism regardless of topology favorability.
+  - {verdict: neither_viable, when_all_fired: [both-viable-supportive, ihc-not-detected-killer], driving_rule: ihc-not-detected-killer, priority: 0}
+  - {verdict: neither_viable, when_all_fired: [adc-preferred-supportive, ihc-not-detected-killer], driving_rule: ihc-not-detected-killer, priority: 1}
+  - {verdict: neither_viable, when_all_fired: [tce-preferred-supportive, ihc-not-detected-killer], driving_rule: ihc-not-detected-killer, priority: 2}
+
+  # (1) TCE-UNSAFE ON NORMAL-TISSUE SAFETY (bite_tce-only killers) — DROP the TCE arm, PRESERVE ADC.
+  #     A both_viable target with an essential-normal-tissue (HPA IHC) or sc-normal HIGH_LIABILITY read
+  #     collapses to ADC-favored-TCE-unsafe (TROP2/HER2-class normal tox; CEACAM5 ADC survives because
+  #     the killer is bite_tce-ONLY). A TCE_preferred target with the same liability has no safe arm left
+  #     → tce_unsafe_normal_liability.
+  - {verdict: adc_preferred_tce_unsafe, when_all_fired: [both-viable-supportive, normal-tissue-essential-bite-killer], driving_rule: normal-tissue-essential-bite-killer, priority: 3}
+  - {verdict: adc_preferred_tce_unsafe, when_all_fired: [both-viable-supportive, sc-normal-high-liability-bite-killer], driving_rule: sc-normal-high-liability-bite-killer, priority: 4}
+  - {verdict: tce_unsafe_normal_liability, when_all_fired: [tce-preferred-supportive, normal-tissue-essential-bite-killer], driving_rule: normal-tissue-essential-bite-killer, priority: 5}
+  - {verdict: tce_unsafe_normal_liability, when_all_fired: [tce-preferred-supportive, sc-normal-high-liability-bite-killer], driving_rule: sc-normal-high-liability-bite-killer, priority: 6}
+
+  # (1b) TCE-UNSAFE ON THERAPEUTIC-WINDOW (SAFETY, bite_tce-only) — the modality-therapeutic-window
+  #      essential_tissue_liability signal (an essential normal organ exceeds the strict 1.0-TPM tier
+  #      even when the tumor window RATIO is large — the CEACAM5 ~558x-window-yet-lung-positive pattern).
+  #      Promoted to a verdict-mover 2026-08-24 (modality-fit audit): previously it fired into the
+  #      narrative only. Same SAFETY semantics as the normal-tissue killers — DROP the TCE arm, PRESERVE
+  #      ADC (moderate-tier bystander buffer tolerates essential expression; adc:neutral in the rule).
+  - {verdict: adc_preferred_tce_unsafe, when_all_fired: [both-viable-supportive, modality-window-essential-liability-tce-opposing], driving_rule: modality-window-essential-liability-tce-opposing, priority: 7}
+  - {verdict: tce_unsafe_normal_liability, when_all_fired: [tce-preferred-supportive, modality-window-essential-liability-tce-opposing], driving_rule: modality-window-essential-liability-tce-opposing, priority: 8}
+
+  # (1b') EXON-GRAIN essential-window liability (2026-08-28, distillation assessment). MIRRORS (1b) at the
+  #       finer EXON resolution: an essential normal EXON exceeds the strict TPM tier even when the
+  #       TRANSCRIPT-level window does not — a false-negative safety hole the transcript-only rungs (7/8)
+  #       cannot catch. Same SAFETY semantics: DROP the TCE arm, PRESERVE ADC. Consumes the already-fired
+  #       exon-window-essential-liability-tce-opposing (previously narrative-only).
+  - {verdict: adc_preferred_tce_unsafe, when_all_fired: [both-viable-supportive, exon-window-essential-liability-tce-opposing], driving_rule: exon-window-essential-liability-tce-opposing, priority: 9}
+  - {verdict: tce_unsafe_normal_liability, when_all_fired: [tce-preferred-supportive, exon-window-essential-liability-tce-opposing], driving_rule: exon-window-essential-liability-tce-opposing, priority: 10}
+
+  # (1c) TCE ANTIGEN-ESCAPE (EFFICACY, bite_tce-only) — within-tumor antigen-low escape reservoir from the
+  #      single-cell tce_antigen_escape_class (coverage x inter-donor consistency; escape_risk_high). This
+  #      is an EFFICACY foreclosure of the TCE arm (antigen-low malignant cells survive redirected killing),
+  #      DISTINCT from the normal-tissue/window SAFETY killers above — hence its OWN verdicts. Ranks BELOW
+  #      the safety rungs (a safety foreclosure is the more fundamental call when both fire) and ABOVE the
+  #      density/shed caveats (a TCE-arm drop is stronger than a viability-preserving caveat). ADC is
+  #      heterogeneity-tolerant (bystander payload), so ADC is preserved. Promoted 2026-08-24 (audit): the
+  #      superior escape model already shipped in the card's stats.py but fired into the narrative only.
+  - {verdict: adc_preferred_tce_escape_risk, when_all_fired: [both-viable-supportive, sc-antigen-escape-high-tce-opposing], driving_rule: sc-antigen-escape-high-tce-opposing, priority: 11}
+  - {verdict: tce_escape_risk, when_all_fired: [tce-preferred-supportive, sc-antigen-escape-high-tce-opposing], driving_rule: sc-antigen-escape-high-tce-opposing, priority: 12}
+
+  # (1c') TCE ANTIGEN-ESCAPE — PATIENT-VARIABLE (EFFICACY, bite_tce-only; #979, 2026-09-04). The MIDDLE
+  #       escape band: coverage is adequate but malignant detection is INCONSISTENT across donors
+  #       (escape_risk_patient_variable) — a patient-SELECTION escape risk, MILDER than the escape_risk_high
+  #       reservoir above. TEMPERS (does not foreclose) the TCE arm → OWN positive-caveated verdicts
+  #       (adc_preferred_tce_patient_variable / tce_patient_variable) which keep the target nominate-able
+  #       (TCE arm demoted dominant→supportive in nomination, NOT excluded — the escape verdicts above are),
+  #       so a validated ADC/TCE antigen with normal patient-variability is not over-penalized. Ranks BELOW
+  #       escape_risk_high (the harder foreclosure wins when both could apply — they cannot co-fire, the
+  #       escape class is single-valued) and ABOVE the density/shed caveats (an efficacy TCE caveat is the
+  #       more salient call). ADC preserved (heterogeneity-tolerant).
+  - {verdict: adc_preferred_tce_patient_variable, when_all_fired: [both-viable-supportive, sc-antigen-escape-patient-variable-tce-opposing], driving_rule: sc-antigen-escape-patient-variable-tce-opposing, priority: 13}
+  - {verdict: tce_patient_variable, when_all_fired: [tce-preferred-supportive, sc-antigen-escape-patient-variable-tce-opposing], driving_rule: sc-antigen-escape-patient-variable-tce-opposing, priority: 14}
+
+  # (2) MEASURED LOW DENSITY — DOWNGRADE, NEVER VETO (CD19 trap). Grade-A/B below-TCE-floor only
+  #     (density_floor_verdict is grade-gated at source). A topology-viable target whose MEASURED
+  #     absolute density sits below the soluble-TCE floor is caveated, not killed.
+  - {verdict: surface_viable_density_caveated, when_all_fired: [both-viable-supportive, surface-density-below-tce-floor-measured-downgrade], driving_rule: surface-density-below-tce-floor-measured-downgrade, priority: 15}
+  - {verdict: surface_viable_density_caveated, when_all_fired: [tce-preferred-supportive, surface-density-below-tce-floor-measured-downgrade], driving_rule: surface-density-below-tce-floor-measured-downgrade, priority: 16}
+  - {verdict: surface_viable_density_caveated, when_all_fired: [adc-preferred-supportive, surface-density-below-tce-floor-measured-downgrade], driving_rule: surface-density-below-tce-floor-measured-downgrade, priority: 17}
+
+  # (3) DOMINANT SHED ECTODOMAIN — soluble-decoy-sink caveat for antibody-based modalities.
+  - {verdict: shed_dominant_opposed, when_all_fired: [both-viable-supportive, shed-ectodomain-clinical-opposing], driving_rule: shed-ectodomain-clinical-opposing, priority: 18}
+  - {verdict: shed_dominant_opposed, when_all_fired: [adc-preferred-supportive, shed-ectodomain-clinical-opposing], driving_rule: shed-ectodomain-clinical-opposing, priority: 19}
+  - {verdict: shed_dominant_opposed, when_all_fired: [tce-preferred-supportive, shed-ectodomain-clinical-opposing], driving_rule: shed-ectodomain-clinical-opposing, priority: 20}
+
+  # (3b) pMHC-TCE ROUTE WHEN THE FOLDED SURFACE IS DEAD (bite_tce-only POSITIVE, promotion 2026-08-25).
+  #      THE REPRESENTATIONAL GAP: a TCR-mimetic pMHC T-cell engager reaches an INTRACELLULAR oncoprotein
+  #      (WT1 / PRAME / NY-ESO-1=CTAG1B / MAGE-A4 / KRAS-G12V) via the peptide-MHC complex — a route the
+  #      folded-surface ladder (topology+family) CANNOT see, so those targets correctly read fit_class=
+  #      neither_viable YET are pMHC-TCE-viable. These two rungs surface that SEPARATE positive: they fire
+  #      ONLY in conjunction with neither-viable-killer (so they cannot flip a surface-VIABLE ADC/TCE call —
+  #      neither-viable-killer never co-fires with adc/tce/both-supportive, the fit_class group is mutually
+  #      exclusive) and outrank the bare neither_viable rung (priority 26), promoting it to pmhc_tce_supported.
+  #      The skill still emits fit_class=neither_viable (read direct from the card) alongside the verdict, so
+  #      the report reads "surface: neither_viable; pMHC-TCE: supported". POSITIVE (positive_signals_modality_
+  #      scoped for bite_tce in nomination_verdict_gate.yaml), NOT kill-capable. tcell_validated ranks above
+  #      presented_not_tcell_confirmed (stronger ground truth). For a surface-viable antigen the IEDB rule
+  #      rides as an ADDITIVE bite_tce signal and moves no verdict (neither-viable-killer absent).
+  # (3b') pMHC-TCE NORMAL-PRESENTATION SAFETY VETO (2026-08-28, distillation assessment). A pMHC epitope
+  #       BROADLY PRESENTED on normal tissue is NOT a selective TCE target — the TCR-mimetic would redirect
+  #       killing to normal cells. These 3-condition rungs consume the already-fired pmhc-broadly-presented-
+  #       normal-tce-opposing (previously narrative-only) and OUTRANK the pmhc_tce_supported promotion
+  #       (21/22), withdrawing the un-earned positive → tce_unsafe_normal_liability (reuses the existing
+  #       normal-tissue-liability verdict; the pMHC signal + normal-presentation detail stay in narration).
+  - {verdict: tce_unsafe_normal_liability, when_all_fired: [neither-viable-killer, pmhc-iedb-tcell-validated-tce-supportive, pmhc-broadly-presented-normal-tce-opposing], driving_rule: pmhc-broadly-presented-normal-tce-opposing, priority: 21}
+  - {verdict: tce_unsafe_normal_liability, when_all_fired: [neither-viable-killer, pmhc-iedb-presented-tce-supportive, pmhc-broadly-presented-normal-tce-opposing], driving_rule: pmhc-broadly-presented-normal-tce-opposing, priority: 22}
+  - {verdict: pmhc_tce_supported, when_all_fired: [neither-viable-killer, pmhc-iedb-tcell-validated-tce-supportive], driving_rule: pmhc-iedb-tcell-validated-tce-supportive, priority: 23}
+  - {verdict: pmhc_tce_supported, when_all_fired: [neither-viable-killer, pmhc-iedb-presented-tce-supportive], driving_rule: pmhc-iedb-presented-tce-supportive, priority: 24}
+
+  # (3c) SURFACE ANNOTATION-ONLY UNCONFIRMED (2026-09-04 Phase-6, VERDICT-MOVING). The surface analog of
+  #      tractability's annotation_only_indirect. A POSITIVE fit_class (composed from surfaceome-family +
+  #      PREDICTED topology only) whose surface_confirmation_state == annotation_only — NO confirmed
+  #      cell-surface protein (CSPA/HPA-IF) AND NO clinically-validated biologic precedent (the widened
+  #      ADC/TCE/CAR/mAb crosswalk) — is DEMOTED from the clean positive to this NON-NOMINATING caveat
+  #      verdict. Ranks ABOVE the plain fit_class rungs (so an annotation-only positive resolves here, not
+  #      to the clean positive) but BELOW every safety/escape/shed/density/pMHC liability above (those are
+  #      the more fundamental call; e.g. LGR5 still resolves tce_unsafe_normal_liability via the sc-normal
+  #      killer, which outranks this). The clinically_precedented / confirmed_protein states never fire the
+  #      opposing rule, so a validated antigen that a CSPA panel merely MISSED (DLL3/CEACAM5) is untouched —
+  #      the false-demote the naive clamp would cause is AVOIDED. NON-NOMINATING (not in
+  #      nomination_verdict_gate positive_signals). fit_class is still emitted alongside (the caveat is a
+  #      confidence demotion of an unconfirmed positive, not a biology negative like neither_viable).
+  - {verdict: surface_annotation_only_unconfirmed, when_all_fired: [adc-preferred-supportive, surface-annotation-only-unconfirmed-opposing], driving_rule: surface-annotation-only-unconfirmed-opposing, priority: 25}
+  - {verdict: surface_annotation_only_unconfirmed, when_all_fired: [tce-preferred-supportive, surface-annotation-only-unconfirmed-opposing], driving_rule: surface-annotation-only-unconfirmed-opposing, priority: 26}
+  - {verdict: surface_annotation_only_unconfirmed, when_all_fired: [both-viable-supportive, surface-annotation-only-unconfirmed-opposing], driving_rule: surface-annotation-only-unconfirmed-opposing, priority: 27}
+
+  # (4) PLAIN fit_class rungs (topology+family gate) — unchanged; the byte-stable base ladder. Reached
+  #     when no liability combination above fires (first-match). Priorities renumbered 25-30 -> 28-33
+  #     (order-independent interpreter; relative order preserved) to seat the (3c) annotation-only rungs.
+  - verdict: adc_preferred
+    when_fired: adc-preferred-supportive
+    priority: 28
+  - verdict: tce_preferred
+    when_fired: tce-preferred-supportive
+    priority: 29
+  - verdict: both_viable
+    when_fired: both-viable-supportive
+    priority: 30
+  - verdict: neither_viable
+    when_fired: neither-viable-killer
+    priority: 31
+  - verdict: isoform_dependent_undefined
+    when_fired: isoform-dependent-modality-suppression
+    priority: 32
+  - verdict: modality_ambiguous
+    when_fired: modality-ambiguous-insufficient
+    priority: 33
+default: insufficient
+evaluation: match_all_reduce

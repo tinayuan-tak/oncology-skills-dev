@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/takeda-rnd/rnd-computational-biology-oncology-target-contracts/schemas/skills/literature-risk-assessment.emit.schema.json",
+  "title": "literature-risk-assessment emit",
+  "version": "1.0.0",
+  "$comment": "HAND-AUTHORED bespoke data-product contract for the literature-risk-assessment AUX skill (LLM per-dimension literature risk; writes risk_assessment.json; NOT a fan-out decision — no skill_decision envelope / run_health / headline; tier is the literal 'context' and citable_in_nominations is false by design). NOT generated, NO pin. Locks the STABLE top-level shape + the fixed six-dimension keyset + the risk-level vocabulary (LOW/MEDIUM/HIGH/not_assessed, with confabulation-containment downgrade fields) + provenance corpus_pin presence, and leaves LLM justification/interpretation prose OPEN. Self-contained: no cross-file/network $ref. Append-only within contract major version.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["tier", "target", "dimensions", "provenance"],
+  "$defs": {
+    "risk_level": {"type": "string", "enum": ["LOW", "MEDIUM", "HIGH", "not_assessed"]},
+    "dimension": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["risk_level"],
+      "properties": {
+        "pillar": {"type": ["string", "null"]},
+        "risk_level": {"$ref": "#/$defs/risk_level"},
+        "risk_level_pre_containment": {"oneOf": [{"$ref": "#/$defs/risk_level"}, {"type": "null"}]},
+        "downgraded_reason": {"type": ["string", "null"]},
+        "cited_pmids": {"type": "array", "items": {"type": ["string", "integer"]}},
+        "confabulated_dropped": {"type": "array"},
+        "contradicts_deterministic": {"type": ["boolean", "null"]},
+        "anchor_verdict": {"type": ["string", "null"]},
+        "n_retrieved": {"type": ["integer", "null"]}
+      }
+    }
+  },
+  "properties": {
+    "tier": {"description": "Literal 'context' — explicitly NOT a gate/verdict input.", "const": "context"},
+    "target": {"type": "string"},
+    "indication": {"type": ["string", "null"]},
+    "dimensions": {
+      "description": "The fixed six risk pillars (dict-of-objects, keyed by dimension name).",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "biological": {"$ref": "#/$defs/dimension"},
+        "druggability": {"$ref": "#/$defs/dimension"},
+        "translational": {"$ref": "#/$defs/dimension"},
+        "clinical": {"$ref": "#/$defs/dimension"},
+        "safety": {"$ref": "#/$defs/dimension"},
+        "commercial": {"$ref": "#/$defs/dimension"}
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["generated_at", "corpus_pin", "citable_in_nominations"],
+      "properties": {
+        "synthesis_model": {"type": ["string", "null"]},
+        "framework_model_version": {"type": ["string", "null"]},
+        "generated_by": {"type": ["string", "null"]},
+        "generated_at": {"type": "string"},
+        "citable_in_nominations": {"const": false},
+        "anchored_from_evidence_package": {"type": ["boolean", "string", "null"]},
+        "corpus_pin": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "source": {"type": ["string", "null"]},
+            "retrieved": {"type": ["object", "null"]}
+          }
+        }
+      }
+    }
+  }
+}

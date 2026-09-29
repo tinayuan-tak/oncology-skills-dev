@@ -1,0 +1,347 @@
+# Card — TUMOR EXPRESSION DISTRIBUTION (per-sample RNA; TCGA)
+#
+# The PER-SAMPLE tumor RNA distribution the existing expression cards can't produce.
+# cellline-rna-distribution is CELL-LINE (DepMap); tumor-rna-vs-adjacent emits a
+# whole-cohort AGGREGATE (median + one log2FC). This card answers the 12-question spec's
+# Q1 ("is the target expressed in human tumors, and how does expression DISTRIBUTE across
+# patients?") from the per-sample TCGA long product — the fraction of patients above a
+# threshold (more actionable than the median), the shape (continuous | bimodal | long_tail
+# → target-high/-low populations for patient selection), and variability.
+#
+# PRESENCE-side card (Gate A / tumor-presence skill) — a distribution/abundance signal,
+# NOT a tumor-vs-normal contrast (that is tumor-vs-normal-selectivity, Gate B). Presence and
+# selectivity stay SEPARATE. The matched-normal fraction-above-p95 fields here are an overlay
+# for context; the selectivity CONTRAST lives on the selectivity card.
+
+card_id: tumor-rna-distribution
+version: 0.2.0
+question: "How does {target.symbol} RNA expression DISTRIBUTE across {indication.label} tumors — median, fraction of patients detectable/high, and shape (continuous, bimodal, long-tail)?"
+
+# Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a
+# non-verdict-driving field on this card; declare the rule-keyed primary + salient categoricals.
+# VERDICT-INERT projection (see capsule contract migration).
+capsule:
+  primary_class: tumor_expression_class
+  categorical_fields:
+    - tumor_expression_class
+    - distribution_pattern
+    - allgene_percentile_class
+    - control_position_class
+
+tier: indication   # the POOLED per-indication tumor distribution; the target_subtype grain lives on the
+                   # sibling tumor-rna-distribution-by-subtype card (the framework's grain-split convention)
+
+subgroup_stratification:
+  eligible: true
+  status: out_of_scope   # this POOLED card does not stratify — the target_subtype grain is served by the
+                         # separate live sibling tumor-rna-distribution-by-subtype (per the grain-split
+                         # convention: pooled target_indication card BESIDE a tier:subtype panorama card).
+  axes: [molecular_subtype]
+  rationale: "Subtype stratification for this measurement_type is served by the sibling card tumor-rna-distribution-by-subtype (tier:subtype, LIVE — binds the per-sample stratified reader read_tumor_expression_subtype_landscape via the TCGA UUID↔barcode bridge). This pooled card stays at target_indication grain; splitting the panorama onto a separate card is the framework convention (cf. crispr_lof_dependency: pooled distribution cards beside subgroup-stratified-dependency)."
+
+applies_when:
+  # the indications the TCGA long product + INDICATION_TO_TCGA_STUDIES map cover
+  - "context.indication in ['COADREAD', 'COAD', 'READ', 'LUAD', 'LUSC', 'BRCA', 'PAAD', 'PDAC', 'SKCM', 'STAD', 'PRAD', 'OV', 'KIRC', 'GBM', 'LGG', 'HNSC', 'BLCA', 'LIHC', 'CESC', 'ESCA']"
+
+required_inputs:
+  - product_id: tcga-tumor-tpm-recount3-long-v1        # per-sample tumor TPM (the distribution substrate)
+  - product_id: gtex-tpm-recount3-long-v1              # matched-normal overlay for the p95 context fields
+  - product_id: allgene-tumor-rank-v1                  # all-gene percentile facet (read on every run) — was under-pinned in the lockfile
+  - product_id: tcga-spliceseq-psi-per-gene-v1         # splicing PSI facet (methods: tcga-spliceseq-psi)
+
+methods:
+  - call: tcga-gtex-expression-distribution
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+  # Additive patient-SPLICING facet (2026-08-07, roadmap #2 patient arm). ORTHOGONAL to the
+  # expression-LEVEL fields above: those say how MUCH / how BROADLY the gene is expressed;
+  # this says whether its SPLICING is dysregulated in patient tumours (TCGA SpliceSeq PSI).
+  # The patient complement to the model-arm isoform facet on cellline-rna-distribution.
+  # Reads tcga-spliceseq-psi-per-gene-v1. Verdict-inert — display + LLM context only.
+  - call: tcga-spliceseq-psi
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - tumor_expression_class                    # PRIMARY categorical (drives Tier-2 rules)
+    - n_tumor_samples
+    - median_log2tpm                            # per-sample median (not a cohort aggregate)
+    - p95_log2tpm
+    - p99_log2tpm
+    # Five-number-summary SPREAD (AM#857, 2026-09-29): p5/q1/q3/mean/sd are computed by
+    # stats.five_number() and were being DROPPED at the reader projection (recoverability-invariant
+    # violation). Retained now so the pooled tumor distribution carries the same spread its cell-line
+    # twin (cellline-rna-distribution) already emits. VERDICT-INERT — display/context only; NEVER move
+    # tumor_expression_class. NAMING: q1/q3 (== p25/p75) deliberately diverges from the cell-line twin's
+    # p25/p75 for within-method consistency with the `<stat>_log2tpm` suffix + the five_number() primitive.
+    - p5_log2tpm                                # 5th percentile (spread; == the twin's p5_log2tpm_panel)
+    - q1_log2tpm                                # 25th percentile / lower quartile (== p25)
+    - q3_log2tpm                                # 75th percentile / upper quartile (== p75)
+    - mean_log2tpm                              # arithmetic mean on log2(TPM+1) (pairs with median for skew)
+    - sd_log2tpm                                # standard deviation on log2(TPM+1) (dispersion)
+    - detectable_fraction                       # fraction of tumors >= detectable (log2TPM>=1 / TPM~1)
+    - moderate_fraction                         # >= moderate (log2TPM>=3.46 / TPM~10)
+    - high_fraction                             # >= high (log2TPM>=5.67 / TPM~50)
+    - coefficient_of_variation                  # on LINEAR TPM — expression consistency vs variability
+    - distribution_pattern                      # continuous | bimodal | long_tail (patient-population shape)
+    - studies                                   # TCGA study code(s) backing the indication
+    # matched-normal OVERLAY (context, not the selectivity verdict — that's the selectivity card):
+    - matched_normal_tissue
+    - n_normal_samples
+    - fraction_tumor_above_normal_p95           # Q2 headline enrichment metric (normal-relative)
+    - fraction_tumor_above_normal_p99
+    - distribution_overlap_tumor_normal         # OVL ∈ [0,1]; 0 = clean separation
+    # All-gene percentile null (additive, Phase 1C 2026-08-05): where the tumor MEDIAN
+    # log2(TPM+1) falls among ALL genes measured in THIS indication's TCGA tumor cohort. A
+    # single-gene predicate-pushdown lookup of the precomputed allgene-tumor-rank-v1 (NO
+    # multi-GB long-product re-scan); the null is drawn PER-STUDY (never pooled across
+    # indications — the anti-pooling audit guard is the context string). Answers "is a median
+    # of 3.97 high?" in the disease-tissue frame (KRAS 84th mid vs CEACAM5 99.9th top_1pct in
+    # COADREAD). One-directional: display + companion categorical; NEVER moves tumor_expression_class.
+    - allgene_percentile                         # float 0-100 (or null) — tumor-median rank among all genes, mean over the indication's studies
+    - allgene_percentile_class                   # categorical (drives rules if wired)
+    - allgene_percentile_context                 # string — source + studies the null was drawn from (audit)
+    - allgene_percentile_by_study               # {study: pct} — per-TCGA-study breakdown (multi-study transparency)
+    # Control-benchmark position (additive, Phase 2 2026-08-05): where the tumor-median
+    # percentile sits relative to CURATED positive/negative control genes on the SAME
+    # per-study tumor scale (tumor_presence_controls.yaml), with INDICATION-MATCHED negatives
+    # (a lineage-marker negative like SFTPC is dropped in its own lineage — negative in colon,
+    # excluded in lung). Turns a bare percentile into "above N/M positives; above N/M negatives".
+    # One-directional: display + companion categorical; NEVER moves tumor_expression_class.
+    - control_position_class                     # categorical (drives rules if wired)
+    - control_position                           # string — "above N/M positive(s); above N/M negative(s)"
+    - control_positives                          # {symbol: percentile} — positive anchors on this indication's scale
+    - control_negatives                          # {symbol: percentile} — applicable negative anchors
+    - control_negatives_excluded_lineage_conflict # [symbol] — lineage-marker negatives dropped (marker in THIS tissue)
+    - control_position_context                   # string — controls vocab + indication normal tissue + scale (audit)
+    # Patient-SPLICING facet (additive, 2026-08-07, roadmap #2 patient arm). Is this gene's
+    # SPLICING dysregulated in patient tumours? From TCGA SpliceSeq per-event PSI: variability
+    # across tumours + tumour-vs-matched-normal PSI shift. ORTHOGONAL to the expression-LEVEL /
+    # percentile / control axes (how MUCH vs which SPLICE EVENTS shift). The patient complement
+    # to the model-arm isoform facet (cellline-rna-distribution). Verdict-inert: display + LLM
+    # context; NEVER moves tumor_expression_class. From tcga-spliceseq-psi-per-gene-v1.
+    - splicing_dysregulation_class               # categorical (see vocabulary); verdict-inert
+    - n_splice_events                            # int — annotated alternative-splicing events for the gene
+    - max_event_psi_std                          # float — max across events of tumour PSI std (variability)
+    - median_event_psi_std                       # float — median event PSI std
+    - n_variable_events                          # int — events with tumour PSI std >= 0.10
+    - n_tumor_shifted_events                     # int/null — events shifted vs matched normal (null if no normals)
+    - dominant_event_splice_type                 # string — splice class (ES/AA/AD/RI/AP/AT/ME) of the most-variable event
+    - splicing_context                           # string — human-readable splicing summary (audit)
+
+  summary_fields_vocabulary:
+    tumor_expression_class:
+      # BRANCH ORDER IS PART OF THE MEANING (methods/tcga_gtex_expression_distribution/read.py:836-850).
+      # Tested top-to-bottom in exactly this order, first match wins — so each class below is implicitly
+      # "…and none of the classes above it matched". The consequential case is subset_high BEFORE
+      # broadly_detected: a target detectable in 90% of tumors whose HIGH tail is narrow (high_fraction
+      # just over 0.1) and whose shape is bimodal/long_tail lands on subset_high and NEVER reaches
+      # broadly_detected. Do not read these as independent predicates.
+      - broadly_high                            # high_fraction >= 0.5 — most tumors highly express
+      - broadly_detected                        # detectable_fraction >= 0.7 AND moderate_fraction >= broadly_detected_min_moderate_fraction (not high) — present AND at a real level in most tumors
+      - subset_high                             # CONJUNCTIVE: distribution_pattern in (bimodal, long_tail) AND high_fraction >= subset_high_min_high_fraction (0.1) — a SEPARABLE target-high minority, i.e. a patient-selection population. Both conjuncts are load-bearing: a unimodal indication with 15% of tumors high does NOT land here.
+      - broadly_moderate                        # detectable in a middling fraction
+      - broadly_low                             # detectable_fraction < 0.3 — present in a minority
+      - data_unavailable                        # target absent from TCGA long product for this indication (coverage gap, NOT a measured negative)
+    distribution_pattern:
+      - continuous                              # unimodal spread
+      - bimodal                                 # a separable target-high + target-low subset (patient-selection shape)
+      - long_tail                               # mostly-off with a rare high-expressing tail
+    allgene_percentile_class:
+      - top_1pct                                # >= top_1_percentile cutoff
+      - top_decile                              # >= top_decile cutoff
+      - mid
+      - bottom_decile                           # <= bottom_decile cutoff
+      - data_unavailable
+    control_position_class:
+      - above_all_positives                     # target >= every applicable positive control
+      - within_positives                        # target among the positives (>= at least one, below the max)
+      - above_negatives_below_positives         # clears every (floor) negative but below all positives
+      - below_negatives                         # below the highest non-housekeeping (silent/lineage) floor
+      - data_unavailable
+    splicing_dysregulation_class:
+      - tumor_shifted                           # >=1 event with |median tumour - median normal| PSI >= 0.10 (directional tumour change)
+      - highly_variable                         # >=1 event with tumour PSI std >= 0.10 (dynamic splicing, no normal contrast)
+      - stable                                  # no variable/shifted event — splicing is flat across the cohort
+      - data_unavailable                        # gene/indication absent from the SpliceSeq product (coverage gap)
+
+  # DERIVATION EDGE (added 2026-09-18, mechanism from #803). Declares the hop from the numeric
+  # summary_fields to the categorical class tokens — the binning the METHOD performs in
+  # _classify_tumor_expression (read.py:822-850), which until now lived only in that Python and in
+  # the vocabulary comments above. Without it the emitted package is not RE-BINNABLE: a consumer
+  # could read `tumor_expression_class: subset_high` but not the high_fraction cut that produced it,
+  # so it could not tell a 10%-of-patients target from a 60% one. That distinction is the whole
+  # point of the subset_high rung split, so it has to be machine-readable, not prose.
+  # `derives_from` names the metrics a consumer must route through; note it includes the CATEGORICAL
+  # distribution_pattern, because subset_high is genuinely CONJUNCTIVE (shape AND high tail) and that
+  # conjunct has no numeric cutpoint to declare — omitting it would understate the derivation.
+  # NOT listed as cutpoints, deliberately: detectable_log2tpm / moderate_log2tpm / high_log2tpm are
+  # per-SAMPLE level cuts that CONSTRUCT the *_fraction fields; they are not compared against any
+  # summary_field, so they stay method_parameter (see threshold_roles). And broadly_moderate has NO
+  # entry boundary at all — it is the FALL-THROUGH of three separate branches, so no cutpoint admits
+  # it and none may claim to.
+  derivations:
+    tumor_expression_class:
+      derives_from: [high_fraction, detectable_fraction, moderate_fraction, distribution_pattern]
+      cutpoints: [broadly_high_min_high_fraction, subset_high_min_high_fraction, broadly_detected_min_fraction, broadly_detected_min_moderate_fraction, broadly_low_max_fraction]
+    allgene_percentile_class:
+      derives_from: [allgene_percentile]
+      cutpoints: [allgene_top_1_percentile, allgene_top_decile, allgene_bottom_decile]
+
+  figures:
+    - id: expression_distribution_per_sample
+      type: per_sample_tumor_normal_distribution
+      description: "Per-sample tumor (TCGA) vs matched-normal (GTEx) log2(TPM+1) distribution (box + strip), with the normal-p95 line and the fraction-of-tumors-above-p95 annotation. Shows the distribution SHAPE + the target-high subset the median hides."
+      preferred_surfaces: [markdown, ppt, decision_memo]
+      primary: true
+  plot_data: per_sample_tumor_normal_long_format
+
+thresholds:
+  # ABSOLUTE cutoffs (log2(TPM+1)) — anchored to DepMap's expressed/highly-expressed convention
+  # for cross-target/cross-indication consistency (mirrors cellline-rna-distribution).
+  detectable_log2tpm: 1.0                       # TPM ~1
+  moderate_log2tpm: 3.46                        # TPM ~10
+  high_log2tpm: 5.67                            # TPM ~50
+  broadly_high_min_high_fraction: 0.5
+  broadly_detected_min_fraction: 0.7
+  broadly_low_max_fraction: 0.3
+  # Added 2026-09-18 — both of these were APPLIED by the classifier while being declared NOWHERE, so
+  # the card understated the conditions of two verdict-bearing classes. See threshold_roles below.
+  broadly_detected_min_moderate_fraction: 0.5   # the 4th conjunct of broadly_detected: fraction of tumors at >= moderate_log2tpm. Without it, TPM~1 background detection in most tumors would read as "broadly expressed"; below it the class degrades to broadly_moderate.
+  subset_high_min_high_fraction: 0.1            # the high-tail floor of subset_high (the OTHER conjunct is distribution_pattern in (bimodal, long_tail))
+  # ENRICHMENT cutoff (normal-relative) — the Q2 headline metric percentile.
+  normal_enrichment_percentile: 95
+  # all-gene percentile-class cutoffs (method bins allgene_percentile → allgene_percentile_class)
+  allgene_top_1_percentile: 99.0
+  allgene_top_decile: 90.0
+  allgene_bottom_decile: 10.0
+
+warning_predicates:
+  - warning_id: low_tumor_sample_count
+    if: "n_tumor_samples < 30"
+    message: "Fewer than 30 tumor samples for this indication — distribution shape (bimodality, tail) is weakly powered. Interpret distribution_pattern cautiously."
+  - warning_id: no_matched_normal
+    if: "n_normal_samples == 0"
+    message: "No matched GTEx normal for this indication — the fraction-above-normal-p95 overlay is unavailable; distribution stats are tumor-only."
+
+caveats:
+  - "Per-sample log2(TPM+1) from recount3/GENCODE-v26 (same pipeline as GTEx normal → directly comparable)."
+  - "distribution_pattern uses a dependency-light gap heuristic (not a KDE/dip test), robust on small panels; a `bimodal` call is a patient-selection hypothesis, not a statistical guarantee."
+  - "RNA distribution does not imply protein; pair with the CPTAC protein cards for ADC/TCE decisions."
+  - "tumor_expression_class == subset_high is a PATIENT-SELECTION hypothesis, not a population claim: it can fire on as few as 10% of patients (high_fraction >= 0.1 AND a bimodal/long_tail shape), so acting on it needs a prevalence read and a selection biomarker. It now carries its OWN presence rung (tumor-expression-subset-high-supportive -> tumor_subset_high_expression, below tumor_broadly_expressed), so a 10%-high and a 60%-high target no longer collapse to one verdict — read high_fraction too."
+  - "subset_high is EMPIRICALLY UNREACHED here, and the binding conjunct is the SHAPE, not the 0.1 floor: measured 2026-09-19 over the 41-package eval corpus (generated, not tracked), distribution_pattern was continuous on 36/36 tumor-card instances and subset_high fired 0x, while the SAME heuristic returned bimodal/long_tail on 11/37 cell-line instances. Within ONE TCGA indication, >=20% of tumors below TPM 1 AND >=20% above TPM 50 rarely co-occur, so absence of subset_high is weak evidence."
+  - "The fraction_tumor_above_normal_p95 fields are a matched-normal OVERLAY for context; the tumor-vs-normal selectivity VERDICT lives on tumor-vs-normal-selectivity (Gate B), kept separate from this presence/distribution card."
+  - "The splicing_* fields are from TCGA SpliceSeq per-event PSI (patient tumours), a SEPARATE substrate from the recount3 expression above; they measure alternative-splicing dysregulation, not expression level, and never move tumor_expression_class."
+  - "splicing_dysregulation_class is a bulk-cohort POPULATION view: a low-frequency/context-specific cancer isoform (e.g. AR-V7 in castration-resistant disease, largely absent from treatment-naive TCGA) reads 'stable' because it does not move cohort PSI variance. This is orthogonal to the curated isoform_selective_targets guardrail, by design; absence of a shift is not absence of a clinically-relevant isoform."
+  - "n_tumor_shifted_events is null when the indication has no matched normals (9/33 TCGA cohorts); in that case only the variability signal (highly_variable/stable) is available, not the tumour-vs-normal shift."
+
+measurement: bulk_rna
+sample_context: tumor         # patient tumor per-sample (TCGA) — orthogonal to measurement
+
+measurement_type: tumor_expression_distribution
+entity_grains: [target_indication]
+schema_version: 1
+threshold_roles:
+  # ROLE ASSIGNMENT (2026-09-18). All 12 cutoffs in `thresholds:` above are declared here — 8 were
+  # firing THRESHOLD_UNUSED, and the role is not decoration: it says WHERE the number is applied, and
+  # the three answers have different consequences for a consumer.
+  #   class_cutpoint   — compared against a numeric summary_field to admit a value of `bins`. The
+  #                      RE-BINNABLE kind; round-tripped against outputs.derivations by the validator.
+  #   method_parameter — applied by the named method BEFORE the card sees any summary_field (a
+  #                      per-SAMPLE level cut, an overlay percentile). Nothing here can be re-binned.
+  #   reader_gate      — applied skill-side while shaping this card fields (a display cut).
+  # The ratchet this buys: MISDECLARED_THRESHOLD_ROLE becomes a hard ERROR the day a card predicate
+  # starts referencing one of these, so the declarations cannot rot into lies quietly.
+
+  # --- class cutpoints -> tumor_expression_class -----------------------------------------------
+  # Branch order in _classify_tumor_expression (read.py:822-850) is part of the meaning (see the
+  # vocabulary comment above). `boundary` names the class each cut ADMITS, never the one it excludes.
+  broadly_high_min_high_fraction:
+    role: class_cutpoint
+    bins: tumor_expression_class
+    of: high_fraction
+    boundary: broadly_high
+    scale: fraction
+    note: 'First branch of _classify_tumor_expression (read.py:838). Applied as a BARE LITERAL 0.5 in the method rather than a named constant, so nothing ties the method to this declaration except this entry.'
+  subset_high_min_high_fraction:
+    role: class_cutpoint
+    bins: tumor_expression_class
+    of: high_fraction
+    boundary: subset_high
+    scale: fraction
+    note: 'The high-tail floor of subset_high (read.py:840), a bare literal 0.1, undeclared until now. Only ONE of two conjuncts — the other is distribution_pattern in (bimodal, long_tail), a SHAPE condition with no numeric cut, so it is declared in derives_from instead. 0.1 against broadly_high 0.5 is the patient-selection-versus-population edge.'
+  broadly_detected_min_fraction:
+    role: class_cutpoint
+    bins: tumor_expression_class
+    of: detectable_fraction
+    boundary: broadly_detected
+    scale: fraction
+    note: 'The detectable_fraction >= 0.7 conjunct of broadly_detected (read.py:842). Also a bare literal in the method rather than a named constant.'
+  broadly_detected_min_moderate_fraction:
+    role: class_cutpoint
+    bins: tumor_expression_class
+    of: moderate_fraction
+    boundary: broadly_detected
+    scale: fraction
+    note: 'The SECOND conjunct of broadly_detected — method constant BROADLY_DETECTED_MODERATE_FRACTION_MIN = 0.5 (read.py:819). Failing it does NOT skip past broadly_detected, it routes to broadly_moderate, so this cut is the detected-versus-EXPRESSED discriminator. Verdict-bearing, yet declared NOWHERE on this card until 2026-09-18.'
+  broadly_low_max_fraction:
+    role: class_cutpoint
+    bins: tumor_expression_class
+    of: detectable_fraction
+    boundary: broadly_low
+    scale: fraction
+    note: 'The detectable_fraction < 0.3 branch admitting broadly_low (read.py:848), a bare literal. An UPPER bound: `boundary` records which class the cut admits, not its direction. NOTE it is a per-INDICATION read, so this class is never a target-wide kill.'
+
+  # --- class cutpoints -> allgene_percentile_class ----------------------------------------------
+  # Same three names as the tumor-rna-vs-adjacent exemplar (#803): the all-gene percentile frame is
+  # SHARED between the two cards, so these declarations must not drift apart.
+  allgene_top_1_percentile:
+    role: class_cutpoint
+    bins: allgene_percentile_class
+    of: allgene_percentile
+    boundary: top_1pct
+    scale: percentile
+  allgene_top_decile:
+    role: class_cutpoint
+    bins: allgene_percentile_class
+    of: allgene_percentile
+    boundary: top_decile
+    scale: percentile
+    note: 'ALSO read live skill-side (evidence_salience.contract_threshold) as the tumor_expression_distribution reference frame, single-sourcing the display cut and claim_record.magnitude.distance_to_cut — which is why it was declared reader_gate until #803. class_cutpoint subsumes that; the reader is unaffected because contract_threshold reads thresholds[key] by NAME and no code keys on the role token.'
+  allgene_bottom_decile:
+    role: class_cutpoint
+    bins: allgene_percentile_class
+    of: allgene_percentile
+    boundary: bottom_decile
+    scale: percentile
+
+  # --- method parameters: applied upstream of every summary_field ------------------------------
+  # ROUNDING DIVERGENCE (measured 2026-09-18), applies to detectable/moderate/high_log2tpm below.
+  # This card declares 3.46 / 5.67; the method uses MODERATE_LOG2TPM = 3.4594 and HIGH_LOG2TPM =
+  # 5.6724 (methods/tcga_gtex_expression_distribution/stats.py:23-24). The card values are ROUNDED
+  # restatements, not independent cuts, but the rounding is live in one place: the reader takes the
+  # CARD value for the display cut and distance_to_cut while the method classifies on its own
+  # constant. A target with median_log2tpm in [5.6700, 5.6724) therefore DISPLAYS as at or above the
+  # cut while being CLASSIFIED below it. Left as-is deliberately — changing either number moves a
+  # live cut and needs its own PR with a re-measured panel — but recorded so the divergence is not
+  # rediscovered as a bug. Do NOT "fix" this by editing one side only.
+  detectable_log2tpm:
+    role: method_parameter
+    consumed_by: tcga-gtex-expression-distribution
+    note: 'The TPM~1 per-SAMPLE detection floor that CONSTRUCTS detectable_fraction, and hence feeds the broadly_detected / broadly_low cutpoints above. Not itself a class_cutpoint: it is compared against the per-sample log2tpm vector, which is not a summary_field. Method constant DETECTABLE_LOG2TPM = 1.0 (stats.py:22) — matches this declaration exactly.'
+  moderate_log2tpm:
+    role: method_parameter
+    consumed_by: tcga-gtex-expression-distribution
+    note: 'The TPM~10 per-SAMPLE level floor that CONSTRUCTS moderate_fraction, which gates broadly_detected against background-only detection. Per-sample, so not a class_cutpoint. Method constant MODERATE_LOG2TPM = 3.4594 (stats.py:23) against 3.46 declared here — see the ROUNDING DIVERGENCE comment above.'
+  normal_enrichment_percentile:
+    role: method_parameter
+    consumed_by: tcga-gtex-expression-distribution
+    note: 'The GTEx matched-normal percentile behind the fraction_tumor_above_normal_p95 overlay fields. Bins no class on this card and is verdict-inert here by design — the selectivity VERDICT lives on tumor-vs-normal-selectivity. See the caveat above.'
+
+  # --- reader gate ------------------------------------------------------------------------------
+  high_log2tpm:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the tumor_expression_distribution reference frame over `median_log2tpm` (log2tpm), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'

@@ -1,0 +1,269 @@
+# Card — CELL-LINE RNA DISTRIBUTION BY DRIVER-MUTATION / MOLECULAR SUBTYPE (DepMap)
+#
+# The target_subtype-grain SIBLING of cellline-rna-distribution. Same measurement_type
+# (cell_line_rna_expression), same DepMap log2(TPM+1) substrate — but recomputes the distribution
+# WITHIN each DepMap subtype/driver-mutation member-set of the indication's cell-line panel,
+# emitting a per-stratum panorama. The cell-line analogue of tumor-rna-distribution-by-subtype.
+#
+# Framework grain-split convention: a POOLED target-grain card (cellline-rna-distribution) beside a
+# SEPARATE tier:subtype card (this one). The GRAIN-CHECK validator enforces that a card declaring
+# per_subgroup_metrics binds a per-sample stratified reader; depmap-expression-distribution IS one
+# (read_stratified_expression + build_expression_subtype_panorama) — it recomputes per stratum via
+# subgroup_common.panorama.build_panorama over the DepMap-side assignment shard, keyed by ModelID
+# (no UUID↔barcode bridge — ModelID IS the cell-line grain).
+#
+# PRESENCE-side (Gate A / tumor-presence). DESCRIPTIVE / verdict-inert: subtype is CONTEXT for
+# patient-selection, NEVER a veto — the pooled cellline-rna-distribution card carries the presence
+# read; this card enriches it. COMPUTE-ALL-SPOTLIGHT-ONE.
+
+card_id: cellline-rna-distribution-by-subtype
+version: 0.1.0
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
+question: "How does {target.symbol} RNA expression DISTRIBUTE across the driver-mutation / molecular subtypes of {indication.label} DepMap cell lines — which strata are enriched or depleted vs the within-lineage pooled distribution?"
+
+tier: subtype
+
+subgroup_stratification:
+  eligible: true
+  status: live
+  axes: [molecular_subtype, driver_mutation]
+  rationale: "Cell-line RNA can vary by driver/molecular stratum (e.g. lineage-marker antigens tracking with a driver context). Backed by depmap-expression-distribution, which recomputes the per-ModelID distribution within each stratum's member-set of the DepMap-side assignment shard — not an emit-time aggregate."
+
+applies_when:
+  # WIDENED 2026-09-19 to the full reader footprint. This allowlist was COADREAD-only through
+  # 2026-09-18 because of the SKILL-side constraint the previous comment documented:
+  # _CELLLINE_SUBTYPE_ASSIGNMENTS in skills/_skills_common/_live_readers.py mapped only 3 codes to the
+  # 1 coadread shard, so widening the card ahead of the reader would have made it eligible for
+  # indications whose axis could only answer `unavailable` — a declaration the reader could not honour.
+  # That constraint is now RESOLVED: the reader map was extended (tumor-presence Stage 5) and today
+  # resolves 14 indication codes to SEVEN DepMap shards. MEASURED on skills trunk e3ba6fad,
+  # _CELLLINE_SUBTYPE_ASSIGNMENTS = {COADREAD/COAD/READ→coadread, HNSC/HNSCC→hnsc, STAD/GC→stad,
+  # NSCLC/LUAD/LUSC→nsclc, ESCA→esca, PAAD/PDAC→paad, SCLC→sclc}. So the widening now rides the OTHER
+  # way — the card is the lagging half — and the two are back in lockstep. The code list below mirrors
+  # the reader's keys EXACTLY. coadread-cms is deliberately NOT here: the reader does not resolve it
+  # (no key maps to depmap-subgroup-assignments-coadread-cms-v1), so listing it would declare an axis
+  # no run path can reach. Honest grading downstream: PAAD/STAD shards are ALL-NULL (measured
+  # 2026-09-18) so those two report subtype_axis_quality: unevaluable, not a false `powered`.
+  # An indication not listed → subtype_axis_available: false (honest).
+  - "context.indication in ['COADREAD', 'COAD', 'READ', 'HNSC', 'HNSCC', 'STAD', 'GC', 'NSCLC', 'LUAD', 'LUSC', 'ESCA', 'PAAD', 'PDAC', 'SCLC']"
+  - "indication.subgroup_catalog_available == true"
+
+required_inputs:
+  # DECLARED UNION (mirrors tumor-rna-distribution-by-subtype). required_inputs[].product_id is not
+  # documentation — _skills_common/envelope.py copies it into (a) governance.resolved_releases
+  # staleness auditing and (b) card_present[].provenance.required_product_ids, which the cross-evidence
+  # INDEPENDENCE invariant reads to avoid double-counting correlated evidence toward certainty. So this
+  # is the UNION of every shard ANY run of this card could resolve, NOT an all-must-resolve gate: a
+  # given run reads exactly the one shard its indication maps to, and stamps that single manifest in the
+  # reader's own assignment_manifest. Declaring the union errs the SAFE way (more apparent sharing ⇒
+  # LESS independence credit); under-declaring would let the integrator treat correlated subtype
+  # evidence as independent. The seven shards below are EXACTLY the reader's footprint (skills trunk
+  # e3ba6fad); coadread-cms is excluded because the reader does not resolve it.
+  - product_id: depmap-consortium-26q1                  # DepMap 26Q1 log2(TPM+1) matrix (the distribution substrate)
+  - product_id: depmap-subgroup-assignments-coadread-v1 # COADREAD / COAD / READ (MSI_H / MSS)
+  - product_id: depmap-subgroup-assignments-hnsc-v1     # HNSC / HNSCC
+  - product_id: depmap-subgroup-assignments-stad-v1     # STAD / GC  (all-null today → unevaluable)
+  - product_id: depmap-subgroup-assignments-nsclc-v1    # NSCLC / LUAD / LUSC (histology split Adeno/SCC)
+  - product_id: depmap-subgroup-assignments-esca-v1     # ESCA
+  - product_id: depmap-subgroup-assignments-paad-v1     # PAAD / PDAC (all-null today → unevaluable)
+  - product_id: depmap-subgroup-assignments-sclc-v1     # SCLC (George 2015 NAPY strata)
+
+methods:
+  - call: depmap-expression-distribution
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - per_subgroup_metrics                      # the per-stratum panorama (record schema below)
+    - subtype_axis_available                    # is a DepMap shard landed for this indication?
+    - subtype_axis_quality                      # HONEST capability grade (vocabulary below). Catches the DepMap
+                                                # STAD/PAAD case where the axis is defined in the catalog but no cell
+                                                # line carries a stratum call. MEASURED 2026-09-18: those two shards are
+                                                # ALL-NULL, i.e. `unevaluable`, NOT `empty` — nobody was ever classified,
+                                                # so there is no absence to assert. Verdict-inert.
+    - n_subtypes_measured                       # strata clearing the n-floor (>=30 cell lines)
+    - n_subtypes_enriched                       # strata whose median is >= delta above the pooled median
+    - n_subtypes_depleted                       # strata whose median is >= delta below the pooled median
+    - subtype_stratification_class              # subtype_enriched | subtype_depleted | subtype_variable | pan_subtype_uniform.
+                                                # One-directional CONTEXT — raises confidence / defines patient
+                                                # population, NEVER moves presence_verdict.
+    - spotlight_subtype                          # the highest-median enriched stratum (or null)
+    - pooled_lineage_median_log2tpm              # within-lineage pooled median (the enrichment baseline)
+    - n_subgroups_with_data                      # strata with >=1 member cell line (delta_reducer)
+    - max_subgroup_expression                    # cross-stratum spread of median_log2tpm (delta_reducer)
+    - min_subgroup_expression
+    - cross_subgroup_delta_expression
+  summary_fields_vocabulary:
+    # Ordered most→least usable, mirroring subgroup_common.panorama.axis_quality. `exploratory` and
+    # `unevaluable` are AM #659's two additive grades; both are OPT-IN per reader, and the method's
+    # contract is that a reader opts in only after its card declares the wider enum. This arm is where
+    # `exploratory` matters MOST: the DepMap panels are an order of magnitude smaller than the patient
+    # cohorts the floor of 30 was calibrated on (n≈20-130 per indication BEFORE the stratum split), so
+    # a floor of 30 rejects nearly every stratum.
+    #
+    # ★ RE-MEASURED 2026-09-19 THROUGH THE READER (not off the shards) and the conclusion got STRONGER
+    # while two of the old example numbers turned out to be the WRONG MEASURAND — see the units note in
+    # `thresholds` below. Post-join, `powered` is UNREACHABLE on this arm today: every one of the seven
+    # routed families has AT MOST ONE stratum clearing 30, so none can ever show >=2. The full grade
+    # census, per family: coadread exploratory (MSS 100 measured / MSI_H 27) · nsclc exploratory
+    # (Adeno 107 / SCC 28) · esca exploratory (EAC 63 / ESCC 26) · sclc exploratory (SCLC_A 32 /
+    # SCLC_N 15, SCLC_P 8, SCLC_Y 8) · hnsc underpowered (oral_cavity 55 only; larynx 5,
+    # oropharyngeal 2, HPV±/4 expression-subtype strata all unclassified) · stad + paad unevaluable.
+    # So `exploratory` is not a nicety here — it is the ONLY grade under which this arm says anything
+    # at all, and the strata it admits (MSI_H 27, SCC 28, ESCC 26, SCLC_N 15) are the entire
+    # cross-subtype signal. Hypothesis-grade, not claim-grade — which is what a distinct grade says.
+    subtype_axis_quality:
+      - powered                                  # >=2 strata clear the n-floor → cross-subtype contrast supportable
+      - exploratory                              # <2 measured but >=2 measured-OR-exploratory (10-29 members):
+                                                 # contrastable as a HYPOTHESIS only. NOT a relaxation of the n-floor.
+      - underpowered                             # axis has cell lines but <2 measured strata → context only
+      - unevaluable                              # nothing on the axis was classified (the MEASURED DepMap STAD/PAAD
+                                                 # shape). Ranked ABOVE `empty` on purpose: `empty` asserts a measured
+                                                 # absence and there is no such measurement here.
+      - empty                                    # every stratum EVALUATED and none has members (0 cell lines)
+      - unavailable                              # no DepMap assignment shard for this indication
+    subtype_stratification_class:
+      - subtype_enriched                         # >=1 stratum enriched, none depleted
+      - subtype_depleted                         # >=1 stratum depleted, none enriched
+      - subtype_variable                         # both enriched and depleted strata present
+      - pan_subtype_uniform                      # no stratum clears the enrichment delta (uniform)
+  summary_fields_record_schemas:
+    # record-schema value specs declare the EXPECTED scalar type; a runtime null (an underpowered
+    # stratum's subtype_signal / median) is permitted — matches the subgroup-stratified exemplars.
+    per_subgroup_metrics:
+      stratum: string
+      class: string                              # broadly_high | broadly_detected | broadly_low | insufficient
+      # VOCABULARY ALIGNMENT, 2026-09-18 — MIGRATION COMPLETE (add -> consume -> remove); see below.
+      # The three by-subtype arms spelled this field's values TWO different ways: this arm and
+      # tumor-protein-distribution-by-subtype used the BARE tokens, while tumor-rna-distribution-by-
+      # subtype used PREFIXED ones. Equal strings therefore did not mean equal things, which is fine
+      # while nothing joins the arms and fatal the moment something does — a cross-layer concordance
+      # read is exactly the consumer that compares these tokens across cards.
+      #
+      # THE TARGET IS THE PREFIXED FORM, and that direction was measured rather than chosen on taste:
+      #   1. THREE interpretation rules key on the prefixed tokens (subtype-expression-{enriched,
+      #      restricted,depleted}-context, intracellular-intrinsic.rules.yaml ~3918-3975) and
+      #      ZERO rules key on the bare form. Prefixing the bare arms touches no rule at all;
+      #      de-prefixing the tumour arm would rewrite three fired-signal-bearing rules.
+      #   2. THIS CARD ALREADY SPEAKS PREFIXED for its own rollup: summary_fields_vocabulary
+      #      .subtype_stratification_class is [subtype_enriched, subtype_depleted, subtype_variable,
+      #      pan_subtype_uniform]. The bare per-stratum tokens were the odd ones out WITHIN this card.
+      #   3. `subtype_restricted` has no bare counterpart to de-prefix onto, so the other direction
+      #      would have to invent one.
+      #
+      # WHY A UNION AND NOT A STRAIGHT RENAME: this enum is the RESTRICTIVE half (see the widening
+      # note further down — it is what an emitted row is validated against). While the method still
+      # emitted the bare tokens, declaring only the prefixed form here would have made
+      # depmap_expression_distribution emit rows its own card REJECTS. So the union was carried
+      # transitionally across three PRs, add -> consume -> remove:
+      #   1. TC#816 98a7990    both spellings legal; nothing breaks, nothing yet changes (the ADD)
+      #   2. AM#667 45eb5d2    _classify_subtype_signal returns the prefixed tokens; the internal
+      #                        `== "enriched"` / `== "depleted"` comparisons in
+      #                        depmap_expression_distribution/read.py and cptac_protein_distribution/
+      #                        read.py moved with it (the CONSUME)
+      #   3. (this change)     the bare tokens are REMOVED from this enum (the REMOVE)
+      # Skipping step 1 or 3 is the documented failure: a consumer that has never seen a token does
+      # not report it as unknown, it silently fails to match, and a fall-through is not an error.
+      #
+      # `subtype_restricted` IS DELIBERATELY ABSENT from this arm, and that is a coverage statement,
+      # not an oversight. It means "detectable in this stratum while broadly absent pooled", which is
+      # a DETECTABILITY claim: the tumour arm's classifier takes four arguments
+      # (stratum_median, pooled_median, detectable_fraction, pooled_detectable) to compute it. This
+      # arm's classifier takes TWO medians and has no detectability input, so it could not emit the
+      # token however the enum were written. Declaring it here would declare a value the producer
+      # emits 0x BY CONSTRUCTION — an absence a consumer would be entitled to read as measured.
+      subtype_signal:
+        # prefixed-only; the transitional bare half was removed 2026-09-18 once AM#667 (45eb5d2)
+        # stopped the method emitting it — step 3 (REMOVE) of the migration described above.
+        enum: [subtype_enriched, subtype_depleted, subtype_uniform]
+        type: string
+      # The enrichment cutoff ACTUALLY APPLIED to produce `subtype_signal` on this row, in log2 units.
+      # Declared 2026-09-18 to close a cross-arm comparability defect: "enriched" means a 2x linear
+      # shift here (1.0) and a 1.5x shift on tumor-rna-distribution-by-subtype (0.585), and the number
+      # lived only as a constant inside each method (_SUBTYPE_ENRICH_LOG2_DELTA) and was emitted
+      # NOWHERE, so a consumer joining the two arms per stratum could not tell that the two "enriched"
+      # calls are not the same claim. Emitting the applied delta makes them normalisable WITHOUT moving
+      # either cut — preferred over aligning the constants, because lowering this one would silently
+      # change the live subtype_signal of every DepMap stratum between 0.585 and 1.0.
+      subtype_enrich_log2_delta: number
+      # WIDENED 2026-09-18 for AM #659. Unlike summary_fields_vocabulary above, THIS enum is the
+      # restrictive half — it is what an emitted row is validated against, so a reader that opts into
+      # the exploratory band before this widening emits a row its own card rejects.
+      # REACHABILITY, verified 2026-09-18 (AM #662, merge 48f20a1): BOTH new tokens are live on this
+      # arm — depmap_expression_distribution/read.py:173 passes `exploratory_floor=` AND `evaluated=`
+      # in one evidence_state() call. This arm can pass `evaluated=` precisely because it is handed
+      # `subgroups` by the CALLER, so it can be asked about a stratum nobody was assigned to (the
+      # MEASURED DepMap STAD/PAAD all-null shape). The tumor arm cannot and must not — see that card.
+      evidence_state: {enum: [measured, exploratory, underpowered, unevaluable, absent], type: string}
+      subgroup_n: integer
+      subgroup_n_floor_met: boolean
+      median_log2tpm: number
+      fraction_expressed: number
+      subtype_defining_data: string              # 'genomic' (DepMap driver/molecular strata)
+      source_cohort: string
+  # NOTE: no `figure:` yet — the per-stratum panel emitter is a follow-up (avoids figure-debt).
+
+thresholds:
+  # per-stratum enrichment cutoff vs the within-lineage pooled median, in log2(TPM+1) units.
+  # Mirrors _SUBTYPE_ENRICH_LOG2_DELTA in the method (declared here so it is reviewable).
+  subtype_enrich_log2_delta: 1.0
+  subgroup_n_floor: 30                           # underpowered stratum → null signal, never a scoped call
+  #
+  # ★★ UNITS — WHAT BOTH FLOORS ARE APPLIED TO (corrected 2026-09-19). Both floors read the EMITTED
+  # `subgroup_n`, which is the POST-JOIN count: shard members ∩ DepMap cell lines that carry an RNA
+  # profile. It is NOT the assignment shard's `is_member == true` count, and the two differ by enough
+  # to flip a grade. Measured both ways on the same day (shard-side → post-join): coadread MSI_H
+  # 30 → 27, MSS 106 → 100; hnsc site_larynx 10 → 5, site_oral_cavity 63 → 55; nsclc Adeno 118 → 107,
+  # SCC 32 → 28; esca EAC 67 → 63, ESCC 30 → 26; sclc unchanged (32/15/8/8).
+  # The earlier revision of this block, and the panel caveat below, quoted the SHARD-SIDE numbers and
+  # then drew floor conclusions from them. That made two claims that are false of the emitted record:
+  # "MSI_H 30 clears the floor of 30" (it is 27 post-join, so it does NOT) and "hnsc larynx 10 sits in
+  # the 10-29 exploratory band" (it is 5 post-join, so it grades `underpowered`). Same for esca ESCC,
+  # which is 30 in the shard and 26 in the record. The shard numbers were never wrong; they were the
+  # wrong MEASURAND for a statement about a floor the consumer applies after the join.
+  # POST-JOIN COUNTS ARE TARGET-INDEPENDENT — verified identical for EPCAM / MET / DLL3 — because the
+  # join is on RNA-profile availability per cell line, not on the queried gene. So a grade quoted here
+  # is a property of the substrate and is safe to state once, rather than per target.
+  #
+  # SECOND, LOWER band — NOT a relaxation of subgroup_n_floor, which keeps its one meaning (>=30) on
+  # every substrate. INCLUSIVE (`subgroup_n >= exploratory_floor`), mirroring
+  # subgroup_common.SUBGROUP_EXPLORATORY_FLOOR. This is the arm where the band does the most work, and
+  # post-join that case is STRONGER than the shard-side numbers suggested: no routed family has >=2
+  # strata clearing 30, so `powered` is unreachable and the band carries the whole arm. What it
+  # actually admits: coadread MSI_H 27, nsclc SCC 28, esca ESCC 26, sclc SCLC_N 15 — real cell lines
+  # that were previously discarded to a null with no trace that they existed.
+  subgroup_exploratory_floor: 10
+
+threshold_roles:
+  # `role: method_parameter` asserts the cutoff is applied UPSTREAM by the named method.
+  # validate_cards.py:693 only checks `consumed_by` names a methods[].call on this card — it does NOT
+  # check the method reads the value, so this entry is only honest if verified by hand. Verified
+  # 2026-09-18 against AM trunk b95a8b6: depmap_expression_distribution/read.py:173.
+  subtype_enrich_log2_delta:
+    role: method_parameter
+    consumed_by: depmap-expression-distribution
+  subgroup_n_floor:
+    role: method_parameter
+    consumed_by: depmap-expression-distribution
+  subgroup_exploratory_floor:
+    role: method_parameter
+    consumed_by: depmap-expression-distribution
+caveats:
+  - "SUBTYPE COVERAGE (2026-09-19): this card now reaches SEVEN of the eight landed DepMap shards (coadread, hnsc, stad, nsclc, esca, paad, sclc) — one per applies_when family, declared as the union in required_inputs. The eighth (coadread-cms) is landed but the reader does not resolve it, so it is deliberately NOT declared. Not every reached shard is claim-grade: STAD and PAAD are all-null → subtype_axis_quality: unevaluable, and several strata sit in the 10-29 exploratory band."
+  - "Enrichment baseline is the WITHIN-LINEAGE pooled median (the union of all strata members), NOT the pan-cancer panel median — a stratum is enriched/depleted relative to its own indication's cell-line panel."
+  - "A stratum below subgroup_n_floor (n<30 cell lines) carries distribution stats for context but a NULL subtype_signal — never a scoped call on underpowered data."
+  - "Subtype is confidence/context for patient selection, NOT a new veto — the pooled cellline-rna-distribution card carries the presence read; this card enriches it."
+  - "DepMap panels are small per stratum, and both floors read the POST-JOIN subgroup_n (shard members ∩ lines with an RNA profile), NOT the shard member count — see the units note in thresholds. Measured through the reader 2026-09-19: no routed family has 2 strata clearing 30, so `powered` is unreachable today. Best per family: coadread MSS 100 (MSI_H 27), nsclc Adeno 107 (SCC 28), esca EAC 63 (ESCC 26), sclc SCLC_A 32 (SCLC_N 15), hnsc oral_cavity 55. An honest ceiling, not absent signal."
+
+# Two orthogonal axes (Slice A1): measurement LAYER + biological SAMPLE. Same as the pooled sibling —
+# differs only in GRAIN (target_subtype), not measurement/sample_context.
+measurement: bulk_rna
+sample_context: cell_line       # DepMap cell lines, stratified by driver/molecular subtype
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of cell_line_rna_expression at target_subtype grain.
+measurement_type: cell_line_rna_expression
+entity_grains: [target_subtype]
+schema_version: 1
