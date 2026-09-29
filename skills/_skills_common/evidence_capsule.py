@@ -28,6 +28,7 @@ from __future__ import annotations
 
 from _skills_common.display_gloss import gloss
 from _skills_common.evidence_salience import (
+    canonical_scale,
     indication_stratum_aliases,
     round_keep_tiny,
     scale_for_field,
@@ -244,16 +245,22 @@ def _scale_for(measurement_type, field):
     """The machine-readable unit (`scale`) for an emitted numeric-anchor `field`, so the number is NEVER a
     bare scalar whose unit is knowable only from the metric NAME (Arm A gap 1, #1860). Resolution, most-
     authoritative first:
-      1. the salience reference-frame RULER `scale` — the first-class unit token (log2FC, loeuf, percentile,
-         copies_per_cell, fraction, …) the display graph already gauges against, wired here onto the emitted
-         value (`evidence_salience.scale_for_field`);
+      1. the salience reference-frame RULER `scale` — the first-class unit token (log2_fold_change, loeuf,
+         percentile, copies_per_cell, fraction, …) the display graph already gauges against, wired here onto
+         the emitted value (`evidence_salience.scale_for_field`);
       2. the `display_gloss` units hint — the framework's existing field→units registry for the L3 tail the
          rulers do not reach (a fraction/percentile/count/q-value whose unit is unambiguous from convention);
       3. `None` — an EXPLICIT 'unit not yet first-class' for the residual (e.g. a `median_*` effect the gloss
          deliberately leaves unitless). The `scale` KEY is still emitted, so the value carries a declared unit
          SLOT rather than being silently bare — the capsule-grain form of the claim_record no-bare-numbers
-         invariant, enforced by `assert_no_bare_numbers`."""
-    return scale_for_field(measurement_type, field) or gloss(field)[1] or None
+         invariant, enforced by `assert_no_bare_numbers`.
+
+    BOTH sources are folded onto the controlled `SCALE_UNITS` vocabulary via `canonical_scale` (#2017):
+    `scale_for_field` canonicalises the ruler token internally, and the `display_gloss` hint (a free-form,
+    space-bearing DISPLAY string) is canonicalised here, so the emitted machine `scale` is one governed
+    token per unit however either source spelled it. gloss() itself is unchanged — the human parenthetical
+    keeps its display spelling; only the machine `scale` is governed."""
+    return scale_for_field(measurement_type, field) or canonical_scale(gloss(field)[1]) or None
 
 
 def _measurement_provenance(card_id, measurement_type, summary):

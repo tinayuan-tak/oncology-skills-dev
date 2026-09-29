@@ -1323,7 +1323,7 @@
       "value": "present"
     }
   ],
-  "generated_at": "2026-09-28T23:40:46+00:00",
+  "generated_at": "2026-09-29T00:11:14+00:00",
   "headline": {
     "alphafold_confidence_class": "moderate",
     "best_measured_potency_neglog_m": 11.699,
@@ -1587,7 +1587,7 @@
                 "source_product_id": null
               },
               "role": "context",
-              "scale": "pChEMBL",
+              "scale": "pchembl",
               "value": 11.0
             }
           ],
@@ -4969,7 +4969,7 @@
       }
     },
     "resolver_release_pin": "resolver_v0.1.0-alpha",
-    "skills_repo_sha": "a562681"
+    "skills_repo_sha": "d8e090d"
   },
   "question": "What is known about EGFR INDEPENDENT of indication \u2014 its identity, on-target-safety genetics, protein-class/structure/modality biophysics, functional annotation, mechanism + pathway role, interactome, domain architecture + domain\u2192modality implication, and paralog buffering?",
   "run_health": {
@@ -4987,7 +4987,7 @@
     ],
     "cards_missing": [],
     "cards_skipped_a4": [],
-    "compute_secs": 2.9244,
+    "compute_secs": 2.0116,
     "n_cards_consumed": 20,
     "n_cards_fired": 10,
     "n_cards_resolved": 20,
@@ -4997,11 +4997,11 @@
         "family": "target-id-resolver-release"
       }
     ],
-    "read_secs": 0.967,
+    "read_secs": 1.2943,
     "skill_name": "target-intrinsic",
     "skill_version": "1.6.1",
     "status": "ok",
-    "total_secs": 17.1154
+    "total_secs": 13.6591
   },
   "skill": "target-intrinsic",
   "target": "EGFR"

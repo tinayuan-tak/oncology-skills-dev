@@ -1974,14 +1974,192 @@ def _frame_scales(spec) -> dict:
     return out
 
 
+# ── CANONICAL SCALE/UNIT VOCABULARY (governs the emitted numeric-anchor `scale`, #2017) ───────────────
+# #1860 gave every emitted numeric anchor a first-class `scale` (unit) SLOT, sourced two ways —
+# `scale_for_field` (the salience reference-frame ruler token) with a `display_gloss` units-hint fallback.
+# Those two sources are free-form and were never reconciled, so the SAME unit reached the emitted anchor
+# under several spellings: `percentile`/`%ile`, the log2 family fragmented (`log2FC`/`log2tpm`/`log2 TPM`),
+# and spaced display pseudo-units (`effect size`, `correlation r`, `log2 AUC`, `-log10 M`, `Cohen's d`, …).
+# A machine `scale` token that carries a space — or that is one of N spellings of one unit — is not a
+# governed unit. This is the residual of #1860: it delivered the slot; nothing governed the VALUES in it.
+#
+# SCALE_UNITS is the single controlled vocabulary the emission path draws from; `canonical_scale` folds
+# every known spelling of a unit onto ONE space-free token and is applied at BOTH sources (the ruler in
+# `scale_for_field` below, and the gloss fallback in `evidence_capsule._scale_for`), so the two can no
+# longer disagree. A guard test (`test_capsule_units`) asserts every EMITTED anchor scale is space-free and
+# ∈ SCALE_UNITS — fail-loud on any new ungoverned token.
+#
+# SCOPE = the numeric-anchor / retained-attr emission surface (`_scale_for`). The collapses are pure
+# SPELLING normalisation of ONE unit (case / separators / spaces / a display glyph → the machine token) and
+# never merge two DISTINCT units: `log2_fold_change` (a ratio), `log2_tpm` (an abundance) and `log2_auc`
+# stay separate tokens — the fragmentation was in the SPELLING, not the units. So the change is
+# VERDICT-INERT (the resolver/bits path reads the reference-frame `scale` directly, never this emitted
+# token — see `_bits_for_cohort_frame`), and the golden bytes that move are documented, per-token, as
+# spelling collapses. The L2a `source_properties` surface already uses these canonical spellings
+# (`presence_claims._ANCHOR_SCALE`); the L2 interpretation-ruler `gauged_value.scale` is a separate surface
+# left untouched here (out of scope; a noted follow-on, #1937 A1).
+SCALE_UNITS: frozenset = frozenset(
+    {
+        # rank / share
+        "percentile",
+        "pan_gene_percentile",
+        "til_percentage",
+        "percent",
+        "fraction",
+        "detection_fraction",
+        "mutation_fraction",
+        "event_fraction",
+        "fraction_genome_altered",
+        "delta_fraction",
+        "overlap",
+        # log2 families (each a DISTINCT unit; only spellings collapse)
+        "log2_fold_change",
+        "log2_ratio",
+        "log2_odds_ratio",
+        "log2_per_cn",
+        "log2_tpm",
+        "log2_auc",
+        "log2_auc_delta",
+        "log2_intensity",
+        "log2_abundance",
+        "tpm",
+        # dependency effect
+        "chronos",
+        "chronos_delta",
+        "gi_chronos",
+        "gi_score",
+        "dep_score",
+        "demeter2",
+        # effect / correlation
+        "effect_size",
+        "effect_shift",
+        "delta_effect",
+        "protein_effect",
+        "standardized_effect",
+        "cohens_d",
+        "delta_emax",
+        "epsilon_squared",
+        "pearson_r",
+        "spearman_r",
+        "correlation_r",
+        # significance / stats
+        "q",
+        "qvalue",
+        "bh_q_value",
+        "p",
+        "pvalue",
+        "chi_squared",
+        "df",
+        "z_score",
+        "r2",
+        "variance_explained",
+        # counts
+        "count",
+        "cohorts",
+        "cohort_count",
+        "donor_count",
+        "normal_tissue_count",
+        "num",
+        "freq",
+        # constraint / potency / abundance / misc
+        "copies_per_cell",
+        "npx",
+        "clr",
+        "ccf",
+        "ppv",
+        "pchembl",
+        "plddt",
+        "pli",
+        "loeuf",
+        "neglog_m",
+        "shet",
+        "days",
+        "index",
+        "ratio",
+    }
+)
+
+# Every KNOWN non-canonical spelling → its SCALE_UNITS member. Keys are the raw tokens the two sources
+# (reference-frame `scale:` authoring + `display_gloss` units hints/affix backstop) actually emit today;
+# a value already equal to its canonical form needs no entry. Fail-loud is the guard's job, not a runtime
+# raise: an unknown token passes through unchanged and the guard test reds on it.
+_SCALE_ALIASES: dict = {
+    # percentile / percent
+    "%ile": "percentile",
+    "%": "percent",
+    # log2 spellings (per unit)
+    "log2FC": "log2_fold_change",
+    "log2 ratio": "log2_ratio",
+    "log2 OR": "log2_odds_ratio",
+    "log2/CN": "log2_per_cn",
+    "log2 TPM": "log2_tpm",
+    "log2tpm": "log2_tpm",
+    "log2 TPM/methyl": "log2_tpm",
+    "log2 AUC": "log2_auc",
+    "log2auc": "log2_auc",
+    "log2auc_delta": "log2_auc_delta",
+    "log2 intensity": "log2_intensity",
+    "log2": "log2_abundance",
+    "TPM": "tpm",
+    # dependency-effect display glyphs
+    "CHRONOS": "chronos",
+    "chronos delta": "chronos_delta",
+    "delta CHRONOS": "chronos_delta",
+    "GI score": "gi_score",
+    "dep score": "dep_score",
+    # effect / correlation display forms
+    "effect size": "effect_size",
+    "delta effect": "delta_effect",
+    "delta fraction": "delta_fraction",
+    "Cohen's d": "cohens_d",
+    "ΔEmax": "delta_emax",
+    "ε²": "epsilon_squared",
+    "Pearson r": "pearson_r",
+    "Spearman r": "spearman_r",
+    "correlation r": "correlation_r",
+    # significance / stats display forms
+    "q-value": "qvalue",
+    "p-value": "pvalue",
+    "χ²": "chi_squared",
+    "z-score": "z_score",
+    "R2": "r2",
+    # constraint / potency / abundance display forms
+    "copies/cell": "copies_per_cell",
+    "NPX": "npx",
+    "CLR": "clr",
+    "CCF": "ccf",
+    "PPV": "ppv",
+    "pChEMBL": "pchembl",
+    "pLDDT": "plddt",
+    "pLI": "pli",
+    "LOEUF": "loeuf",
+    "-log10 M": "neglog_m",
+    "neglog_M": "neglog_m",
+    "s_het": "shet",
+}
+
+
+def canonical_scale(token):
+    """Fold a raw scale/unit token onto its SCALE_UNITS member — the single controlled vocabulary the
+    emitted numeric-anchor `scale` draws from (#2017). None-safe (a value can be genuinely unit-less). An
+    unknown token passes through UNCHANGED (not silently coerced): the `test_capsule_units` guard reds on
+    any emitted token ∉ SCALE_UNITS, so a new ungoverned unit is caught loudly rather than hidden."""
+    if not token:
+        return None
+    t = str(token).strip()
+    return _SCALE_ALIASES.get(t, t)
+
+
 def scale_for_field(measurement_type, field):
     """The FIRST-CLASS unit (machine `scale` token) for an emitted measurement `field` of `measurement_type`,
     sourced from that type's salience reference-frame ruler(s) — the un-wired first-class units of Arm A
-    gap 1 (#1860). None when no ruler references the field (the caller layers a display-units backstop, then
-    an explicit null 'unit not yet first-class', so a value is never SILENTLY bare)."""
+    gap 1 (#1860), CANONICALISED onto the controlled `SCALE_UNITS` vocabulary (#2017) so the same unit is
+    one token however the ruler spelled it. None when no ruler references the field (the caller layers a
+    display-units backstop, then an explicit null 'unit not yet first-class', so a value is never SILENTLY
+    bare)."""
     if not (measurement_type and field):
         return None
-    return _frame_scales(SALIENCE_SPECS.get(measurement_type)).get(field)
+    return canonical_scale(_frame_scales(SALIENCE_SPECS.get(measurement_type)).get(field))
 
 
 # ── Stage-2 interpretation rulers (key_evidence.interpretation[]) ─────────────────────────────────────

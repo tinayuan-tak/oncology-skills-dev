@@ -2994,7 +2994,7 @@
             {
               "metric": "protein_effect_size",
               "value": -0.4174,
-              "scale": "effect size",
+              "scale": "effect_size",
               "provenance": {
                 "source_product_id": null,
                 "n_basis": {
@@ -3049,7 +3049,7 @@
               {
                 "metric": "allgene_percentile",
                 "value": 8.6041,
-                "scale": "%ile"
+                "scale": "percentile"
               },
               {
                 "metric": "fraction_detected",
@@ -3115,7 +3115,7 @@
             {
               "metric": "protein_effect_size",
               "value": 4.3326,
-              "scale": "effect size",
+              "scale": "effect_size",
               "provenance": {
                 "source_product_id": null,
                 "n_basis": {
@@ -3170,7 +3170,7 @@
               {
                 "metric": "allgene_percentile",
                 "value": 79.6928,
-                "scale": "%ile"
+                "scale": "percentile"
               },
               {
                 "metric": "fraction_detected",
@@ -3206,7 +3206,7 @@
             {
               "metric": "control_target_percentile",
               "value": 52.5423,
-              "scale": "%ile",
+              "scale": "percentile",
               "provenance": {
                 "source_product_id": null,
                 "n_basis": {
@@ -3303,7 +3303,7 @@
               {
                 "metric": "allgene_percentile",
                 "value": 52.5423,
-                "scale": "%ile"
+                "scale": "percentile"
               },
               {
                 "metric": "fraction_expressed",
@@ -3329,7 +3329,7 @@
             {
               "metric": "pooled_lineage_median_log2tpm",
               "value": 9.8646,
-              "scale": "log2 TPM",
+              "scale": "log2_tpm",
               "provenance": {
                 "source_product_id": null,
                 "n_basis": {
@@ -3458,7 +3458,7 @@
             {
               "metric": "expression_purity_spearman_r",
               "value": 0.1235,
-              "scale": "correlation r",
+              "scale": "correlation_r",
               "provenance": {
                 "source_product_id": null,
                 "n_basis": {
@@ -3780,7 +3780,7 @@
             {
               "metric": "rna_median_max_log2fc_across_elevated",
               "value": 3.4539,
-              "scale": "log2FC",
+              "scale": "log2_fold_change",
               "provenance": {
                 "source_product_id": null,
                 "n_basis": {
@@ -3983,7 +3983,7 @@
             {
               "metric": "control_target_percentile",
               "value": 99.7415,
-              "scale": "%ile",
+              "scale": "percentile",
               "provenance": {
                 "source_product_id": "recount3_tcga_gtex_bulk_rna",
                 "n_basis": {
@@ -4080,7 +4080,7 @@
               {
                 "metric": "allgene_percentile",
                 "value": 99.7415,
-                "scale": "%ile"
+                "scale": "percentile"
               },
               {
                 "metric": "fraction_tumor_above_normal_p95",
@@ -4180,7 +4180,7 @@
             {
               "metric": "gtex_log2_fc",
               "value": 2.086,
-              "scale": "log2FC",
+              "scale": "log2_fold_change",
               "provenance": {
                 "source_product_id": "recount3_tcga_gtex_bulk_rna",
                 "n_basis": {
@@ -4208,7 +4208,7 @@
             {
               "metric": "log2_fc",
               "value": -0.362,
-              "scale": "log2FC",
+              "scale": "log2_fold_change",
               "provenance": {
                 "source_product_id": "recount3_tcga_gtex_bulk_rna",
                 "n_basis": {
@@ -4262,12 +4262,12 @@
               {
                 "metric": "log2_fc",
                 "value": -0.362,
-                "scale": "log2FC"
+                "scale": "log2_fold_change"
               },
               {
                 "metric": "gtex_log2_fc",
                 "value": 2.086,
-                "scale": "log2FC"
+                "scale": "log2_fold_change"
               },
               {
                 "metric": "gtex_q_value",
