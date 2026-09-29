@@ -1,0 +1,95 @@
+{
+  "target": "KRAS",
+  "protein_product_id": "cptac-protein-tumor-vs-normal-per-cohort-v1",
+  "rna_product_id": "pancan-dge-tumor-vs-normal-v1",
+  "cptac_cohort_rows_fixture": "dge_rows/kras.cptac_cohort_rows.parquet",
+  "cptac_cohort_rows_fixture_md5": "531e1e33076eaa32ba4af16977fd7f5b",
+  "rna_stack_rows_fixture": "dge_rows/kras.rna_stack_rows.parquet",
+  "rna_stack_rows_fixture_md5": "2dc7e662a9fe239e5f530e1817f06ed3",
+  "expected_protein": {
+    "tumor_elevation_breadth_class": "not_tumor_elevated",
+    "n_cohorts_tested": 10,
+    "n_cohorts_elevated": 0,
+    "n_cohorts_sig_up_effect_negligible": 0,
+    "n_cohorts_sig_up_pan_cohort_fdr_fail": 0,
+    "fraction_elevated": 0.0,
+    "median_effect_across_elevated": null,
+    "median_standardized_effect_across_elevated": null,
+    "most_elevated_cohorts": [],
+    "cohorts_tested": [
+      "BRCA",
+      "CCRCC",
+      "COAD",
+      "GBM",
+      "HNSCC",
+      "LSCC",
+      "LUAD",
+      "OV",
+      "PDAC",
+      "UCEC"
+    ],
+    "cohorts_unestimable": []
+  },
+  "expected_rna": {
+    "rna_tumor_elevation_breadth_class": "multi_tumor_elevated",
+    "n_indications_tested": 27,
+    "n_indications_elevated": 3,
+    "fraction_elevated": 0.1111111111111111,
+    "median_max_log2fc_across_elevated": 1.0381437747811881,
+    "most_elevated_indications": [
+      {
+        "indication": "KICH",
+        "max_abs_log2fc": 1.0674580684215023,
+        "cells_supporting": 3.0,
+        "dominant_direction": "up"
+      },
+      {
+        "indication": "BRCA",
+        "max_abs_log2fc": 1.0381437747811881,
+        "cells_supporting": 3.0,
+        "dominant_direction": "up"
+      },
+      {
+        "indication": "STAD",
+        "max_abs_log2fc": 1.006540403330599,
+        "cells_supporting": 3.0,
+        "dominant_direction": "up"
+      }
+    ],
+    "indications_tested": [
+      "ACC",
+      "BLCA",
+      "BRCA",
+      "CESC",
+      "COAD",
+      "ESCA",
+      "GBM",
+      "HNSC",
+      "KICH",
+      "KIRC",
+      "KIRP",
+      "LAML",
+      "LGG",
+      "LIHC",
+      "LUAD",
+      "LUSC",
+      "OV",
+      "PAAD",
+      "PCPG",
+      "PRAD",
+      "READ",
+      "SKCM",
+      "STAD",
+      "TGCT",
+      "THCA",
+      "UCEC",
+      "UCS"
+    ]
+  },
+  "_source": {
+    "protein_reader": "methods.cptac_protein_deg.read.read_tumor_elevation_breadth (on read_all_cohorts)",
+    "rna_reader": "methods.dge_deseq2.derive_pancan_stack.read_rna_tumor_elevation_breadth",
+    "captured_utc": "2026-09-29T02:49:27.612636+00:00",
+    "boundary": "validates the read/aggregation path (elevated-cohort counting + pan-cohort BH/FDR on the protein layer; composite-indication dedupe + K-of-N roll-up on the RNA layer), NOT the upstream DEG/DESeq2 runs. #1663: no n-field fabricated \u2014 the readers emit only the fields asserted here."
+  }
+}

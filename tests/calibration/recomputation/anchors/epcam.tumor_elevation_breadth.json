@@ -1,0 +1,169 @@
+{
+  "target": "EPCAM",
+  "protein_product_id": "cptac-protein-tumor-vs-normal-per-cohort-v1",
+  "rna_product_id": "pancan-dge-tumor-vs-normal-v1",
+  "cptac_cohort_rows_fixture": "dge_rows/epcam.cptac_cohort_rows.parquet",
+  "cptac_cohort_rows_fixture_md5": "dda622a0c9252a90d91f2ea878251385",
+  "rna_stack_rows_fixture": "dge_rows/epcam.rna_stack_rows.parquet",
+  "rna_stack_rows_fixture_md5": "701084452b67033cdd0e76a092faed77",
+  "expected_protein": {
+    "tumor_elevation_breadth_class": "multi_tumor_elevated",
+    "n_cohorts_tested": 9,
+    "n_cohorts_elevated": 4,
+    "n_cohorts_sig_up_effect_negligible": 0,
+    "n_cohorts_sig_up_pan_cohort_fdr_fail": 0,
+    "fraction_elevated": 0.4444444444444444,
+    "median_effect_across_elevated": 1.023427338047685,
+    "median_standardized_effect_across_elevated": 1.7306,
+    "most_elevated_cohorts": [
+      {
+        "cohort": "BRCA",
+        "protein_expression_class": "modest_up",
+        "protein_effect_size": 1.49302245241575,
+        "protein_bh_q_value": 1.8281384279526e-06,
+        "protein_effect_standardized_class": "large",
+        "n_normal_samples": 18
+      },
+      {
+        "cohort": "OV",
+        "protein_expression_class": "modest_up",
+        "protein_effect_size": 1.06650227974172,
+        "protein_bh_q_value": 6.3060989839218105e-09,
+        "protein_effect_standardized_class": "large",
+        "n_normal_samples": 23
+      },
+      {
+        "cohort": "UCEC",
+        "protein_expression_class": "modest_up",
+        "protein_effect_size": 0.98035239635365,
+        "protein_bh_q_value": 1.10443547548488e-19,
+        "protein_effect_standardized_class": "large",
+        "n_normal_samples": 49
+      },
+      {
+        "cohort": "LUAD",
+        "protein_expression_class": "modest_up",
+        "protein_effect_size": 0.501480915392834,
+        "protein_bh_q_value": 1.6008459515127202e-14,
+        "protein_effect_standardized_class": "large",
+        "n_normal_samples": 102
+      }
+    ],
+    "cohorts_tested": [
+      "BRCA",
+      "CCRCC",
+      "COAD",
+      "HNSCC",
+      "LSCC",
+      "LUAD",
+      "OV",
+      "PDAC",
+      "UCEC"
+    ],
+    "cohorts_unestimable": []
+  },
+  "expected_rna": {
+    "rna_tumor_elevation_breadth_class": "multi_tumor_elevated",
+    "n_indications_tested": 27,
+    "n_indications_elevated": 10,
+    "fraction_elevated": 0.37037037037037035,
+    "median_max_log2fc_across_elevated": 3.4538837543087313,
+    "most_elevated_indications": [
+      {
+        "indication": "UCEC",
+        "max_abs_log2fc": 7.890113307568212,
+        "cells_supporting": 2.0,
+        "dominant_direction": "up"
+      },
+      {
+        "indication": "ESCA",
+        "max_abs_log2fc": 5.67481018916275,
+        "cells_supporting": 2.0,
+        "dominant_direction": "up"
+      },
+      {
+        "indication": "BRCA",
+        "max_abs_log2fc": 4.6131064463933225,
+        "cells_supporting": 3.0,
+        "dominant_direction": "up"
+      },
+      {
+        "indication": "BLCA",
+        "max_abs_log2fc": 3.6787412233062624,
+        "cells_supporting": 3.0,
+        "dominant_direction": "up"
+      },
+      {
+        "indication": "STAD",
+        "max_abs_log2fc": 3.5167175786352605,
+        "cells_supporting": 2.0,
+        "dominant_direction": "up"
+      },
+      {
+        "indication": "PRAD",
+        "max_abs_log2fc": 3.3910499299822026,
+        "cells_supporting": 3.0,
+        "dominant_direction": "up"
+      },
+      {
+        "indication": "LUAD",
+        "max_abs_log2fc": 3.1710895158181702,
+        "cells_supporting": 3.0,
+        "dominant_direction": "up"
+      },
+      {
+        "indication": "LUSC",
+        "max_abs_log2fc": 2.2001357684147913,
+        "cells_supporting": 3.0,
+        "dominant_direction": "up"
+      },
+      {
+        "indication": "COAD",
+        "max_abs_log2fc": 2.0452431561956175,
+        "cells_supporting": 3.0,
+        "dominant_direction": "up"
+      },
+      {
+        "indication": "THCA",
+        "max_abs_log2fc": 1.434281941417379,
+        "cells_supporting": 2.0,
+        "dominant_direction": "up"
+      }
+    ],
+    "indications_tested": [
+      "ACC",
+      "BLCA",
+      "BRCA",
+      "CESC",
+      "COAD",
+      "ESCA",
+      "GBM",
+      "HNSC",
+      "KICH",
+      "KIRC",
+      "KIRP",
+      "LAML",
+      "LGG",
+      "LIHC",
+      "LUAD",
+      "LUSC",
+      "OV",
+      "PAAD",
+      "PCPG",
+      "PRAD",
+      "READ",
+      "SKCM",
+      "STAD",
+      "TGCT",
+      "THCA",
+      "UCEC",
+      "UCS"
+    ]
+  },
+  "_source": {
+    "protein_reader": "methods.cptac_protein_deg.read.read_tumor_elevation_breadth (on read_all_cohorts)",
+    "rna_reader": "methods.dge_deseq2.derive_pancan_stack.read_rna_tumor_elevation_breadth",
+    "captured_utc": "2026-09-29T02:49:22.882999+00:00",
+    "boundary": "validates the read/aggregation path (elevated-cohort counting + pan-cohort BH/FDR on the protein layer; composite-indication dedupe + K-of-N roll-up on the RNA layer), NOT the upstream DEG/DESeq2 runs. #1663: no n-field fabricated \u2014 the readers emit only the fields asserted here."
+  }
+}
