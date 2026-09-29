@@ -101,7 +101,7 @@ jobs:
         # — and the skip was invisible for its whole lifetime. A skip is "the check did not run", so it
         # must be NAMED in the log rather than summed into the green. That gate now has its own job
         # below; here it skips on its `requires_data` marker, which reports the REAL requirement.
-        run: pixi run pytest methods/ tests/ -q -rs --import-mode=importlib
+        run: pixi run pytest methods/ tests/ -q -rs --import-mode=importlib -n auto
 
   # ───────────────────────────────────────────────────────────────────────────────────────────────
   # The R4 byte-identity gate, for real. Measured requirements (2026-09-15), each one checked rather

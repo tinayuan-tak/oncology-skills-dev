@@ -15,6 +15,7 @@ pyyaml = "*"
 jsonschema = "*"
 click = "*"                      # CLI scaffolding for method entrypoints
 pytest = "*"
+pytest-xdist = "*"               # parallel test execution (-n auto in CI, -n 8 fixed in preland.sh)
 boto3 = "*"                      # S3 client for pull/prep stages
 openpyxl = "*"                   # Excel parsing (CPTAC clinical XLSX + SURFY)
 plotly = "*"                     # interactive figure specs (emit_plotly_specs → figure_*.plotly.json)
