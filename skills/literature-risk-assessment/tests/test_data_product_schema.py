@@ -18,24 +18,14 @@ locally, FAIL in CI.
 
 from __future__ import annotations
 
-import os
-import sys
 from pathlib import Path
 
 import pytest
+from _skills_common.data_product_contract import conformance_errors  # noqa: E402
+from _test_support import load_run_py, schema_or_gate  # noqa: E402
 
 SKILL = "literature-risk-assessment"
 SKILL_DIR = Path(__file__).resolve().parent.parent
-SKILLS_ROOT = SKILL_DIR.parent
-
-if str(SKILLS_ROOT) not in sys.path:
-    sys.path.insert(0, str(SKILLS_ROOT))
-from _skills_common.data_product_contract import (  # noqa: E402
-    conformance_errors,
-    load_schema,
-    schema_path,
-)
-from _test_support import load_run_py  # noqa: E402
 
 rc = load_run_py(SKILL_DIR, "lra_run_dp")
 
@@ -44,16 +34,7 @@ SIX_DIMENSIONS = {"biological", "druggability", "translational", "clinical", "sa
 
 
 def _schema_or_gate() -> dict:
-    schema = load_schema(SKILL, "emit")
-    if schema is not None:
-        return schema
-    reason = (
-        f"data-product emit schema not found at {schema_path(SKILL, 'emit')} — set "
-        f"TARGET_CONTRACTS_ROOT / land the contracts schema PR first"
-    )
-    if os.environ.get("CI"):
-        pytest.fail(reason + " [CI: the data-product lock must be live, not skipped]")
-    pytest.skip(reason)
+    return schema_or_gate(SKILL, "emit")
 
 
 class _Ab:

@@ -27,7 +27,6 @@ Usage (from a repo checkout with siblings adjacent, AWS creds present):
 from __future__ import annotations
 
 import argparse
-import importlib.util
 import json
 import sys
 from pathlib import Path
@@ -37,81 +36,51 @@ import yaml
 HERE = Path(__file__).resolve().parent
 SKILL_DIR = HERE.parent
 SKILLS = SKILL_DIR.parent  # .../skills
-for p in (str(SKILLS),):  # _skills_common (incl. rehomed _live_readers) resolves from SKILLS
-    if p not in sys.path:
-        sys.path.insert(0, p)
+if str(SKILLS) not in sys.path:  # _skills_common / _test_support resolve from skills/
+    sys.path.insert(0, str(SKILLS))
 
 from _skills_common import _import_dispatcher  # noqa: E402
+from _test_support import freeze_card_summaries, load_run_py  # noqa: E402
 
-_FIELD_BYTES_CAP = 3000  # replace list/dict field values larger than this with a compact sentinel
-
-
-def _load_cards_from_runpy() -> list[str]:
-    """Import the skill's run.py and return its CARDS literal (single source of truth)."""
-    spec = importlib.util.spec_from_file_location("_tp_run", SKILL_DIR / "scripts" / "run.py")
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)  # top-level only; no __main__ side effects
-    return list(mod.CARDS)
+DEFAULT_TARGET = "EPCAM"
+DEFAULT_INDICATION = "COADREAD"
 
 
-def _prune(summary):
-    """Shrink the committed fixture by replacing OVERSIZED list/dict payloads the verdict + headline
-    never key on with a compact scalar sentinel. Every field KEY is preserved (so a reader RENAMING a
-    field is still caught); only list/dict values above the cap are replaced; scalars + the `n_*`
-    counts + `*_class` values the rules/headline read always survive. Replacing with a SCALAR keeps
-    write_package's list-of-dict CSV emitter from choking on a non-record element. (Identical rule to
-    target-intrinsic's freezer.)"""
-    if not isinstance(summary, dict):
-        return summary
-    out = {}
-    for k, v in summary.items():
-        if isinstance(v, (list, dict)) and len(json.dumps(v, default=str)) > _FIELD_BYTES_CAP:
-            out[k] = f"__omitted_from_fixture__ ({type(v).__name__}, {len(v)} items)"
-        else:
-            out[k] = v
-    return out
+def _cards() -> list[str]:
+    """The skill's card roster, read once from run.py (single source of truth)."""
+    return list(load_run_py(SKILL_DIR).CARDS)
 
 
 def freeze(target: str, indication: str, read_live) -> dict:
-    """Live-read every card the skill consumes for (target, indication); return {card_id: summary}."""
-    frozen: dict = {}
-    for card in _load_cards_from_runpy():
-        try:
-            summary = read_live(card, target, indication)
-        except Exception as e:  # noqa: BLE001 — record, never abort the freeze
-            summary = {"_freeze_error": f"{type(e).__name__}: {e}"}
-        frozen[card] = _prune(summary) if summary is not None else {"_dispatcher_returned_none": True}
-    return frozen
+    """Live-read + prune every card summary for (target, indication). See _test_support.freeze_card_summaries."""
+    return freeze_card_summaries(_cards(), target, indication, read_live)
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--target", default="EPCAM")
-    ap.add_argument("--indication", default="COADREAD")
+    ap.add_argument("--target", default=DEFAULT_TARGET)
+    ap.add_argument("--indication", default=DEFAULT_INDICATION)
     ap.add_argument(
         "--out", default=None, help="fixture path (default fixtures/<target>_<indication>.yaml, lowercased)"
     )
     args = ap.parse_args()
-
     out = Path(args.out) if args.out else (HERE / "fixtures" / f"{args.target.lower()}_{args.indication.lower()}.yaml")
     if not out.is_absolute():
         out = HERE / out
     out.parent.mkdir(parents=True, exist_ok=True)
-
     read_live = _import_dispatcher()
-    print(f"freezing {args.target}/{args.indication} tumor-presence dossier → {out} …", flush=True)
+    print(f"freezing {args.target}/{args.indication} {SKILL_DIR.name} dossier -> {out} ...", flush=True)
     frozen = freeze(args.target, args.indication, read_live)
     out.write_text(yaml.safe_dump(frozen, sort_keys=True, default_flow_style=False))
-
-    errs = {c: s.get("_freeze_error") for c, s in frozen.items() if isinstance(s, dict) and s.get("_freeze_error")}
     real = [
         c
         for c, s in frozen.items()
         if isinstance(s, dict) and not s.get("_freeze_error") and not s.get("_dispatcher_returned_none") and s
     ]
+    errs = {c: s.get("_freeze_error") for c, s in frozen.items() if isinstance(s, dict) and s.get("_freeze_error")}
     print(
         f"  wrote {len(frozen)} cards; {len(real)} with a real summary"
-        + (f"; {len(errs)} read-errors: {json.dumps(errs)[:300]}" if errs else "")
+        + (f"; errors: {json.dumps(errs)[:300]}" if errs else "")
     )
     return 0
 

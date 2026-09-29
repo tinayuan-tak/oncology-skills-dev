@@ -18,12 +18,12 @@ CI-liveness: schema unresolvable → SKIP locally, FAIL in CI.
 
 from __future__ import annotations
 
-import os
 import sys
 from pathlib import Path
 
 import pytest
-from _test_support import load_run_py  # skills/ is on sys.path via skills/conftest.py
+from _skills_common.data_product_contract import conformance_errors  # noqa: E402
+from _test_support import load_run_py, schema_or_gate  # skills/ is on sys.path via skills/conftest.py
 
 SKILL = "cross-evidence-hypothesis"
 SKILL_DIR = Path(__file__).resolve().parent.parent
@@ -33,26 +33,12 @@ GOLDEN = SKILL_DIR / "tests" / "fixtures" / "golden" / "KRAS-COADREAD"
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 import drift_golden as dg  # noqa: E402
-from _skills_common.data_product_contract import (  # noqa: E402
-    conformance_errors,
-    load_schema,
-    schema_path,
-)
 
 
 def _schema_or_gate() -> dict:
     """The self-contained hand-authored emit schema, or gate: SKIP locally / FAIL in CI when the
     contracts repo is not resolvable (the ratchet must be live in CI, never a vacuous skip)."""
-    schema = load_schema(SKILL, "emit")
-    if schema is not None:
-        return schema
-    reason = (
-        f"data-product emit schema not found at {schema_path(SKILL, 'emit')} — set "
-        f"TARGET_CONTRACTS_ROOT / land the contracts schema PR first"
-    )
-    if os.environ.get("CI"):
-        pytest.fail(reason + " [CI: the data-product ratchet must be live, not skipped]")
-    pytest.skip(reason)
+    return schema_or_gate(SKILL, "emit")
 
 
 def _fresh_emit() -> dict:

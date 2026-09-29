@@ -20,7 +20,6 @@ Usage (repo checkout with siblings adjacent, AWS creds present):
 from __future__ import annotations
 
 import argparse
-import importlib.util
 import json
 import sys
 from pathlib import Path
@@ -29,60 +28,41 @@ import yaml
 
 HERE = Path(__file__).resolve().parent
 SKILL_DIR = HERE.parent
-SKILLS = SKILL_DIR.parent
-for p in (str(SKILLS),):  # _skills_common (incl. rehomed _live_readers) resolves from SKILLS
-    if p not in sys.path:
-        sys.path.insert(0, p)
+SKILLS = SKILL_DIR.parent  # .../skills
+if str(SKILLS) not in sys.path:  # _skills_common / _test_support resolve from skills/
+    sys.path.insert(0, str(SKILLS))
 
 from _skills_common import _import_dispatcher  # noqa: E402
+from _test_support import freeze_card_summaries, load_run_py  # noqa: E402
 
-_FIELD_BYTES_CAP = 3000
-
-
-def _load_cards_from_runpy() -> list[str]:
-    spec = importlib.util.spec_from_file_location("_fr_run", SKILL_DIR / "scripts" / "run.py")
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return list(mod.CARDS)
+DEFAULT_TARGET = "KRAS"
+DEFAULT_INDICATION = "COADREAD"
 
 
-def _prune(summary):
-    """Replace oversized list/dict payloads (never read by the verdict/headline) with a scalar
-    sentinel; keep every KEY (drift still caught) + all scalars. Identical rule to the sibling freezers."""
-    if not isinstance(summary, dict):
-        return summary
-    out = {}
-    for k, v in summary.items():
-        if isinstance(v, (list, dict)) and len(json.dumps(v, default=str)) > _FIELD_BYTES_CAP:
-            out[k] = f"__omitted_from_fixture__ ({type(v).__name__}, {len(v)} items)"
-        else:
-            out[k] = v
-    return out
+def _cards() -> list[str]:
+    """The skill's card roster, read once from run.py (single source of truth)."""
+    return list(load_run_py(SKILL_DIR).CARDS)
 
 
 def freeze(target: str, indication: str, read_live) -> dict:
-    frozen: dict = {}
-    for card in _load_cards_from_runpy():
-        try:
-            summary = read_live(card, target, indication)
-        except Exception as e:  # noqa: BLE001
-            summary = {"_freeze_error": f"{type(e).__name__}: {e}"}
-        frozen[card] = _prune(summary) if summary is not None else {"_dispatcher_returned_none": True}
-    return frozen
+    """Live-read + prune every card summary for (target, indication). See _test_support.freeze_card_summaries."""
+    return freeze_card_summaries(_cards(), target, indication, read_live)
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--target", default="KRAS")
-    ap.add_argument("--indication", default="COADREAD")
-    ap.add_argument("--out", default=None)
+    ap.add_argument("--target", default=DEFAULT_TARGET)
+    ap.add_argument("--indication", default=DEFAULT_INDICATION)
+    ap.add_argument(
+        "--out", default=None, help="fixture path (default fixtures/<target>_<indication>.yaml, lowercased)"
+    )
     args = ap.parse_args()
     out = Path(args.out) if args.out else (HERE / "fixtures" / f"{args.target.lower()}_{args.indication.lower()}.yaml")
     if not out.is_absolute():
         out = HERE / out
     out.parent.mkdir(parents=True, exist_ok=True)
     read_live = _import_dispatcher()
-    print(f"freezing {args.target}/{args.indication} functional-requirement dossier → {out} …", flush=True)
+    print(f"freezing {args.target}/{args.indication} {SKILL_DIR.name} dossier -> {out} ...", flush=True)
     frozen = freeze(args.target, args.indication, read_live)
     out.write_text(yaml.safe_dump(frozen, sort_keys=True, default_flow_style=False))
     real = [

@@ -24,7 +24,6 @@ Usage (from a repo checkout with siblings adjacent, AWS creds present):
 from __future__ import annotations
 
 import argparse
-import importlib.util
 import json
 import sys
 from pathlib import Path
@@ -39,17 +38,12 @@ for p in (str(SKILLS),):  # _skills_common (incl. rehomed _live_readers) resolve
         sys.path.insert(0, p)
 
 from _skills_common import _import_dispatcher  # noqa: E402
+from _test_support import freeze_card_summaries, load_run_py, prune_oversized  # noqa: E402
 
 
 def _load_cards_from_runpy() -> list[str]:
     """Import the skill's run.py and return its CARDS literal (single source of truth)."""
-    spec = importlib.util.spec_from_file_location("_ti_run", SKILL_DIR / "scripts" / "run.py")
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)  # top-level only; no __main__ side effects
-    return list(mod.CARDS)
-
-
-_FIELD_BYTES_CAP = 3000  # replace list/dict field values larger than this with a compact sentinel
+    return list(load_run_py(SKILL_DIR, "_ti_run").CARDS)
 
 
 def _prune(summary):
@@ -65,16 +59,8 @@ def _prune(summary):
         cap, so none is ever touched — the replacement lands only on raw payloads the headline ignores.
         Scalars (and the `n_*` counts, which are separate fields, NOT len(list)) always survive.
     Replacing with a SCALAR (not a truncated list) also keeps write_package's list-of-dict CSV emitter
-    from choking on a non-record element."""
-    if not isinstance(summary, dict):
-        return summary
-    out = {}
-    for k, v in summary.items():
-        if isinstance(v, (list, dict)) and len(json.dumps(v, default=str)) > _FIELD_BYTES_CAP:
-            out[k] = f"__omitted_from_fixture__ ({type(v).__name__}, {len(v)} items)"
-        else:
-            out[k] = v
-    return out
+    from choking on a non-record element. (Shared rule; see _test_support.prune_oversized.)"""
+    return prune_oversized(summary)
 
 
 def freeze(target: str, read_live) -> dict:
@@ -82,14 +68,7 @@ def freeze(target: str, read_live) -> dict:
 
     Passes the PANCANCER sentinel exactly as run.py does for an indication-free invocation
     (tier:target readers ignore it)."""
-    frozen: dict = {}
-    for card in _load_cards_from_runpy():
-        try:
-            summary = read_live(card, target, "PANCANCER")
-        except Exception as e:  # noqa: BLE001 — record, never abort the freeze
-            summary = {"_freeze_error": f"{type(e).__name__}: {e}"}
-        frozen[card] = _prune(summary) if summary is not None else {"_dispatcher_returned_none": True}
-    return frozen
+    return freeze_card_summaries(_load_cards_from_runpy(), target, "PANCANCER", read_live)
 
 
 def main() -> int:

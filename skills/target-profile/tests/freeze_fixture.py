@@ -44,8 +44,7 @@ for p in (str(SKILLS),):  # _skills_common (incl. rehomed _live_readers) resolve
         sys.path.insert(0, p)
 
 from _skills_common import _import_dispatcher  # noqa: E402
-
-_FIELD_BYTES_CAP = 3000  # replace list/dict field values larger than this with a compact sentinel
+from _test_support import prune_oversized  # noqa: E402
 
 
 def _load_union_cards_from_runpy(sub_skills: list[str] | None = None) -> list[str]:
@@ -68,16 +67,8 @@ def _prune(summary):
     """Shrink the committed fixture by replacing OVERSIZED list/dict payloads the verdicts never key on
     with a compact scalar sentinel. Every field KEY is preserved (so a reader RENAMING a field is still
     caught); only list/dict values above the cap are replaced; scalars + the `*_class` values the rules
-    read always survive. (Identical rule to the sibling freezers.)"""
-    if not isinstance(summary, dict):
-        return summary
-    out = {}
-    for k, v in summary.items():
-        if isinstance(v, (list, dict)) and len(json.dumps(v, default=str)) > _FIELD_BYTES_CAP:
-            out[k] = f"__omitted_from_fixture__ ({type(v).__name__}, {len(v)} items)"
-        else:
-            out[k] = v
-    return out
+    read always survive. (Shared rule; see _test_support.prune_oversized.)"""
+    return prune_oversized(summary)
 
 
 def freeze(target: str, indication: str, read_live) -> dict:
