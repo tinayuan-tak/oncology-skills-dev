@@ -45,17 +45,19 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
-# ── repo-root resolution (framework convention: env var, else default layout) ──────────────
-_SIBLINGS = Path.home()
-_DEFAULT_SKILLS = _SIBLINGS / "rnd-computational-biology-oncology-claude-oncology-skills"
-_DEFAULT_CONTRACTS = _SIBLINGS / "rnd-computational-biology-oncology-target-contracts"
+# ── repo-root resolution (framework convention: env var, else repo-root-relative default) ──
+# The orchestrator's own dir (this file lives at <repo_root>/eval/) — resolved first so the
+# defaults below derive from THIS checkout (CI, primary clone, /tmp worktree), never a
+# hardcoded $HOME/rnd-... literal that would silently resolve to an archived pre-merge clone
+# (SK#2063 folded target-contracts into <repo_root>/contracts; SK#2137).
+EVAL_DIR = Path(__file__).resolve().parent
+_REPO_ROOT = EVAL_DIR.parent
+_DEFAULT_SKILLS = _REPO_ROOT
+_DEFAULT_CONTRACTS = _REPO_ROOT / "contracts"
 
 SKILLS_ROOT = Path(os.environ.get("CLAUDE_ONCOLOGY_SKILLS_ROOT", _DEFAULT_SKILLS))
 CONTRACTS_ROOT = Path(os.environ.get("TARGET_CONTRACTS_ROOT", _DEFAULT_CONTRACTS))
 
-# The orchestrator's own dir (this file lives at <skills_root>/eval/) — but resolve robustly
-# so it works from a worktree checkout too.
-EVAL_DIR = Path(__file__).resolve().parent
 OUT_PATH = EVAL_DIR / "scorecard.json"
 
 CONTRACTS_PY = os.environ.get("SCORECARD_CONTRACTS_PY", sys.executable)

@@ -49,9 +49,11 @@ if str(_SKILLS_ROOT) not in sys.path:
 from _skills_common import evidence_salience as es  # noqa: E402
 from _skills_common import field_disposition as fd  # noqa: E402
 
-_HOME = Path.home()
-_DEFAULT_PKGS = _HOME / "rnd-computational-biology-oncology-claude-oncology-skills" / "eval" / "known-target-packages"
-_CONTRACTS = _HOME / "rnd-computational-biology-oncology-target-contracts"
+# repo-root-relative — this file lives at <repo>/skills/tools/, so parents[1] is <repo>/skills
+# and its parent is the repo root (SK#2137: never hardcode $HOME/rnd-... — the archived pre-merge
+# clones still exist there and would silently resolve to a stale tree).
+_REPO_ROOT = _SKILLS_ROOT.parent
+_DEFAULT_PKGS = _REPO_ROOT / "eval" / "known-target-packages"
 
 
 # ── ANSI ──

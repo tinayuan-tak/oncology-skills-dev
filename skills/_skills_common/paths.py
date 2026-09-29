@@ -25,6 +25,14 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 TARGET_CONTRACTS_ROOT_DEFAULT = str(_REPO_ROOT / "contracts")
 ANALYSIS_METHODS_ROOT_DEFAULT = str(_REPO_ROOT / "methods")
 
+# data-catalog STAYS a separate sibling repo (SK#2063 consolidation only folded
+# target-contracts/analysis-methods into this monorepo) — so its default is genuinely
+# sibling-relative, not repo-root-relative: the checkout's PARENT directory (whatever
+# that is on a given box — $HOME on the dev box, the worktree/CI parent elsewhere),
+# never a hardcoded /home/sagemaker-user literal. Mirrors the existing
+# methods.dge_deseq2.read.DATA_CATALOG idiom.
+DATA_CATALOG_ROOT_DEFAULT = str(_REPO_ROOT.parent / "rnd-computational-biology-oncology-data-catalog")
+
 
 def target_contracts_root() -> Path:
     """Filesystem root of the target-contracts sibling repo (env TARGET_CONTRACTS_ROOT, else default)."""
@@ -34,6 +42,11 @@ def target_contracts_root() -> Path:
 def analysis_methods_root() -> Path:
     """Filesystem root of the analysis-methods sibling repo (env ANALYSIS_METHODS_ROOT, else default)."""
     return Path(os.environ.get("ANALYSIS_METHODS_ROOT", ANALYSIS_METHODS_ROOT_DEFAULT))
+
+
+def data_catalog_root() -> Path:
+    """Filesystem root of the data-catalog sibling repo (env DATA_CATALOG_ROOT, else portable default)."""
+    return Path(os.environ.get("DATA_CATALOG_ROOT", DATA_CATALOG_ROOT_DEFAULT))
 
 
 # Canonical home for the target-contracts root as a module-level Path constant. scope.py historically

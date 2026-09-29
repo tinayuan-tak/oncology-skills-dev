@@ -13,11 +13,10 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from _skills_common.paths import TARGET_CONTRACTS_ROOT_DEFAULT
 from _test_support import load_run_py
 
-CONTRACTS = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
-)
+CONTRACTS = Path(os.environ.get("TARGET_CONTRACTS_ROOT", TARGET_CONTRACTS_ROOT_DEFAULT))
 
 tp = load_run_py(Path(__file__).resolve().parents[1], "tp_run")
 

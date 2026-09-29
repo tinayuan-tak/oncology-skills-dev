@@ -34,11 +34,12 @@ sys.path.insert(0, str(SKILL_DIR / "scripts"))
 sys.path.insert(0, str(SKILL_DIR.parent))  # skills/ — _live_readers rehomed to _skills_common
 
 from _skills_common._live_readers import CARD_DISPATCHERS, read_live_summary  # noqa: E402
+from _skills_common.paths import TARGET_CONTRACTS_ROOT_DEFAULT
 
 _CONTRACTS = Path(
     os.environ.get(
         "TARGET_CONTRACTS_ROOT",
-        "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts",
+        TARGET_CONTRACTS_ROOT_DEFAULT,
     )
 )
 
@@ -343,7 +344,7 @@ import os  # noqa: E402
 _CONTRACTS_ROOT = Path(
     os.environ.get(
         "TARGET_CONTRACTS_ROOT",
-        "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts",
+        TARGET_CONTRACTS_ROOT_DEFAULT,
     )
 )
 

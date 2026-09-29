@@ -16,6 +16,7 @@ import os
 from pathlib import Path
 
 import pytest
+from _skills_common.paths import TARGET_CONTRACTS_ROOT_DEFAULT
 from _test_support import load_run_py
 
 tp = load_run_py(Path(__file__).resolve().parents[1], "tp_run")
@@ -1198,9 +1199,7 @@ def test_hard_gates_status_reconciled_not_opposing(monkeypatch):
 # biology does not live on the dependency axis. Verified hermetically (no Bedrock, no packages) against
 # the governed nomination_verdict_gate.thesis_axis_relevance block. Skips until contracts 2b lands.
 # ---------------------------------------------------------------------------
-_CONTRACTS = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
-)
+_CONTRACTS = Path(os.environ.get("TARGET_CONTRACTS_ROOT", TARGET_CONTRACTS_ROOT_DEFAULT))
 _HAS_THESIS_ROUTING = bool(tp._load_thesis_axis_relevance(_CONTRACTS))
 _thesis_skip = pytest.mark.skipif(
     not _HAS_THESIS_ROUTING, reason="contracts thesis_axis_relevance absent (land 2b-contracts)"
@@ -1266,9 +1265,7 @@ def test_tme_io_and_partner_conditional_and_neomorphic_drop_nondependent():
 # sub-verdicts + density card values below are the MEASURED values from a fresh Step-2 re-emit, not
 # invented fixtures — so a test that says "FOLR1 nominates" is a claim about the real signal set.
 # ---------------------------------------------------------------------------
-_CONTRACTS_ENV = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
-)
+_CONTRACTS_ENV = Path(os.environ.get("TARGET_CONTRACTS_ROOT", TARGET_CONTRACTS_ROOT_DEFAULT))
 _HAS_DECIDERS = bool(tp._load_thesis_deciding_axes(_CONTRACTS_ENV)[0])
 _decider_skip = pytest.mark.skipif(
     not _HAS_DECIDERS, reason="contracts thesis_deciding_axes absent (land Step-3 contracts first)"

@@ -20,10 +20,17 @@ import os
 import sys
 from pathlib import Path
 
+# Repo-root-relative default — this file lives at <repo>/skills/catalog-query/scripts/, so
+# parents[3] is the repo root, where methods/ now lives (SK#2063 monorepo consolidation).
+# Standalone script (no assumption skills/ is on sys.path yet), so this does not import
+# _skills_common.paths — it mirrors that module's ANALYSIS_METHODS_ROOT_DEFAULT inline instead
+# of a hardcoded $HOME/rnd-... literal (SK#2137: that literal is the ARCHIVED pre-merge clone).
+_ANALYSIS_METHODS_ROOT_DEFAULT = str(Path(__file__).resolve().parents[3] / "methods")
+
 METHODS_REPO = Path(
     os.environ.get(
         "ANALYSIS_METHODS_ROOT",
-        "/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods",
+        _ANALYSIS_METHODS_ROOT_DEFAULT,
     )
 )
 

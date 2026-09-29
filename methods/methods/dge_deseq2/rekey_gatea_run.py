@@ -90,7 +90,10 @@ from methods.dge_deseq2 import read as _read
 from methods.dge_deseq2 import rekey_backtest as rb
 from methods.gene_id_authority.loader import load_gene_id_authority
 
-DC_REPO = Path("/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")
+# Portable sibling default (env DATA_CATALOG_ROOT override), same resolution as
+# methods.dge_deseq2.read.DATA_CATALOG — never a hardcoded /home/sagemaker-user literal
+# (SK#2137: that literal is the ARCHIVED pre-merge clone location, a stale-read hazard).
+DC_REPO = _read.DATA_CATALOG
 CONFIG_DIR = DC_REPO / "indication-configs"
 SUBSTRATE = "recount3"
 

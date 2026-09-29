@@ -16,9 +16,9 @@ from pathlib import Path
 
 SKILL_DIR = Path(__file__).resolve().parent.parent  # skills/_skills_common
 sys.path.insert(0, str(SKILL_DIR))  # _skills_common on path → _figure_emitters
-_AM = os.environ.get(
-    "ANALYSIS_METHODS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods"
-)
+from _skills_common.paths import ANALYSIS_METHODS_ROOT_DEFAULT  # noqa: E402
+
+_AM = os.environ.get("ANALYSIS_METHODS_ROOT", ANALYSIS_METHODS_ROOT_DEFAULT)
 sys.path.insert(0, _AM)
 
 import _figure_emitters as fe  # noqa: E402

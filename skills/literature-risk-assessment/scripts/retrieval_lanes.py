@@ -32,6 +32,8 @@ _SKILLS = _HERE.parents[1]  # .../skills (so `import _skills_common` resolves)
 if str(_SKILLS) not in sys.path:
     sys.path.insert(0, str(_SKILLS))
 
+from _skills_common.paths import TARGET_CONTRACTS_ROOT_DEFAULT  # noqa: E402
+
 # Retrieval widening (entity-collision + starvation fix). Union an ENTITY-normalized PubTator lane with
 # the keyword E-utilities lane, and soft-broaden EITHER lane when its tight axis-scoped query starves.
 RETRIEVAL_FLOOR = 3  # below this a lane is "starved" -> retry with the broad query
@@ -138,9 +140,7 @@ def _mesh_disease_clause(indication: str) -> str | None:
     try:
         import yaml
 
-        root = os.environ.get(
-            "TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
-        )
+        root = os.environ.get("TARGET_CONTRACTS_ROOT", TARGET_CONTRACTS_ROOT_DEFAULT)
         path = _P(root) / "vocabularies" / "indication_crosswalk.yaml"
         doc = yaml.safe_load(path.read_text()) or {}
         code = (indication or "").strip().upper()

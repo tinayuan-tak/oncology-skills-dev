@@ -108,12 +108,13 @@ from _skills_common._live_readers import (
     PANORAMA_DISPATCHERS,
     read_live_summary,
 )
+from _skills_common.paths import TARGET_CONTRACTS_ROOT_DEFAULT
 from conftest import skip_if_no_data  # shared live-S3 skip guard
 
 _CONTRACTS = Path(
     os.environ.get(
         "TARGET_CONTRACTS_ROOT",
-        "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts",
+        TARGET_CONTRACTS_ROOT_DEFAULT,
     )
 )
 _CARDS_DIR = _CONTRACTS / "cards"

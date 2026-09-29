@@ -16,6 +16,7 @@ from pathlib import Path
 
 import pytest
 import yaml
+from _skills_common.paths import TARGET_CONTRACTS_ROOT_DEFAULT
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
 SKILLS_ROOT = SKILL_DIR.parent
@@ -26,11 +27,7 @@ if str(SKILLS_ROOT) not in sys.path:
 
 
 def _contracts_absent():
-    root = Path(
-        os.environ.get(
-            "TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
-        )
-    )
+    root = Path(os.environ.get("TARGET_CONTRACTS_ROOT", TARGET_CONTRACTS_ROOT_DEFAULT))
     return not (root / "cards").is_dir()
 
 

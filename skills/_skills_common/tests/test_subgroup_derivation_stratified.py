@@ -14,15 +14,12 @@ SKILLS = Path(__file__).resolve().parents[2]
 if str(SKILLS) not in sys.path:
     sys.path.insert(0, str(SKILLS))
 
+from _skills_common.paths import TARGET_CONTRACTS_ROOT_DEFAULT
 from _skills_common.subgroup_derivation import derive_stratified  # noqa: E402
 
 
 def _contracts_absent():
-    root = Path(
-        os.environ.get(
-            "TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
-        )
-    )
+    root = Path(os.environ.get("TARGET_CONTRACTS_ROOT", TARGET_CONTRACTS_ROOT_DEFAULT))
     return not (root / "cards").is_dir()
 
 

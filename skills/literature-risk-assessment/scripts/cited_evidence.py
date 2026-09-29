@@ -19,13 +19,18 @@ from __future__ import annotations
 
 import os
 import sys
+from pathlib import Path
 
 # analysis-methods holds the single source of truth (methods/cited_literature_evidence/). Put its repo
 # root on sys.path (repo convention: ANALYSIS_METHODS_ROOT, mirrors _skills_common/_live_readers.py) so
 # the top-level re-export resolves whether this shim is imported standalone (CLI / importlib) or in-process.
-_METHODS_REPO = os.environ.get(
-    "ANALYSIS_METHODS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods"
-)
+# Repo-root-relative default (this file lives at <repo>/skills/literature-risk-assessment/scripts/, so
+# parents[3] is the repo root, where methods/ now lives — SK#2063 monorepo consolidation). Inlined
+# rather than importing _skills_common.paths since this shim must resolve before skills/ is
+# necessarily on sys.path (standalone CLI invocation) — never a hardcoded $HOME/rnd-... literal
+# (SK#2137: that literal is the ARCHIVED pre-merge clone).
+_ANALYSIS_METHODS_ROOT_DEFAULT = str(Path(__file__).resolve().parents[3] / "methods")
+_METHODS_REPO = os.environ.get("ANALYSIS_METHODS_ROOT", _ANALYSIS_METHODS_ROOT_DEFAULT)
 if _METHODS_REPO not in sys.path:
     sys.path.insert(0, _METHODS_REPO)
 

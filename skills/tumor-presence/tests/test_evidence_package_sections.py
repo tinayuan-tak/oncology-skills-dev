@@ -34,12 +34,11 @@ for p in (str(SKILLS_ROOT), str(SCRIPTS)):
         sys.path.insert(0, p)
 
 from _skills_common.envelope import assemble_evidence_package  # noqa: E402
+from _skills_common.paths import TARGET_CONTRACTS_ROOT_DEFAULT
 from run import _evidence_sections  # noqa: E402
 
 GOLDEN = SKILL_DIR / "tests" / "fixtures" / "epcam_coadread_decision.json"
-CONTRACTS = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
-)
+CONTRACTS = Path(os.environ.get("TARGET_CONTRACTS_ROOT", TARGET_CONTRACTS_ROOT_DEFAULT))
 PKG_SCHEMA = json.loads((CONTRACTS / "schemas" / "evidence_package.schema.json").read_text())
 
 _SECTION_NAMES = ("source_properties", "integrated_properties", "local_composites", "l3d")

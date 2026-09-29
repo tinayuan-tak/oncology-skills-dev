@@ -45,6 +45,7 @@ from pathlib import Path
 import pytest
 import yaml
 from _skills_common import field_disposition_ledger as fdl
+from _skills_common.paths import TARGET_CONTRACTS_ROOT_DEFAULT
 from _test_support import load_run_py
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
@@ -67,11 +68,7 @@ def _cards() -> list[str]:
 
 
 def _contracts_root() -> Path | None:
-    root = Path(
-        os.environ.get(
-            "TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
-        )
-    )
+    root = Path(os.environ.get("TARGET_CONTRACTS_ROOT", TARGET_CONTRACTS_ROOT_DEFAULT))
     return root if (root / "cards").is_dir() else None
 
 

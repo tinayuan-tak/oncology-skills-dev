@@ -31,7 +31,7 @@ if str(REPO) not in sys.path:
 from methods.dge_deseq2 import read as dge  # noqa: E402
 from methods.dge_deseq2.read import _classify_selectivity_from_sensitivity as classify  # noqa: E402
 
-CATALOG = Path("/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")
+CATALOG = dge.DATA_CATALOG  # portable sibling default, see methods.dge_deseq2.read (SK#2137)
 requires_catalog = pytest.mark.skipif(
     not (CATALOG / "manifests" / "derived").is_dir(),
     reason=f"data-catalog checkout not present at {CATALOG}",

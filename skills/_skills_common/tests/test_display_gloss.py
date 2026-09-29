@@ -22,6 +22,7 @@ if str(SKILLS) not in sys.path:
 
 from _skills_common import display_gloss as dg
 from _skills_common.evidence_salience import SALIENCE_SPECS
+from _skills_common.paths import TARGET_CONTRACTS_ROOT_DEFAULT
 
 
 def _salience_metric_fields() -> set:
@@ -152,9 +153,7 @@ def test_no_vocabulary_declared_contract_field_gets_units():
 
     import yaml
 
-    root = os.environ.get(
-        "TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
-    )
+    root = os.environ.get("TARGET_CONTRACTS_ROOT", TARGET_CONTRACTS_ROOT_DEFAULT)
     cards = Path(root) / "cards"
     if not cards.is_dir():
         pytest.skip("target-contracts checkout absent")

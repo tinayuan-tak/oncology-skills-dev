@@ -12,6 +12,7 @@ for _p in (str(Path(__file__).resolve().parent), str(SKILLS_DIR)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+from _skills_common.paths import TARGET_CONTRACTS_ROOT_DEFAULT  # noqa: E402
 
 SKILL_NAME = "target-profile"
 # 1.3.0: subtype_fit tier DEFAULT-ON — strata auto-resolved from the contracts subtype_crosswalk
@@ -31,9 +32,7 @@ def _framework_model_version() -> str | None:
         return None
 
 
-_CONTRACTS_REPO = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
-)
+_CONTRACTS_REPO = Path(os.environ.get("TARGET_CONTRACTS_ROOT", TARGET_CONTRACTS_ROOT_DEFAULT))
 
 
 def default_subtypes(indication: str) -> "tuple[list[str], str]":

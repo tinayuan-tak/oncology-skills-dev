@@ -40,6 +40,7 @@ from pathlib import Path
 
 import pytest
 import yaml
+from _skills_common.paths import TARGET_CONTRACTS_ROOT_DEFAULT
 from _skills_common.presence_cardboard_figure import (
     _COMPARATOR_CLEAN,
     _COMPARATOR_LIABILITY,
@@ -56,7 +57,7 @@ from _skills_common.presence_cardboard_figure import (
 _CONTRACTS = Path(
     os.environ.get(
         "TARGET_CONTRACTS_ROOT",
-        "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts",
+        TARGET_CONTRACTS_ROOT_DEFAULT,
     )
 )
 _CARDS_DIR = _CONTRACTS / "cards"

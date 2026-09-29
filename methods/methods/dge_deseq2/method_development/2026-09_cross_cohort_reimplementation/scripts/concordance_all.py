@@ -21,7 +21,12 @@ cli = boto3.Session(profile_name="cbg").client("s3")
 BUCKET = "onc-compbio"
 OUT = os.environ.get("DGE_QC_OUT") or str(Path(__file__).resolve().parent.parent / "outputs")
 os.makedirs(OUT, exist_ok=True)
-base = os.environ.get("DATA_CATALOG_ROOT") or "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"
+# Portable sibling default (env DATA_CATALOG_ROOT override) — never a hardcoded
+# /home/sagemaker-user literal (SK#2137: that literal is the ARCHIVED pre-merge clone
+# location). This file lives at <repo>/methods/methods/dge_deseq2/method_development/
+# 2026-09_cross_cohort_reimplementation/scripts/, so parents[6] is the repo root.
+_REPO_ROOT = Path(__file__).resolve().parents[6]
+base = os.environ.get("DATA_CATALOG_ROOT") or str(_REPO_ROOT.parent / "rnd-computational-biology-oncology-data-catalog")
 
 rows = []
 for f in sorted(glob.glob(base + "/manifests/derived/*.yaml")):

@@ -47,12 +47,13 @@ from typing import Optional
 SKILLS_DIR = Path(os.environ.get("SKILLS_ROOT", str(Path(__file__).resolve().parents[2])))  # skills/
 # The shared figure-emitter registry now lives in _skills_common (rehomed off the retiring
 # compose-dashboard). It is imported as `_skills_common._figure_emitters` with SKILLS_DIR on sys.path.
+if str(SKILLS_DIR) not in sys.path:
+    sys.path.insert(0, str(SKILLS_DIR))
+from _skills_common.paths import TARGET_CONTRACTS_ROOT_DEFAULT  # noqa: E402
 
 # target-contracts (sibling repo) — for the per-card provenance chain (method/measurement/inputs).
 # env-overridable; falls back to the standard sibling checkout.
-TARGET_CONTRACTS = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT", str(Path.home() / "rnd-computational-biology-oncology-target-contracts"))
-)
+TARGET_CONTRACTS = Path(os.environ.get("TARGET_CONTRACTS_ROOT", TARGET_CONTRACTS_ROOT_DEFAULT))
 
 
 # ---------------------------------------------------------------------------

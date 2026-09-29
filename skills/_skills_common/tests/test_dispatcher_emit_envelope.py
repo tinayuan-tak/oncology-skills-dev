@@ -28,10 +28,9 @@ if str(SKILLS) not in sys.path:
     sys.path.insert(0, str(SKILLS))
 
 import _skills_common.dispatcher as D  # noqa: E402
+from _skills_common.paths import TARGET_CONTRACTS_ROOT_DEFAULT
 
-CONTRACTS = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
-)
+CONTRACTS = Path(os.environ.get("TARGET_CONTRACTS_ROOT", TARGET_CONTRACTS_ROOT_DEFAULT))
 PKG_SCHEMA = json.loads((CONTRACTS / "schemas" / "evidence_package.schema.json").read_text())
 
 

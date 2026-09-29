@@ -58,7 +58,7 @@ SUBSTRATE_VOCAB = {
     "unknown_substrate",
 }
 
-CATALOG = Path("/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")
+CATALOG = dge.DATA_CATALOG  # portable sibling default, see methods.dge_deseq2.read (SK#2137)
 SENSITIVITY_GLOB = "manifests/derived/*dge-tumor-vs-normal-sensitivity*.yaml"
 
 # MEASURED 2026-09-15 by sweeping every manifest matched by SENSITIVITY_GLOB.

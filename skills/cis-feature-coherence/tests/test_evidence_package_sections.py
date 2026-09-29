@@ -53,11 +53,10 @@ for p in (str(SKILLS_ROOT), str(SCRIPTS)):
         sys.path.insert(0, p)
 
 from _skills_common.envelope import assemble_evidence_package  # noqa: E402
+from _skills_common.paths import TARGET_CONTRACTS_ROOT_DEFAULT
 from run import _INTEGRATED_ISLAND_KEYS, _evidence_sections  # noqa: E402
 
-CONTRACTS = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
-)
+CONTRACTS = Path(os.environ.get("TARGET_CONTRACTS_ROOT", TARGET_CONTRACTS_ROOT_DEFAULT))
 PKG_SCHEMA = json.loads((CONTRACTS / "schemas" / "evidence_package.schema.json").read_text())
 
 # The fixture where all three L2b islands resolve — the richest reconstructability case (probed).

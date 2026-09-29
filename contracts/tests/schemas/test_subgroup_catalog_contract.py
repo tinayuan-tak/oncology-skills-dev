@@ -44,8 +44,12 @@ RULES = yaml.safe_load((REPO / "interpretation-rules" / "intracellular-intrinsic
 
 # Sibling gate, mirroring tests/schemas/test_products_registry_sync.py:50 (itself mirroring
 # validators/validate_cards.py's `_DATA_CATALOG_REPO`). A checkout-only runner has no sibling.
+# data-catalog STAYS a separate repo (SK#2063 only folded target-contracts/analysis-methods into
+# this monorepo), so the default is genuinely sibling-relative — REPO.parent is this checkout's
+# root, REPO.parent.parent its sibling-clone dir (whatever that is on a given box) — never a
+# hardcoded /home/sagemaker-user literal (SK#2137).
 DATA_CATALOG = Path(
-    os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")
+    os.environ.get("DATA_CATALOG_ROOT", str(REPO.parent.parent / "rnd-computational-biology-oncology-data-catalog"))
 )
 CATALOG_DIR = DATA_CATALOG / "subgroup-catalogs"
 

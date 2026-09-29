@@ -12,6 +12,7 @@ import os
 from pathlib import Path
 
 import pytest
+from _skills_common.paths import TARGET_CONTRACTS_ROOT_DEFAULT
 from _test_support import load_module
 
 SKILLS = Path(__file__).resolve().parents[2]
@@ -86,11 +87,7 @@ def test_live_rules_are_groupable():
     """Smoke: the REAL interpretation-rules must remain groupable (no overlapping value-sets on a
     shared field). If a future rules edit breaks this, the golden harness would raise — catch it here
     with a clearer message."""
-    contracts = Path(
-        os.environ.get(
-            "TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
-        )
-    )
+    contracts = Path(os.environ.get("TARGET_CONTRACTS_ROOT", TARGET_CONTRACTS_ROOT_DEFAULT))
     if not (contracts / "interpretation-rules").is_dir():
         pytest.skip("target-contracts interpretation-rules not available")
     idx = CO.load_rule_index(contracts)

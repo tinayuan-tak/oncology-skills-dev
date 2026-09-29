@@ -27,12 +27,11 @@ for p in (str(SKILLS), str(SKILL_DIR)):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-_TC = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
-)
-
 from _skills_common._figure_emitters import CARD_FIGURE_EMITTERS, emit_figures_for_card  # noqa: E402
 from _skills_common.immune_context_claims import _CD8_COLD_MAX, _CD8_HOT_MIN  # noqa: E402
+from _skills_common.paths import TARGET_CONTRACTS_ROOT_DEFAULT  # noqa: E402
+
+_TC = Path(os.environ.get("TARGET_CONTRACTS_ROOT", TARGET_CONTRACTS_ROOT_DEFAULT))
 
 CARD_ID = "immune-context"
 

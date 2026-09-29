@@ -21,12 +21,11 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from _skills_common.compose_core import subskill_composition
+from _skills_common.paths import TARGET_CONTRACTS_ROOT_DEFAULT
 from _test_support import load_run_py
 from jsonschema import Draft202012Validator
 
-CONTRACTS = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
-)
+CONTRACTS = Path(os.environ.get("TARGET_CONTRACTS_ROOT", TARGET_CONTRACTS_ROOT_DEFAULT))
 
 tp = load_run_py(Path(__file__).resolve().parents[1], "tp_run_emit")
 # _write_evidence_package (and its resolve_cards call) moved to tp_evidence_package in the

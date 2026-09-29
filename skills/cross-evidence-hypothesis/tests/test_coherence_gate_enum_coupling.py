@@ -31,13 +31,14 @@ _SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
 sys.path.insert(0, str(_SCRIPTS))
 
 import hypothesis_core as hc  # noqa: E402
+from _skills_common.paths import TARGET_CONTRACTS_ROOT_DEFAULT
 
 # Same resolution as skills/_skills_common/paths.py: env TARGET_CONTRACTS_ROOT (set by CI) else the
 # sibling-repo default. CI checks out target-contracts at the pinned SHA into this path.
 _CONTRACTS_ROOT = Path(
     os.environ.get(
         "TARGET_CONTRACTS_ROOT",
-        "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts",
+        TARGET_CONTRACTS_ROOT_DEFAULT,
     )
 )
 _GATE_YAML = _CONTRACTS_ROOT / "vocabularies" / "nomination_verdict_gate.yaml"

@@ -31,11 +31,12 @@ sys.path.insert(0, str(SCRIPTS_DIR))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # skills/ — _live_readers in _skills_common
 
 from _skills_common import _live_readers as lr  # noqa: E402
+from _skills_common.paths import TARGET_CONTRACTS_ROOT_DEFAULT
 
 _CONTRACTS = Path(
     os.environ.get(
         "TARGET_CONTRACTS_ROOT",
-        "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts",
+        TARGET_CONTRACTS_ROOT_DEFAULT,
     )
 )
 _CARDS = _CONTRACTS / "cards"

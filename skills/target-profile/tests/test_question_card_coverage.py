@@ -21,11 +21,10 @@ from pathlib import Path
 
 import pytest
 import yaml
+from _skills_common.paths import TARGET_CONTRACTS_ROOT_DEFAULT
 
 _SKILLS = Path(__file__).resolve().parents[2]  # .../skills
-_CONTRACTS = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
-)
+_CONTRACTS = Path(os.environ.get("TARGET_CONTRACTS_ROOT", TARGET_CONTRACTS_ROOT_DEFAULT))
 _AXES = _CONTRACTS / "vocabularies" / "target_profiling_axes.yaml"
 
 # Skills exempt from reverse-coverage: target-intrinsic DISPLAYS cards homed in sibling skills (its

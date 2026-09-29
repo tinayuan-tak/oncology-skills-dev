@@ -17,6 +17,7 @@ import os
 from pathlib import Path
 
 import pytest
+from _skills_common.paths import TARGET_CONTRACTS_ROOT_DEFAULT
 
 # ── the 8/9 role partition (spec §7.4 + appendix) ──
 # `cellline-rna-protein-concordance` fires `rna-protein-adequate-proxy-supportive` (an `rna_as_biomarker`
@@ -184,9 +185,7 @@ def _contracts_schema_path() -> Path | None:
     candidates = []
     if root:
         candidates.append(Path(root) / "schemas" / "evidence_graph.schema.json")
-    candidates.append(
-        Path.home() / "rnd-computational-biology-oncology-target-contracts" / "schemas" / "evidence_graph.schema.json"
-    )
+    candidates.append(Path(TARGET_CONTRACTS_ROOT_DEFAULT) / "schemas" / "evidence_graph.schema.json")
     for c in candidates:
         if c.exists():
             return c

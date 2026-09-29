@@ -26,11 +26,10 @@ from types import SimpleNamespace
 
 import pytest
 from _skills_common.compose_core import subskill_composition
+from _skills_common.paths import TARGET_CONTRACTS_ROOT_DEFAULT
 from _test_support import load_run_py
 
-CONTRACTS = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
-)
+CONTRACTS = Path(os.environ.get("TARGET_CONTRACTS_ROOT", TARGET_CONTRACTS_ROOT_DEFAULT))
 
 tp = load_run_py(Path(__file__).resolve().parents[1], "tp_run_subtype")
 import tp_evidence_package  # noqa: E402

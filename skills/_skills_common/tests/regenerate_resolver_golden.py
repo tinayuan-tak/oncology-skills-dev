@@ -35,12 +35,13 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 SKILLS = HERE.parents[1]  # .../skills
 SNAPSHOT = HERE / "resolver_golden_snapshots.json"
-CONTRACTS = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
-)
 
 if str(SKILLS) not in sys.path:
     sys.path.insert(0, str(SKILLS))
+
+from _skills_common.paths import TARGET_CONTRACTS_ROOT_DEFAULT  # noqa: E402
+
+CONTRACTS = Path(os.environ.get("TARGET_CONTRACTS_ROOT", TARGET_CONTRACTS_ROOT_DEFAULT))
 
 
 def _load(mod_name: str, path: Path):

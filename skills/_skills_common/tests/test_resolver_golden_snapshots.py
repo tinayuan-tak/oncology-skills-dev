@@ -47,15 +47,14 @@ import os
 from pathlib import Path
 
 import pytest
+from _skills_common.paths import TARGET_CONTRACTS_ROOT_DEFAULT
 from _test_support import load_module
 
 # Load the shared modules (resolver.py, coemission.py) RELATIVE TO THIS TEST FILE so the harness runs
 # correctly from any checkout/worktree (a new sibling module added on a branch is visible before merge).
 # CONTRACTS stays an env-overridable canonical pin (the resolver specs + interpretation-rules under test).
 SKILLS = Path(__file__).resolve().parents[2]  # .../skills
-CONTRACTS = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
-)
+CONTRACTS = Path(os.environ.get("TARGET_CONTRACTS_ROOT", TARGET_CONTRACTS_ROOT_DEFAULT))
 SNAPSHOT = Path(__file__).resolve().parent / "resolver_golden_snapshots.json"
 
 _resolver = load_module(SKILLS / "_skills_common" / "resolver.py", "resolver_snap_ut")

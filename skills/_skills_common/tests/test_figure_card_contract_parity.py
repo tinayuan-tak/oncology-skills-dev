@@ -19,13 +19,11 @@ import yaml
 
 SKILL_DIR = Path(__file__).resolve().parent.parent  # skills/_skills_common
 sys.path.insert(0, str(SKILL_DIR))  # _skills_common on path → _figure_emitters
-_AM = os.environ.get(
-    "ANALYSIS_METHODS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods"
-)
+from _skills_common.paths import ANALYSIS_METHODS_ROOT_DEFAULT, TARGET_CONTRACTS_ROOT_DEFAULT  # noqa: E402
+
+_AM = os.environ.get("ANALYSIS_METHODS_ROOT", ANALYSIS_METHODS_ROOT_DEFAULT)
 sys.path.insert(0, _AM)
-_TC = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
-)
+_TC = Path(os.environ.get("TARGET_CONTRACTS_ROOT", TARGET_CONTRACTS_ROOT_DEFAULT))
 
 import _figure_emitters as fe  # noqa: E402
 from methods.depmap_chronos_distribution import cli as chr_cli  # noqa: E402

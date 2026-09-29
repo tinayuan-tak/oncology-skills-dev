@@ -25,6 +25,7 @@ import os
 from pathlib import Path
 
 import yaml
+from _skills_common.paths import TARGET_CONTRACTS_ROOT_DEFAULT
 from _test_support import load_run_py
 
 tp = load_run_py(Path(__file__).resolve().parent.parent, "tp_run")
@@ -397,9 +398,7 @@ def test_card_context_map_covers_all_skill_cards():
         assert cid in tp.CARD_CONTEXT, f"{cid} missing from CARD_CONTEXT"
 
 
-_CONTRACTS = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
-)
+_CONTRACTS = Path(os.environ.get("TARGET_CONTRACTS_ROOT", TARGET_CONTRACTS_ROOT_DEFAULT))
 
 
 def test_card_context_matches_target_contracts_specs():

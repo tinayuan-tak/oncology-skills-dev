@@ -90,8 +90,11 @@ import yaml
 
 REPO = Path(__file__).resolve().parents[2]
 CONTRACTS_REGISTRY = REPO / "vocabularies" / "products.yaml"
+# data-catalog STAYS a separate repo (SK#2063 only folded target-contracts/analysis-methods into
+# this monorepo), so the default is genuinely sibling-relative — never a hardcoded
+# /home/sagemaker-user literal (SK#2137).
 DATA_CATALOG_REPO = Path(
-    os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")
+    os.environ.get("DATA_CATALOG_ROOT", str(REPO.parent.parent / "rnd-computational-biology-oncology-data-catalog"))
 )
 CATALOG_REGISTRY = DATA_CATALOG_REPO / "core-artifacts-schema" / "products.yaml"
 

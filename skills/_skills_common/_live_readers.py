@@ -31,13 +31,10 @@ import threading
 from pathlib import Path
 from typing import Optional
 
-from _skills_common.paths import analysis_methods_root, target_contracts_root
+from _skills_common.paths import DATA_CATALOG_ROOT_DEFAULT, analysis_methods_root, target_contracts_root
 
 METHODS_REPO = analysis_methods_root()
-DATA_CATALOG_LIBS = (
-    Path(os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"))
-    / "libs"
-)
+DATA_CATALOG_LIBS = Path(os.environ.get("DATA_CATALOG_ROOT", DATA_CATALOG_ROOT_DEFAULT)) / "libs"
 _TARGET_CONTRACTS_ROOT = target_contracts_root()
 
 

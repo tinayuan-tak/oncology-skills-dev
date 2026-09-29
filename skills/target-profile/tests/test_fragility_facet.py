@@ -20,6 +20,7 @@ import copy
 from pathlib import Path
 
 import yaml
+from _skills_common.paths import TARGET_CONTRACTS_ROOT_DEFAULT
 from _test_support import load_run_py
 
 run = load_run_py(Path(__file__).resolve().parents[1], "tp_run_frag")
@@ -218,11 +219,7 @@ def test_short_to_gate_maps_to_real_resolvers():
     import pytest
     from _skills_common.reachability import resolver_referenced_rule_ids
 
-    contracts = Path(
-        os.environ.get(
-            "TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
-        )
-    )
+    contracts = Path(os.environ.get("TARGET_CONTRACTS_ROOT", TARGET_CONTRACTS_ROOT_DEFAULT))
     if not (contracts / "resolvers").is_dir():
         pytest.skip("live target-contracts resolvers/ not available")
     for short, gate in run._SHORT_TO_GATE.items():

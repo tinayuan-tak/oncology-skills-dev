@@ -35,13 +35,11 @@ def _ensure_skills_on_path() -> None:
 # (_skills_common, _test_support; the skill dirs have hyphens), so it shadows nothing.
 _ensure_skills_on_path()
 
+from _skills_common.paths import TARGET_CONTRACTS_ROOT_DEFAULT  # noqa: E402
+
 
 def _contracts_root() -> Path | None:
-    root = Path(
-        os.environ.get(
-            "TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
-        )
-    )
+    root = Path(os.environ.get("TARGET_CONTRACTS_ROOT", TARGET_CONTRACTS_ROOT_DEFAULT))
     return root if (root / "cards").is_dir() else None
 
 

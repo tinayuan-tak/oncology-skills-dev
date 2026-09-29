@@ -22,6 +22,7 @@ import re
 from pathlib import Path
 
 import pytest
+from _skills_common.paths import TARGET_CONTRACTS_ROOT_DEFAULT
 
 SKILLS = Path(__file__).resolve().parents[2]  # .../skills
 # SUB_SKILLS / SUB_SKILL_CARDS moved from run.py to tp_fanout.py in the 2026-08-16 god-module split.
@@ -193,9 +194,7 @@ def test_foreign_composer_waivers_are_still_real():
 # ─────────────────────────────────────────────────────────────────────────────
 import yaml  # noqa: E402
 
-CONTRACTS = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
-)
+CONTRACTS = Path(os.environ.get("TARGET_CONTRACTS_ROOT", TARGET_CONTRACTS_ROOT_DEFAULT))
 
 # sub-skill dir -> the resolver gate it calls (resolve_verdict_for_gate(fired, "<gate>")).
 # Only tumor-presence has a genuinely inline verdict (no resolver) and is intentionally absent.

@@ -15,13 +15,12 @@ import os
 from pathlib import Path
 
 import pytest
+from _skills_common.paths import TARGET_CONTRACTS_ROOT_DEFAULT
 
 yaml = pytest.importorskip("yaml")
 
 SKILL_MD = Path(__file__).resolve().parent.parent / "SKILL.md"
-TARGET_CONTRACTS = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
-)
+TARGET_CONTRACTS = Path(os.environ.get("TARGET_CONTRACTS_ROOT", TARGET_CONTRACTS_ROOT_DEFAULT))
 VOCAB = TARGET_CONTRACTS / "vocabularies" / "measurement_types.yaml"
 
 

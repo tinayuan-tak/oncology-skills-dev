@@ -82,11 +82,10 @@ from pathlib import Path
 
 import pytest
 import yaml
+from _skills_common.paths import TARGET_CONTRACTS_ROOT_DEFAULT
 
 SKILLS = Path(__file__).resolve().parents[2]  # .../skills
-CONTRACTS = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
-)
+CONTRACTS = Path(os.environ.get("TARGET_CONTRACTS_ROOT", TARGET_CONTRACTS_ROOT_DEFAULT))
 SNAPSHOT = Path(__file__).resolve().parent / "resolver_golden_snapshots.json"
 _GOLDEN = json.loads(SNAPSHOT.read_text())
 

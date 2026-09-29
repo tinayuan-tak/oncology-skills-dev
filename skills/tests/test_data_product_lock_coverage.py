@@ -30,10 +30,11 @@ import os
 from pathlib import Path
 
 import pytest
+from _skills_common.paths import TARGET_CONTRACTS_ROOT_DEFAULT
 
 SKILLS_DIR = Path(__file__).resolve().parent.parent  # .../skills
 TP_FANOUT = SKILLS_DIR / "target-profile" / "scripts" / "tp_fanout.py"
-_DEFAULT_TC = "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
+_DEFAULT_TC = TARGET_CONTRACTS_ROOT_DEFAULT
 
 
 def _sub_skills() -> set[str]:

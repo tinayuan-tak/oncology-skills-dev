@@ -17,14 +17,13 @@ Hermetic apart from the `requires_catalog` positive controls (which read manifes
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
 
 from methods.dge_deseq2 import config as cfg
+from methods.dge_deseq2 import read as dge
 from methods.dge_deseq2.build_run_ledger import expected_products
 
-CATALOG = Path("/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")
+CATALOG = dge.DATA_CATALOG  # portable sibling default, see methods.dge_deseq2.read (SK#2137)
 
 requires_catalog = pytest.mark.skipif(
     not (CATALOG / "manifests" / "derived").is_dir(),

@@ -15,12 +15,11 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from _skills_common.paths import TARGET_CONTRACTS_ROOT_DEFAULT
 from _test_support import load_module
 
 SKILLS = Path(__file__).resolve().parents[2]  # the skills/ dir (this test is skills/_skills_common/tests/)
-CONTRACTS = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
-)
+CONTRACTS = Path(os.environ.get("TARGET_CONTRACTS_ROOT", TARGET_CONTRACTS_ROOT_DEFAULT))
 
 _r = load_module(SKILLS / "_skills_common" / "resolver.py", "rnai_fix_rslv")
 

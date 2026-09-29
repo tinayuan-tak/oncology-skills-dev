@@ -23,10 +23,9 @@ import sys
 from pathlib import Path
 
 import pandas as pd
+from _skills_common.paths import ANALYSIS_METHODS_ROOT_DEFAULT
 
-METHODS_REPO = Path(
-    os.environ.get("ANALYSIS_METHODS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods")
-)
+METHODS_REPO = Path(os.environ.get("ANALYSIS_METHODS_ROOT", ANALYSIS_METHODS_ROOT_DEFAULT))
 SKILL_DIR = Path(__file__).resolve().parent.parent  # skills/_skills_common
 
 sys.path.insert(0, str(SKILL_DIR))  # _skills_common on path → `import _figure_emitters`

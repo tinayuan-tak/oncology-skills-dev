@@ -23,13 +23,18 @@ from typing import Optional
 import yaml
 
 _ENV = "TARGET_CONTRACTS_ROOT"
-_CANONICAL_DEFAULT = Path("/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
 
 # The package lives at <contracts-repo-root>/oncology_target_contracts/, so the repo
 # root — where cards/, resolvers/, schemas/, vocabularies/, dashboards/ live — is the
 # package dir's parent. For an editable install this resolves to the real repo tree.
 _PKG_DIR = Path(__file__).resolve().parent
 _REPO_ROOT_FROM_PKG = _PKG_DIR.parent
+
+# Last-resort default when neither the env var nor the package-relative layout resolves (e.g.
+# an installed wheel with the package copied elsewhere, data files stripped). Repo-root-relative
+# — NOT a hardcoded $HOME/rnd-... literal — so it degrades to the same package-relative root
+# above rather than a stale pre-monorepo dev-box clone (SK#2137).
+_CANONICAL_DEFAULT = _REPO_ROOT_FROM_PKG
 
 
 def _has_contracts_layout(p: Path) -> bool:
