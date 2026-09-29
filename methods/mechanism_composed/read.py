@@ -58,6 +58,12 @@ from methods.kinome_atlas_prediction import read as kinome_atlas_read
 from methods.reactome_pathway_context import read as reactome_read
 from methods.signor_mechanism_network import read as signor_read
 from methods.signor_mechanism_network.moa_ontology import ONTOLOGY_VERSION
+
+# network_class edge-count cutoffs: single-sourced from the SIGNOR reader (which in turn MIRRORS the
+# CANONICAL cards/signaling-network-mechanism.card.yaml `thresholds:`) so the composed and per-source
+# classifiers cannot drift apart. Pinned to the card by
+# tests/methods/mechanism_composed/test_network_class_threshold_mirror_guard.py.
+from methods.signor_mechanism_network.read import MAX_EDGES_SPARSE, MIN_EDGES_WELL_CHARACTERIZED
 from methods.target_id_sidecar import is_definitively_absent
 
 
@@ -204,9 +210,9 @@ def _classify_network(n_up: int, n_down: int) -> str:
     """
     if n_up == 0 and n_down == 0:
         return "data_unavailable"
-    if n_up >= 3 and n_down >= 3:
+    if n_up >= MIN_EDGES_WELL_CHARACTERIZED and n_down >= MIN_EDGES_WELL_CHARACTERIZED:
         return "well_characterized"
-    if n_up + n_down <= 1:
+    if n_up + n_down <= MAX_EDGES_SPARSE:
         return "sparse"
     return "partial"
 

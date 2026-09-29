@@ -62,6 +62,15 @@ HUMAN_TAX_ID = "9606"
 CACHE_DIR = Path.home() / ".cache" / "framework-signor"
 CACHE_TSV = CACHE_DIR / "SIGNOR_Jul2026_release.txt"
 
+# network_class edge-count cutoffs. MIRROR of the CANONICAL source
+# cards/signaling-network-mechanism.card.yaml `thresholds:` (min_edges_well_characterized /
+# max_edges_sparse) in target-contracts. Coarse annotation-DENSITY heuristics (not biological
+# cutoffs). Pinned to the card — and to the mechanism_composed reader's copy — by
+# tests/methods/mechanism_composed/test_network_class_threshold_mirror_guard.py; do not edit one
+# copy in isolation. (Whether to replace the 4-bucket enum with a graded measure: target-contracts #971.)
+MIN_EDGES_WELL_CHARACTERIZED = 3
+MAX_EDGES_SPARSE = 1
+
 
 from methods.target_id_sidecar import s3_client as _boto3_client
 
@@ -269,9 +278,9 @@ def _aggregate_edges_to_summary(
 
     if n_up == 0 and n_down == 0:
         network_class = "data_unavailable"
-    elif n_up >= 3 and n_down >= 3:
+    elif n_up >= MIN_EDGES_WELL_CHARACTERIZED and n_down >= MIN_EDGES_WELL_CHARACTERIZED:
         network_class = "well_characterized"
-    elif n_up + n_down <= 1:
+    elif n_up + n_down <= MAX_EDGES_SPARSE:
         network_class = "sparse"
     else:
         network_class = "partial"
