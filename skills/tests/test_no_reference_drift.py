@@ -28,15 +28,11 @@ from _test_support import load_run_py
 
 SKILLS_DIR = Path(__file__).resolve().parent.parent
 
-# Honors the TARGET_CONTRACTS_ROOT env var CI sets (skills-validate.yml), else the adjacent
-# sibling checkout for local runs. (Was a hardcoded /home/sagemaker-user path — invisible until
-# skills/tests/ was gated in CI, where siblings live under $GITHUB_WORKSPACE, not /home.)
-CONTRACTS = Path(
-    os.environ.get(
-        "TARGET_CONTRACTS_ROOT",
-        SKILLS_DIR.parent.parent / "rnd-computational-biology-oncology-target-contracts",
-    )
-)
+# Honors the TARGET_CONTRACTS_ROOT env var CI sets (skills-validate.yml), else THIS checkout's own
+# in-tree contracts/ (SK#2063 folded target-contracts in). The default was
+# SKILLS_DIR.parent.parent/"rnd-...-target-contracts" — one level above the repo root, i.e. the
+# ARCHIVED pre-merge $HOME clone: a stale read locally and a silent skip on CI (SK#2196).
+CONTRACTS = Path(os.environ.get("TARGET_CONTRACTS_ROOT", SKILLS_DIR.parent / "contracts"))
 RULES_DIR = CONTRACTS / "interpretation-rules"
 
 # Sub-skills whose run.py has a _verdict/_snapshot referencing rule_ids.

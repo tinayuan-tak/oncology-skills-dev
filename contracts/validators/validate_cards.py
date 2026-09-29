@@ -156,8 +156,12 @@ _FIGURE_EMITTERS_CANDIDATES = (
 # python in a checkout with no analysis-methods dependencies installed, so importing for real would
 # fail on pandas/boto3 rather than on the wiring. Both halves graceful-skip when the sibling repo is
 # absent (isolated CI), mirroring the _SKILLS_REPO figure-emission pattern above.
+# SK#2196: the default was the "/home/sagemaker-user/rnd-...-analysis-methods" literal — the ARCHIVED
+# pre-merge clone, whose per-module dirs survive only as untracked __pycache__ shells after the AM
+# re-founding, so every card's METHOD_MODULE_MISSING check failed locally while CI (which exports
+# ANALYSIS_METHODS_ROOT) stayed green. analysis-methods is IN-TREE as methods/ since SK#2063.
 _ANALYSIS_METHODS_REPO = Path(
-    os.environ.get("ANALYSIS_METHODS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods")
+    os.environ.get("ANALYSIS_METHODS_ROOT", str(Path(__file__).resolve().parents[2] / "methods"))
 )
 # The dispatcher registries live_readers exposes. Discovered BY NAME SUFFIX rather than a hardcoded
 # list of three, so a fourth registry is picked up automatically instead of turning its cards into

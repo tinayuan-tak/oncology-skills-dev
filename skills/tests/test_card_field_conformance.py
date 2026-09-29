@@ -28,7 +28,10 @@ def _contracts_cards_dir():
     candidates = []
     if root:
         candidates.append(Path(root) / "cards")
-    candidates.append(SKILLS.parent.parent / "rnd-computational-biology-oncology-target-contracts" / "cards")
+    # THIS checkout's own in-tree contracts/ (SK#2063). Was SKILLS.parent.parent/"rnd-...-target-
+    # contracts" — one level above the repo root, i.e. the ARCHIVED pre-merge $HOME clone, so a local
+    # run read STALE cards and CI (no such dir) fell through to None and skipped silently (SK#2196).
+    candidates.append(SKILLS.parent / "contracts" / "cards")
     for c in candidates:
         if c.is_dir():
             return c

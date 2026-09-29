@@ -186,7 +186,11 @@ def test_on_dependency_status_field_validates():
 
 def test_signor_moa_ontology_classification():
     """21-class MoA taxonomy correctly classifies canonical SIGNOR mechanisms."""
-    ANALYSIS_METHODS_ROOT = SKILLS_DIR.parent.parent / "rnd-computational-biology-oncology-analysis-methods"
+    # Use the module-level, repo-derived ANALYSIS_METHODS_ROOT. This used to rebind it locally to
+    # SKILLS_DIR.parent.parent/"rnd-...-analysis-methods" — one level too high, so it named the
+    # ARCHIVED $HOME clone whose per-module dirs survive only as untracked __pycache__ shells after
+    # the AM re-founding, making `methods.signor_mechanism_network` an empty namespace portion
+    # (SK#2196). Absent on a CI runner, hence green there and red only locally.
     sys.path.insert(0, str(ANALYSIS_METHODS_ROOT))
     from methods.signor_mechanism_network.moa_ontology import (
         ONTOLOGY_VERSION,

@@ -32,6 +32,32 @@ across the whole repo's non-test code, mirroring the exact enumeration grep used
 find and fix the original 62 offenders. ``contracts/validators/`` is temporarily
 excluded — it is issue #2090's live in-flight scope; once that lands, drop the
 exclusion so the ratchet covers it too.
+
+SK#2196 EXTENSION — the two blind spots that let this class survive #2137, each
+measured as a live local-only RED:
+
+  * that ratchet scans PROD code only, so the same defect in a *test* was invisible;
+  * its regex only matches the ``$HOME`` literal and ``Path.home()``, so the
+    equivalent **off-by-one upward walk** — ``SKILLS_DIR.parent.parent /
+    "rnd-...-target-contracts"``, one level ABOVE the repo root — sailed through.
+    (``REPO.parent / "rnd-..."`` from inside ``contracts/`` is the CORRECT form: it
+    lands on the repo root, where the temporary geometry symlinks live. The defect is
+    purely the extra ``.parent``.)
+
+Why it bites asymmetrically, and only locally: ``analysis-methods`` and
+``target-contracts`` were ABSORBED (SK#2063), and the archived clones are still sitting
+at ``$HOME`` on the dev box. After the AM re-founding those clones' per-module
+directories survive ONLY as untracked ``__pycache__`` shells, so ``$HOME/rnd-...-analysis-
+methods`` on ``sys.path`` binds ``methods`` to a package whose submodules are EMPTY
+namespace portions → ``ImportError: cannot import name X from methods.Y (unknown
+location)``. A fresh CI checkout has no sibling clone at all, so the identical
+expression is a silent no-op there and the editable install wins — CI green, local red.
+``data-catalog`` is NOT in this class: it is still a genuine separate sibling repo, so
+resolving it one level above the repo root is correct.
+
+``test_no_absorbed_sibling_resolved_outside_this_checkout`` ratchets both blind spots
+shut across EVERY tracked ``.py`` (tests included, ``contracts/validators/`` included —
+that carve-out does not apply to this narrower absorbed-sibling rule).
 """
 
 from __future__ import annotations
@@ -137,4 +163,58 @@ def test_no_prod_code_hardcodes_the_home_rnd_default() -> None:
         "contracts/methods via skills/_skills_common/paths.py's *_ROOT_DEFAULT constants, or a "
         "portable sibling-relative default matching methods.dge_deseq2.read.DATA_CATALOG for "
         f"data-catalog, which stays a separate repo). Offenders: {offenders}"
+    )
+
+
+# The two siblings SK#2063 ABSORBED into this repo. Their $HOME clones are archived and, for
+# analysis-methods, gutted by the re-founding — resolving either one outside this checkout is
+# always wrong. data-catalog is deliberately NOT here: it is still a real separate sibling.
+_ABSORBED_SIBLINGS = (
+    "rnd-computational-biology-oncology-analysis-methods",
+    "rnd-computational-biology-oncology-target-contracts",
+)
+# The three ways a line can reach OUTSIDE this checkout: the dev-box absolute literal, Path.home(),
+# or an upward walk that overshoots the repo root by one level. A SINGLE `.parent` onto the repo root
+# — `REPO.parent / "rnd-..."` from inside contracts/, or `parents[N].parent` from inside methods/ —
+# lands exactly where the temporary geometry symlinks live and is the CORRECT idiom (~50 live sites),
+# so only the doubled `.parent.parent` form is flagged. An over-deep `parents[N]` is NOT statically
+# distinguishable from a correct one (the right N depends on the file's own depth), so this ratchet
+# does not claim to catch that form; #2144 retires the whole resolution surface.
+_ESCAPE_RE = re.compile(r"/home/sagemaker-user|home\(\)|parent\.parent")
+
+
+def _tracked_py_files() -> list[Path]:
+    out = subprocess.run(
+        ["git", "ls-files", "*.py"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.split()
+    return [REPO_ROOT / rel for rel in out if (REPO_ROOT / rel).resolve() != _THIS_FILE]
+
+
+def test_no_absorbed_sibling_resolved_outside_this_checkout() -> None:
+    """Ratchet (SK#2196): no tracked .py — prod OR test — may name an ABSORBED sibling repo
+    (analysis-methods / target-contracts) on a line that also reaches outside this checkout via the
+    `/home/sagemaker-user` literal, `Path.home()`, or an over-deep `.parent.parent` / `parents[...]`
+    walk. Such a path names the ARCHIVED pre-merge clone: locally that clone's gutted module tree
+    turns `methods.<mod>` into an empty namespace portion (hard ImportError) or feeds STALE cards to
+    a cross-check; on a CI runner the clone is absent, so the same expression is a silent no-op and
+    the guard either passes for the wrong reason or SKIPS invisibly. That asymmetry is exactly what
+    made the local gate diverge from CI. Use the in-tree `contracts/` / `methods/` (via
+    `skills/_skills_common/paths.py`'s `*_root()` helpers or `*_ROOT_DEFAULT` constants) instead."""
+    offenders: list[str] = []
+    for path in _tracked_py_files():
+        for lineno, line in enumerate(path.read_text().splitlines(), start=1):
+            if not any(name in line for name in _ABSORBED_SIBLINGS):
+                continue
+            if _ESCAPE_RE.search(line):
+                offenders.append(f"{path.relative_to(REPO_ROOT)}:{lineno}")
+    assert not offenders, (
+        "An ABSORBED sibling repo (analysis-methods / target-contracts) is resolved OUTSIDE this "
+        "checkout — that names the archived pre-merge $HOME clone, which is gutted locally and "
+        "absent on CI (SK#2196: local RED / CI green, or a silent skip). Resolve it in-tree: "
+        "`target_contracts_root()` / `analysis_methods_root()` from skills/_skills_common/paths.py, "
+        f"or `<repo root>/contracts` / `<repo root>/methods`. Offenders: {offenders}"
     )

@@ -37,6 +37,7 @@ from _skills_common import cis_coherence_claims as cis  # noqa: E402
 from _skills_common import genomic_claims as gen  # noqa: E402
 from _skills_common import selectivity_claims as sel  # noqa: E402
 from _skills_common.claim_vector_core import CORROBORATION_ORD, SIGNAL_ORD  # noqa: E402
+from _skills_common.paths import target_contracts_root  # noqa: E402
 
 # The closed vocabulary from cards/copy-number-distribution.card.yaml
 # → outputs.summary_fields_vocabulary.patient_focal_cn_class. Mirrored here (skills CI does not
@@ -393,10 +394,10 @@ def test_patient_focal_enum_matches_the_card_contract():
     Skips (loudly, by name) rather than failing when it is not — but a drift is a hard failure, because
     an enum value missing from `_PATIENT_FOCAL_ENUM` would silently shrink the exhaustive table."""
     yaml = pytest.importorskip("yaml")
-    card = (
-        pathlib.Path.home()
-        / "rnd-computational-biology-oncology-target-contracts/cards/copy-number-distribution.card.yaml"
-    )
+    # THIS checkout's own contracts/ (env TARGET_CONTRACTS_ROOT, else in-tree — SK#2063). Was
+    # Path.home()/"rnd-...-target-contracts", the ARCHIVED pre-merge clone: a stale read locally and
+    # absent on CI, so the cross-check below skipped there unconditionally (SK#2196).
+    card = target_contracts_root() / "cards" / "copy-number-distribution.card.yaml"
     if not card.exists():
         pytest.skip(f"contracts checkout not present at {card}")
     vocab = (yaml.safe_load(card.read_text()).get("outputs") or {}).get("summary_fields_vocabulary") or {}
