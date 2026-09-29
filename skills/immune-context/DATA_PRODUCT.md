@@ -72,7 +72,8 @@ They move `skill_report.confidence` and `modality_scope`, never the verdict toke
 `output_shape: data_package` → the standard `write_package` tree. `decision.json` top-level:
 `skill · target · indication · question · generated_at · headline · cards · fired_rules · provenance ·
 run_health` (+ optional synthesis). Contractual headline fields: `immune_context_verdict` (pinned enum:
-immune_hot/immune_intermediate/immune_cold/insufficient — **not** data_unavailable), the `skill_report`
+immune_hot/immune_intermediate/immune_cold/insufficient/lymphoid_denominator_unreliable — **not**
+data_unavailable), the `skill_report`
 spine (`role: descriptive`, `polarity: not_scored`, `call` = `immune_context_verdict`), `headline_block`,
 `claim_vector`, `key_signals`. NOTE: the headline HERO badge has its own dynamic display polarity
 (immune_hot→positive / immune_cold→negative, discordance→neutral) — separate from the canonical
@@ -125,11 +126,15 @@ the coloc products carry no donor floor and the immune rules are `opposing`, nev
 ## 4. Contract & versioning (what is locked)
 
 Pinned by the generated, self-contained `immune-context.decision.schema.json` (descriptive-scalar pins:
-`role: descriptive` + `polarity: not_scored` const + the 4-value `immune_context_verdict`/`call` enum =
+`role: descriptive` + `polarity: not_scored` const + the 5-value `immune_context_verdict`/`call` enum =
 `_IMMUNE_VERDICT_PHRASE`; no run.py mints). CI: full-emit conformance (`tests/test_data_product_schema.py`
-against the frozen full golden, CI-fail-not-skip), cross-skill coverage ratchet, target-contracts schema
-meta-test. Change policy: new verdict token → pins enum + regenerate (minor); spine key → SHARED source
-(coordinate; major on rename); new facet → no schema change.
+against TWO frozen full goldens — `immune_full_emit.json` (CD8A·COADREAD → immune_intermediate) and
+`immune_lymphoid_full_emit.json` (MS4A1·DLBC → lymphoid_denominator_unreliable), CI-fail-not-skip),
+cross-skill coverage ratchet, target-contracts schema meta-test. Change policy: new verdict token → pins
+enum + regenerate (minor) **and** a conformance fixture that actually emits the new token — a schema bump
+with no fixture reaching it is how #1838 (the 5th token shipping at v1.9.0 with no lymphoid fixture) stayed
+invisible for 17 days: a closed-set pin is green while blind. Spine key → SHARED source (coordinate; major
+on rename); new facet → no schema change.
 
 ## 5. Known gaps & notes (non-blocking)
 

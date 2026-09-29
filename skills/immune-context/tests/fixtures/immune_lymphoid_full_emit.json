@@ -1,0 +1,1402 @@
+{
+  "skill": "immune-context",
+  "target": "MS4A1",
+  "indication": "DLBC",
+  "question": "For DLBC, is the tumor immune-hot or immune-cold \u2014 is there a CD8 T-cell effector population present for a T-cell engager to redirect (independent of MS4A1)?",
+  "generated_at": "2026-09-29T02:18:51+00:00",
+  "headline": {
+    "immune_context_verdict": "lymphoid_denominator_unreliable",
+    "driving_rule_id": "immune-context-lymphoid-denominator-uninterpretable",
+    "immune_context_class": "lymphoid_denominator_unreliable",
+    "median_cd8_fraction": null,
+    "median_total_t_cell_fraction": null,
+    "n_samples": 0,
+    "tumor_studies": [
+      "DLBC"
+    ],
+    "cd8_hot_sample_fraction": null,
+    "cd8_treg_ratio": null,
+    "cd8_m2_ratio": null,
+    "median_treg_fraction": null,
+    "median_m2_macrophage_fraction": null,
+    "median_m1_macrophage_fraction": null,
+    "til_fraction_class": "data_unavailable",
+    "median_til_percentage": null,
+    "til_n_samples": null,
+    "median_number_of_clusters": null,
+    "antigen_conditioned_call": "data_unavailable",
+    "cd8_high_minus_low": null,
+    "antigen_high_immune_context_class": "data_unavailable",
+    "antigen_phenotype_enriched_in": null,
+    "antigen_phenotype_kw_p": null,
+    "antigen_phenotype_scope": null,
+    "indication": "DLBC",
+    "spatial_coloc_class": "data_unavailable",
+    "spatial_immune_adjacency_fraction": null,
+    "spatial_top_enriched_compartment": null,
+    "til_cibersort_agreement": null,
+    "spatial_immune_phenotype": null,
+    "claim_vector": {
+      "IMMUNE": {
+        "signal": "unmeasured",
+        "corroboration": "unmeasured",
+        "evidence": "immune-context: lymphoid_denominator_unreliable (median CD8 frac=None)",
+        "conflict": null,
+        "informs": "TCE effector context \u2014 is the indication immune-hot (CD8 T cells present to redirect)? INDICATION-level / target-independent; immune_cold is an effector-absence efficacy risk for a T-cell engager, not a target-level veto",
+        "evidence_atom": {
+          "read": "lymphoid_denominator_unreliable",
+          "values": {
+            "immune_context_class": "lymphoid_denominator_unreliable",
+            "n_samples": 0,
+            "tumor_studies": [
+              "DLBC"
+            ]
+          },
+          "numeric": {
+            "n_samples": 0
+          },
+          "categorical": {
+            "immune_context_class": "lymphoid_denominator_unreliable",
+            "tumor_studies": [
+              "DLBC"
+            ]
+          },
+          "cite": {
+            "card_id": "immune-context",
+            "fields": [
+              "immune_context_class",
+              "n_samples"
+            ]
+          },
+          "entity": {
+            "measurement_type": "immune_context",
+            "grain": "indication"
+          }
+        }
+      },
+      "_disclaimer": "Modality-blind, verdict-INERT projection of the immune-context effector axis (IMMUNE), signal\u00d7corroboration. DESCRIPTIVE + INDICATION-level (target-independent in v1): strong = immune-hot (TCE-favourable); `immune_cold` = `absent` (MEASURED effector-absence, a TCE-efficacy risk NOT a target veto \u2014 CIBERSORT is relative + non-spatial); `unmeasured` = no cohort. Never feeds a verdict. CORROBORATION is the orthogonal-platform ruler, not a constant: `high` = an ABSOLUTE H&E-DL TIL (Saltz) or SPATIAL co-localization read AGREES; `single_arm` = CIBERSORT alone (no orthogonal check for this indication \u2014 maps to weak confidence, was `moderate` pre-v1.8.0); `low` = an orthogonal platform CONTRADICTS (and `conflict` names it). FOUR FRAME scalars qualify the token \u2014 reference_frame (pan-cancer rank), heterogeneity_frame (hot-sample PREVALENCE vs the cohort median), suppression_frame (CD8:Treg / CD8:M2) and antigen_phenotype_frame (is the TARGET expressed where the effectors are \u2014 IHC-stratified, Kruskal-Wallis-gated, urothelial scope only) \u2014 all descriptive, none gating: no pan-cancer distribution exists for a prevalence, a suppressor ratio or a phenotype-stratified expression spread yet.",
+      "reference_frame": "frame DOES NOT APPLY: a cohort EXISTS for this indication (DLBC; its size is deliberately not read, so no count is quoted) but its LEUKOCYTE denominator IS the malignant clone (leukaemia / lymphoma / lymphoid organ), so a CD8 SHARE of that compartment is arithmetically valid and biologically uninterpretable. The median is WITHHELD by design (not missing); pan-cancer cuts Q1=0.084 (cold) / Q3=0.113 (hot) over 33 TCGA studies (pancanatlas-cibersort-lm22-per-sample-v1, 11,373 samples) cannot gauge it. This is an absent MEASUREMENT, NOT a measured effector absence \u2014 read no TCE-efficacy risk from it",
+      "heterogeneity_frame": "unmeasured \u2014 the cohort's leukocyte denominator is uninterpretable (see reference_frame)",
+      "suppression_frame": "unmeasured \u2014 the cohort's leukocyte denominator is uninterpretable (see reference_frame)",
+      "antigen_phenotype_frame": "unmeasured"
+    },
+    "key_signals": {
+      "headline": "Immune-cold or unmeasured \u2014 limited TCE effector context.",
+      "supports": [],
+      "caveat": null
+    },
+    "question_table": [
+      {
+        "id": "Q1",
+        "question": "Is the tumor immune-hot for a TCE effector arm (CD8 infiltration / effector state)?",
+        "primary": "immune-context: lymphoid_denominator_unreliable (median CD8 frac=None)",
+        "support": "",
+        "signal": {
+          "tier": "unmeasured",
+          "fill": 0,
+          "polarity": "none",
+          "label": "unmeasured"
+        },
+        "confidence": {
+          "tier": "unmeasured",
+          "dots": 0,
+          "label": "corroboration: unmeasured"
+        }
+      }
+    ],
+    "immune_confirmation_caveat": null,
+    "spatial_localization_caveat": null,
+    "immune_provenance": {
+      "bulk_cibersort": {
+        "immune_context_class": "lymphoid_denominator_unreliable",
+        "median_cd8_fraction": null,
+        "n_samples": 0,
+        "tumor_studies": [
+          "DLBC"
+        ],
+        "platform": "CIBERSORT LM22 (relative, reference-model-dependent, non-spatial, function-blind)"
+      },
+      "absolute_til_corroboration": {
+        "til_fraction_class": "data_unavailable",
+        "median_til_percentage": null,
+        "til_n_samples": null,
+        "orthogonal_agreement": "unmeasured",
+        "median_number_of_clusters": null
+      },
+      "antigen_conditioned": {
+        "antigen_conditioned_call": "data_unavailable",
+        "cd8_high_minus_low": null,
+        "antigen_high_immune_context_class": "data_unavailable"
+      },
+      "cohort_heterogeneity": {
+        "cd8_hot_sample_fraction": null,
+        "frame": "unmeasured \u2014 the cohort's leukocyte denominator is uninterpretable (see reference_frame)"
+      },
+      "suppression": {
+        "cd8_treg_ratio": null,
+        "cd8_m2_ratio": null,
+        "median_treg_fraction": null,
+        "median_m2_macrophage_fraction": null,
+        "median_m1_macrophage_fraction": null,
+        "frame": "unmeasured \u2014 the cohort's leukocyte denominator is uninterpretable (see reference_frame)",
+        "gating": "none \u2014 no pan-cancer distribution derived for these ratios yet"
+      },
+      "confirmed_tumor_nest_infiltration": false,
+      "note": "A bulk CIBERSORT CD8 fraction is RELATIVE, non-spatial and function-blind; a positive read is CONFIRMED tumour-nest infiltration only with spatial / multiplex-IHC corroboration. The absolute H&E-DL TIL (Saltz) is an orthogonal ABSOLUTE-density check (still not spatial localization or CD8 function); median_number_of_clusters is a coarse spatial-aggregation hint, not a nest-vs-stroma call."
+    },
+    "headline_block": {
+      "verdict": {
+        "call": "lymphoid_denominator_unreliable",
+        "phrase": "Not interpretable \u2014 the cohort's leukocyte denominator IS the malignancy (no effector read)",
+        "gate": "immune_context",
+        "driving_rule_id": "immune-context-lymphoid-denominator-uninterpretable",
+        "polarity": "neutral"
+      },
+      "confidence": {
+        "level": "insufficient",
+        "basis": "no decision-critical axis measured",
+        "coverage": {
+          "n_measured": 0,
+          "n_axes": 1,
+          "n_critical_measured": 0
+        }
+      },
+      "top_tension": {
+        "text": "the CIBERSORT cohort EXISTS but its LEUKOCYTE denominator is the malignant clone (leukaemia / lymphoma / lymphoid organ), so a CD8 SHARE of that compartment is arithmetically valid and biologically uninterpretable \u2014 the median is WITHHELD. This is an absent MEASUREMENT, not a measured effector absence: read NO TCE-efficacy risk from it (TCEs are the validated modality in these indications). An absolute or spatial effector read is the way in, not bulk leukocyte deconvolution.",
+        "source": "immune_context_class",
+        "severity": 2
+      },
+      "headline_text": "Not interpretable \u2014 the cohort's leukocyte denominator IS the malignancy (no effector read) \u2014 coverage insufficient for a confidence call; tension: the CIBERSORT cohort EXISTS but its LEUKOCYTE denominator is the malignant clone (leukaemia / lymphoma / lymphoid organ), so a CD8 SHARE of that compartment is arithmetically valid and biologically uninterpretable \u2014 the median is WITHHELD. This is an absent MEASUREMENT, not a measured effector absence: read NO TCE-efficacy risk from it (TCEs are the validated modality in these indications). An absolute or spatial effector read is the way in, not bulk leukocyte deconvolution..",
+      "hero": {
+        "kind": "headline_hero",
+        "verdict": {
+          "call": "lymphoid_denominator_unreliable",
+          "phrase": "Not interpretable \u2014 the cohort's leukocyte denominator IS the malignancy (no effector read)",
+          "gate": "immune_context",
+          "polarity": "neutral"
+        },
+        "confidence": {
+          "level": "insufficient",
+          "coverage": {
+            "n_measured": 0,
+            "n_axes": 1,
+            "n_critical_measured": 0
+          }
+        },
+        "tension": {
+          "text": "the CIBERSORT cohort EXISTS but its LEUKOCYTE denominator is the malignant clone (leukaemia / lymphoma / lymphoid organ), so a CD8 SHARE of that compartment is arithmetically valid and biologically uninterpretable \u2014 the median is WITHHELD. This is an absent MEASUREMENT, not a measured effector absence: read NO TCE-efficacy risk from it (TCEs are the validated modality in these indications). An absolute or spatial effector read is the way in, not bulk leukocyte deconvolution."
+        },
+        "axes": [
+          {
+            "key": "IMMUNE",
+            "label": "TCE effector context",
+            "signal": "unmeasured",
+            "corroboration": "unmeasured",
+            "conflict": false
+          }
+        ]
+      },
+      "provenance": [
+        {
+          "axis": "IMMUNE",
+          "card_id": "immune-context",
+          "fields": [
+            "immune_context_class",
+            "n_samples"
+          ]
+        }
+      ],
+      "_disclaimer": "Canonical headline (verdict + confidence + top-tension) \u2014 a verdict-INERT projection over the computed decision. Confidence is weakest-link over the claim vector's corroboration (measured axes), capped by conflict and coverage; it never moves the verdict."
+    },
+    "skill_report": {
+      "call": "lymphoid_denominator_unreliable",
+      "role": "descriptive",
+      "polarity": "not_scored",
+      "honest_phrase": "Not interpretable \u2014 the cohort's leukocyte denominator IS the malignancy (no effector read)",
+      "confidence": {
+        "level": "insufficient",
+        "basis": "no decision-critical axis measured",
+        "coverage": {
+          "n_measured": 0,
+          "n_axes": 1,
+          "n_critical_measured": 0
+        }
+      },
+      "top_tension": {
+        "text": "the CIBERSORT cohort EXISTS but its LEUKOCYTE denominator is the malignant clone (leukaemia / lymphoma / lymphoid organ), so a CD8 SHARE of that compartment is arithmetically valid and biologically uninterpretable \u2014 the median is WITHHELD. This is an absent MEASUREMENT, not a measured effector absence: read NO TCE-efficacy risk from it (TCEs are the validated modality in these indications). An absolute or spatial effector read is the way in, not bulk leukocyte deconvolution.",
+        "source": "immune_context_class",
+        "severity": 2
+      },
+      "claim_chips": [
+        {
+          "key": "IMMUNE",
+          "label": "TCE effector context \u2014 is the indication immune-hot (CD8 T cells present to redirect)? INDICATION-level / target-independent; immune_cold is an effector-absence efficacy risk for a T-cell engager, not a target-level veto",
+          "signal": "unmeasured",
+          "corroboration": "unmeasured",
+          "conflict": null,
+          "evidence": "immune-context: lymphoid_denominator_unreliable (median CD8 frac=None)",
+          "cites": [
+            {
+              "role": "signal",
+              "card_id": "immune-context",
+              "fields": [
+                "immune_context_class",
+                "n_samples"
+              ]
+            }
+          ],
+          "cite": {
+            "card_id": "immune-context",
+            "fields": [
+              "immune_context_class",
+              "n_samples"
+            ]
+          }
+        }
+      ],
+      "claim_scalars": {
+        "reference_frame": "frame DOES NOT APPLY: a cohort EXISTS for this indication (DLBC; its size is deliberately not read, so no count is quoted) but its LEUKOCYTE denominator IS the malignant clone (leukaemia / lymphoma / lymphoid organ), so a CD8 SHARE of that compartment is arithmetically valid and biologically uninterpretable. The median is WITHHELD by design (not missing); pan-cancer cuts Q1=0.084 (cold) / Q3=0.113 (hot) over 33 TCGA studies (pancanatlas-cibersort-lm22-per-sample-v1, 11,373 samples) cannot gauge it. This is an absent MEASUREMENT, NOT a measured effector absence \u2014 read no TCE-efficacy risk from it",
+        "heterogeneity_frame": "unmeasured \u2014 the cohort's leukocyte denominator is uninterpretable (see reference_frame)",
+        "suppression_frame": "unmeasured \u2014 the cohort's leukocyte denominator is uninterpretable (see reference_frame)",
+        "antigen_phenotype_frame": "unmeasured"
+      },
+      "modality_scope": null,
+      "claim_chips_by_subtype": null,
+      "subgroup_signals": null,
+      "question_table": [
+        {
+          "id": "Q1",
+          "question": "Is the tumor immune-hot for a TCE effector arm (CD8 infiltration / effector state)?",
+          "primary": "immune-context: lymphoid_denominator_unreliable (median CD8 frac=None)",
+          "support": "",
+          "signal": {
+            "tier": "unmeasured",
+            "fill": 0,
+            "polarity": "none",
+            "label": "unmeasured"
+          },
+          "confidence": {
+            "tier": "unmeasured",
+            "dots": 0,
+            "label": "corroboration: unmeasured"
+          }
+        }
+      ],
+      "per_phase_metrics": [],
+      "figures": [],
+      "provenance": {
+        "driving_rule_id": "immune-context-lymphoid-denominator-uninterpretable",
+        "fired_rule_ids": [
+          "immune-context-lymphoid-denominator-uninterpretable"
+        ],
+        "cards_used": [
+          "immune-context"
+        ],
+        "cards_missing": [
+          "myeloid-compartment-expression-cheng",
+          "caf-compartment-expression-luo",
+          "ici-response-association",
+          "ici-response-imvigor210",
+          "tcga-til-fraction-saltz",
+          "spatial-tumor-normal-colocalization"
+        ]
+      },
+      "_contract": "docs/UNIFIED_OUTPUT_CONTRACT.md"
+    },
+    "subgroup_signals": {
+      "IMMUNE": {
+        "signal": "unmeasured",
+        "confidence": "low",
+        "n_sources": 0,
+        "n_agree": 0,
+        "n_unmeasured": 5,
+        "power": "low",
+        "conflict": false,
+        "sources": [
+          {
+            "card": "immune-context",
+            "tier": "unmeasured",
+            "n": 0,
+            "label": "immune context",
+            "conflict": false,
+            "value": "lymphoid_denominator_unreliable"
+          },
+          {
+            "card": "ici-response-association",
+            "tier": "unmeasured",
+            "n": 0,
+            "label": "ici response",
+            "conflict": false,
+            "value": "data_unavailable"
+          },
+          {
+            "card": "ici-response-imvigor210",
+            "tier": "unmeasured",
+            "n": null,
+            "label": "ici response",
+            "conflict": false,
+            "value": "data_unavailable"
+          },
+          {
+            "card": "tcga-til-fraction-saltz",
+            "tier": "unmeasured",
+            "n": null,
+            "label": "til fraction",
+            "conflict": false,
+            "value": "data_unavailable"
+          },
+          {
+            "card": "spatial-tumor-normal-colocalization",
+            "tier": "unmeasured",
+            "n": 0,
+            "label": "spatial coloc",
+            "conflict": false,
+            "value": "data_unavailable"
+          }
+        ],
+        "signal_source": "claim_vector",
+        "claims": [
+          {
+            "axis": "IMMUNE",
+            "signal": "unmeasured",
+            "corroboration": "unmeasured",
+            "evidence": "immune-context: lymphoid_denominator_unreliable (median CD8 frac=None)",
+            "evidence_atom": {
+              "read": "lymphoid_denominator_unreliable",
+              "values": {
+                "immune_context_class": "lymphoid_denominator_unreliable",
+                "n_samples": 0,
+                "tumor_studies": [
+                  "DLBC"
+                ]
+              },
+              "numeric": {
+                "n_samples": 0
+              },
+              "categorical": {
+                "immune_context_class": "lymphoid_denominator_unreliable",
+                "tumor_studies": [
+                  "DLBC"
+                ]
+              },
+              "cite": {
+                "card_id": "immune-context",
+                "fields": [
+                  "immune_context_class",
+                  "n_samples"
+                ]
+              },
+              "entity": {
+                "measurement_type": "immune_context",
+                "grain": "indication"
+              }
+            }
+          }
+        ]
+      }
+    },
+    "evidence_capsules": {
+      "capsules": {
+        "caf-compartment-expression-luo": {
+          "card_id": "caf-compartment-expression-luo",
+          "measurement_type": "sc_tumor_caf_state_expression",
+          "evidence_state": "data_unavailable",
+          "_complete": true
+        },
+        "ici-response-association": {
+          "card_id": "ici-response-association",
+          "measurement_type": "ici_response_expression",
+          "evidence_state": "data_unavailable",
+          "_complete": true
+        },
+        "ici-response-imvigor210": {
+          "card_id": "ici-response-imvigor210",
+          "measurement_type": "ici_response_expression",
+          "evidence_state": "data_unavailable",
+          "_complete": true
+        },
+        "immune-context": {
+          "card_id": "immune-context",
+          "measurement_type": "immune_context",
+          "tier": "indication",
+          "evidence_state": "measured",
+          "class": "lymphoid_denominator_unreliable",
+          "numeric_anchors": null,
+          "categorical_anchors": [
+            {
+              "field": "immune_context_class",
+              "value": "lymphoid_denominator_unreliable"
+            },
+            {
+              "field": "antigen_conditioned_call",
+              "value": "data_unavailable"
+            },
+            {
+              "field": "antigen_high_immune_context_class",
+              "value": "data_unavailable"
+            }
+          ],
+          "n_basis": {
+            "n_patients_joined": 0,
+            "n_samples": 0
+          },
+          "_complete": true,
+          "top_k_strata": null,
+          "conflict_pairs": null,
+          "sibling_caveats": null,
+          "provenance_keys": null,
+          "data_quality_flags": null,
+          "cited_statements": null
+        },
+        "myeloid-compartment-expression-cheng": {
+          "card_id": "myeloid-compartment-expression-cheng",
+          "measurement_type": "sc_tumor_myeloid_state_expression",
+          "evidence_state": "data_unavailable",
+          "_complete": true
+        },
+        "spatial-tumor-normal-colocalization": {
+          "card_id": "spatial-tumor-normal-colocalization",
+          "measurement_type": "spatial_colocalization",
+          "evidence_state": "data_unavailable",
+          "_complete": true
+        },
+        "tcga-til-fraction-saltz": {
+          "card_id": "tcga-til-fraction-saltz",
+          "measurement_type": "spatial_til_fraction",
+          "evidence_state": "data_unavailable",
+          "_complete": true
+        }
+      },
+      "manifest": [
+        {
+          "card_id": "caf-compartment-expression-luo",
+          "status": "absent",
+          "reason": "data_unavailable"
+        },
+        {
+          "card_id": "ici-response-association",
+          "status": "absent",
+          "reason": "data_unavailable"
+        },
+        {
+          "card_id": "ici-response-imvigor210",
+          "status": "absent",
+          "reason": "data_unavailable"
+        },
+        {
+          "card_id": "immune-context",
+          "status": "full"
+        },
+        {
+          "card_id": "myeloid-compartment-expression-cheng",
+          "status": "absent",
+          "reason": "data_unavailable"
+        },
+        {
+          "card_id": "spatial-tumor-normal-colocalization",
+          "status": "absent",
+          "reason": "data_unavailable"
+        },
+        {
+          "card_id": "tcga-til-fraction-saltz",
+          "status": "absent",
+          "reason": "data_unavailable"
+        }
+      ]
+    },
+    "cards_available": 1,
+    "cards_missing": [
+      "myeloid-compartment-expression-cheng",
+      "caf-compartment-expression-luo",
+      "ici-response-association",
+      "ici-response-imvigor210",
+      "tcga-til-fraction-saltz",
+      "spatial-tumor-normal-colocalization"
+    ],
+    "evidence_graph": {
+      "schema_version": "1.0",
+      "skill": "immune-context",
+      "target": "MS4A1",
+      "indication": "DLBC",
+      "verdict": {
+        "id": "lymphoid_denominator_unreliable",
+        "call": "Not interpretable \u2014 the cohort's leukocyte denominator IS the malignancy (no effector read)",
+        "polarity": "neutral",
+        "driving_rule_id": "immune-context-lymphoid-denominator-uninterpretable",
+        "confidence": {
+          "level": "insufficient",
+          "coverage": {
+            "n_measured": 0,
+            "n_axes": 1,
+            "n_critical_measured": 0
+          }
+        },
+        "top_tension": {
+          "text": "the CIBERSORT cohort EXISTS but its LEUKOCYTE denominator is the malignant clone (leukaemia / lymphoma / lymphoid organ), so a CD8 SHARE of that compartment is arithmetically valid and biologically uninterpretable \u2014 the median is WITHHELD. This is an absent MEASUREMENT, not a measured effector absence: read NO TCE-efficacy risk from it (TCEs are the validated modality in these indications). An absolute or spatial effector read is the way in, not bulk leukocyte deconvolution.",
+          "severity": 2,
+          "source_card_ids": []
+        }
+      },
+      "questions": [
+        {
+          "id": "infiltration",
+          "seq": 1,
+          "text": "Is the tumor immune-hot \u2014 is there a CD8 T-cell effector population to redirect (TCE effector arm)?",
+          "axis_id": "IMMUNE",
+          "role": "verdict_bearing",
+          "signal": {
+            "tier": "unmeasured",
+            "polarity": "not_applicable",
+            "label": "unmeasured"
+          },
+          "confidence": {
+            "level": "unmeasured",
+            "dots": 0,
+            "label": "corroboration: unmeasured"
+          },
+          "card_ids": [
+            "immune-context",
+            "tcga-til-fraction-saltz",
+            "spatial-tumor-normal-colocalization"
+          ],
+          "rule_ids": [
+            "immune-context-lymphoid-denominator-uninterpretable"
+          ],
+          "literature_axis_ids": [],
+          "evidence_refs": [
+            {
+              "card_id": "immune-context",
+              "field": "immune_context_class",
+              "value": "lymphoid_denominator_unreliable",
+              "label": "immune-context lymphoid_denominator_unreliable"
+            }
+          ],
+          "prose": {
+            "primary": "immune-context: lymphoid_denominator_unreliable (median CD8 frac=None)",
+            "support": ""
+          }
+        },
+        {
+          "id": "ici_response",
+          "seq": 2,
+          "text": "Does the target associate with checkpoint-blockade (ICI) response?",
+          "axis_id": "IMMUNE",
+          "role": "display_only",
+          "signal": {
+            "tier": null,
+            "polarity": null,
+            "label": null
+          },
+          "confidence": {
+            "level": null,
+            "dots": null,
+            "label": null
+          },
+          "card_ids": [
+            "ici-response-association",
+            "ici-response-imvigor210"
+          ],
+          "rule_ids": [],
+          "literature_axis_ids": [],
+          "evidence_refs": [],
+          "prose": {
+            "primary": null,
+            "support": null
+          }
+        },
+        {
+          "id": "microenvironment",
+          "seq": 3,
+          "text": "What is the surrounding TME composition (myeloid + CAF states)?",
+          "axis_id": "IMMUNE",
+          "role": "display_only",
+          "signal": {
+            "tier": null,
+            "polarity": null,
+            "label": null
+          },
+          "confidence": {
+            "level": null,
+            "dots": null,
+            "label": null
+          },
+          "card_ids": [
+            "myeloid-compartment-expression-cheng",
+            "caf-compartment-expression-luo"
+          ],
+          "rule_ids": [],
+          "literature_axis_ids": [],
+          "evidence_refs": [],
+          "prose": {
+            "primary": null,
+            "support": null
+          }
+        }
+      ],
+      "cards": [
+        {
+          "id": "immune-context",
+          "measurement_type": "immune_context",
+          "tier": "indication",
+          "role": "verdict_bearing",
+          "question_ids": [
+            "infiltration"
+          ],
+          "axis_id": "IMMUNE",
+          "signal": {
+            "tier": "unmeasured",
+            "polarity": "supportive",
+            "label": "lymphoid_denominator_unreliable",
+            "liability": false
+          },
+          "confidence": {
+            "level": "high",
+            "dots": 3,
+            "evidence_state": "measured",
+            "eco_id": "ECO:0000006",
+            "n": 0
+          },
+          "class": {
+            "field": "immune_context_class",
+            "value": "lymphoid_denominator_unreliable"
+          },
+          "dataset_ids": [
+            "gdc-pancanatlas-immune-2018"
+          ],
+          "rule_ids": [
+            "immune-context-lymphoid-denominator-uninterpretable"
+          ],
+          "chain": {
+            "dataset_ids": [
+              "gdc-pancanatlas-immune-2018"
+            ],
+            "data": [],
+            "rule_id": "immune-context-lymphoid-denominator-uninterpretable",
+            "contributes_to_verdict": true,
+            "is_driving": true
+          },
+          "key_fields": {},
+          "key_evidence": {
+            "n": 0,
+            "categorical": [
+              {
+                "field": "immune_context_class",
+                "value": "lymphoid_denominator_unreliable"
+              },
+              {
+                "field": "antigen_conditioned_call",
+                "value": "data_unavailable"
+              },
+              {
+                "field": "antigen_high_immune_context_class",
+                "value": "data_unavailable"
+              }
+            ],
+            "n_basis": {
+              "n_patients_joined": 0,
+              "n_samples": 0
+            }
+          }
+        },
+        {
+          "id": "myeloid-compartment-expression-cheng",
+          "measurement_type": "sc_tumor_myeloid_state_expression",
+          "tier": null,
+          "role": "display_only",
+          "question_ids": [
+            "microenvironment"
+          ],
+          "axis_id": "IMMUNE",
+          "signal": {
+            "tier": null,
+            "polarity": "neutral",
+            "label": null,
+            "liability": false
+          },
+          "confidence": {
+            "level": "moderate",
+            "dots": 2,
+            "evidence_state": "data_unavailable",
+            "eco_id": null,
+            "n": null
+          },
+          "class": {
+            "field": null,
+            "value": null
+          },
+          "dataset_ids": [
+            "sc-pseudobulk-myeloid-cheng-v1"
+          ],
+          "rule_ids": [],
+          "chain": {
+            "dataset_ids": [
+              "sc-pseudobulk-myeloid-cheng-v1"
+            ],
+            "data": [],
+            "rule_id": null,
+            "contributes_to_verdict": false,
+            "is_driving": false
+          },
+          "key_fields": {},
+          "key_evidence": null
+        },
+        {
+          "id": "caf-compartment-expression-luo",
+          "measurement_type": "sc_tumor_caf_state_expression",
+          "tier": null,
+          "role": "display_only",
+          "question_ids": [
+            "microenvironment"
+          ],
+          "axis_id": "IMMUNE",
+          "signal": {
+            "tier": null,
+            "polarity": "neutral",
+            "label": null,
+            "liability": false
+          },
+          "confidence": {
+            "level": "moderate",
+            "dots": 2,
+            "evidence_state": "data_unavailable",
+            "eco_id": null,
+            "n": null
+          },
+          "class": {
+            "field": null,
+            "value": null
+          },
+          "dataset_ids": [
+            "sc-pseudobulk-caf-luo-pancancer-v1"
+          ],
+          "rule_ids": [],
+          "chain": {
+            "dataset_ids": [
+              "sc-pseudobulk-caf-luo-pancancer-v1"
+            ],
+            "data": [],
+            "rule_id": null,
+            "contributes_to_verdict": false,
+            "is_driving": false
+          },
+          "key_fields": {},
+          "key_evidence": null
+        },
+        {
+          "id": "ici-response-association",
+          "measurement_type": "ici_response_expression",
+          "tier": null,
+          "role": "display_only",
+          "question_ids": [
+            "ici_response"
+          ],
+          "axis_id": "IMMUNE",
+          "signal": {
+            "tier": "unmeasured",
+            "polarity": "neutral",
+            "label": null,
+            "liability": false
+          },
+          "confidence": {
+            "level": "moderate",
+            "dots": 2,
+            "evidence_state": "data_unavailable",
+            "eco_id": null,
+            "n": 0
+          },
+          "class": {
+            "field": null,
+            "value": null
+          },
+          "dataset_ids": [
+            "ici-response-expression-per-gene-v1"
+          ],
+          "rule_ids": [],
+          "chain": {
+            "dataset_ids": [
+              "ici-response-expression-per-gene-v1"
+            ],
+            "data": [],
+            "rule_id": null,
+            "contributes_to_verdict": false,
+            "is_driving": false
+          },
+          "key_fields": {},
+          "key_evidence": {
+            "n": 0,
+            "categorical": [
+              {
+                "field": "ici_response_class",
+                "value": "data_unavailable"
+              }
+            ]
+          }
+        },
+        {
+          "id": "ici-response-imvigor210",
+          "measurement_type": "ici_response_expression",
+          "tier": null,
+          "role": "display_only",
+          "question_ids": [
+            "ici_response"
+          ],
+          "axis_id": "IMMUNE",
+          "signal": {
+            "tier": "unmeasured",
+            "polarity": "neutral",
+            "label": null,
+            "liability": false
+          },
+          "confidence": {
+            "level": "moderate",
+            "dots": 2,
+            "evidence_state": "data_unavailable",
+            "eco_id": null,
+            "n": null
+          },
+          "class": {
+            "field": null,
+            "value": null
+          },
+          "dataset_ids": [
+            "imvigor210-ici-response-per-gene-v1"
+          ],
+          "rule_ids": [],
+          "chain": {
+            "dataset_ids": [
+              "imvigor210-ici-response-per-gene-v1"
+            ],
+            "data": [],
+            "rule_id": null,
+            "contributes_to_verdict": false,
+            "is_driving": false
+          },
+          "key_fields": {},
+          "key_evidence": {
+            "categorical": [
+              {
+                "field": "ici_response_class",
+                "value": "data_unavailable"
+              }
+            ]
+          }
+        },
+        {
+          "id": "tcga-til-fraction-saltz",
+          "measurement_type": "spatial_til_fraction",
+          "tier": null,
+          "role": "display_only",
+          "question_ids": [
+            "infiltration"
+          ],
+          "axis_id": "IMMUNE",
+          "signal": {
+            "tier": "unmeasured",
+            "polarity": "neutral",
+            "label": null,
+            "liability": false
+          },
+          "confidence": {
+            "level": "moderate",
+            "dots": 2,
+            "evidence_state": "data_unavailable",
+            "eco_id": null,
+            "n": null
+          },
+          "class": {
+            "field": null,
+            "value": null
+          },
+          "dataset_ids": [
+            "tcga-til-fraction-saltz-per-sample-v1"
+          ],
+          "rule_ids": [],
+          "chain": {
+            "dataset_ids": [
+              "tcga-til-fraction-saltz-per-sample-v1"
+            ],
+            "data": [],
+            "rule_id": null,
+            "contributes_to_verdict": false,
+            "is_driving": false
+          },
+          "key_fields": {},
+          "key_evidence": {
+            "categorical": [
+              {
+                "field": "til_fraction_class",
+                "value": "data_unavailable"
+              }
+            ]
+          }
+        },
+        {
+          "id": "spatial-tumor-normal-colocalization",
+          "measurement_type": "spatial_colocalization",
+          "tier": null,
+          "role": "display_only",
+          "question_ids": [
+            "infiltration"
+          ],
+          "axis_id": "IMMUNE",
+          "signal": {
+            "tier": "unmeasured",
+            "polarity": "neutral",
+            "label": null,
+            "liability": false
+          },
+          "confidence": {
+            "level": "moderate",
+            "dots": 2,
+            "evidence_state": "data_unavailable",
+            "eco_id": null,
+            "n": 0
+          },
+          "class": {
+            "field": null,
+            "value": null
+          },
+          "dataset_ids": [
+            "spatial-coloc-tumor-crc-coadread-v1",
+            "spatial-coloc-tumor-stad-v1",
+            "spatial-coloc-tumor-paad-v1",
+            "spatial-coloc-tumor-hnsc-v1",
+            "spatial-coloc-tumor-nsclc-v1",
+            "spatial-coloc-tumor-crc-gse280318-v1",
+            "spatial-coloc-tumor-crc-gse335552-v1",
+            "spatial-coloc-tumor-paad-gse313662-v1",
+            "spatial-coloc-tumor-paad-gse310352-v1",
+            "spatial-coloc-tumor-nsclc-gse319755-v1"
+          ],
+          "rule_ids": [],
+          "chain": {
+            "dataset_ids": [
+              "spatial-coloc-tumor-crc-coadread-v1",
+              "spatial-coloc-tumor-stad-v1",
+              "spatial-coloc-tumor-paad-v1",
+              "spatial-coloc-tumor-hnsc-v1",
+              "spatial-coloc-tumor-nsclc-v1",
+              "spatial-coloc-tumor-crc-gse280318-v1",
+              "spatial-coloc-tumor-crc-gse335552-v1",
+              "spatial-coloc-tumor-paad-gse313662-v1",
+              "spatial-coloc-tumor-paad-gse310352-v1",
+              "spatial-coloc-tumor-nsclc-gse319755-v1"
+            ],
+            "data": [],
+            "rule_id": null,
+            "contributes_to_verdict": false,
+            "is_driving": false
+          },
+          "key_fields": {},
+          "key_evidence": {
+            "n": 0,
+            "categorical": [
+              {
+                "field": "spatial_coloc_class",
+                "value": "data_unavailable"
+              }
+            ]
+          }
+        }
+      ],
+      "rules": [
+        {
+          "id": "immune-context-lymphoid-denominator-uninterpretable",
+          "card_id": "immune-context",
+          "field": "immune_context_class",
+          "value": "lymphoid_denominator_unreliable",
+          "dominant": false,
+          "is_driving": true,
+          "rationale": "The indication resolves to a hematologic or lymphoid-organ TCGA cohort (LAML / DLBC / THYM), where"
+        }
+      ],
+      "datasets": [
+        {
+          "id": "gdc-pancanatlas-immune-2018",
+          "s3_uri": null,
+          "license": null
+        },
+        {
+          "id": "ici-response-expression-per-gene-v1",
+          "s3_uri": null,
+          "license": null
+        },
+        {
+          "id": "imvigor210-ici-response-per-gene-v1",
+          "s3_uri": null,
+          "license": null
+        },
+        {
+          "id": "sc-pseudobulk-caf-luo-pancancer-v1",
+          "s3_uri": null,
+          "license": null
+        },
+        {
+          "id": "sc-pseudobulk-myeloid-cheng-v1",
+          "s3_uri": null,
+          "license": null
+        },
+        {
+          "id": "spatial-coloc-tumor-crc-coadread-v1",
+          "s3_uri": null,
+          "license": null
+        },
+        {
+          "id": "spatial-coloc-tumor-crc-gse280318-v1",
+          "s3_uri": null,
+          "license": null
+        },
+        {
+          "id": "spatial-coloc-tumor-crc-gse335552-v1",
+          "s3_uri": null,
+          "license": null
+        },
+        {
+          "id": "spatial-coloc-tumor-hnsc-v1",
+          "s3_uri": null,
+          "license": null
+        },
+        {
+          "id": "spatial-coloc-tumor-nsclc-gse319755-v1",
+          "s3_uri": null,
+          "license": null
+        },
+        {
+          "id": "spatial-coloc-tumor-nsclc-v1",
+          "s3_uri": null,
+          "license": null
+        },
+        {
+          "id": "spatial-coloc-tumor-paad-gse310352-v1",
+          "s3_uri": null,
+          "license": null
+        },
+        {
+          "id": "spatial-coloc-tumor-paad-gse313662-v1",
+          "s3_uri": null,
+          "license": null
+        },
+        {
+          "id": "spatial-coloc-tumor-paad-v1",
+          "s3_uri": null,
+          "license": null
+        },
+        {
+          "id": "spatial-coloc-tumor-stad-v1",
+          "s3_uri": null,
+          "license": null
+        },
+        {
+          "id": "tcga-til-fraction-saltz-per-sample-v1",
+          "s3_uri": null,
+          "license": null
+        }
+      ],
+      "literature": {},
+      "citations": [],
+      "narrative": {}
+    }
+  },
+  "cards": [
+    {
+      "card_id": "immune-context",
+      "summary": {
+        "immune_context_class": "lymphoid_denominator_unreliable",
+        "median_cd8_fraction": null,
+        "median_total_t_cell_fraction": null,
+        "n_samples": 0,
+        "cd8_hot_sample_fraction": null,
+        "cd8_treg_ratio": null,
+        "cd8_m2_ratio": null,
+        "median_treg_fraction": null,
+        "median_m2_macrophage_fraction": null,
+        "median_m1_macrophage_fraction": null,
+        "_data_note": "TCGA study/studies ['DLBC'] are hematologic or lymphoid-organ cohorts: CIBERSORT LM22 reports the CD8 share OF THE LEUKOCYTE COMPARTMENT, and there that denominator is the malignant clone (LAML/DLBC) or normal lymphoid tissue (THYM), not tumor-infiltrating immunity. The share is arithmetically valid and biologically uninterpretable, so it is withheld rather than published with a caveat.",
+        "indication": "DLBC",
+        "tumor_studies": [
+          "DLBC"
+        ],
+        "antigen_conditioned_call": "data_unavailable",
+        "cd8_fraction_antigen_high": null,
+        "cd8_fraction_antigen_low": null,
+        "cd8_high_minus_low": null,
+        "antigen_high_immune_context_class": "data_unavailable",
+        "n_patients_joined": 0
+      },
+      "_missing": false,
+      "input_manifest_ids": [
+        "gdc-pancanatlas-immune-2018"
+      ]
+    },
+    {
+      "card_id": "myeloid-compartment-expression-cheng",
+      "summary": {
+        "_live_read_error": "When getting information for key 'data-catalog/derived/sc-pseudobulk-myeloid-cheng-v1/sc_pseudobulk.parquet' in bucket 'onc-compbio': AWS Error ACCESS_DENIED during HeadObject operation: No response body."
+      },
+      "_missing": true,
+      "input_manifest_ids": [
+        "sc-pseudobulk-myeloid-cheng-v1"
+      ]
+    },
+    {
+      "card_id": "caf-compartment-expression-luo",
+      "summary": {
+        "_live_read_error": "When getting information for key 'data-catalog/derived/sc-pseudobulk-caf-luo-pancancer-v1/sc_pseudobulk.parquet' in bucket 'onc-compbio': AWS Error ACCESS_DENIED during HeadObject operation: No response body."
+      },
+      "_missing": true,
+      "input_manifest_ids": [
+        "sc-pseudobulk-caf-luo-pancancer-v1"
+      ]
+    },
+    {
+      "card_id": "ici-response-association",
+      "summary": {
+        "ici_response_class": "data_unavailable",
+        "direction_higher_in": null,
+        "median_log2fc_resp_vs_nonresp": null,
+        "rollup_stouffer_z": null,
+        "rollup_stouffer_p": null,
+        "n_cohorts_concordant": null,
+        "n_cohorts": 0,
+        "any_cohort_significant": false,
+        "min_mannwhitney_p": null,
+        "cohorts": [],
+        "ici_agents": [],
+        "indication": "DLBC",
+        "product_id": "ici-response-expression-per-gene-v1",
+        "_data_note": "ICI-response product (ici-response-expression-per-gene-v1) covers melanoma (SKCM) open-GEO anti-PD-1 cohorts only; indication 'DLBC' out of scope."
+      },
+      "_missing": true,
+      "input_manifest_ids": [
+        "ici-response-expression-per-gene-v1"
+      ]
+    },
+    {
+      "card_id": "ici-response-imvigor210",
+      "summary": {
+        "ici_response_class": "data_unavailable",
+        "_data_note": "IMvigor210 is urothelial-only; indication 'DLBC' out of scope",
+        "_data_source": "imvigor210-ici-response-per-gene-v1",
+        "method_version": "1.0.0"
+      },
+      "_missing": true,
+      "input_manifest_ids": [
+        "imvigor210-ici-response-per-gene-v1"
+      ]
+    },
+    {
+      "card_id": "tcga-til-fraction-saltz",
+      "summary": {
+        "til_fraction_class": "data_unavailable",
+        "_data_note": "indication 'DLBC' has no TCGA-study mapping",
+        "_data_source": "tcga-til-fraction-saltz-per-sample-v1",
+        "method_version": "1.0.0"
+      },
+      "_missing": true,
+      "input_manifest_ids": [
+        "tcga-til-fraction-saltz-per-sample-v1"
+      ]
+    },
+    {
+      "card_id": "spatial-tumor-normal-colocalization",
+      "summary": {
+        "spatial_coloc_class": "data_unavailable",
+        "top_enriched_compartment": null,
+        "top_enriched_value": null,
+        "per_compartment": {},
+        "per_neighbor": [],
+        "immune_adjacency_fraction": null,
+        "stromal_adjacency_fraction": null,
+        "normal_epithelium_adjacency_fraction": null,
+        "target_pos_fraction_median": null,
+        "n_donors": 0,
+        "n_datasets": 0,
+        "target": "MS4A1",
+        "indication": "DLBC",
+        "product_id": null,
+        "_data_note": "No READABLE spatial co-localization product for indication DLBC (none mapped, or every mapped product is absent from S3); spatial_transcriptomics is a named capability gap here. This is a PRODUCT gap, not a statement about MS4A1.",
+        "method_version": "0.1.0"
+      },
+      "_missing": true,
+      "input_manifest_ids": [
+        "spatial-coloc-tumor-crc-coadread-v1",
+        "spatial-coloc-tumor-stad-v1",
+        "spatial-coloc-tumor-paad-v1",
+        "spatial-coloc-tumor-hnsc-v1",
+        "spatial-coloc-tumor-nsclc-v1",
+        "spatial-coloc-tumor-crc-gse280318-v1",
+        "spatial-coloc-tumor-crc-gse335552-v1",
+        "spatial-coloc-tumor-paad-gse313662-v1",
+        "spatial-coloc-tumor-paad-gse310352-v1",
+        "spatial-coloc-tumor-nsclc-gse319755-v1"
+      ]
+    }
+  ],
+  "fired_rules": [
+    {
+      "rule_id": "immune-context-lymphoid-denominator-uninterpretable",
+      "card_id": "immune-context",
+      "field": "immune_context_class",
+      "value": "lymphoid_denominator_unreliable",
+      "dominant": false,
+      "rationale_summary": "The indication resolves to a hematologic or lymphoid-organ TCGA cohort (LAML / DLBC / THYM), where"
+    }
+  ],
+  "provenance": {
+    "skills_repo_sha": "0e2a60a",
+    "data_mode": "live",
+    "release_pin": "unpinned",
+    "resolved_release_digest": "f5313205e20a3b91",
+    "resolved_releases": {
+      "gdc-pancanatlas-immune-2018": {
+        "used": [
+          "gdc-pancanatlas-immune-2018"
+        ],
+        "head": "gdc-pancanatlas-immune-2018",
+        "is_stale": false
+      },
+      "ici-response-expression-per-gene": {
+        "used": [
+          "ici-response-expression-per-gene-v1"
+        ],
+        "head": "ici-response-expression-per-gene-v1",
+        "is_stale": false
+      },
+      "imvigor210-ici-response-per-gene": {
+        "used": [
+          "imvigor210-ici-response-per-gene-v1"
+        ],
+        "head": "imvigor210-ici-response-per-gene-v1",
+        "is_stale": false
+      },
+      "sc-pseudobulk-caf-luo-pancancer": {
+        "used": [
+          "sc-pseudobulk-caf-luo-pancancer-v1"
+        ],
+        "head": "sc-pseudobulk-caf-luo-pancancer-v1",
+        "is_stale": false
+      },
+      "sc-pseudobulk-myeloid-cheng": {
+        "used": [
+          "sc-pseudobulk-myeloid-cheng-v1"
+        ],
+        "head": "sc-pseudobulk-myeloid-cheng-v1",
+        "is_stale": false
+      },
+      "spatial-coloc-tumor-crc-coadread": {
+        "used": [
+          "spatial-coloc-tumor-crc-coadread-v1"
+        ],
+        "head": "spatial-coloc-tumor-crc-coadread-v1",
+        "is_stale": false
+      },
+      "spatial-coloc-tumor-crc-gse280318": {
+        "used": [
+          "spatial-coloc-tumor-crc-gse280318-v1"
+        ],
+        "head": "spatial-coloc-tumor-crc-gse280318-v1",
+        "is_stale": false
+      },
+      "spatial-coloc-tumor-crc-gse335552": {
+        "used": [
+          "spatial-coloc-tumor-crc-gse335552-v1"
+        ],
+        "head": "spatial-coloc-tumor-crc-gse335552-v1",
+        "is_stale": false
+      },
+      "spatial-coloc-tumor-hnsc": {
+        "used": [
+          "spatial-coloc-tumor-hnsc-v1"
+        ],
+        "head": "spatial-coloc-tumor-hnsc-v1",
+        "is_stale": false
+      },
+      "spatial-coloc-tumor-nsclc": {
+        "used": [
+          "spatial-coloc-tumor-nsclc-v1"
+        ],
+        "head": "spatial-coloc-tumor-nsclc-v1",
+        "is_stale": false
+      },
+      "spatial-coloc-tumor-nsclc-gse319755": {
+        "used": [
+          "spatial-coloc-tumor-nsclc-gse319755-v1"
+        ],
+        "head": "spatial-coloc-tumor-nsclc-gse319755-v1",
+        "is_stale": false
+      },
+      "spatial-coloc-tumor-paad": {
+        "used": [
+          "spatial-coloc-tumor-paad-v1"
+        ],
+        "head": "spatial-coloc-tumor-paad-v1",
+        "is_stale": false
+      },
+      "spatial-coloc-tumor-paad-gse310352": {
+        "used": [
+          "spatial-coloc-tumor-paad-gse310352-v1"
+        ],
+        "head": "spatial-coloc-tumor-paad-gse310352-v1",
+        "is_stale": false
+      },
+      "spatial-coloc-tumor-paad-gse313662": {
+        "used": [
+          "spatial-coloc-tumor-paad-gse313662-v1"
+        ],
+        "head": "spatial-coloc-tumor-paad-gse313662-v1",
+        "is_stale": false
+      },
+      "spatial-coloc-tumor-stad": {
+        "used": [
+          "spatial-coloc-tumor-stad-v1"
+        ],
+        "head": "spatial-coloc-tumor-stad-v1",
+        "is_stale": false
+      },
+      "tcga-til-fraction-saltz-per-sample": {
+        "used": [
+          "tcga-til-fraction-saltz-per-sample-v1"
+        ],
+        "head": "tcga-til-fraction-saltz-per-sample-v1",
+        "is_stale": false
+      }
+    },
+    "resolved_content_digest": "92ee183fa1791a17"
+  },
+  "run_health": {
+    "skill_name": "immune-context",
+    "skill_version": "1.10.0",
+    "status": "degraded",
+    "n_cards_consumed": 7,
+    "n_cards_resolved": 1,
+    "n_cards_fired": 1,
+    "cards_fired": [
+      "immune-context"
+    ],
+    "cards_missing": [
+      "caf-compartment-expression-luo",
+      "ici-response-association",
+      "ici-response-imvigor210",
+      "myeloid-compartment-expression-cheng",
+      "spatial-tumor-normal-colocalization",
+      "tcga-til-fraction-saltz"
+    ],
+    "cards_skipped_a4": [],
+    "provenance_warnings": [],
+    "read_secs": 3.1098,
+    "compute_secs": 2.2981,
+    "total_secs": 5.7911
+  },
+  "consolidation": {
+    "discordant": false,
+    "masked_conflict": false,
+    "driving_role": "neutral",
+    "overruled_opposing_rules": [],
+    "roles_present": [
+      "neutral"
+    ],
+    "n_rules_fired": 1,
+    "n_cards_contributing": 1,
+    "single_card_passthrough": true
+  }
+}
