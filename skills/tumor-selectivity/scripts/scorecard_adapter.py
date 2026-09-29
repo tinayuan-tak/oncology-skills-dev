@@ -37,14 +37,37 @@ honest NULL beats a fabricated reconciliation.
 ## Panel-consistency is COMPUTED, not hand-typed (the teeth)
 
 `collect_panel_rows()` mirrors tumor-presence's live computation: it loads (or live-emits + caches,
-via `_load_package`) each of the 5 roster pairs' tumor-selectivity decision.json, extracts the two
-verdict-bearing card classes (dominant_direction from tumor-vs-normal-selectivity,
-therapeutic_window_class from modality-therapeutic-window), and computes non-vacuity checks (classes
-aren't constant across the roster; the pan-essential control (PLK1) and thin-coverage control (HTR1D)
-each show a distinguishable read relative to the flagship surface targets).
-`skills/tumor-selectivity/tests/test_scorecard_shard.py` monkeypatches `_load_package` with a doctored
-(constant-class / all-missing) panel and asserts the checks go RED — proving the checks have teeth,
-independent of live data or network access.
+via `_load_package`) each of the 5 roster pairs' tumor-selectivity decision.json, extracts the
+verdict-bearing card fields (dominant_direction/selectivity_class/comparator_concordance from
+tumor-vs-normal-selectivity, therapeutic_window_class from modality-therapeutic-window), and computes
+non-vacuity checks (classes aren't constant across the roster) plus `htr1d_matches_expected_archetype`
+— the DGE-vertical-specific, APPLICABLE expectation for HTR1D per
+`eval/SCORECARD_PANEL_ROSTER.md`'s per-skill x per-target table: a measured `strong_tumor_selective`,
+concordant row, NOT a degraded one (issue #2070 diagnosis: HTR1D's thin-coverage/abstention
+archetype lives in surface-modality-fit, not here).
+
+## #2070 fix: the dead `dominant_direction` vs `selectivity_class` comparison
+
+The original `thin_coverage_control_degrades` check compared `dominant_direction` (token space:
+up/down/None) against a set of degraded-CLASS tokens (`data_unavailable`,
+`discordant_across_comparators`, ...) — a comparison that could never fire, because
+`dominant_direction` can never hold those values. `_is_degraded_selectivity_class()` fixes the
+token-space mismatch by reading `selectivity_class` instead; `thin_coverage_control_degrades` is kept
+as a DIAGNOSTIC field (not gated into `all_pass`) since degradation is not HTR1D's applicable
+expectation in this vertical.
+`skills/tumor-selectivity/tests/test_scorecard_shard.py` has mutation teeth for both: a doctored
+(constant-class / all-missing) panel reds the applicable checks, AND a synthetic degraded-HTR1D row
+proves `_is_degraded_selectivity_class`/`thin_coverage_control_degrades` CAN fire on the correct
+field — RED-failing if the `dominant_direction` field-mismatch bug is reintroduced.
+
+## Power/coverage grading = NULL with named blocker #1663
+
+`n_tumor`/`n_adjacent` are stranded (`None`) panel-wide in this vintage (flagships included), so
+there is zero power/coverage variation to grade a genuine power dimension on. `panel_consistency`
+therefore reads NULL (never a fabricated GREEN) with `evidence["blocked_on"] == "#1663"` once the
+applicable, measurable conjuncts all pass; it reads RED only if one of those applicable conjuncts
+itself fails (a genuine defect, not a blocked dimension). Re-measure also owed at `#868`'s DGE
+re-materialization.
 
 NOTE ON PROVENANCE: as with tumor-presence, `eval/run_scorecard_panel.py --emit` (A0b #2000) times out
 at 900s for the full `--full-package` fan-out (per #2030) — `_load_package` drives tumor-selectivity's
@@ -132,9 +155,20 @@ ROSTER: tuple[tuple[str, str], ...] = (
 RUN_PY = SKILL_DIR / "scripts" / "run.py"
 PANEL_CACHE_DIR = SKILL_DIR / "scripts" / ".panel_cache"  # gitignored; see .panel_cache/.gitignore
 
-# Tokens that mean "this bucket read as data-limited/degraded", used to detect whether the
-# thin-coverage/abstention roster control (HTR1D) genuinely degrades relative to the others.
-_DEGRADED_DIRECTION_CLASSES = frozenset({"data_unavailable", "discordant_across_comparators"})
+# Tokens that mean "this bucket's selectivity CLASS read as data-limited/degraded" — a
+# `selectivity_class` token space (run.py's `tumor-vs-normal-selectivity` card summary), NOT a
+# `dominant_direction` token space (which only ever holds up/down/None). #2070 diagnosis: the
+# original comparison read `dominant_direction` against these tokens, which can never fire (a
+# dead comparison — the field can never hold the values being tested for).
+_DEGRADED_SELECTIVITY_CLASSES = frozenset(
+    {"data_unavailable", "discordant_across_comparators", "not_informative", "insufficient"}
+)
+
+
+def _is_degraded_selectivity_class(selectivity_class: str | None) -> bool:
+    """Token-space membership test (never a truthiness/identity shortcut) — kept as its own
+    function so the #2070 mutation-teeth test can assert it fires on a synthetic degraded row."""
+    return selectivity_class in _DEGRADED_SELECTIVITY_CLASSES
 
 
 def _load_package(target: str, indication: str, *, timeout: int = 300) -> tuple[dict | None, str | None]:
@@ -184,6 +218,8 @@ def collect_panel_rows() -> tuple[list[dict], dict]:
                 "status": "OK",
                 "source": source,
                 "dominant_direction": tvn_summary.get("dominant_direction"),
+                "selectivity_class": tvn_summary.get("selectivity_class"),
+                "comparator_concordance": tvn_summary.get("comparator_concordance"),
                 "therapeutic_window_class": window_summary.get("therapeutic_window_class"),
                 "card_data_unavailable": card_data_unavailable,
                 "card_data_unavailable_reason": (
@@ -210,20 +246,42 @@ def collect_panel_rows() -> tuple[list[dict], dict]:
 
     htr1d = next((r for r in ok_rows if r["target"] == "HTR1D"), None)
     others = [r for r in ok_rows if r["target"] != "HTR1D"]
+    # DIAGNOSTIC ONLY (#2070): whether HTR1D's selectivity_class reads as degraded relative to the
+    # rest of the roster, using the FIXED token-space comparison (selectivity_class, not
+    # dominant_direction — see _is_degraded_selectivity_class). This is NOT gated into all_pass:
+    # per eval/SCORECARD_PANEL_ROSTER.md's per-skill x per-target stress-expectation table, HTR1D's
+    # thin-coverage/abstention archetype lives in the surface-modality-fit vertical, NOT in
+    # tumor-selectivity's DGE vertical, where HTR1D's tumor-vs-normal read is fully materialized and
+    # genuinely strong/concordant. Coverage of an archetype stress is skill-relative; asserting
+    # degradation here would assert an inapplicable clause (issue #2070 decision pt.1/pt.4).
     thin_coverage_control_degrades = False
     if htr1d is not None and others:
-        htr1d_degraded = htr1d.get("dominant_direction") in _DEGRADED_DIRECTION_CLASSES
-        others_not_degraded = any(o.get("dominant_direction") not in _DEGRADED_DIRECTION_CLASSES for o in others)
+        htr1d_degraded = _is_degraded_selectivity_class(htr1d.get("selectivity_class"))
+        others_not_degraded = any(not _is_degraded_selectivity_class(o.get("selectivity_class")) for o in others)
         thin_coverage_control_degrades = htr1d_degraded and others_not_degraded
+
+    # APPLICABLE clause for tumor-selectivity's DGE vertical (issue #2070 decision pt.1): HTR1D's
+    # expectation here is exactly a measured strong-selective row with concordant comparators — the
+    # roster table's own per-skill entry for (HTR1D, tumor-selectivity). Comparator-discordance was
+    # considered and REJECTED as the DGE-vertical thin-control discriminator (decision pt.4): it
+    # fires on the EPCAM/KRAS flagships too (both discordant, 2/1 fam), so it cannot distinguish a
+    # genuine control from the flagships.
+    htr1d_matches_expected_archetype = bool(
+        htr1d is not None
+        and htr1d.get("selectivity_class") == "strong_tumor_selective"
+        and htr1d.get("comparator_concordance") == "concordant"
+    )
 
     checks = {
         "all_roster_rows_present": all_present,
         "direction_class_not_constant": len(direction_classes) > 1,
         "window_class_not_constant": len(window_classes) > 1,
-        "thin_coverage_control_degrades": thin_coverage_control_degrades,
+        "htr1d_matches_expected_archetype": htr1d_matches_expected_archetype,
     }
     checks["all_pass"] = all(checks.values())
     checks["all_card_data_unavailable"] = all_card_data_unavailable
+    # Diagnostic-only field, NOT part of all_pass — see comment above.
+    checks["thin_coverage_control_degrades"] = thin_coverage_control_degrades
     return rows, checks
 
 
@@ -235,9 +293,14 @@ def _panel_consistency_criterion() -> cs.Criterion:
             "per-target rows across the whole 5-target roster (not one flagship), COMPUTED live by "
             "collect_panel_rows() (see module docstring) rather than hand-typed: tumor-selectivity's "
             "verdict-bearing card classes must differ meaningfully across archetypes (flagship "
-            "surface, flagship intrinsic driver, amplified surface, pan-essential control, "
-            "thin-coverage abstention control) rather than collapsing to one constant reading, and the "
-            "thin-coverage control must show the honest degraded/limited reads its archetype predicts."
+            "surface, flagship intrinsic driver, amplified surface, pan-essential control) rather "
+            "than collapsing to one constant reading. HTR1D's thin-coverage/abstention archetype "
+            "lives in the surface-modality-fit vertical, NOT here (issue #2070 diagnosis + "
+            "eval/SCORECARD_PANEL_ROSTER.md's per-skill x per-target table): in tumor-selectivity's "
+            "DGE vertical, HTR1D's expectation is the OPPOSITE of degradation -- a measured "
+            "strong_tumor_selective, concordant row, checked by htr1d_matches_expected_archetype. "
+            "Coverage of an archetype stress is skill-relative; a global thin-coverage label applied "
+            "to every skill was the root cause this issue fixes."
         ),
         "roster_source": "eval/SCORECARD_PANEL_ROSTER.md",
         "capture_method": (
@@ -274,7 +337,32 @@ def _panel_consistency_criterion() -> cs.Criterion:
         )
         evidence["card_data_unavailable_by_target"] = unavailable
         return cs.Criterion(status=cs.NULL, evidence=evidence)
-    return cs.Criterion(status=(cs.GREEN if checks["all_pass"] else cs.RED), evidence=evidence)
+    # Power/coverage grading (issue #2070 decision pt.3): n_tumor/n_adjacent are stranded (None)
+    # panel-wide in this vintage — flagships included — so there is zero power/coverage variation
+    # to grade a genuine power dimension on. That dimension is structurally blocked on #1663, not
+    # merely unmeasured today, so this criterion can never honestly reach GREEN until it lands (a
+    # GREEN here would claim the panel exercises a power/coverage check it structurally cannot).
+    # The measurable, APPLICABLE conjuncts (rows present, direction/window non-constancy, HTR1D's
+    # skill-specific archetype match) are still scored: if any of those fail, that is a genuine
+    # defect and the criterion reads RED; if they all pass, the honest state is NULL (not GREEN),
+    # named against #1663. Re-measure also owed at #868's DGE re-materialization (n_tumor may
+    # populate then and enable a real power dimension).
+    evidence["blocked_on"] = "#1663"
+    evidence["blocked_on_note"] = (
+        "n_tumor/n_adjacent read None for every roster target in this vintage (flagships included) "
+        "-- zero power/coverage variation exists to grade a genuine power dimension on. Blocked on "
+        "#1663 (stranded n_tumor); re-measure also owed at #868's DGE re-materialization."
+    )
+    if not checks["all_pass"]:
+        return cs.Criterion(status=cs.RED, evidence=evidence)
+    evidence["null_reason"] = (
+        "all measurable/applicable conjuncts pass (rows present; direction/window classes "
+        "non-constant across the roster; HTR1D reads its tumor-selectivity-specific expectation -- "
+        "a measured strong_tumor_selective, concordant row), but the power/coverage grading "
+        "dimension is structurally blocked on #1663 -- left NULL rather than a GREEN the panel "
+        "cannot structurally earn."
+    )
+    return cs.Criterion(status=cs.NULL, evidence=evidence)
 
 
 # ── L2a / L2b / L3 / L4: all NOT_BUILT for this skill ──────────────────────────────────────────────

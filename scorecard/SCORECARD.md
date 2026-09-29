@@ -32,12 +32,12 @@ built and all four criteria are GREEN. Cells are never scored by verdict movemen
 | tractability-small-molecule | NULL | NULL | NULL | NULL | NULL |
 | translational-readiness | NULL | NULL | NULL | NULL | NULL |
 | tumor-presence | GREEN (a:G u:G f:G p:G) | NULL (a:- u:G f:G p:G) | NULL (a:- u:G f:G p:G) | NULL (a:- u:G f:G p:G) | NOT_BUILT |
-| tumor-selectivity | RED (a:- u:G f:G p:R) | NOT_BUILT | NOT_BUILT | NOT_BUILT | NOT_BUILT |
+| tumor-selectivity | NULL (a:- u:G f:G p:-) | NOT_BUILT | NOT_BUILT | NOT_BUILT | NOT_BUILT |
 
 ## Summary
 
 - cells: 110 (22 skills × 5 layers)
 - GREEN: 1
-- RED: 1
-- NULL: 87
+- RED: 0
+- NULL: 88
 - NOT_BUILT: 21

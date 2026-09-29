@@ -23,23 +23,29 @@
         },
         "panel_consistency": {
           "evidence": {
+            "blocked_on": "#1663",
+            "blocked_on_note": "n_tumor/n_adjacent read None for every roster target in this vintage (flagships included) -- zero power/coverage variation exists to grade a genuine power dimension on. Blocked on #1663 (stranded n_tumor); re-measure also owed at #868's DGE re-materialization.",
             "capture_method": "scorecard_adapter.py::_load_package -> skills/tumor-selectivity/scripts/run.py --target <T> --indication <I> (direct, no --full-package fan-out; per #2030, eval/run_scorecard_panel.py --emit times out at 900s)",
             "checks": {
               "all_card_data_unavailable": false,
-              "all_pass": false,
+              "all_pass": true,
               "all_roster_rows_present": true,
               "direction_class_not_constant": true,
+              "htr1d_matches_expected_archetype": true,
               "thin_coverage_control_degrades": false,
               "window_class_not_constant": true
             },
-            "method": "per-target rows across the whole 5-target roster (not one flagship), COMPUTED live by collect_panel_rows() (see module docstring) rather than hand-typed: tumor-selectivity's verdict-bearing card classes must differ meaningfully across archetypes (flagship surface, flagship intrinsic driver, amplified surface, pan-essential control, thin-coverage abstention control) rather than collapsing to one constant reading, and the thin-coverage control must show the honest degraded/limited reads its archetype predicts.",
+            "method": "per-target rows across the whole 5-target roster (not one flagship), COMPUTED live by collect_panel_rows() (see module docstring) rather than hand-typed: tumor-selectivity's verdict-bearing card classes must differ meaningfully across archetypes (flagship surface, flagship intrinsic driver, amplified surface, pan-essential control) rather than collapsing to one constant reading. HTR1D's thin-coverage/abstention archetype lives in the surface-modality-fit vertical, NOT here (issue #2070 diagnosis + eval/SCORECARD_PANEL_ROSTER.md's per-skill x per-target table): in tumor-selectivity's DGE vertical, HTR1D's expectation is the OPPOSITE of degradation -- a measured strong_tumor_selective, concordant row, checked by htr1d_matches_expected_archetype. Coverage of an archetype stress is skill-relative; a global thin-coverage label applied to every skill was the root cause this issue fixes.",
+            "null_reason": "all measurable/applicable conjuncts pass (rows present; direction/window classes non-constant across the roster; HTR1D reads its tumor-selectivity-specific expectation -- a measured strong_tumor_selective, concordant row), but the power/coverage grading dimension is structurally blocked on #1663 -- left NULL rather than a GREEN the panel cannot structurally earn.",
             "roster_source": "eval/SCORECARD_PANEL_ROSTER.md",
             "rows": [
               {
                 "card_data_unavailable": false,
                 "card_data_unavailable_reason": null,
+                "comparator_concordance": "discordant",
                 "dominant_direction": "up",
                 "indication": "COADREAD",
+                "selectivity_class": "field_effect_tumor_selective",
                 "source": "skills/tumor-selectivity/scripts/.panel_cache/EPCAM__coadread/decision.json",
                 "status": "OK",
                 "target": "EPCAM",
@@ -48,8 +54,10 @@
               {
                 "card_data_unavailable": false,
                 "card_data_unavailable_reason": null,
+                "comparator_concordance": "discordant",
                 "dominant_direction": "down",
                 "indication": "COADREAD",
+                "selectivity_class": "discordant_across_comparators",
                 "source": "skills/tumor-selectivity/scripts/.panel_cache/KRAS__coadread/decision.json",
                 "status": "OK",
                 "target": "KRAS",
@@ -58,8 +66,10 @@
               {
                 "card_data_unavailable": false,
                 "card_data_unavailable_reason": null,
+                "comparator_concordance": "concordant",
                 "dominant_direction": "up",
                 "indication": "BRCA",
+                "selectivity_class": "strong_tumor_selective",
                 "source": "skills/tumor-selectivity/scripts/.panel_cache/ERBB2__brca/decision.json",
                 "status": "OK",
                 "target": "ERBB2",
@@ -68,8 +78,10 @@
               {
                 "card_data_unavailable": false,
                 "card_data_unavailable_reason": null,
+                "comparator_concordance": "concordant",
                 "dominant_direction": "up",
                 "indication": "COADREAD",
+                "selectivity_class": "strong_tumor_selective",
                 "source": "skills/tumor-selectivity/scripts/.panel_cache/PLK1__coadread/decision.json",
                 "status": "OK",
                 "target": "PLK1",
@@ -78,8 +90,10 @@
               {
                 "card_data_unavailable": false,
                 "card_data_unavailable_reason": null,
+                "comparator_concordance": "concordant",
                 "dominant_direction": "up",
                 "indication": "COADREAD",
+                "selectivity_class": "strong_tumor_selective",
                 "source": "skills/tumor-selectivity/scripts/.panel_cache/HTR1D__coadread/decision.json",
                 "status": "OK",
                 "target": "HTR1D",
@@ -88,7 +102,7 @@
             ],
             "status_as_of": "2026-09-29"
           },
-          "status": "RED"
+          "status": "NULL"
         },
         "utilization": {
           "evidence": {

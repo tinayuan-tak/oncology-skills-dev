@@ -81,6 +81,36 @@ driven indication — running it in COADREAD would misrepresent the amplified-an
 meant to exercise). This mirrors the plan's own KRAS/LUAD-vs-COADREAD-style indication-per-archetype
 pattern rather than forcing one indication where the biology does not fit.
 
+## Per-skill x per-target stress-expectation table (issue #2070, coordinator decision on epic #1985)
+
+The table above assigns each target ONE global archetype label ("thin-coverage control", "pan-
+essential control", ...). Issue #2070 found that a global label projected blindly onto every
+adapter's `panel_consistency` check is itself a bug: HTR1D's archetype-defining property (surface
+derived products are data-blocked) lives in the **surface-modality-fit** vertical, not in
+**tumor-selectivity**'s DGE vertical, where HTR1D's tumor-vs-normal read is fully materialized and
+reads a confident, concordant `strong_tumor_selective` — the panel's LARGEST fold-change
+(max|log2fc|=5.79), coverage-equivalent to flagship ERBB2/PLK1 (live diagnosis, 2026-09-29,
+`AWS_PROFILE=cbg`, see issue #2070 comment `issuecomment-5884692550`). **Coverage of an archetype
+stress is skill-relative** — a per-skill adapter must assert only the stress its OWN vertical can
+actually exercise, per this table. Cells with no live per-skill diagnosis run are marked `not
+asserted` rather than guessed; this table is honest to the evidence in hand, not aspirational.
+
+| target | surface-modality-fit | on-target-safety-liability | tumor-selectivity (DGE vertical) | mechanism-and-pharmacology / target-intrinsic / tumor-presence |
+|---|---|---|---|---|
+| **EPCAM** | primary archetype home — confident ADC/TCE-viable surface call (broad+focal epithelial antigen); `known_target_calibration_set.yaml reference_profiles.EPCAM` | not asserted (no live per-skill diagnosis run for this issue) | measured `field_effect_tumor_selective`, dir=up, comparators discordant (2/1 fam), sig_all=False, max\|log2fc\|=2.10 — flagship, but NOT the panel's most concordant DGE read (live diagnosis 2026-09-29) | not asserted |
+| **KRAS** | not applicable — KRAS is the flagship intrinsic-driver/non-surface contrast, deliberately not a surface play | not asserted | measured `discordant_across_comparators`, dir=down, comparators discordant (2/1 fam), sig_all=False, max\|log2fc\|=0.67 — the panel's weakest/most-discordant DGE read (on par with EPCAM's discordance; live diagnosis 2026-09-29) | not asserted |
+| **ERBB2** | primary archetype home — amplification-driven surface antigen (cis-dosage story); not yet live-diagnosed by this issue | not asserted | measured `strong_tumor_selective`, dir=up, comparators concordant (2/2 fam), sig_all=True, max\|log2fc\|=5.21 (live diagnosis 2026-09-29) | not asserted |
+| **PLK1** | not applicable — pan-essential control, not a surface archetype | primary archetype home — #1794 broad-tox arm (pan-essential killer); not yet live-diagnosed by this issue | measured `strong_tumor_selective`, dir=up, comparators concordant (2/2 fam), sig_all=True, max\|log2fc\|=3.05 — PLK1's essentiality does NOT degrade its own-tissue DGE read either (live diagnosis 2026-09-29) | not asserted |
+| **HTR1D** | primary archetype home — confirmed `insufficient` abstention, surface derived products data-blocked (E2/F gate); `known_target_calibration_set.yaml abstention_cases.HTR1D`, `htr1d_coadread.surface-modality-fit.json` | plausible per the roster rationale (non-oncology GPCR; BURDEN/DOSAGE/CLINVAR/MOUSE_KO/NORMAL_TISSUE legs plausibly thin beyond CONSTRAINT/gnomAD) — **UNVERIFIED, no live per-skill diagnosis run yet; do not assume** | **does NOT apply** — measured `strong_tumor_selective`, dir=up, comparators concordant (2/2 fam), sig_all=True, max\|log2fc\|=5.79 (the panel's LARGEST fold-change). The calibration set's own note (`abstention_cases.HTR1D`) confirms: "A/B upstream read strong; the abstention is at the surface (E2/F) gate" — HTR1D's thin-coverage character is surface-specific, not DGE-wide. `tumor-selectivity`'s HTR1D expectation is exactly this strong, concordant read — NOT a degraded one. Comparator-discordance was considered as an alternate DGE-vertical thin-control discriminator and REJECTED (issue #2070 decision pt.4): it fires on the flagship EPCAM/KRAS pair too (both discordant, 2/1), so it does not cleanly separate a control from the flagships. | not asserted (tumor-presence's own per-target roster envelope work is tracked separately on issue #2071) |
+
+Power/coverage grading (the dimension that WOULD let an adapter grade a genuine "thin" read
+quantitatively rather than by class label alone) is structurally blocked panel-wide: `n_tumor` reads
+`None` for every target in this vintage (flagships included), so zero power variation exists to
+grade on. Tracked as **#1663**; re-measure also owed at `#868`'s DGE re-materialization (`n_tumor`
+may populate then). Until #1663 lands, `tumor-selectivity`'s `panel_consistency` criterion for the
+power/coverage dimension stays `NULL` (never a fabricated pass) rather than `RED` on an inapplicable
+clause or a fabricated `GREEN`.
+
 ## Non-goals (explicitly deferred, per issue #1994)
 - No harness config wiring — that step is blocked on A0a (#1987) landing the scorecard schema +
   sharded persistence. This file is deliberately schema-agnostic (plain markdown table, no YAML tied
