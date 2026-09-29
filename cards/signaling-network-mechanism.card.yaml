@@ -126,6 +126,14 @@ outputs:
       preferred_surfaces: [markdown, decision_memo]
       primary: true
 
+# CANONICAL SOURCE for the network_class edge-count cutoffs. These are coarse
+# annotation-DENSITY heuristics (not biological cutoffs) applied to deduped-union
+# edge counts. This block is the single authoritative definition; the analysis-
+# methods readers (methods/mechanism_composed/read.py, methods/signor_mechanism_network/read.py)
+# hold module-constant MIRRORS pinned to these values by a drift-guard test
+# (tests/methods/mechanism_composed/test_network_class_threshold_mirror_guard.py).
+# Whether to replace the 4-bucket enum with a graded edge-density measure is
+# tracked separately (target-contracts #971); do not re-value here without it.
 thresholds:
   min_edges_well_characterized: 3
   max_edges_sparse: 1
