@@ -1,29 +1,96 @@
 {
   "cells": {
     "L1": {
-      "built": null,
+      "built": true,
       "criteria": {
         "accuracy": {
-          "evidence": null,
+          "evidence": {
+            "reason": "criterion (a) re-derivation from raw substrate is OUT OF SCOPE for this issue per #1990's own ask and its explicit safety note ('covered by the #1792/#1793/#1794 verification work \u2014 do not duplicate a re-derivation here'). A fixture of already-derived values can never fail; left NULL rather than fabricating a reconciliation this adapter was not asked to build."
+          },
           "status": "NULL"
         },
         "fail_open": {
-          "evidence": null,
-          "status": "NULL"
+          "evidence": {
+            "method": "the skill's own claim-record shadow builder (`run.py::_claim_record` -> `_skills_common.claim_record.assemble_claim_record`): `_safety_availability()` maps an unreachable/absent verdict token (data_unavailable/None) through this skill's own `_SAFETY_OPEN_WORLD` set to availability='not_wired', which the shared assembler forces to state='unknown', direction='neutral', magnitude.level='none' \u2014 never a manufactured directional finding out of absence (the shared open-world invariant, 'ignorance != negation'). This is the same fail-open class the #1792/#1793/#1794 closures fixed on the resolver side; this probe re-asserts it on the claim-record shadow side with seeded teeth.",
+            "status_as_of": "2026-09-29",
+            "tests": [
+              "skills/on-target-safety-liability/tests/test_claim_record_shadow.py::test_data_unavailable_is_open_world_noncommittal (ordinary path, pre-existing)",
+              "skills/on-target-safety-liability/tests/test_scorecard_l1_fail_open_probe.py::test_data_unavailable_degrades_conservatively_ordinary_path (ordinary path, re-asserted locally for this shard)",
+              "skills/on-target-safety-liability/tests/test_scorecard_l1_fail_open_probe.py::test_teeth_defeating_the_open_world_guard_lets_the_raw_token_leak (TEETH \u2014 monkeypatches run.py::_SAFETY_OPEN_WORLD to frozenset() and shows the record leaks the raw 'data_unavailable' token instead of unknown/not_wired; probe goes RED without the guard, GREEN with it)"
+            ]
+          },
+          "status": "GREEN"
         },
         "panel_consistency": {
-          "evidence": null,
-          "status": "NULL"
+          "evidence": {
+            "capture_method": "scorecard_adapter.py::_load_package -> skills/on-target-safety-liability/scripts/run.py --target <T> --indication <I>",
+            "checks": {
+              "all_pass": true,
+              "all_roster_rows_present": true,
+              "safety_verdict_not_constant": true
+            },
+            "method": "per-target rows across the whole 5-target roster (not one flagship), COMPUTED live by collect_panel_rows() (see module docstring) rather than hand-typed: this skill's verdict-bearing safety_verdict must differ meaningfully across archetypes (2 flagships, an amplified-surface target, PLK1's pan-essential broad-tox control, HTR1D's thin-coverage abstention control) rather than collapsing to one constant reading.",
+            "roster_source": "eval/SCORECARD_PANEL_ROSTER.md",
+            "rows": [
+              {
+                "indication": "COADREAD",
+                "safety_verdict": "normal_tissue_protein_safety_concern",
+                "source": "skills/on-target-safety-liability/scripts/.panel_cache/EPCAM__coadread/decision.json",
+                "status": "OK",
+                "target": "EPCAM"
+              },
+              {
+                "indication": "COADREAD",
+                "safety_verdict": "highly_constrained_safety_concern",
+                "source": "skills/on-target-safety-liability/scripts/.panel_cache/KRAS__coadread/decision.json",
+                "status": "OK",
+                "target": "KRAS"
+              },
+              {
+                "indication": "BRCA",
+                "safety_verdict": "human_genetics_safety_concern",
+                "source": "skills/on-target-safety-liability/scripts/.panel_cache/ERBB2__brca/decision.json",
+                "status": "OK",
+                "target": "ERBB2"
+              },
+              {
+                "indication": "COADREAD",
+                "safety_verdict": "highly_constrained_safety_concern",
+                "source": "skills/on-target-safety-liability/scripts/.panel_cache/PLK1__coadread/decision.json",
+                "status": "OK",
+                "target": "PLK1"
+              },
+              {
+                "indication": "COADREAD",
+                "safety_verdict": "tolerant_reduced_safety_risk",
+                "source": "skills/on-target-safety-liability/scripts/.panel_cache/HTR1D__coadread/decision.json",
+                "status": "OK",
+                "target": "HTR1D"
+              }
+            ],
+            "status_as_of": "2026-09-29"
+          },
+          "status": "GREEN"
         },
         "utilization": {
-          "evidence": null,
-          "status": "NULL"
+          "evidence": {
+            "coverage": "on-target-safety-liability ledgered (on LEDGERED_SKILLS_FLOOR); fleet-wide MIN_FLEET_SIGNAL_ROWS floor",
+            "method": "field_disposition.yaml ledger: every emitted summary_field carries an explicit disposition (signal|context|provenance|display). The fleet-wide guard (skills/tests/test_field_disposition_ledgers.py) enforces, once for every ledgered skill, that the declaration is well-formed and that every role:signal row is reader-reached or explicitly waived \u2014 on-target-safety-liability is on the frozen LEDGERED_SKILLS_FLOOR (may never quietly lose its ledger).",
+            "status_as_of": "2026-09-29",
+            "tests": [
+              "skills/tests/test_field_disposition_ledgers.py::test_ledgered_skills_only_grow",
+              "skills/tests/test_field_disposition_ledgers.py::test_every_ledger_is_wellformed",
+              "skills/tests/test_field_disposition_ledgers.py::test_the_fleet_reach_measurement_is_not_vacuous",
+              "skills/tests/test_field_disposition_ledgers.py::test_signal_fields_are_reader_reached_or_waived"
+            ]
+          },
+          "status": "GREEN"
         }
       },
-      "notes": null
+      "notes": "L1 = run.py::CARDS + their field_disposition.yaml ledger. accuracy = NULL by design per #1990 (re-derivation is covered by the #1792/#1793/#1794 verification work, not this issue). fail_open re-asserts the #1792/#1793/#1794 open-world regression class with seeded teeth on the claim-record shadow."
     },
     "L2a": {
-      "built": null,
+      "built": false,
       "criteria": {
         "accuracy": {
           "evidence": null,
@@ -42,10 +109,10 @@
           "status": "NULL"
         }
       },
-      "notes": null
+      "notes": "not built for on-target-safety-liability: this skill has no exported source_properties / integrated_properties / l3d evidence-package sections (the SK#1941 grain tumor-presence's L2a/L2b/L3 rests on) and no L4 synthesis/decision-view layer \u2014 an architecture gap by design, not a defect. built=false; no criterion may be measured on an unbuilt layer."
     },
     "L2b": {
-      "built": null,
+      "built": false,
       "criteria": {
         "accuracy": {
           "evidence": null,
@@ -64,10 +131,10 @@
           "status": "NULL"
         }
       },
-      "notes": null
+      "notes": "not built for on-target-safety-liability: this skill has no exported source_properties / integrated_properties / l3d evidence-package sections (the SK#1941 grain tumor-presence's L2a/L2b/L3 rests on) and no L4 synthesis/decision-view layer \u2014 an architecture gap by design, not a defect. built=false; no criterion may be measured on an unbuilt layer."
     },
     "L3": {
-      "built": null,
+      "built": false,
       "criteria": {
         "accuracy": {
           "evidence": null,
@@ -86,10 +153,10 @@
           "status": "NULL"
         }
       },
-      "notes": null
+      "notes": "not built for on-target-safety-liability: this skill has no exported source_properties / integrated_properties / l3d evidence-package sections (the SK#1941 grain tumor-presence's L2a/L2b/L3 rests on) and no L4 synthesis/decision-view layer \u2014 an architecture gap by design, not a defect. built=false; no criterion may be measured on an unbuilt layer."
     },
     "L4": {
-      "built": null,
+      "built": false,
       "criteria": {
         "accuracy": {
           "evidence": null,
@@ -108,7 +175,7 @@
           "status": "NULL"
         }
       },
-      "notes": null
+      "notes": "not built for on-target-safety-liability: this skill has no exported source_properties / integrated_properties / l3d evidence-package sections (the SK#1941 grain tumor-presence's L2a/L2b/L3 rests on) and no L4 synthesis/decision-view layer \u2014 an architecture gap by design, not a defect. built=false; no criterion may be measured on an unbuilt layer."
     }
   },
   "schema_version": 1,

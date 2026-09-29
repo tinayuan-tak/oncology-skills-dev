@@ -23,7 +23,7 @@ built and all four criteria are GREEN. Cells are never scored by verdict movemen
 | literature-context | NULL | NULL | NULL | NULL | NULL |
 | literature-risk-assessment | NULL | NULL | NULL | NULL | NULL |
 | mechanism-and-pharmacology | NULL (a:- u:G f:G p:G) | NOT_BUILT | NOT_BUILT | NOT_BUILT | NOT_BUILT |
-| on-target-safety-liability | NULL | NULL | NULL | NULL | NULL |
+| on-target-safety-liability | NULL (a:- u:G f:G p:G) | NOT_BUILT | NOT_BUILT | NOT_BUILT | NOT_BUILT |
 | query-target-evidence | NULL | NULL | NULL | NULL | NULL |
 | render-evidence-package | NULL | NULL | NULL | NULL | NULL |
 | surface-modality-fit | NULL (a:- u:G f:G p:G) | NOT_BUILT | NOT_BUILT | NOT_BUILT | NOT_BUILT |
@@ -39,5 +39,5 @@ built and all four criteria are GREEN. Cells are never scored by verdict movemen
 - cells: 110 (22 skills × 5 layers)
 - GREEN: 1
 - RED: 0
-- NULL: 92
-- NOT_BUILT: 17
+- NULL: 88
+- NOT_BUILT: 21
