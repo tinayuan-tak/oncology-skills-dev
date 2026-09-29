@@ -1,0 +1,29 @@
+{
+  "target": "KRAS",
+  "indication": "COADREAD",
+  "skill": "tumor-presence",
+  "card_id": "hpa-pathology-cancer-ihc",
+  "class_field": "protein_presence_class",
+  "rows_fixture": "hpa_ihc_rows/kras.hpa_pathology_cancer_ihc.rows.parquet",
+  "rows_md5": "451dd81d6cb463c75bd62ef7277c840e",
+  "n_cancer_type_rows": 20,
+  "hpa_cancer_type": "colorectal cancer",
+  "expected": {
+    "protein_presence_class": "ihc_detected_high",
+    "fraction_detected": 0.75,
+    "fraction_moderate_strong": 0.5833333333333334,
+    "staining_score": 1.5,
+    "n_high": 2,
+    "n_medium": 5,
+    "n_low": 2,
+    "n_not_detected": 3,
+    "n_patients_total": 12,
+    "prognostic_type": "none",
+    "prognostic_is_significant": false,
+    "prognostic_p_value": null,
+    "hpa_cancer_type": "colorectal cancer"
+  },
+  "boundary": "validates the READ path (OncoTree->HPA cancer-type resolution + gene predicate pushdown + cancer_type row selection + field projection). The n_*/fraction/protein_presence_class aggregation is precomputed upstream in data-catalog's hpa-pathology-cancer-ihc-per-gene-v1 build; no aggregation arithmetic exists in analysis-methods.",
+  "_captured_at": "2026-09-29T05:08:24.115197+00:00",
+  "_provenance": "live cbg read of hpa-pathology-cancer-ihc-per-gene-v1 filtered to gene_symbol=='KRAS'; fixture = the per-cancer-type rows for the gene; re-derive with methods.hpa_pathology_cancer_ihc.read.read_target_summary (mock the pyarrow read_table seam)."
+}

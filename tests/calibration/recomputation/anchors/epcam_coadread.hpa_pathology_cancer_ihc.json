@@ -1,0 +1,29 @@
+{
+  "target": "EPCAM",
+  "indication": "COADREAD",
+  "skill": "tumor-presence",
+  "card_id": "hpa-pathology-cancer-ihc",
+  "class_field": "protein_presence_class",
+  "rows_fixture": "hpa_ihc_rows/epcam.hpa_pathology_cancer_ihc.rows.parquet",
+  "rows_md5": "d8f1044852c545661f7cf12613d6c3e7",
+  "n_cancer_type_rows": 20,
+  "hpa_cancer_type": "colorectal cancer",
+  "expected": {
+    "protein_presence_class": "ihc_detected_high",
+    "fraction_detected": 1.0,
+    "fraction_moderate_strong": 1.0,
+    "staining_score": 3.0,
+    "n_high": 12,
+    "n_medium": 0,
+    "n_low": 0,
+    "n_not_detected": 0,
+    "n_patients_total": 12,
+    "prognostic_type": "none",
+    "prognostic_is_significant": false,
+    "prognostic_p_value": null,
+    "hpa_cancer_type": "colorectal cancer"
+  },
+  "boundary": "validates the READ path (OncoTree->HPA cancer-type resolution + gene predicate pushdown + cancer_type row selection + field projection). The n_*/fraction/protein_presence_class aggregation is precomputed upstream in data-catalog's hpa-pathology-cancer-ihc-per-gene-v1 build; no aggregation arithmetic exists in analysis-methods.",
+  "_captured_at": "2026-09-29T05:08:23.898870+00:00",
+  "_provenance": "live cbg read of hpa-pathology-cancer-ihc-per-gene-v1 filtered to gene_symbol=='EPCAM'; fixture = the per-cancer-type rows for the gene; re-derive with methods.hpa_pathology_cancer_ihc.read.read_target_summary (mock the pyarrow read_table seam)."
+}
