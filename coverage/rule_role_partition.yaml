@@ -12,9 +12,9 @@ attribution_keypaths:
 - post_resolver_clamp/modality_conditional/expected_inert_arms/[]/rule_id
 - resolve/[]/driving_rule
 counts:
-  total: 454
+  total: 453
   gating: 155
-  display: 299
+  display: 298
 gating:
 - adc-preferred-supportive
 - alteration-role-gof-driver-supportive
@@ -276,7 +276,6 @@ display:
 - gpcr-adc-concern
 - gpi-anchored-adc-concern
 - has-cooccurring-driver-supportive
-- has-pd-marker-supportive
 - ihc-high-supportive
 - ihc-low-opposing
 - ihc-medium-supportive

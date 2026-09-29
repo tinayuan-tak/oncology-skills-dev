@@ -3648,9 +3648,10 @@ rules:
       degrader: supportive
     rationale: |
       >= 3 upstream regulators AND >= 3 downstream effectors in the composed
-      network (SIGNOR + CollecTRI + Reactome). Well-characterized network
-      context — MoA hooks + PD marker candidates are enumerable. Supportive
-      for both SM and degrader modalities.
+      network (SIGNOR + CollecTRI curated edges; Reactome is pathway context
+      only and contributes 0 counted edges/MoA classes). Well-characterized
+      network context — MoA hooks + PD marker candidates are enumerable.
+      Supportive for both SM and degrader modalities.
 
   - rule_id: mechanism-partial-neutral
     when:
@@ -3678,7 +3679,8 @@ rules:
       small_molecule: neutral
       degrader: neutral
     rationale: |
-      0-1 curated edges in the composed network (SIGNOR + CollecTRI + Reactome).
+      0-1 curated edges in the composed network (SIGNOR + CollecTRI; Reactome is
+      pathway context only and contributes 0 counted edges/MoA classes).
       Mechanism-of-action reasoning is unconstrained by prior signaling context —
       governance readers should require additional mechanism evidence before
       nomination. NEUTRAL, not opposing (B6-M05): network sparsity is a CURATION
@@ -3699,21 +3701,17 @@ rules:
       small_molecule: insufficient
       degrader: insufficient
     rationale: |
-      Target not present in the composed network (SIGNOR + CollecTRI +
-      Reactome). Coverage gap; not opposing evidence.
+      Target not present in the composed network (SIGNOR + CollecTRI; Reactome
+      is pathway context only and contributes 0 counted edges/MoA classes).
+      Coverage gap; not opposing evidence.
 
-  - rule_id: has-pd-marker-supportive
-    when:
-      card_id: signaling-network-mechanism
-      field: has_pd_marker
-      equals: 'true'
-    signals:
-      small_molecule: supportive
-      degrader: supportive
-    rationale: |
-      At least one downstream effector identified. PD-marker candidates
-      exist for pharmacodynamic monitoring — a governance-critical
-      trial-design signal.
+  # has-pd-marker-supportive was removed here (2026-09-29, #1810): the rung was
+  # STRUCTURALLY DEAD (proven 0/7 across the panel — has_pd_marker fires iff
+  # n_downstream >= 1, which forces network_class into a shape rung that always
+  # co-fires and outranks it) and was already dropped from the verdict resolver
+  # in mechanism.resolver.yaml v1.2.0 (2026-09-07). The PD marker survives
+  # non-verdictally as headline.has_pd_marker + pd_marker_classes_present.
+  # Verdict byte-stable; only the never-winning per-modality claim rung is gone.
 
   # ============================================================================
   # Phase E — Co-mutation-and-mutual-exclusivity card (added 2026-07-08)
