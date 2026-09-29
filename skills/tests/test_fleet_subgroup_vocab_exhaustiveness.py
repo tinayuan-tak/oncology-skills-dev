@@ -95,12 +95,17 @@ _RUNTIME_BOUND_OVERRIDE = {
 # To close a piecewise instance: add the token to the skill's _*_VALUE_TIERS map AND delete it here.
 _KNOWN_DEFAULTING = {
     "cis-feature-coherence": frozenset(),  # map is COMPLETE against its live card vocab (#1595)
-    # on-target-safety-liability: 33 unmapped (28 invert a present signal to `absent` = under-reads)
+    # on-target-safety-liability: 34 unmapped (29 invert a present signal to `absent` = under-reads)
     "on-target-safety-liability": frozenset(
         {
             "broad_normal_protein",
             "broadly_dependent",
             "common_essential",
+            # #1794 (card 3.1.0): anchor-unreachable well-powered pan-essential — LEDGERED beside its
+            # sibling common_essential (mapping only the new token would rank an UNVERIFIED
+            # pan-essential above the verified one in the panel); promoting the whole family out of
+            # default_classify is the #1644 worklist's call, not this wiring's.
+            "common_essential_unanchored",
             "common_essential_underpowered",
             "critical_organ_liability",
             "data_unavailable",
@@ -419,12 +424,16 @@ _KNOWN_DEFAULTING = {
             "very_low",
         }
     ),
-    # functional-requirement: 34 unmapped (25 invert a present signal to `absent` = under-reads)
+    # functional-requirement: 35 unmapped (26 invert a present signal to `absent` = under-reads)
     "functional-requirement": frozenset(
         {
             "broadly_dependent",
             "broadly_lineage_dependent",
             "common_essential",
+            # #1794 (card 3.1.0): anchor-unreachable well-powered pan-essential — LEDGERED beside its
+            # sibling common_essential (same measured dependency magnitude, missing corroboration only;
+            # the family's promotion out of default_classify belongs to the #1644 worklist).
+            "common_essential_unanchored",
             "common_essential_underpowered",
             "crispr_confirmed_engagement",
             "data_unavailable",

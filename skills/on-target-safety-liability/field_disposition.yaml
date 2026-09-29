@@ -511,6 +511,10 @@ functional-gene-state:
     reason: "role:provenance (audit / identity / method token); role adjudicated by sibling ledger(s) ['genomic-alteration-profile'] for this shared card, reused for fleet consistency"
     reviewed: true
 pan-cancer-crispr-dependency-distribution:
+  broad_dependency_band:
+    role: signal
+    reason: "role:signal (VERDICT-BEARING categorical, #1794 pan-essential fail-open closure: partial_broad_band fires broad-dependency-partial-tox-safety-warning -> safety.resolver 2.4.0 rung -> GRADED broad_dependency_partial_tox_concern — the 0.60-0.85 strongly-dependent band previously read CLEAN and co-corroborated the tolerant reassurance); reach: gating_rule + EXACT skill_code headline read + claim_passthrough atom (this PR)"
+    reviewed: true
   chronos_iqr:
     role: context
     reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['functional-requirement'] for this shared card, reused for fleet consistency"

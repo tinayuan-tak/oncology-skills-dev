@@ -23,6 +23,31 @@ cd-antigen-backbone:
   method_version: 1.0.0
   on_cd_roster: false
   target: TACSTD2
+cellline-surfaceome-abundance:
+  allgene_percentile: 99.7691317841193
+  allgene_percentile_class: top_1pct
+  allgene_percentile_context: depmap-surfaceome-paired-per-protein-v1 panel-wide metric=median_surface_log2
+    source=depmap_surfaceome_dia_ms
+  fraction_detected: 0.8281
+  fraction_lines_predicted_enriched: 0.9245283018867925
+  log2_abundance_iqr: 2.1437026640740946
+  median_enrichment_log2ratio: 1.544312017292686
+  median_log2_abundance_panel: 18.51336549238804
+  median_pr_auc: 0.563190557185432
+  method_version: 0.1.0
+  n_cell_lines_evaluated: 53
+  n_cell_lines_in_panel: 64
+  n_lineage_restricted_lineages: 0
+  n_lineages_evaluated: 0
+  n_lines_enrichment_evaluated: 51
+  p25_log2_abundance_panel: 17.157619064674584
+  p5_log2_abundance_panel: 13.345712853766136
+  p75_log2_abundance_panel: 19.30132172874868
+  p95_log2_abundance_panel: 19.96665981383737
+  per_lineage_stats: []
+  protein_abundance_source: depmap_surfaceome_dia_ms
+  protein_expression_class: broadly_high
+  surface_localization_class: surface_confirmed
 copy-number-distribution:
   cn_assay_used: wes
   cn_distribution_shape: del_dominant

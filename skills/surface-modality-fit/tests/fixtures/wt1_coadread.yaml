@@ -25,6 +25,26 @@ cd-antigen-backbone:
   method_version: 1.0.0
   on_cd_roster: false
   target: WT1
+cellline-surfaceome-abundance:
+  allgene_percentile: null
+  allgene_percentile_class: data_unavailable
+  allgene_percentile_context: depmap-surfaceome-paired-per-protein-v1 panel-wide metric=median_surface_log2
+    source=depmap_surfaceome_dia_ms
+  fraction_detected: 0.0
+  fraction_lines_predicted_enriched: null
+  median_enrichment_log2ratio: null
+  median_log2_abundance_panel: null
+  median_pr_auc: null
+  method_version: 0.1.0
+  n_cell_lines_evaluated: 0
+  n_cell_lines_in_panel: 64
+  n_lineage_restricted_lineages: 0
+  n_lineages_evaluated: 0
+  n_lines_enrichment_evaluated: 0
+  per_lineage_stats: []
+  protein_abundance_source: data_unavailable
+  protein_expression_class: data_unavailable
+  surface_localization_class: insufficient
 copy-number-distribution:
   cn_assay_used: wes
   cn_distribution_shape: del_dominant

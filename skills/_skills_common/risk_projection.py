@@ -46,6 +46,11 @@ _SAFETY_BINS = {
     "normal_tissue_protein_safety_concern": 2,
     "human_genetics_safety_concern": 1,
     "moderately_constrained_safety": 1,
+    # #1794 (safety.resolver 2.4.0): graded partial broad-dependency caution (0.60-0.85 band, resolver
+    # priority 6 — below the human-genetics HOLD, above every tolerant rung). A MEASURED concern →
+    # mid bin 1 (never the 0 default: that is the fail-toward-safe under-read #1573 closed), NOT the
+    # HOLD bin 2 (deliberately not a nomination-gate hold; a caution must not project as one).
+    "broad_dependency_partial_tox_concern": 1,
     "tolerant_reduced_safety_risk": 0,
 }
 _SAFETY_DEFAULTED = frozenset({"data_unavailable", "insufficient"})

@@ -82,6 +82,10 @@ _NORMAL_TISSUE_BREADTH = {"broad_normal_expression": "weak"}  # measured moderat
 # underpowered/unavailable → an unmeasured named gap.
 _PAN_ESSENTIAL = {
     "common_essential": "absent",  # broad-tox liability (concern)
+    # #1794: anchor-UNREACHABLE well-powered >=85% call — the resolver HOLDs it with the same token as
+    # the curated arm (an UNVERIFIABLE pan-essential must never read safe), so the safe-valence row
+    # mirrors common_essential exactly. NOT the underpowered "weak": the fraction here IS trusted.
+    "common_essential_unanchored": "absent",
     "broadly_dependent": "weak",  # dependent in many (not pan) lineages → partial-breadth liability
     "common_essential_underpowered": "weak",
     "strongly_selective": "strong",  # MEASURED: selective → a window exists (safe)

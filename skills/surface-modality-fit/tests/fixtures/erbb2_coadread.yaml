@@ -29,6 +29,31 @@ cd-antigen-backbone:
   method_version: 1.0.0
   on_cd_roster: true
   target: ERBB2
+cellline-surfaceome-abundance:
+  allgene_percentile: 99.6631594883052
+  allgene_percentile_class: top_1pct
+  allgene_percentile_context: depmap-surfaceome-paired-per-protein-v1 panel-wide metric=median_surface_log2
+    source=depmap_surfaceome_dia_ms
+  fraction_detected: 1.0
+  fraction_lines_predicted_enriched: 1.0
+  log2_abundance_iqr: 1.5926472594863093
+  median_enrichment_log2ratio: 3.624527235763722
+  median_log2_abundance_panel: 18.014959008944686
+  median_pr_auc: 0.5640291082888738
+  method_version: 0.1.0
+  n_cell_lines_evaluated: 64
+  n_cell_lines_in_panel: 64
+  n_lineage_restricted_lineages: 0
+  n_lineages_evaluated: 0
+  n_lines_enrichment_evaluated: 64
+  p25_log2_abundance_panel: 17.185195182827215
+  p5_log2_abundance_panel: 15.289647042528241
+  p75_log2_abundance_panel: 18.777842442313524
+  p95_log2_abundance_panel: 20.90578694942234
+  per_lineage_stats: []
+  protein_abundance_source: depmap_surfaceome_dia_ms
+  protein_expression_class: broadly_high
+  surface_localization_class: surface_confirmed
 copy-number-distribution:
   cn_assay_used: wes
   cn_distribution_shape: dispersed_neutral

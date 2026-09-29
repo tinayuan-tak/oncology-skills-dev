@@ -1201,7 +1201,7 @@
     "driving_role": "neutral",
     "masked_conflict": false,
     "n_cards_contributing": 10,
-    "n_rules_fired": 14,
+    "n_rules_fired": 13,
     "overruled_opposing_rules": [],
     "roles_present": [
       "neutral",
@@ -1257,14 +1257,6 @@
       "rationale_summary": ">= 3 upstream regulators AND >= 3 downstream effectors in the composed",
       "rule_id": "mechanism-well-characterized-supportive",
       "value": "well_characterized"
-    },
-    {
-      "card_id": "signaling-network-mechanism",
-      "dominant": false,
-      "field": "has_pd_marker",
-      "rationale_summary": "At least one downstream effector identified. PD-marker candidates",
-      "rule_id": "has-pd-marker-supportive",
-      "value": true
     },
     {
       "card_id": "paralog-buffering",
@@ -1323,7 +1315,7 @@
       "value": "present"
     }
   ],
-  "generated_at": "2026-09-29T00:11:14+00:00",
+  "generated_at": "2026-09-29T03:58:54+00:00",
   "headline": {
     "alphafold_confidence_class": "moderate",
     "best_measured_potency_neglog_m": 11.699,
@@ -2924,8 +2916,7 @@
           ],
           "role": "verdict_bearing",
           "rule_ids": [
-            "mechanism-well-characterized-supportive",
-            "has-pd-marker-supportive"
+            "mechanism-well-characterized-supportive"
           ],
           "signal": {
             "label": "well_characterized",
@@ -3785,8 +3776,7 @@
           },
           "role": "display_only",
           "rule_ids": [
-            "mechanism-well-characterized-supportive",
-            "has-pd-marker-supportive"
+            "mechanism-well-characterized-supportive"
           ],
           "seq": 3,
           "signal": {
@@ -3969,15 +3959,6 @@
           "is_driving": false,
           "rationale": ">= 3 upstream regulators AND >= 3 downstream effectors in the composed",
           "value": "well_characterized"
-        },
-        {
-          "card_id": "signaling-network-mechanism",
-          "dominant": false,
-          "field": "has_pd_marker",
-          "id": "has-pd-marker-supportive",
-          "is_driving": false,
-          "rationale": "At least one downstream effector identified. PD-marker candidates",
-          "value": true
         },
         {
           "card_id": "paralog-buffering",
@@ -4458,7 +4439,6 @@
           "measured-potent-ligand-sm-supportive",
           "measured-chembl-approved-sm-supportive",
           "mechanism-well-characterized-supportive",
-          "has-pd-marker-supportive",
           "strong-paralog-buffering-degrader-preferred",
           "moderately-constrained-safety-neutral",
           "clingen-dominant-loss-safety-warning",
@@ -4969,7 +4949,7 @@
       }
     },
     "resolver_release_pin": "resolver_v0.1.0-alpha",
-    "skills_repo_sha": "d8e090d"
+    "skills_repo_sha": "e214919"
   },
   "question": "What is known about EGFR INDEPENDENT of indication \u2014 its identity, on-target-safety genetics, protein-class/structure/modality biophysics, functional annotation, mechanism + pathway role, interactome, domain architecture + domain\u2192modality implication, and paralog buffering?",
   "run_health": {
@@ -4987,7 +4967,7 @@
     ],
     "cards_missing": [],
     "cards_skipped_a4": [],
-    "compute_secs": 2.0116,
+    "compute_secs": 1.7016,
     "n_cards_consumed": 20,
     "n_cards_fired": 10,
     "n_cards_resolved": 20,
@@ -4997,11 +4977,11 @@
         "family": "target-id-resolver-release"
       }
     ],
-    "read_secs": 1.2943,
+    "read_secs": 0.717,
     "skill_name": "target-intrinsic",
     "skill_version": "1.6.1",
     "status": "ok",
-    "total_secs": 13.6591
+    "total_secs": 10.7609
   },
   "skill": "target-intrinsic",
   "target": "EGFR"

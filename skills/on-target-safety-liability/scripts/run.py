@@ -70,7 +70,7 @@ from _skills_common.narrative import build_narrative
 from _skills_common.resolver import resolve_or_raise
 
 SKILL_NAME = "on-target-safety-liability"
-SKILL_VERSION = "1.22.0"  # 1.22.0 (2026-09-28, SK#1793 organ-coverage spine, PIN-COUPLED with TC b2e19734 / safety.resolver 2.3.0): the TPHP HPA-BLIND vital-organ view goes VERDICT-BEARING — consumes the 4 new tphp_normal_protein 0.5.0 fields (tphp_hpa_blind_vital_organ_liability_class + count/names/uncovered; AM ae94fb3e): census-visible headline reads (aperture ratchet), synthesis facet, NORMAL_TISSUE claim signal/evidence/atom + key-signals label (safety_claims.py), question-table normal-tissue leg (safety_question_table.py). vital_organ_abundant fires tphp-hpa-blind-vital-organ-protein-safety-warning (intracellular_intrinsic axis) → resolver rung → normal_tissue_protein_safety_concern HOLD — closes the thyroid/adrenal/pituitary/nerve/blood coverage hole where an HPA-absent + gnomAD-tolerant target previously resolved REASSURING (tolerant_reduced_safety_risk). hpa_blind_vital_organs_uncovered surfaces the explicit coverage GAP (pituitary today), never silent absence. None-stable on pre-0.5.0 packages: all reads/claims degrade to the pre-1.22.0 bytes when the fields are absent (replay fixtures byte-stable).   # 1.21.0 (2026-09-28, SK#1792): whole-axis coverage gating on the SURFACED confidence — critical_axes broadened from ("CONSTRAINT",) to all 7 legs, so a clean verdict measured on gnomAD-tolerant alone is confidence-capped `weak` ("capped by thin coverage") instead of reading `strong`/`moderate`; question-table per-leg confidence graded from the claim-vector corroboration (high/moderate/single_arm/low) instead of a flat `moderate` (safety_question_table.py). Verdict-INERT: resolver/scalar verdict byte-stable (test_safety_replay); only headline_block.confidence + question_table confidence cells move.   # 1.20.0 (2026-09-24, L2b-3 / SK#1546): +sc-normal-celltype-expression card to feed a new VERDICT-INERT cross-source claim `normal_liability_concordance` (GTEx bulk × scRNA-normal × HPA-IHC normal-tissue liability, deterministic/no-LLM, on safety_claim_vector). The sc-normal veto enters the fired list but is NOT a safety.resolver rung nor in wt_loss_safety_conditioning ⇒ scalar + per-modality verdict byte-stable (test_safety_replay). Advances the evidence-property epic #1507 scorecard M3 (vocabulary reuse 2→3).   # 1.19.0 (2026-09-10, T0-3): +normal-tissue-protein-abundance-tphp (TPHP DIA-MS QUANTITATIVE vital-organ PROTEIN — tphp_vital_organ_liability_class). The safety substrate had RNA (GTEx) + categorical IHC (HPA) but NO quantitative protein; this fills the endocrine/vascular/CNS organs HPA-IHC is blind to (nerve/muscle/blood/adrenal/thyroid). VERDICT-INERT display CONTEXT: the card's rules live on the tumor-selectivity axis, not this skill's intracellular_intrinsic rules_scope, so it fires no safety rung and the scalar verdict is byte-stable. Backtested SM/degrader gate rule is a deliberate follow-on.   # 1.18.0 (2026-09-07, CASE-009 literature-discordance loop): +VERDICT-INERT pharmacovigilance_scope_caveat — clarifies drug_warning_class='no_warning' = no OT-registered FDA warning among engaging drugs, NOT absence of on-target toxicity (mechanism-based dose-limiting tox — TLS/cytopenias/neuropathy — often not boxed). Fires only on the measured-negative no_warning state; verdict/resolver/golden/replay byte-stable.
+SKILL_VERSION = "1.23.0"  # 1.23.0 (2026-09-29, SK#1794 pan-essential fail-open closure, PIN-COUPLED with TC fb43651e / safety.resolver 2.4.0 + AM 507439fc depmap_chronos_distribution 0.3.0): registers the two new verdict paths the resolver grew — (a) dependency_class == common_essential_unanchored (well-powered >=85% strongly-dependent fraction, curated core-essential anchor UNREACHABLE; split out of the safety-DARK common_essential_underpowered) fires pan-essential-unanchored-broad-tox-safety-warning → the SAME pan_essential_broad_tox_concern HOLD as the curated arm (an unverifiable pan-essential is a concern, never clean; driving_rule keeps provenance distinct); (b) broad_dependency_band == partial_broad_band (the 0.60-0.85 band that previously read CLEAN and co-corroborated the TC#895 tolerant reassurance) fires broad-dependency-partial-tox-safety-warning → NEW GRADED verdict broad_dependency_partial_tox_concern (caution ABOVE every tolerant rung, BELOW the HOLDs; deliberately NOT a nomination-gate hold — tp_gates registers it recognized/non-gating so the 12/504 band carriers stop fail-closing to a forced hold at pin time). Wiring: census-visible headline read of broad_dependency_band + synthesis-facet key; verdict phrase + concern polarity; risk_projection _SAFETY_BINS=1; PAN_ESSENTIAL claim signal/evidence + atom field + question-table row for common_essential_unanchored; resolver goldens (safety 19→21 rule_ids, dependency 26→27) + field_read_health regen. None-stable on pre-0.3.0 packages (band reads None; replay byte-stable).   # 1.22.0 (2026-09-28, SK#1793 organ-coverage spine, PIN-COUPLED with TC b2e19734 / safety.resolver 2.3.0): the TPHP HPA-BLIND vital-organ view goes VERDICT-BEARING — consumes the 4 new tphp_normal_protein 0.5.0 fields (tphp_hpa_blind_vital_organ_liability_class + count/names/uncovered; AM ae94fb3e): census-visible headline reads (aperture ratchet), synthesis facet, NORMAL_TISSUE claim signal/evidence/atom + key-signals label (safety_claims.py), question-table normal-tissue leg (safety_question_table.py). vital_organ_abundant fires tphp-hpa-blind-vital-organ-protein-safety-warning (intracellular_intrinsic axis) → resolver rung → normal_tissue_protein_safety_concern HOLD — closes the thyroid/adrenal/pituitary/nerve/blood coverage hole where an HPA-absent + gnomAD-tolerant target previously resolved REASSURING (tolerant_reduced_safety_risk). hpa_blind_vital_organs_uncovered surfaces the explicit coverage GAP (pituitary today), never silent absence. None-stable on pre-0.5.0 packages: all reads/claims degrade to the pre-1.22.0 bytes when the fields are absent (replay fixtures byte-stable).   # 1.21.0 (2026-09-28, SK#1792): whole-axis coverage gating on the SURFACED confidence — critical_axes broadened from ("CONSTRAINT",) to all 7 legs, so a clean verdict measured on gnomAD-tolerant alone is confidence-capped `weak` ("capped by thin coverage") instead of reading `strong`/`moderate`; question-table per-leg confidence graded from the claim-vector corroboration (high/moderate/single_arm/low) instead of a flat `moderate` (safety_question_table.py). Verdict-INERT: resolver/scalar verdict byte-stable (test_safety_replay); only headline_block.confidence + question_table confidence cells move.   # 1.20.0 (2026-09-24, L2b-3 / SK#1546): +sc-normal-celltype-expression card to feed a new VERDICT-INERT cross-source claim `normal_liability_concordance` (GTEx bulk × scRNA-normal × HPA-IHC normal-tissue liability, deterministic/no-LLM, on safety_claim_vector). The sc-normal veto enters the fired list but is NOT a safety.resolver rung nor in wt_loss_safety_conditioning ⇒ scalar + per-modality verdict byte-stable (test_safety_replay). Advances the evidence-property epic #1507 scorecard M3 (vocabulary reuse 2→3).   # 1.19.0 (2026-09-10, T0-3): +normal-tissue-protein-abundance-tphp (TPHP DIA-MS QUANTITATIVE vital-organ PROTEIN — tphp_vital_organ_liability_class). The safety substrate had RNA (GTEx) + categorical IHC (HPA) but NO quantitative protein; this fills the endocrine/vascular/CNS organs HPA-IHC is blind to (nerve/muscle/blood/adrenal/thyroid). VERDICT-INERT display CONTEXT: the card's rules live on the tumor-selectivity axis, not this skill's intracellular_intrinsic rules_scope, so it fires no safety rung and the scalar verdict is byte-stable. Backtested SM/degrader gate rule is a deliberate follow-on.   # 1.18.0 (2026-09-07, CASE-009 literature-discordance loop): +VERDICT-INERT pharmacovigilance_scope_caveat — clarifies drug_warning_class='no_warning' = no OT-registered FDA warning among engaging drugs, NOT absence of on-target toxicity (mechanism-based dose-limiting tox — TLS/cytopenias/neuropathy — often not boxed). Fires only on the measured-negative no_warning state; verdict/resolver/golden/replay byte-stable.
 # 1.17.0 (2026-09-04): +OPTIONAL --literature lane (verdict-INERT LLM literature synthesis, Europe-PMC-grounded + PMID-verified via the shared _skills_common.literature_synthesis; run_wired_skill one-liner) mirroring genomic #982 / FR #987 / TP #965 / TS #968. + VERDICT-INERT signal-surfacing of the rich safety sub-fields the capsule projection ignored: a new PHARMACOVIGILANCE claim axis (on-target FDA warnings + toxicity classes of target-engaging drugs — OT drug-warning ⋈ MoA + OnSIDES boxed ADEs; confounded CONTEXT, corroboration capped, orients-not-holds), MOUSE_KO claim evidence += affected organ systems (organ_classes), CLINVAR claim evidence += confident germline-pathogenic variant count. PHARMACOVIGILANCE is LEFT OUT of the safety HeadlineSpec.axis_keys so headline_block/confidence/hero + the golden-oracle resolver + test_safety_replay verdict fixtures stay BYTE-STABLE. Verdict spine untouched.   # 1.16.0 (2026-08-28): + shet-lof-intolerance (continuous GeneBayes s_het, VERDICT-INERT complement to gnomAD constraint).   # 1.15.0: NET-NEW capsule-driven narrator (had none). Verdict-INERT.   # 1.14.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.  # 1.13.0 (2026-08-26): emit per-verdict `narrative` (movers/dissenters/
 # flip_conditions/rule_sentences) in the headline — VERDICT-INERT, best-effort
 # (Stage B of the interpretability workstream; safety pilot). Verdict byte-stable.
@@ -160,6 +160,11 @@ CARDS = [
     # a full-KO modality abrogates an essential function in NORMAL
     # tissue too. Same card the dependency skill vetoes as
     # pan_essential_killer (no window); here it is the SAFETY reading.
+    # #1794 (safety.resolver 2.4.0): two further arms — common_essential_
+    # unanchored (anchor UNREACHABLE, fraction trusted) fires the
+    # unanchored twin → the SAME HOLD; broad_dependency_band==
+    # partial_broad_band (0.60-0.85) fires the graded broad_dependency_
+    # partial_tox_concern caution (never a gate hold).
     # The modality-conditional read (mutant-selective sparing) lives in
     # the per-modality safety verdict, not a scalar-verdict downgrade.
     "normal-tissue-liability",  # (data-util expansion 2026-08-21) — HPA-IHC protein normal-tissue
@@ -278,6 +283,11 @@ _SAFETY_VERDICT_PHRASE = {
     "human_genetics_safety_concern": "Human-genetics safety concern",
     "pan_essential_broad_tox_concern": "Pan-essential — broad-tox safety concern",
     "normal_tissue_protein_safety_concern": "Essential-tissue protein — safety concern",
+    # #1794 (safety.resolver 2.4.0): GRADED caution for the 0.60-0.85 strongly-dependent band
+    # (broad_dependency_band == partial_broad_band) — a measured PARTIAL broad-tox liability,
+    # deliberately weaker than the HOLDs above (12/504 corpus carriers include managed clinical-stage
+    # targets) but stronger than every tolerant reassurance rung. A concern (red badge), never a gate.
+    "broad_dependency_partial_tox_concern": "Partial broad dependency (0.60–0.85 band) — graded broad-tox caution",
     # (mutant-selective downgrade RETIRED 2026-08-24 — modality-conditionality now in the per-modality
     #  safety verdict + tp_gates exists-safe-modality; the resolver emits the raw concern, no mismatch token)
     # tolerant / reduced-risk
@@ -296,6 +306,9 @@ _SAFETY_CONCERN_VERDICTS = frozenset(
         "human_genetics_safety_concern",
         "pan_essential_broad_tox_concern",
         "normal_tissue_protein_safety_concern",
+        # #1794: the graded partial broad-dependency caution IS a measured liability (undesirable for a
+        # full-KO program → negative badge) even though it is deliberately NOT a nomination-gate hold.
+        "broad_dependency_partial_tox_concern",
     }
 )
 _SAFETY_REASSURING_VERDICTS = frozenset(
@@ -618,6 +631,19 @@ def _headline(cards, fired, verdict_pair):
         "pan_essential_score": get_card_field(
             cards, "pan-cancer-crispr-dependency-distribution", "pan_essential_score"
         ),
+        # ★ #1794 (VERDICT-BEARING, TC safety.resolver 2.4.0 / card 3.1.0): SAFETY grading of the
+        # strongly-dependent fraction, orthogonal to dependency_class. partial_broad_band (0.60–0.85)
+        # fires broad-dependency-partial-tox-safety-warning → the GRADED broad_dependency_partial_tox_
+        # concern (a caution ABOVE every tolerant reassurance rung, BELOW the HOLDs — previously this
+        # band read CLEAN and even co-corroborated the TC#895 tolerant reassurance). The sibling
+        # dependency_class value common_essential_unanchored (well-powered >=85% fraction, curated
+        # anchor UNREACHABLE) fires pan-essential-unanchored-broad-tox-safety-warning → the SAME
+        # pan_essential_broad_tox_concern HOLD as the curated arm (unverified ≠ refuted; driving_rule
+        # keeps the arms distinct). None-stable: reads None on packages emitted before
+        # analysis-methods depmap_chronos_distribution 0.3.0 (507439fc).
+        "broad_dependency_band": get_card_field(
+            cards, "pan-cancer-crispr-dependency-distribution", "broad_dependency_band"
+        ),
         # HPA-IHC protein normal-tissue liability — verdict-moving via normal-tissue-protein-liability-
         # safety-warning (essential_tissue_flag==present → essential-tissue on-target-off-tumor tox).
         "essential_tissue_flag": get_card_field(cards, "normal-tissue-liability", "essential_tissue_flag"),
@@ -760,6 +786,10 @@ _SYNTHESIS_FACET_KEYS = (
     "mouse_ko_organ_systems",
     "dependency_class",
     "pan_essential_score",
+    # ★ #1794 — VERDICT-BEARING band (partial_broad_band → graded broad_dependency_partial_tox_concern;
+    # the composed synthesis must see WHICH regime the strongly-dependent fraction sits in). None on
+    # pre-0.3.0 packages (omitted → byte-stable).
+    "broad_dependency_band",
     "essential_tissue_flag",
     "normal_tissue_breadth_class",
     # TPHP DIA-MS quantitative vital-organ protein (T0-3) — display context for the full vital-organ

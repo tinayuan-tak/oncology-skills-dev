@@ -6,7 +6,7 @@ history live in SKILL.md / run.py; this file is the data-product spec.
 | | |
 |---|---|
 | **Skill** | `on-target-safety-liability` |
-| **Skill code version** | 1.22.0 |
+| **Skill code version** | 1.23.0 |
 | **Contract version** | 1.0.0 (emitted-output schema; versioned independently — see §4) |
 | **Role** | `gating` (the 4 concern verdicts force `action: hold`; polarity dynamic display-only; **no scalar killer** — safety is a HOLD, not a veto) |
 | **Verdict fields** | `headline.safety_verdict` (scalar = the honest raw WT-loss concern; `skill_report.call`) + `safety_verdict_by_modality` (the modality-conditional GoF-downgrade layer) |
@@ -64,8 +64,9 @@ cross-source claim; its veto rule enters the fired list but is not a resolver ru
 
 `output_shape: data_package` → the standard `write_package` tree. `decision.json` top-level:
 `skill · target · indication · question · generated_at · headline · cards · fired_rules · provenance ·
-run_health` (+ optional synthesis). Contractual headline fields: `safety_verdict` (pinned 8-value enum —
-the raw WT-loss concern; `skill_report.call`), `safety_verdict_by_modality` (10 modality-channel keys ×
+run_health` (+ optional synthesis). Contractual headline fields: `safety_verdict` (pinned 9-value enum —
+the raw WT-loss concern; `skill_report.call`; #1794 added the graded `broad_dependency_partial_tox_concern`
+caution for the 0.60–0.85 strongly-dependent band, safety.resolver 2.4.0), `safety_verdict_by_modality` (10 modality-channel keys ×
 `{action ∈ hold/conditional/supportive/not_applicable/no_concern, wt_engagement, driving_rules}` — the
 modality-conditional GoF layer where an allele-selective SM may spare WT), the `skill_report` spine
 (`role: gating`, dynamic `polarity`, `call` = `safety_verdict`), `headline_block`, `claim_vector`
@@ -76,7 +77,10 @@ modality-conditional GoF layer where an allele-selective SM may spare WT), the `
 ## 4. Contract & versioning (what is locked)
 
 Pinned by the generated, self-contained `on-target-safety-liability.decision.schema.json` (gating-scalar
-pins: `role: gating` + the 8-value `safety_verdict`/`call` enum = the safety resolver set = `_SAFETY_VERDICT_PHRASE`;
+pins: `role: gating` + the `safety_verdict`/`call` enum = the safety resolver set = `_SAFETY_VERDICT_PHRASE`
+— 9 values as of #1794 (the TC-side generated schema still carries the pre-#1794 8-value enum; per the
+change policy below it regenerates with the first package that can carry the new token, i.e. after the
+AM 0.3.0 emissions propagate — until then no package emits it, so the pin is inert);
 no run.py mints — the mutant-selective downgrade token was retired v2.0.0; no polarity const;
 `safety_verdict_by_modality` typed-open). CI: fresh-replay conformance (`test_safety_replay.py`),
 schema-well-formedness + static-golden-if-full (CI-fail-not-skip), cross-skill coverage ratchet,

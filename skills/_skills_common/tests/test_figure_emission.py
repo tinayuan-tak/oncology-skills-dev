@@ -459,7 +459,7 @@ def test_q5_tumor_concordance_figure_emission(tmp_path, monkeypatch):
         }
         for i in range(40)
     ]
-    monkeypatch.setattr(rpr, "_read_matched_cohort", lambda cohort: pd.DataFrame(rows))
+    monkeypatch.setattr(rpr, "_read_matched_cohort", lambda cohort, target=None: pd.DataFrame(rows))
     from _figure_emitters import emit_figures_for_card
 
     out_root = tmp_path / "compose_out"

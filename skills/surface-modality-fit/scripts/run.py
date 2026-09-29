@@ -511,6 +511,16 @@ CARDS = [
     # bite_tce-only) feed the surface_modality resolver's pmhc_tce_supported
     # rung (3b / 3b') when the folded surface is neither_viable — the pMHC-TCE
     # route for an intracellular oncoprotein (see the get_card_field lift below).
+    "cellline-surfaceome-abundance",  # (2026-09-28, surfaceome arc #2025): DepMap Consortium
+    # Surfaceome 26Q3 paired whole-cell + surface-enriched DIA-MS (64 gastric/eso lines) —
+    # the third cell-line protein-abundance MS platform sibling (cellline-protein-abundance
+    # Gygi TMT / -procan DIA-SWATH), scoped to the SURFACE-enriched layer plus a surface-vs-
+    # wholecell ENRICHMENT lens (surface_localization_class) that is unique to this paired
+    # assay — orthogonal MS evidence the antigen is genuinely surface-localized, not merely
+    # expressed. measurement_type cell_line_protein_abundance (REUSED, not minted).
+    # interpretation: rules_pending — no interpretation rule and no resolver rung keys this
+    # card_id, so it is ADDITIVE display-only: fit_class and every resolver rung stay byte-
+    # stable with or without it (verdict-INERT).
 ]
 
 QUESTION = (
@@ -1195,6 +1205,27 @@ def _headline(cards, fired, verdict_pair):
         "bulk_pair_best_and_call": get_card_field(cards, "surface-bulk-pair-selectivity", "best_and_call"),
         "bulk_pair_best_not_partner": get_card_field(cards, "surface-bulk-pair-selectivity", "best_not_partner"),
         "bulk_pair_n_partners_scanned": get_card_field(cards, "surface-bulk-pair-selectivity", "n_partners_scanned"),
+        # Surfaceome 26Q3 paired DIA-MS surface-confirmed abundance (cellline-surfaceome-abundance,
+        # #2025) — the third cell-line MS-platform sibling of surface-abundance-density's Gygi/ProCan
+        # readers, scoped to the SURFACE-enriched layer, plus its unique surface-vs-wholecell
+        # ENRICHMENT lens (surface_localization_class). interpretation: rules_pending on the card — no
+        # rule/rung reads either facet, so this projection is purely additive display: fit_class and
+        # every resolver rung stay byte-stable with or without it (verdict-INERT).
+        "surfaceome_protein_expression_class": get_card_field(
+            cards, "cellline-surfaceome-abundance", "protein_expression_class"
+        ),
+        "surfaceome_allgene_percentile_class": get_card_field(
+            cards, "cellline-surfaceome-abundance", "allgene_percentile_class"
+        ),
+        "surfaceome_localization_class": get_card_field(
+            cards, "cellline-surfaceome-abundance", "surface_localization_class"
+        ),
+        "surfaceome_median_enrichment_log2ratio": get_card_field(
+            cards, "cellline-surfaceome-abundance", "median_enrichment_log2ratio"
+        ),
+        "surfaceome_fraction_lines_predicted_enriched": get_card_field(
+            cards, "cellline-surfaceome-abundance", "fraction_lines_predicted_enriched"
+        ),
     }
     # Orthogonality facet (2026-08-07) — VERDICT-INERT display meta-facet. Counts the
     # INDEPENDENT surface-biology dimensions with supporting evidence (the 6-card presence

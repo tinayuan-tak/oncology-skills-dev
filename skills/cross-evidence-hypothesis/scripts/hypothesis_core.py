@@ -268,6 +268,10 @@ DIMENSION_CARDS: dict[str, frozenset[str]] = {
             "surfaceome-cohort-ranking",  # REVIVE role-2 (mirrors SUB_SKILL_CARDS[surface-modality-fit])
             "surface-bulk-pair-selectivity",  # bulk pair-selectivity facet (mirrors SUB_SKILL_CARDS)
             "pmhc-epitope-evidence-iedb",
+            # #2025: cell-line surfaceome MS abundance added to SUB_SKILL_CARDS[surface-modality-fit]
+            # (additive; no rule maps it, no resolver rung consumes it → composed surface verdict
+            # byte-stable), so this mirror must carry it too (test_dimension_cards_matches_spine).
+            "cellline-surfaceome-abundance",
         }
     ),  # 2026-08-25 IEDB pMHC epitope ground truth (mirrors SUB_SKILL_CARDS[surface-modality-fit]; verdict-inert display)
     "immune_context": frozenset(

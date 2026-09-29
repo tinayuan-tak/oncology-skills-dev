@@ -74,7 +74,7 @@ questions:
   axis_id: DENSITY
   role: verdict_bearing
   measurement_types: [surface_density, surface_confirmation, rna_protein_concordance,
-    sc_tumor_celltype_expression]
+    sc_tumor_celltype_expression, cell_line_protein_abundance]
 - id: safety_read
   seq: 4
   text: Is the normal-tissue window clean (on-target off-tumor safety for the TCE arm)?

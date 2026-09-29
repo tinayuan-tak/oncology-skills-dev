@@ -1,10 +1,10 @@
 {
   "attribution": {
-    "per_unit_read_credits": 635,
-    "per_unit_union_pairs": 583,
+    "per_unit_read_credits": 641,
+    "per_unit_union_pairs": 589,
     "reconciled": true,
     "unattributed": [],
-    "whole_tree_pairs": 583
+    "whole_tree_pairs": 589
   },
   "note": "Reads MINUS declarations, per unit, for the target-contracts framework-health dashboard. TRENDING, never a gate: a populated queue is a review queue and this tool returns 0 however long it is. The queue is NOT split into read_of_None vs emitted_but_undeclared here \u2014 that needs observed-package evidence this producer cannot see, so the contracts side resolves emission_undetermined against the data-products root. no_reads_detected means the scraper's five shapes matched nothing, NOT that the unit is clean.",
   "rosters": {
@@ -273,6 +273,31 @@
         "rna_protein_spearman",
         "rna_proxy_class_boundary_fragile",
         "rna_proxy_classified_on"
+      ],
+      "cellline-surfaceome-abundance": [
+        "allgene_percentile",
+        "allgene_percentile_class",
+        "allgene_percentile_context",
+        "fraction_detected",
+        "fraction_lines_predicted_enriched",
+        "log2_abundance_iqr",
+        "median_enrichment_log2ratio",
+        "median_log2_abundance_panel",
+        "median_pr_auc",
+        "method_version",
+        "n_cell_lines_evaluated",
+        "n_cell_lines_in_panel",
+        "n_lineage_restricted_lineages",
+        "n_lineages_evaluated",
+        "n_lines_enrichment_evaluated",
+        "p25_log2_abundance_panel",
+        "p5_log2_abundance_panel",
+        "p75_log2_abundance_panel",
+        "p95_log2_abundance_panel",
+        "per_lineage_stats",
+        "protein_abundance_source",
+        "protein_expression_class",
+        "surface_localization_class"
       ],
       "cis-feature-expression-coherence": [
         "amplification_threshold_relative_cn",
@@ -1183,6 +1208,7 @@
         "per_lineage_stats"
       ],
       "pan-cancer-crispr-dependency-distribution": [
+        "broad_dependency_band",
         "chronos_iqr",
         "dep_control_negatives",
         "dep_control_non_essential_floor",
@@ -2159,9 +2185,9 @@
     "n_emission_undetermined": 3,
     "n_meta_key": 3,
     "n_no_reads_detected": 7,
-    "n_reads_detected": 583,
-    "n_roster_cards": 148,
-    "n_roster_fields": 1830,
+    "n_reads_detected": 589,
+    "n_roster_cards": 149,
+    "n_roster_fields": 1854,
     "n_undeclared_pairs": 6,
     "n_units": 23,
     "n_units_with_undeclared_reads": 2
@@ -2347,9 +2373,9 @@
     "on-target-safety-liability": {
       "disposition": "clean",
       "kind": "skill",
-      "n_reads": 49,
+      "n_reads": 50,
       "reads_by_kind": {
-        "skill_code": 49
+        "skill_code": 50
       },
       "undeclared": []
     },
@@ -2370,9 +2396,9 @@
     "surface-modality-fit": {
       "disposition": "clean",
       "kind": "skill",
-      "n_reads": 80,
+      "n_reads": 85,
       "reads_by_kind": {
-        "skill_code": 80
+        "skill_code": 85
       },
       "undeclared": []
     },

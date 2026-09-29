@@ -32,7 +32,9 @@ normal), `shed-ectodomain-liability` (soluble-antigen sink), `modality-therapeut
 **Antigen-escape / presentation / patient-selection (verdict-inert or arm-scoped):** `tumor-scrna-celltype-expression`
 (within-tumor escape), `pmhc-presentation`, `modality-exon-window`, `mutation-stratified-surface`,
 `pathway-stratified-surface`, `cd-antigen-backbone`, `protein-surface-evidence` (CSPA), `sc-surface-rna-protein-concordance`,
-`rna-protein-concordance-tumor`, `copy-number-distribution`.
+`rna-protein-concordance-tumor`, `copy-number-distribution`, `cellline-surfaceome-abundance` (Surfaceome 26Q3
+paired DIA-MS surface-confirmed abundance + surface-vs-wholecell enrichment lens; `interpretation: rules_pending`
+— no rule/rung reads it, additive display only).
 
 ---
 

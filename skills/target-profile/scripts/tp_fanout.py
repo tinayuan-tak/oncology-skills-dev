@@ -930,6 +930,9 @@ SUB_SKILL_CARDS = {
         # (experimental complement to pmhc-presentation's benign-atlas breadth).
         # VERDICT-INERT display card — no rule maps it, no resolver rung consumes it
         # → composed surface verdict byte-stable. In surface-modality-fit CARDS.
+        "cellline-surfaceome-abundance",  # #2025: cell-line surfaceome MS abundance (additive; no rule
+        # maps it, no resolver rung consumes it → composed surface verdict byte-stable). Composer-
+        # consistency with surface-modality-fit's own run.py CARDS entry.
     ],
     "on-target-safety-liability": [
         "gnomad-lof-constraint",

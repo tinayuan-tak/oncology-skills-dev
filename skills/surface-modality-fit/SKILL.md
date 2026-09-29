@@ -154,6 +154,15 @@ composition:
                                        # pmhc_tce_supported rung, which fires ONLY when the folded-surface fit is neither_viable
                                        # (the pMHC-TCE route for an intracellular oncoprotein WT1/PRAME/NY-ESO-1/MAGE-A4). For
                                        # a surface-viable antigen the rule rides as an additive bite_tce signal (no verdict flip).
+    - cellline-surfaceome-abundance    # (in run.py CARDS; wired 2026-09-28, surfaceome arc #2025) DepMap
+                                       # Consortium Surfaceome 26Q3 paired whole-cell + surface-enriched DIA-MS
+                                       # (64 gastric/eso lines) — third cell-line protein-abundance MS platform
+                                       # sibling (Gygi TMT / ProCan DIA-SWATH), scoped to the SURFACE-enriched
+                                       # layer, plus a surface-vs-wholecell ENRICHMENT lens
+                                       # (surface_localization_class) unique to the paired assay. interpretation:
+                                       # rules_pending on the card — no rule/rung reads either facet. ADDITIVE
+                                       # display facet, verdict byte-stable (fit_class resolves off
+                                       # adc-tce-modality-fit).
   # DATA_TO_SKILL_CONTRACT.md Rule 3 — the PULL half: this gate-view declares the
   # measurement_type CLAIMS it needs to answer "is this target biologics-viable", independent of
   # which datasets provide them. Keys resolve against target-contracts/vocabularies/
@@ -170,6 +179,9 @@ composition:
     - surface_topology
     - surfaceome_family
     - surface_density
+    - cell_line_protein_abundance      # (2026-09-28, surfaceome arc #2025) cellline-surfaceome-abundance —
+                                       # REUSED type (Gygi/ProCan sibling), not minted; surface-scoped +
+                                       # paired-assay enrichment lens. rules_pending → ADDITIVE, byte-stable.
     - adc_tce_modality_fit
     - normal_tissue_protein_breadth    # HPA IHC off-tumor safety (normal-tissue-liability)
     - rna_protein_concordance          # (backfill 2026-08-06) rna-protein-concordance-tumor has been in run.py

@@ -27,6 +27,31 @@ cd-antigen-backbone:
   method_version: 1.0.0
   on_cd_roster: true
   target: CEACAM5
+cellline-surfaceome-abundance:
+  allgene_percentile: 86.03815002649307
+  allgene_percentile_class: mid
+  allgene_percentile_context: depmap-surfaceome-paired-per-protein-v1 panel-wide metric=median_surface_log2
+    source=depmap_surfaceome_dia_ms
+  fraction_detected: 0.5312
+  fraction_lines_predicted_enriched: 0.4444444444444444
+  log2_abundance_iqr: 5.349396773642434
+  median_enrichment_log2ratio: -0.8725832317237341
+  median_log2_abundance_panel: 11.621159735285168
+  median_pr_auc: 0.5477070270888476
+  method_version: 0.1.0
+  n_cell_lines_evaluated: 34
+  n_cell_lines_in_panel: 64
+  n_lineage_restricted_lineages: 0
+  n_lineages_evaluated: 0
+  n_lines_enrichment_evaluated: 26
+  p25_log2_abundance_panel: 9.967111236355006
+  p5_log2_abundance_panel: 7.531553130588341
+  p75_log2_abundance_panel: 15.31650800999744
+  p95_log2_abundance_panel: 16.34385792420519
+  per_lineage_stats: []
+  protein_abundance_source: depmap_surfaceome_dia_ms
+  protein_expression_class: sub_broad_detection
+  surface_localization_class: intracellular_contaminant
 copy-number-distribution:
   cn_assay_used: wes
   cn_distribution_shape: del_dominant

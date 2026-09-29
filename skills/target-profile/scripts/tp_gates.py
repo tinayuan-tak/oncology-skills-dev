@@ -181,6 +181,15 @@ _RECOGNIZED_GATING_VERDICTS: dict[str, frozenset[str]] = {
             # safety.resolver v2.0.0 — pruned here 2026-09-07; the resolver no longer emits them.)
             "tolerant_reduced_safety_risk",
             "moderately_constrained_safety",
+            # #1794 (safety.resolver 2.4.0): GRADED partial broad-dependency caution for the 0.60-0.85
+            # strongly-dependent band (broad_dependency_band == partial_broad_band). RECOGNIZED but
+            # NON-GATING — deliberately absent from the nomination gate's gates/kill_capable blocks
+            # (nomination_verdict_gate 1.26.0: a caution, not a hold; the 12/504 corpus carriers
+            # include managed clinical-stage targets AURKA/MTOR/ATR/PRMT5, so a forced hold would
+            # over-fire) — it falls through as a permissive pass like moderately_constrained_safety.
+            # MUST be listed: an unrecognized safety verdict fail-closes to a forced hold, which is
+            # the loud-and-conservative pre-wiring behavior this line retires at pin time.
+            "broad_dependency_partial_tox_concern",
             "data_unavailable",
             "insufficient",
         }

@@ -112,7 +112,7 @@ jobs:
           repository: oneTakeda/rnd-computational-biology-oncology-analysis-methods
           # PINNED — main @ 2026-09-19T11:47:03Z. Bumped BY HAND to include depmap-predictability v4:
           # DEFAULT_RELEASE_PIN 26q1-v3→v4 (#670) + the provenance-stamping reader (#672); see SIBLING PINS above.
-          ref: 22dff19bb8093f36ebc1f3db58a43225d7c7324c
+          ref: 507439fc0e3c83d0db369377b411a2a3fcc861d2
           path: rnd-computational-biology-oncology-analysis-methods
           token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
 
@@ -445,7 +445,7 @@ jobs:
           # ceiling 729 holds on both — a numeric_anchors declaration earns EXACT credit (never a new
           # orphan), so the orphan census is UNCHANGED. Aperture-inert, no ceiling move; the two-sided
           # ratchet (this pin <-> APERTURE_CEILING in test_field_disposition.py) stays balanced.
-          ref: c0aac1956e6fe2da5e74e78e4adc2a891325176a
+          ref: 5855ff7913ae4cc72c8cfd3aae33d5b79436cb1f
           path: rnd-computational-biology-oncology-target-contracts
           token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
 
@@ -455,7 +455,7 @@ jobs:
           repository: oneTakeda/rnd-computational-biology-oncology-data-catalog
           # PINNED — main @ 2026-09-19T03:35:25Z. Bumped BY HAND alongside analysis-methods: adds the
           # depmap-predictability-26q1-v4 manifest so the v4-default reader can resolve; see SIBLING PINS above.
-          ref: fb70b504dbc2e7a4ec4171b0d46468ff00565b82
+          ref: 13aef1944d4a4e417fbba5889690b1d2b16a04a4
           path: rnd-computational-biology-oncology-data-catalog
           token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
 

@@ -90,6 +90,11 @@ _MOUSEKO_SIGNAL = {
 # concern. Underpowered rungs are a coverage gap.
 _PANESS_SIGNAL = {
     "common_essential": "strong",
+    # #1794 (card 3.1.0): well-powered >=85% strongly-dependent fraction whose curated core-essential
+    # ANCHOR was unreachable — the measured fraction IS the liability signal (the anchor is the missing
+    # EXCULPATORY corroboration, not the missing evidence), and the resolver HOLDs it with the same
+    # token as the curated arm. The evidence string discloses the anchor outage (unverified ≠ refuted).
+    "common_essential_unanchored": "strong",
     "broadly_dependent": "moderate",  # dependent in many (not pan) lineages — partial breadth
     "common_essential_underpowered": "weak",
     "strongly_selective": "absent",  # MEASURED: selective → a window exists (not a broad-tox liability)
@@ -327,6 +332,15 @@ def _paness_signal(h, c):
             "safety verdict); the scalar safety verdict is the raw concern and is NOT downgraded"
         )
     ev = f"DepMap: {cls or 'data_unavailable'}, pan_essential_score={_f(h.get('pan_essential_score'))}"
+    # #1794 disclosures — both APPEND-ONLY on the new card 3.1.0 states, so every pre-0.3.0 package
+    # (fields/values absent) keeps its evidence string byte-identical.
+    if cls == "common_essential_unanchored":
+        ev += (
+            ", curated core-essential anchor UNREACHABLE — the pan-essential call is UNVERIFIED, not "
+            "refuted (a re-run with anchor access resolves it)"
+        )
+    if h.get("broad_dependency_band") == "partial_broad_band":
+        ev += ", broad_dependency_band=partial_broad_band (0.60–0.85 — a PARTIAL broad-tox liability, graded)"
     return sig, ev, conflict
 
 
@@ -832,7 +846,9 @@ def _paness_atom(h, c):
     return _atom(
         cid,
         c.get(cid) or {},
-        ("dependency_class", "pan_essential_score", "distribution_shape"),
+        # broad_dependency_band added #1794 (VERDICT-BEARING as of safety.resolver 2.4.0) — the atom
+        # binds only non-None keys, so pre-0.3.0 packages stay byte-identical.
+        ("dependency_class", "pan_essential_score", "distribution_shape", "broad_dependency_band"),
         {"measurement_type": "crispr_lof_dependency", "grain": "target", "valence": "liability"},
         (c.get(cid) or {}).get("dependency_class"),
     )
