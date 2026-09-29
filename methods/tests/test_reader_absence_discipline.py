@@ -14,9 +14,12 @@ errors so the live-read seam surfaces an honest ``_live_read_error`` instead of 
 
 WHAT THIS LINT ENFORCES
 -----------------------
-Statically (via ``ast``, never regex) scan every ``methods/*/*.py`` — the reader/CLI entrypoints
-AND the one-level helper modules they call (``derive.py``, ``loader.py``, ``pull.py``, ``*.py``),
-since a masking handler in a helper is just as much a silent dead axis as one in ``read.py``.
+Statically (via ``ast``, never regex) scan every ``*.py`` under ``methods/``, ``skills/`` and
+``contracts/`` RECURSIVELY (``rglob``, minus ``_EXCLUDE_DIRS`` — widened in #2126 from the original
+methods-only 2-deep ``methods/*/*.py``) — the reader/CLI entrypoints AND the helper modules they
+call (``derive.py``, ``loader.py``, ``pull.py``, nested ``read/__init__.py``, skills-side
+``_live_readers.py``, ...), since a masking handler in a helper is just as much a silent dead axis
+as one in ``read.py``.
 Flag an ``except`` handler as a VIOLATION when ALL of the following hold:
 
   1. it is a BROAD catch — bare ``except:`` or ``except Exception[/BaseException] [as e]:``
@@ -131,6 +134,56 @@ def _methods_root() -> Path:
     if env and (Path(env) / "methods").is_dir():
         return Path(env) / "methods"
     return Path(__file__).resolve().parents[1] / "methods"
+
+
+def _repo_root() -> Path:
+    """The monorepo root — parent of methods/ (which itself holds the methods PACKAGE dir).
+
+    The methods scan root is ``<repo>/methods/methods``; its ``.parent.parent`` is the repo
+    root that also holds ``skills/`` and ``contracts/``.
+    """
+    return _methods_root().parent.parent
+
+
+# Directory names to skip anywhere under a scan root once the glob went recursive (``**/*.py``):
+# test suites carry intentional broad-except fixtures + helper stubs that are NOT production
+# readers, and cache/vendored trees are not source. Excluding them keeps the ratchet on real
+# reader/helper modules (the same intent as the original 2-deep ``*/*.py`` methods-only scan).
+_EXCLUDE_DIRS = frozenset({"tests", "test", "__pycache__", ".git", ".venv", "node_modules", ".ruff_cache"})
+
+
+def _scan_roots() -> list[tuple[Path, Path]]:
+    """Return ``(scan_root, key_base)`` pairs across the monorepo.
+
+    ``key_base`` anchors the violation key ``"<module>/<file>::<qual>"``: methods keys stay
+    METHODS-ROOT-relative (bare, e.g. ``depmap_predictability/cli.py``) so pre-existing baseline
+    entries are byte-stable; skills/contracts keys are REPO-ROOT-relative (prefixed ``skills/`` /
+    ``contracts/``) so they never collide with a same-named methods module and self-identify.
+    """
+    methods = _methods_root()
+    repo = _repo_root()
+    roots: list[tuple[Path, Path]] = [(methods, methods)]
+    for sib in ("skills", "contracts"):
+        p = repo / sib
+        if p.is_dir():
+            roots.append((p, repo))
+    return roots
+
+
+def _iter_source_files() -> list[tuple[Path, str]]:
+    """Yield ``(abs_path, relkey)`` for every scanned ``.py`` across all scan roots (recursive).
+
+    Recursive (``rglob``) so nested reader modules (``methods/methods/<mod>/read/__init__.py``,
+    skills-side ``_live_readers.py``) are seen — the ``*/*.py`` 2-deep glob missed them. Skips the
+    ``_EXCLUDE_DIRS`` at any depth.
+    """
+    out: list[tuple[Path, str]] = []
+    for root, keybase in _scan_roots():
+        for rel in sorted(root.rglob("*.py")):
+            if any(part in _EXCLUDE_DIRS for part in rel.relative_to(root).parts):
+                continue
+            out.append((rel, rel.relative_to(keybase).as_posix()))
+    return out
 
 
 def _is_broad_handler(handler: ast.ExceptHandler) -> bool:
@@ -308,15 +361,13 @@ def find_violations() -> list[str]:
     A key is emitted per offending handler that is NOT suppressed by the inline escape-hatch
     marker. (Allowlist filtering is applied by the tests, not here.)
     """
-    root = _methods_root()
-    assert root.is_dir(), f"methods/ not found at {root}"
+    assert _methods_root().is_dir(), f"methods/ not found at {_methods_root()}"
     violations: list[str] = []
-    for rel in sorted(root.glob("*/*.py")):
+    for rel, relkey in _iter_source_files():
         source = rel.read_text()
         source_lines = source.splitlines()
         tree = ast.parse(source, filename=str(rel))
         qmap = _qualname_by_node_id(tree)
-        relkey = rel.relative_to(root).as_posix()
         for try_node in ast.walk(tree):
             if not isinstance(try_node, ast.Try) or not _try_reads_s3(try_node):
                 continue
@@ -410,6 +461,48 @@ _BASELINE_RESIDUALS: dict[str, str] = {
     "is an inline `# absence-discipline: exempt -- figure-only, post-verdict` on the except line "
     "(reader-scoped follow-up), then delete this entry — recorded here only because this PR is "
     "guard-file-scoped and cannot edit the reader.",
+    # ============================================================================================
+    # SKILLS+CONTRACTS SCOPE WIDENING (#2126, 2026-09-29). The guard was methods-only (root
+    # parents[1]/"methods", glob "*/*.py"); this PR widened BOTH detectors to also rglob skills/ and
+    # contracts/ and switched to a RECURSIVE glob (nested read/ modules are now seen too). The
+    # empty-return handlers below are the NEW skills-side surfacings. CONSUMER-CONFIRMED each is a
+    # SAFE graceful-degrade — every one is a verdict-INERT enrichment/orchestration wrapper
+    # (target_call stays the sole go/hold/kill gate; these grounded findings "NEVER move an engine
+    # bin"), so a transient blip degrading to None/empty loses only display/enrichment and never
+    # suppresses a kill/veto or flips a lane favorably. NOT dangerous fail-opens → nothing to file
+    # per #796/#822/#1560. Burndown: adopt is_definitively_absent (or an inline exempt marker) in a
+    # skills-owned pass, then delete the entry.
+    # ============================================================================================
+    "skills/_skills_common/envelope.py::_known_manifest_ids": (
+        "#2126 skills-widening: broad except over a load_catalog() import+read returns None → the "
+        "indeterminate-STALENESS refinement is skipped (verdict-inert metadata, not the go/hold/kill "
+        "gate). Safe graceful-degrade; burndown → is_definitively_absent on the catalog load."
+    ),
+    "skills/target-profile/scripts/tp_gates.py::_modality_frame_reservations": (
+        "#2126 skills-widening: modality-fit reservation reader for the WT-loss hold; except emits a "
+        "'verdict-inert fallback' breadcrumb and returns {} so the hold clears without a reservation "
+        "(docstring: 'a reservation reader must never break the gate'). Verdict-inert; safe degrade."
+    ),
+    "skills/target-profile/scripts/tp_grounding.py::build_risk_6dim": (
+        "#2126 skills-widening: deterministic 6-dim risk roll-up (target_report.risk_6dim) — a display "
+        "PROJECTION of the spine, explicitly verdict-inert ('target_call stays the sole go/hold/kill "
+        "gate'). Except returns None and continues without the roll-up. Safe graceful-degrade."
+    ),
+    "skills/target-profile/scripts/tp_grounding.py::auto_risk_assessment": (
+        "#2126 skills-widening: live-PubMed+Bedrock 6-dim literature RISK read (non-reproducible). "
+        "Except returns None and continues without it; grounded findings NEVER move an engine bin "
+        "(verdict-inert enrichment). Safe graceful-degrade."
+    ),
+    "skills/target-profile/scripts/tp_grounding.py::auto_hypothesis": (
+        "#2126 skills-widening: cross-evidence-hypothesis integrator (Bedrock) that ENRICHES but never "
+        "OVERRIDES the gate-clamped verdict. Except returns None and continues without the hypothesis. "
+        "Verdict-inert; safe graceful-degrade."
+    ),
+    "skills/target-profile/scripts/tp_synthesis_prompt.py::_render_reconciled_block": (
+        "#2126 skills-widening: synthesis-PROMPT renderer for reconciled contradictions; except returns "
+        "[] so 'contradictions stand' (the CONSERVATIVE direction — no reconciliation surfaced). Prompt "
+        "text only, verdict-inert. Safe graceful-degrade."
+    ),
 }
 
 _ALLOWLIST: dict[str, str] = {**_DEFERRED_ALLOWLIST, **_BASELINE_RESIDUALS}
@@ -777,23 +870,21 @@ def _handler_launders_class_token(handler: ast.ExceptHandler) -> bool:
 
 
 def find_class_token_violations() -> tuple[list[str], int, int]:
-    """Scan ``methods/*/*.py`` for the benign-verdict-class-token-on-broad-except sub-class.
+    """Scan methods/ + skills/ + contracts/ (recursive) for the benign-verdict-class-token sub-class.
 
     Returns ``(sorted violation keys ``"<module>/<file>::<qualified_function>"``, n_files, n_handlers)``.
     The cardinality counts back the anti-vacuity floor: a guard that silently scans zero files or
     zero handlers is worse than none (see the #1648 anti-vacuity ratchet; #1639/#1640 silent-skip).
     """
-    root = _methods_root()
-    assert root.is_dir(), f"methods/ not found at {root}"
+    assert _methods_root().is_dir(), f"methods/ not found at {_methods_root()}"
     violations: list[str] = []
     n_files = 0
     n_handlers = 0
-    for rel in sorted(root.glob("*/*.py")):
+    for rel, relkey in _iter_source_files():
         source = rel.read_text()
         source_lines = source.splitlines()
         tree = ast.parse(source, filename=str(rel))
         qmap = _qualname_by_node_id(tree)
-        relkey = rel.relative_to(root).as_posix()
         n_files += 1
         for handler in ast.walk(tree):
             if not isinstance(handler, ast.ExceptHandler):
@@ -879,6 +970,40 @@ _CLASS_TOKEN_BASELINE: dict[str, str] = {
         "is LIVE; also uses shet_class=indeterminate (not data_unavailable). Degradation-contract change "
         "deferred to a safety-owned change."
     ),
+    # ============================================================================================
+    # SKILLS SCOPE WIDENING (#2126, 2026-09-29). Same widening as the empty-return detector — the
+    # class-token detector now also rglobs skills/ + contracts/. The three NEW skills-side handlers
+    # below launder a transient failure into a benign *_class token; CONSUMER-CONFIRMED against
+    # contracts/interpretation-rules/intracellular-intrinsic.rules.yaml each is a SAFE graceful-
+    # degrade, NOT a GO-biasing fail-open, so none warrants a #796/#822/#1560 bug:
+    #   - genomic-instability-state axes (wgd/msi/hrd/model_*): referenced by NO interpretation rule
+    #     → verdict-INERT display facet (dispatcher docstring: "DISPLAY facet, verdict-inert").
+    #   - patient CN + rna tumor-elevation-breadth: their *_class fields fire ONLY supportive/neutral
+    #     rules keyed on POSITIVE tokens (recurrent_focal_amplification / broadly_tumor_elevated / ...);
+    #     data_unavailable matches NO `equals:` clause, so degrading fires no rule and merely LOSES
+    #     supportive evidence — the CONSERVATIVE (toward hold/kill) direction, never GO-biasing.
+    # Burndown: adopt is_definitively_absent so a transient blip surfaces _live_read_error, not
+    # data_unavailable; then delete the entry.
+    # ============================================================================================
+    "skills/_skills_common/_live_readers.py::_dispatch_genomic_instability_state": (
+        "#2126 skills-widening: verdict-INERT display facet — wgd_class/msi_class/hrd_scar_class/"
+        "model_*_class are referenced by NO interpretation rule (confirmed vs intracellular-intrinsic."
+        "rules.yaml). A transient axis failure → data_unavailable affects display only. Safe degrade."
+    ),
+    "skills/_skills_common/_live_readers.py::_dispatch_cn_distribution": (
+        "#2126 skills-widening: patient_copy_number_class is ADDITIVE/display; patient_focal_cn_class "
+        "IS verdict-bearing but fires ONLY the SUPPORTIVE rungs cn-patient-focal-amplified/deleted-"
+        "supportive (equals recurrent_focal_amplification/deletion). data_unavailable matches neither "
+        "→ no rung fires → loses only supportive patient-CN evidence (conservative, toward hold/kill), "
+        "not a GO-biasing fail-open. Burndown → is_definitively_absent on the tcga_patient_cn read."
+    ),
+    "skills/_skills_common/_live_readers.py::_dispatch_tumor_elevation_breadth": (
+        "#2126 skills-widening: rna_tumor_elevation_breadth_class is a PARALLEL secondary layer (protein "
+        "drives the primary tumor_elevation_breadth_class); its rules (rna-tumor-breadth-*-supportive/"
+        "neutral) fire only on POSITIVE tokens, so data_unavailable fires none → loses only supportive "
+        "RNA-breadth evidence (conservative). Handler already sets an _rna_read_error breadcrumb. Safe "
+        "degrade; burndown → is_definitively_absent on the dge_deseq2 RNA read."
+    ),
 }
 
 
@@ -891,14 +1016,17 @@ def test_class_token_scan_cardinality_floor():
     """ANTI-VACUITY: the scan must actually see files and handlers, else it fails OPEN itself.
 
     A guard that silently scans zero files (broken glob / moved root) is worse than none. Assert a
-    hard N>0 floor on both, plus a soft floor to catch a partial-collection regression (526 files /
-    611 handlers at freeze).
+    hard N>0 floor on both, plus a soft floor to catch a partial-collection regression. AFTER the
+    #2126 widening the scan spans methods/ + skills/ + contracts/ recursively: 831 files / 1149
+    handlers at freeze (2026-09-29), up from the methods-only 526 / 611. The soft floor is set ABOVE
+    the methods-only count so a silently-dropped skills/ or contracts/ root (each contributes >100
+    files) trips it — it is a FLOOR (growth is fine), not an equality.
     """
     _, n_files, n_handlers = find_class_token_violations()
-    assert n_files > 0, "class-token scan found ZERO methods/*/*.py files — glob/root broken"
+    assert n_files > 0, "class-token scan found ZERO *.py files — glob/root broken"
     assert n_handlers > 0, "class-token scan found ZERO except-handlers — parse/collection broken"
-    assert n_files >= 100, f"class-token scan saw only {n_files} files (<100) — partial collection?"
-    assert n_handlers >= 100, f"class-token scan saw only {n_handlers} handlers (<100) — partial?"
+    assert n_files >= 700, f"class-token scan saw only {n_files} files (<700) — a scan root dropped?"
+    assert n_handlers >= 950, f"class-token scan saw only {n_handlers} handlers (<950) — partial?"
 
 
 def test_no_new_class_token_absence_violations():
