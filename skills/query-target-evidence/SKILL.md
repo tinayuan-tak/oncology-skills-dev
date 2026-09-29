@@ -47,7 +47,7 @@ Given a `--gene`, `--indication`, and `--dimension`, this skill:
 3. Checks the `staleness` block (release-based, not time-based).
 4. Returns the artifact, OR:
    - **Missing** → reports the artifact does not exist and names the batch job that
-     produces it (e.g. `batch/expression_rna_COADREAD/run_pipeline.R` for
+     produces it (e.g. `methods/methods/dge_deseq2` for
      `indication=COADREAD, dimension=expression-rna`). It does NOT trigger the
      batch run; a human/scheduler does that.
    - **Stale** → returns the stored artifact WITH the staleness flag set, and lets the
@@ -91,6 +91,6 @@ re-obtainable source), `result`, `summary`, `confidence`, and `label`
 
 ## Related
 
-- `batch/run_global_dge.py` — the compute job that produces `expression`-dimension artifacts.
+- `methods/methods/dge_deseq2` — the compute job that produces `expression`-dimension artifacts.
 - `contracts/schemas/evidence.schema.json` — the artifact contract this skill enforces.
 - The data-catalog repo — where `provenance.catalog_refs` IDs resolve to source datasets.

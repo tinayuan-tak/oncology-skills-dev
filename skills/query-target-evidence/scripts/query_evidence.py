@@ -50,10 +50,13 @@ ARTIFACT_PREFIX = "core-artifacts"
 SCHEMA_PATH = Path(__file__).resolve().parents[3] / "contracts" / "schemas" / "evidence.schema.json"
 
 # Which batch job produces each dimension (for "missing artifact" guidance).
-# Eight dimensions (revised 2026-06-15). Naming convention: batch dir = the
-# dimension slug it produces, with indication suffix.
+# Eight dimensions (revised 2026-06-15). The root batch/ dir (v1-era) was retired
+# 2026-09-29 (#2138); expression-rna is now produced by methods/methods/dge_deseq2
+# (the carved-out, catalog-driven successor to batch/expression_rna_{indication}/).
+# The remaining "planned" rows never had a real path — batch/ never grew them —
+# so they're left as named-but-nonexistent placeholders rather than invented paths.
 DIMENSION_BATCH_JOB = {
-    "expression-rna": "batch/expression_rna_{indication}/run_pipeline.R",
+    "expression-rna": "methods/methods/dge_deseq2",
     "expression-protein": "batch/expression_protein_{indication}/run_pipeline.R",  # planned (CPTAC)
     "dependency": "batch/dependency/run_pipeline.py",  # planned (DepMap)
     "mutation-profile": "batch/mutation_profile_{indication}/run_pipeline.py",  # planned (GDC somatic)

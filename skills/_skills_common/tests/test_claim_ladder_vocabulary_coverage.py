@@ -95,7 +95,15 @@ sys.path.insert(0, str(_SKILLS_ROOT))
 # corroboration rung ANYWHERE in first-party code must surface, and "anywhere" now includes those
 # two packages. Swept, not excluded (excluding them would re-open the narrowed-population defect
 # this file exists to prevent, one level up). methods/ reads no corroboration field today.
-_FIRST_PARTY_SOURCE_DIRS = ("skills/", "eval/", "batch/", "scripts/", "contracts/", "methods/")
+#
+# `batch/` REMOVED DELIBERATELY (2026-09-29, #2165): the v1 root husk was retired, so `batch/` holds no
+# tracked python at all any more. This is the one shape of removal that is NOT the narrowing this test
+# guards against: the sweep did not stop reaching `batch/` — the sweep is still repo-wide `git ls-files
+# '*.py'` with no per-directory filter — the DIRECTORY ceased to exist. Keeping the name would have
+# inverted the guard, pinning a floor no data can ever satisfy. Removing it because the equality
+# assertion complained would be the wrong move for any dir whose files still exist; verify emptiness
+# (`git ls-files 'batch/*'`) before ever repeating this edit for another name.
+_FIRST_PARTY_SOURCE_DIRS = ("skills/", "eval/", "scripts/", "contracts/", "methods/")
 
 from _skills_common import figure_palette, headline_core, question_table_core  # noqa: E402
 from _skills_common.archetype_core import (  # noqa: E402

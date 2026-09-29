@@ -80,8 +80,7 @@ composes with the coordination ritual above.
 
 ## Directory scopes (grab-bag prevention)
 
-Top-level scope roots: `skills/`, `methods/`, `contracts/`, `libs/`, `notebooks/`,
-`tests/`, `eval/`.
+Top-level scope roots: `skills/`, `methods/`, `contracts/`, `tests/`, `eval/`.
 
 Each branch's `.claude/branch-scope` should list the specific directories the
 branch is allowed to modify — e.g. `skills/tumor-presence/` for a skill change,

@@ -230,13 +230,16 @@ envelope via `run_wired_skill --emit-envelope` + `_skills_common/envelope.py`
 |---|---|
 | [skills/](skills/) | The compositional skill framework (tables above). Each skill is a `SKILL.md` (frontmatter contract + description) plus `scripts/`. |
 | [skills/_skills_common/](skills/_skills_common/) | Shared helpers used across skills. |
-| [libs/target_id_resolver/](libs/target_id_resolver/) | Target-ID resolver consumed by ingestion + skills so raw-ID joins don't silently drop. |
 | [contracts/schemas/](contracts/schemas/) | The stored-artifact contract (`evidence.schema.json`, `target.schema.json`) + per-product `result` schemas. Consumed by `query-target-evidence`. (The root `core-artifacts-schema/` copy was a stale v1 snapshot, retired 2026-09-29.) |
-| [batch/](batch/) | Out-of-band compute. `batch/expression_rna_COADREAD/` is the reference R/Bioconductor DGE pipeline (DESeq2 + ComBat-seq + lfcShrink(apeglm)). Batch jobs write artifacts; they are **never invoked by Claude**. |
-| [configs/](configs/) | Per-indication parameters (`COADREAD.yaml`: cohorts, subtypes, FDR tiers, reference). |
 | [docs/](docs/) | Design + governance docs — scope reviews, defect register, `target-profile` walkthrough, showcase design, worked examples. |
-| [notebooks/](notebooks/) | Exploration before code hardens into `batch/` or a method module. |
 | [.claude-plugin/](.claude-plugin/) | Plugin + marketplace manifests for Claude Code installation. |
+
+`batch/`, `configs/`, `libs/`, and `notebooks/` (the v1-era R DGE pipeline, its
+per-indication config, the stale migration note, and the empty exploration
+placeholder) were retired 2026-09-29 (#2138) — `batch/expression_rna_COADREAD/`'s
+R scripts are superseded by `methods/methods/dge_deseq2` (which carries them
+byte-identical under `r/legacy/`), and `libs/target_id_resolver` moved to
+`data-catalog/libs/` on 2026-06-29.
 
 ---
 

@@ -31,7 +31,7 @@ repo-root/
 │                                 #   resolvers, schemas — incl. the stored-artifact
 │                                 #   contract schemas — vocabularies)
 ├── docs/                        # design notes, scope reviews
-├── batch/, configs/, notebooks/, libs/, eval/
+├── eval/
 ├── pixi.toml / pixi.lock        # ONE environment for the whole repo (editable path deps
 │                                 #   on ./methods and ./contracts)
 └── .github/workflows/           # CI (skills-validate.yml — required `pytest` check)

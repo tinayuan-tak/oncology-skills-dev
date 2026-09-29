@@ -13,4 +13,4 @@ prefixes: feat/ fix/ chore/ feature/
 default_base: main
 
 # Human-readable top-level scope roots.
-scope_roots: skills/ libs/ notebooks/ tests/ eval/
+scope_roots: skills/ methods/ contracts/ tests/ eval/
