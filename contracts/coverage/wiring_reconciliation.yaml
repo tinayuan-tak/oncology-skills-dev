@@ -1,0 +1,886 @@
+_doc: 'I.3 wiring reconciliation: per card, READS (AST over the dispatch closure) vs DECLARES (required_inputs[].product_id)
+  vs EMITS (emission_ledger). Findings asserted only on the SOUND tier (reads fully catalog_query-visible:
+  no opaque call, >0 reads, no bespoke read primitive); other routed cards are READS_UNDETERMINED (a dimension,
+  not a finding). Regenerate with validators/build_wiring_reconciliation.py; --self-check gates drift.'
+sibling_shas:
+  analysis-methods: bd79c66
+  skills: a49c07bf
+  data-catalog: 13aef19
+n_dispatcher_routed_cards: 68
+counts:
+  sound: 14
+  undetermined: 54
+  declared_unread: 0
+  read_undeclared: 0
+  reads_side_module_missing: 0
+  cards_not_in_emission_ledger: 6
+reads_side_module_missing: []
+sound_cards_not_in_emission_ledger:
+- subgroup-stratified-copy-number
+- subgroup-stratified-dependency
+- subgroup-stratified-fusion
+- subgroup-stratified-mutation-frequency
+- target-identity-summary
+- tumor-vs-normal-percentile-crossing-by-subtype
+known_violations:
+  as_of: '2026-09-29'
+  keys: []
+by_card:
+  abundance-dependency:
+    confidence: undetermined
+    declares:
+    - depmap-consortium-26q1
+    - depmap-consortium-26q1-proteomics
+    - depmap-gygi-protein-abundance-per-protein-v1
+    modules:
+    - abundance_dependency.cli
+    emits_in_ledger: true
+    reason: bespoke read primitive (manifest-path/s3-cp)
+  adc-tce-modality-fit:
+    confidence: undetermined
+    declares: []
+    modules:
+    - structure_features_static
+    - surfaceome_family_fusion
+    - topology_predictions_tmbed
+    - uniprot_gpi_anchor
+    emits_in_ledger: true
+    reason: bespoke read primitive (manifest-path/s3-cp)
+  alteration-clinical-association:
+    confidence: undetermined
+    declares:
+    - gdc-pancanatlas-clinical-2018
+    - tcga-mc3-per-sample-maf-v1
+    modules:
+    - alteration_clinical_association.cli
+    emits_in_ledger: true
+    reason: bespoke read primitive (manifest-path/s3-cp)
+  alteration-role:
+    confidence: sound
+    declares:
+    - intogen-v2024-09-20
+    - oncokb-gene-roles-public-snapshot-2026-07-01
+    modules:
+    - driver_role_overlay.cli
+    emits_in_ledger: true
+    reads:
+    - intogen-v2024-09-20
+    - oncokb-gene-roles-public-snapshot-2026-07-01
+    read_closures:
+      intogen-v2024-09-20:
+      - intogen-v2024-09-20
+      oncokb-gene-roles-public-snapshot-2026-07-01:
+      - oncokb-gene-roles-public-snapshot-2026-07-01
+    templates: []
+    off_contract_reads: []
+    findings: []
+  cellline-rna-distribution:
+    confidence: undetermined
+    declares:
+    - allgene-depmap-rank-26q3-v1
+    - depmap-consortium-26q1
+    - depmap-isoform-expression-per-gene-v1
+    modules:
+    - depmap_expression_distribution
+    - depmap_isoform_expression
+    emits_in_ledger: true
+    reason: bespoke read primitive (manifest-path/s3-cp)
+  cellline-rna-distribution-by-subtype:
+    confidence: undetermined
+    declares:
+    - depmap-consortium-26q1
+    - depmap-subgroup-assignments-coadread-v1
+    - depmap-subgroup-assignments-esca-v1
+    - depmap-subgroup-assignments-hnsc-v1
+    - depmap-subgroup-assignments-nsclc-v1
+    - depmap-subgroup-assignments-paad-v1
+    - depmap-subgroup-assignments-sclc-v1
+    - depmap-subgroup-assignments-stad-v1
+    modules:
+    - depmap_expression_distribution.read
+    - subgroup_common.scoping
+    emits_in_ledger: true
+    reason: bespoke read primitive (manifest-path/s3-cp)
+  cellline-rna-protein-concordance:
+    confidence: undetermined
+    declares:
+    - depmap-consortium-26q1
+    - depmap-consortium-26q1-proteomics
+    modules:
+    - depmap_rna_protein_concordance.cli
+    emits_in_ledger: true
+    reason: bespoke read primitive (manifest-path/s3-cp)
+  clingen-dosage:
+    confidence: sound
+    declares:
+    - opentargets-26-06
+    modules:
+    - opentargets_clingen.read
+    emits_in_ledger: true
+    reads:
+    - opentargets-26-06
+    read_closures:
+      opentargets-26-06:
+      - opentargets-26-06
+    templates: []
+    off_contract_reads: []
+    findings: []
+  clinvar-pathogenicity-safety:
+    confidence: sound
+    declares:
+    - opentargets-26-06
+    modules:
+    - opentargets_clinvar.read
+    emits_in_ledger: true
+    reads:
+    - opentargets-26-06
+    read_closures:
+      opentargets-26-06:
+      - opentargets-26-06
+    templates: []
+    off_contract_reads: []
+    findings: []
+  combinatorial-dependency:
+    confidence: undetermined
+    declares:
+    - depmap-paralog-genetic-interaction-per-pair-v1
+    modules:
+    - paralog_genetic_interaction.read
+    emits_in_ledger: true
+    reason: 1 opaque catalog call(s); bespoke read primitive (manifest-path/s3-cp)
+  combo-crispr-screen:
+    confidence: undetermined
+    declares:
+    - depmap-drug-anchor-combination-per-target-26q3-v1
+    modules:
+    - combo_drug_anchor.read
+    emits_in_ledger: true
+    reason: bespoke read primitive (manifest-path/s3-cp)
+  copy-number-distribution:
+    confidence: undetermined
+    declares:
+    - depmap-consortium-26q1
+    - tcga-patient-cn-per-gene-v1
+    modules:
+    - depmap_cn_distribution
+    - tcga_patient_cn
+    emits_in_ledger: true
+    reason: bespoke read primitive (manifest-path/s3-cp)
+  cross-consortium-paralog-gi:
+    confidence: undetermined
+    declares:
+    - dede-paralog-genetic-interaction-per-pair-v1
+    - in4mer-paralog-genetic-interaction-per-pair-v1
+    modules:
+    - paralog_genetic_interaction.read
+    emits_in_ledger: true
+    reason: 1 opaque catalog call(s); bespoke read primitive (manifest-path/s3-cp)
+  degradation-feasibility:
+    confidence: undetermined
+    declares:
+    - surfaceome-family-classification-per-uniprot-v1
+    - ubibrowser-e3-substrate-per-gene-v1
+    modules:
+    - degradation_feasibility
+    - surfaceome_family_fusion
+    emits_in_ledger: true
+    reason: bespoke read primitive (manifest-path/s3-cp)
+  domain-modality-relevance:
+    confidence: undetermined
+    declares:
+    - interpro-109-0-snapshot-2026-08-05
+    - uniprot-protein-features-v1
+    modules:
+    - domain_modality_relevance
+    emits_in_ledger: true
+    reason: bespoke read primitive (manifest-path/s3-cp)
+  expression-clinical-association:
+    confidence: undetermined
+    declares:
+    - gdc-pancanatlas-clinical-2018
+    - tcga-tumor-tpm-recount3-long-v1
+    modules:
+    - expression_clinical_association.cli
+    emits_in_ledger: true
+    reason: bespoke read primitive (manifest-path/s3-cp)
+  expression-purity-confound:
+    confidence: undetermined
+    declares:
+    - gdc-pancanatlas-cnv-2018
+    - tcga-tumor-tpm-recount3-long-v1
+    modules:
+    - expression_purity_confound.cli
+    emits_in_ledger: true
+    reason: bespoke read primitive (manifest-path/s3-cp)
+  functional-gene-state:
+    confidence: undetermined
+    declares:
+    - depmap-consortium-26q1
+    - depmap-consortium-ccle-2019
+    - gdc-pancanatlas-cnv-2018
+    - tcga-mc3-public-v0-2-8
+    - tcga-sesame-promoter-methylation-v1
+    modules:
+    - functional_gene_state.cli
+    emits_in_ledger: true
+    reason: bespoke read primitive (manifest-path/s3-cp)
+  fusion-rearrangement-landscape:
+    confidence: undetermined
+    declares:
+    - genie-public-v19-0
+    - tcga-fusion-consensus-v1
+    modules:
+    - tcga_fusion_consensus
+    emits_in_ledger: true
+    reason: bespoke read primitive (manifest-path/s3-cp)
+  gene-burden-safety:
+    confidence: sound
+    declares:
+    - opentargets-26-06
+    modules:
+    - opentargets_gene_burden.read
+    emits_in_ledger: true
+    reads:
+    - opentargets-26-06
+    read_closures:
+      opentargets-26-06:
+      - opentargets-26-06
+    templates: []
+    off_contract_reads: []
+    findings: []
+  genomic-event-model-match:
+    confidence: undetermined
+    declares:
+    - depmap-consortium-26q1
+    - gdc-pancanatlas-cnv-2018
+    - tcga-mc3-public-v0-2-8
+    modules:
+    - genomic_event_model_match.cli
+    emits_in_ledger: true
+    reason: bespoke read primitive (manifest-path/s3-cp)
+  genomic-instability-state:
+    confidence: undetermined
+    declares:
+    - gdc-pancanatlas-clinical-2018
+    - gdc-pancanatlas-cnv-2018
+    modules:
+    - tcga_aneuploidy_burden
+    emits_in_ledger: true
+    reason: bespoke read primitive (manifest-path/s3-cp)
+  immune-context:
+    confidence: undetermined
+    declares:
+    - gdc-pancanatlas-immune-2018
+    modules:
+    - immune_context
+    - immune_context.antigen_conditioned
+    emits_in_ledger: true
+    reason: 5 opaque catalog call(s); bespoke read primitive (manifest-path/s3-cp)
+  known-drug-tractability:
+    confidence: sound
+    declares:
+    - dgidb-drug-gene-per-gene-v1
+    - dgidb-drug-target-directional-v1
+    modules:
+    - dgidb_drug_gene
+    emits_in_ledger: true
+    reads:
+    - dgidb-drug-gene-per-gene-v1
+    - dgidb-drug-target-directional-v1
+    read_closures:
+      dgidb-drug-gene-per-gene-v1:
+      - dgidb-2026-06b
+      - dgidb-drug-gene-per-gene-v1
+      dgidb-drug-target-directional-v1:
+      - dgidb-2026-06b
+      - dgidb-drug-target-directional-v1
+    templates: []
+    off_contract_reads: []
+    findings: []
+  measured-potency-tractability:
+    confidence: undetermined
+    declares:
+    - bindingdb-affinity-per-protein-v1
+    - chembl-bioactivity-per-protein-v1
+    modules:
+    - measured_potency_tractability
+    emits_in_ledger: true
+    reason: 2 opaque catalog call(s)
+  modality-exon-window:
+    confidence: undetermined
+    declares:
+    - tcga-gtex-exon-tpm-quantiles-v1
+    modules:
+    - exon_window.read
+    emits_in_ledger: true
+    reason: bespoke read primitive (manifest-path/s3-cp)
+  modality-therapeutic-window:
+    confidence: undetermined
+    declares:
+    - tcga-gtex-tpm-tissue-quantiles-v1
+    modules:
+    - tcga_gtex_tpm_quantiles.window
+    emits_in_ledger: true
+    reason: bespoke read primitive (manifest-path/s3-cp)
+  mouse-ko-phenotype:
+    confidence: sound
+    declares:
+    - impc-ko-phenotype-per-gene-v1
+    - opentargets-26-06
+    modules:
+    - impc_mouse_ko_phenotype.read
+    - opentargets_mouse_phenotype.read
+    emits_in_ledger: true
+    reads:
+    - impc-ko-phenotype-per-gene-v1
+    - opentargets-26-06
+    read_closures:
+      impc-ko-phenotype-per-gene-v1:
+      - ensembl-compara-release-116-snapshot-2026-07-10
+      - hgnc-2026-q2
+      - impc-ko-phenotype-per-gene-v1
+      - impc-release-24-0
+      opentargets-26-06:
+      - opentargets-26-06
+    templates: []
+    off_contract_reads: []
+    findings: []
+  mutation-stratified-surface:
+    confidence: sound
+    declares:
+    - mutation-stratified-surface-window-v1
+    modules:
+    - mutation_stratified_surface
+    emits_in_ledger: true
+    reads:
+    - mutation-stratified-surface-window-v1
+    read_closures:
+      mutation-stratified-surface-window-v1:
+      - ensembl-id-mapping-release-116-snapshot-2026-06-18
+      - gencode-v26-gene-lengths-union-of-exons-v1
+      - gencode-v26-primary-assembly
+      - hpa-v25-1
+      - iuphar-gtop-2026-2
+      - mutation-stratified-surface-window-v1
+      - recount3-tcga-gtex-2023-01-04
+      - surfaceome-family-classification-per-uniprot-v1
+      - surfacome-ethz-2018
+      - tcga-mc3-per-sample-maf-v1
+      - tcga-mc3-public-v0-2-8
+      - tcga-tumor-tpm-per-sample-v1
+      - uniprot-sprot-human-2026-02-snapshot-2026-06-18
+    templates: []
+    off_contract_reads: []
+    findings: []
+  normal-tissue-liability-gtex:
+    confidence: undetermined
+    declares:
+    - gtex-tpm-recount3-long-v1
+    modules:
+    - tcga_gtex_expression_distribution.cli
+    emits_in_ledger: true
+    reason: bespoke read primitive (manifest-path/s3-cp)
+  pathway-stratified-surface:
+    confidence: sound
+    declares:
+    - pathway-stratified-surface-window-v1
+    modules:
+    - pathway_stratified_surface
+    emits_in_ledger: true
+    reads:
+    - pathway-stratified-surface-window-v1
+    read_closures:
+      pathway-stratified-surface-window-v1:
+      - ensembl-id-mapping-release-116-snapshot-2026-06-18
+      - gencode-v26-gene-lengths-union-of-exons-v1
+      - gencode-v26-primary-assembly
+      - hpa-v25-1
+      - iuphar-gtop-2026-2
+      - msigdb-human-v2026-1-hs
+      - pathway-stratified-surface-window-v1
+      - recount3-tcga-gtex-2023-01-04
+      - surfaceome-family-classification-per-uniprot-v1
+      - surfacome-ethz-2018
+      - tcga-tumor-tpm-per-sample-v1
+      - uniprot-sprot-human-2026-02-snapshot-2026-06-18
+    templates: []
+    off_contract_reads: []
+    findings: []
+  phospho-pathway-activity:
+    confidence: sound
+    declares:
+    - cptac-pdc-snapshot-2026-07-01
+    - cptac-phospho-per-site-per-cohort-v1
+    - cptac-protein-tumor-vs-normal-per-cohort-v1
+    modules:
+    - phospho_pathway_activity.cli
+    emits_in_ledger: true
+    reads:
+    - cptac-phospho-per-site-per-cohort-v1
+    - cptac-protein-tumor-vs-normal-per-cohort-v1
+    read_closures:
+      cptac-phospho-per-site-per-cohort-v1:
+      - cptac-pdc-snapshot-2026-07-01
+      - cptac-phospho-per-site-per-cohort-v1
+      - cptac-protein-tumor-vs-normal-per-sample-v1
+      cptac-protein-tumor-vs-normal-per-cohort-v1:
+      - cptac-pdc-snapshot-2026-07-01
+      - cptac-protein-tumor-vs-normal-per-cohort-v1
+    templates: []
+    off_contract_reads: []
+    findings: []
+  pmhc-presentation:
+    confidence: sound
+    declares:
+    - hla-ligand-atlas-presentation-per-protein-v1
+    modules:
+    - pmhc_presentation
+    emits_in_ledger: true
+    reads:
+    - hla-ligand-atlas-presentation-per-protein-v1
+    read_closures:
+      hla-ligand-atlas-presentation-per-protein-v1:
+      - hla-ligand-atlas-2020-12
+      - hla-ligand-atlas-presentation-per-protein-v1
+    templates: []
+    off_contract_reads: []
+    findings: []
+  recommended-models:
+    confidence: undetermined
+    declares:
+    - depmap-consortium-26q1
+    - tcga-tumor-tpm-recount3-long-v1
+    modules:
+    - patient_model_expression_correspondence.cli
+    emits_in_ledger: true
+    reason: bespoke read primitive (manifest-path/s3-cp)
+  resistance-emergence-signature:
+    confidence: undetermined
+    declares:
+    - depmap-drug-anchor-resistance-per-target-26q3-v1
+    modules:
+    - resistance_emergence.read
+    emits_in_ledger: true
+    reason: bespoke read primitive (manifest-path/s3-cp)
+  rna-protein-concordance-tumor:
+    confidence: undetermined
+    declares:
+    - cptac-rna-protein-matched-per-sample-v1
+    modules:
+    - depmap_rna_protein_concordance.cli
+    emits_in_ledger: true
+    reason: bespoke read primitive (manifest-path/s3-cp)
+  sc-normal-celltype-expression:
+    confidence: undetermined
+    declares:
+    - sc-normal-celltype-expression-adrenal-gland-v1
+    - sc-normal-celltype-expression-bladder-organ-v1
+    - sc-normal-celltype-expression-bone-marrow-v1
+    - sc-normal-celltype-expression-brain-v1
+    - sc-normal-celltype-expression-colon-v1
+    - sc-normal-celltype-expression-esophagus-v1
+    - sc-normal-celltype-expression-heart-v1
+    - sc-normal-celltype-expression-kidney-v1
+    - sc-normal-celltype-expression-large-intestine-v1
+    - sc-normal-celltype-expression-liver-v1
+    - sc-normal-celltype-expression-lung-v1
+    - sc-normal-celltype-expression-ovary-v1
+    - sc-normal-celltype-expression-pancreas-v1
+    - sc-normal-celltype-expression-prostate-gland-v1
+    - sc-normal-celltype-expression-skin-v1
+    - sc-normal-celltype-expression-small-intestine-v1
+    - sc-normal-celltype-expression-spleen-v1
+    - sc-normal-celltype-expression-stomach-v1
+    - sc-normal-celltype-expression-uterus-v1
+    modules:
+    - sc_normal_expression.cli
+    emits_in_ledger: true
+    reason: 0 concrete catalog reads; bespoke read primitive (manifest-path/s3-cp)
+  sc-surface-normal-safety:
+    confidence: undetermined
+    declares:
+    - sc-cite-surface-normal-bonemarrow-v1
+    - sc-cite-surface-normal-immune-v1
+    modules:
+    - sc_surface_normal_safety.cli
+    emits_in_ledger: true
+    reason: 0 concrete catalog reads; 1 opaque catalog call(s)
+  sc-surface-rna-protein-concordance:
+    confidence: sound
+    declares:
+    - sc-cite-rna-protein-concordance-v1
+    modules:
+    - sc_surface_concordance.cli
+    emits_in_ledger: true
+    reads:
+    - sc-cite-rna-protein-concordance-v1
+    read_closures:
+      sc-cite-rna-protein-concordance-v1:
+      - cite-adt-panel-to-hgnc-crosswalk-v1
+      - geo-gse164378-hao-2021-cite-pbmc-snapshot-2026-08-12
+      - hgnc-gene-group-471-cd-molecules-snapshot-2026-07-08
+      - sc-cite-rna-protein-concordance-v1
+    templates: []
+    off_contract_reads: []
+    findings: []
+  signaling-network-mechanism:
+    confidence: undetermined
+    declares:
+    - signor-jul2026
+    - signor-mechanism-network-per-gene-v1
+    modules:
+    - mechanism_composed
+    emits_in_ledger: true
+    reason: bespoke read primitive (manifest-path/s3-cp)
+  spatial-region-rna-expression:
+    confidence: undetermined
+    declares:
+    - spatial-region-rna-brca-v1
+    - spatial-region-rna-coadread-v1
+    - spatial-region-rna-hnsc-v1
+    - spatial-region-rna-nsclc-v1
+    - spatial-region-rna-paad-v1
+    modules:
+    - spatial_region_rna.cli
+    emits_in_ledger: true
+    reason: 0 concrete catalog reads; 1 opaque catalog call(s)
+  spatial-surface-protein-abundance:
+    confidence: undetermined
+    declares:
+    - spatial-surface-protein-hnsc-gse200601-v1
+    - spatial-surface-protein-hnsc-v1
+    - spatial-surface-protein-nsclc-v1
+    modules:
+    - spatial_surface_protein.cli
+    emits_in_ledger: true
+    reason: 0 concrete catalog reads; 1 opaque catalog call(s)
+  spatial-tumor-normal-colocalization:
+    confidence: undetermined
+    declares:
+    - spatial-coloc-tumor-crc-coadread-v1
+    - spatial-coloc-tumor-crc-gse280318-v1
+    - spatial-coloc-tumor-crc-gse335552-v1
+    - spatial-coloc-tumor-hnsc-v1
+    - spatial-coloc-tumor-nsclc-gse319755-v1
+    - spatial-coloc-tumor-nsclc-v1
+    - spatial-coloc-tumor-paad-gse310352-v1
+    - spatial-coloc-tumor-paad-gse313662-v1
+    - spatial-coloc-tumor-paad-v1
+    - spatial-coloc-tumor-stad-v1
+    modules:
+    - spatial_colocalization.cli
+    emits_in_ledger: true
+    reason: 0 concrete catalog reads; 1 opaque catalog call(s)
+  splice-exon-skip-landscape:
+    confidence: undetermined
+    declares:
+    - depmap-somatic-splice-variants-v1
+    modules:
+    - exon_skip_carrier
+    emits_in_ledger: true
+    reason: bespoke read primitive (manifest-path/s3-cp)
+  structure-features-static:
+    confidence: undetermined
+    declares:
+    - pdb-alphafold-structure-features-per-uniprot-v1
+    - structure-ligandability-per-protein-v1
+    modules:
+    - structure_features_static
+    emits_in_ledger: true
+    reason: bespoke read primitive (manifest-path/s3-cp)
+  subgroup-stratified-copy-number:
+    confidence: undetermined
+    declares:
+    - gdc-pancanatlas-cnv-2018
+    - subgroup-catalog
+    modules:
+    - tcga_patient_cn.stratified
+    emits_in_ledger: false
+    reason: bespoke read primitive (manifest-path/s3-cp)
+  subgroup-stratified-dependency:
+    confidence: undetermined
+    declares:
+    - depmap-consortium-26q1
+    - subgroup-catalog
+    modules:
+    - depmap_chronos
+    - subgroup_common.panorama
+    emits_in_ledger: false
+    reason: bespoke read primitive (manifest-path/s3-cp)
+  subgroup-stratified-fusion:
+    confidence: undetermined
+    declares:
+    - subgroup-catalog
+    - tcga-fusion-consensus-v1
+    modules:
+    - tcga_fusion_consensus.stratified
+    emits_in_ledger: false
+    reason: bespoke read primitive (manifest-path/s3-cp)
+  subgroup-stratified-mutation-frequency:
+    confidence: undetermined
+    declares:
+    - gdc-pancohort-somatic
+    - subgroup-catalog
+    modules:
+    - gdc_somatic_hotspot
+    - subgroup_common.panorama
+    emits_in_ledger: false
+    reason: bespoke read primitive (manifest-path/s3-cp)
+  subtype-survival-association:
+    confidence: undetermined
+    declares:
+    - gdc-pancanatlas-clinical-2018
+    - subgroup-catalog
+    modules:
+    - subtype_survival_association.cli
+    emits_in_ledger: true
+    reason: bespoke read primitive (manifest-path/s3-cp)
+  surface-abundance-density:
+    confidence: undetermined
+    declares:
+    - cptac-protein-tumor-vs-normal-per-cohort-v1
+    modules:
+    - cptac_protein_deg
+    - surface_antigen_density_ladder
+    emits_in_ledger: true
+    reason: bespoke read primitive (manifest-path/s3-cp)
+  surface-bulk-pair-selectivity:
+    confidence: undetermined
+    declares:
+    - bispecific-bulk-pair-selectivity-per-indication-v1
+    modules:
+    - pair_selectivity_gate.bulk_read
+    emits_in_ledger: true
+    reason: 9 opaque catalog call(s); bespoke read primitive (manifest-path/s3-cp)
+  surface-colocalization-avidity:
+    confidence: undetermined
+    declares:
+    - sc-samecell-coexpr-3ca-hnsc-v1
+    - sc-samecell-coexpr-3ca-kidney-v1
+    - sc-samecell-coexpr-3ca-ovarian-v1
+    - sc-samecell-coexpr-3ca-pancreas-v1
+    - sc-samecell-coexpr-brca-wu-v1
+    - sc-samecell-coexpr-crc-coadread-v1
+    - sc-samecell-coexpr-luca-nsclc-v1
+    - sc-samecell-coexpr-lusc-v1
+    - sc-samecell-coexpr-normal-v1
+    - sc-samecell-coexpr-stad-golim-v1
+    modules:
+    - pair_selectivity_gate.cli
+    emits_in_ledger: true
+    reason: 9 opaque catalog call(s); bespoke read primitive (manifest-path/s3-cp)
+  surface-topology-and-ptm:
+    confidence: sound
+    declares:
+    - topology-predictions-tmbed-v1
+    modules:
+    - topology_predictions_tmbed
+    emits_in_ledger: true
+    reads:
+    - topology-predictions-tmbed-v1
+    read_closures:
+      topology-predictions-tmbed-v1:
+      - topology-predictions-tmbed-v1
+      - uniprot-sprot-human-2026-02-snapshot-2026-06-18
+    templates: []
+    off_contract_reads: []
+    findings: []
+  surfaceome-family-classification:
+    confidence: undetermined
+    declares:
+    - surfaceome-family-classification-per-uniprot-v1
+    modules:
+    - surfaceome_family_fusion
+    emits_in_ledger: true
+    reason: bespoke read primitive (manifest-path/s3-cp)
+  tahoe-drug-perturbation:
+    confidence: sound
+    declares:
+    - tahoe-drug-perturbation-per-gene-v1
+    modules:
+    - tahoe_drug_perturbation.read
+    emits_in_ledger: true
+    reads:
+    - tahoe-drug-perturbation-per-gene-v1
+    read_closures:
+      tahoe-drug-perturbation-per-gene-v1:
+      - tahoe-100m-pointer-snapshot-2026-08-06
+      - tahoe-drug-perturbation-per-gene-v1
+    templates: []
+    off_contract_reads: []
+    findings: []
+  target-identity-summary:
+    confidence: undetermined
+    declares:
+    - target-id-resolver-release
+    modules: []
+    emits_in_ledger: false
+    reason: 0 concrete catalog reads
+  target-safety-prioritisation:
+    confidence: sound
+    declares:
+    - opentargets-26-06
+    modules:
+    - opentargets_target_prioritisation.read
+    emits_in_ledger: true
+    reads:
+    - opentargets-26-06
+    read_closures:
+      opentargets-26-06:
+      - opentargets-26-06
+    templates: []
+    off_contract_reads: []
+    findings: []
+  tumor-elevation-breadth:
+    confidence: undetermined
+    declares:
+    - cptac-protein-tumor-vs-normal-per-cohort-v1
+    - pancan-dge-tumor-vs-normal-v1
+    modules:
+    - cptac_protein_deg
+    - dge_deseq2
+    emits_in_ledger: true
+    reason: 5 opaque catalog call(s); bespoke read primitive (manifest-path/s3-cp)
+  tumor-protein-distribution-by-subtype:
+    confidence: undetermined
+    declares:
+    - cptac-protein-tumor-vs-normal-per-sample-v1
+    - cptac-subgroup-assignments-coadread-v1
+    modules:
+    - cptac_protein_distribution.read
+    - subgroup_common.scoping
+    emits_in_ledger: true
+    reason: bespoke read primitive (manifest-path/s3-cp)
+  tumor-rna-distribution:
+    confidence: undetermined
+    declares:
+    - allgene-tumor-rank-v1
+    - gtex-tpm-recount3-long-v1
+    - tcga-spliceseq-psi-per-gene-v1
+    - tcga-tumor-tpm-recount3-long-v1
+    modules:
+    - tcga_gtex_expression_distribution.cli
+    - tcga_spliceseq_psi
+    emits_in_ledger: true
+    reason: bespoke read primitive (manifest-path/s3-cp)
+  tumor-rna-distribution-by-subtype:
+    confidence: undetermined
+    declares:
+    - sclc-subgroup-assignments-v1
+    - tcga-subgroup-assignments-coadread-v1
+    - tcga-subgroup-assignments-esca-maf-v1
+    - tcga-subgroup-assignments-esca-v1
+    - tcga-subgroup-assignments-hnsc-maf-v1
+    - tcga-subgroup-assignments-hnsc-v1
+    - tcga-subgroup-assignments-nsclc-maf-v1
+    - tcga-subgroup-assignments-nsclc-v1
+    - tcga-subgroup-assignments-paad-maf-v1
+    - tcga-subgroup-assignments-paad-v1
+    - tcga-subgroup-assignments-stad-v1
+    - tcga-tumor-tpm-per-sample-v1
+    - tcga-tumor-tpm-recount3-long-v1
+    modules:
+    - tcga_gtex_expression_distribution.cli
+    emits_in_ledger: true
+    reason: bespoke read primitive (manifest-path/s3-cp)
+  tumor-rna-vs-adjacent:
+    confidence: undetermined
+    declares:
+    - expression-rna-tumor-vs-adjacent
+    modules:
+    - dge_deseq2
+    emits_in_ledger: true
+    reason: 5 opaque catalog call(s); bespoke read primitive (manifest-path/s3-cp)
+  tumor-scrna-celltype-expression:
+    confidence: undetermined
+    declares:
+    - sc-pseudobulk-donor-celltype-lusc-v1
+    - sc-pseudobulk-tumor-3ca-hnsc-v1
+    - sc-pseudobulk-tumor-3ca-kidney-v1
+    - sc-pseudobulk-tumor-3ca-ovarian-v1
+    - sc-pseudobulk-tumor-3ca-pancreas-v1
+    - sc-pseudobulk-tumor-brca-wu-v1
+    - sc-pseudobulk-tumor-crc-coadread-v1
+    - sc-pseudobulk-tumor-luca-nsclc-v1
+    - sc-pseudobulk-tumor-stad-golim-v1
+    modules:
+    - sc_tumor_expression_celltype.cli
+    emits_in_ledger: true
+    reason: 10 opaque catalog call(s); bespoke read primitive (manifest-path/s3-cp)
+  tumor-vs-normal-percentile-crossing:
+    confidence: undetermined
+    declares:
+    - gtex-tpm-recount3-long-v1
+    - tcga-tumor-tpm-recount3-long-v1
+    modules:
+    - tcga_gtex_expression_distribution.cli
+    emits_in_ledger: true
+    reason: bespoke read primitive (manifest-path/s3-cp)
+  tumor-vs-normal-percentile-crossing-by-subtype:
+    confidence: undetermined
+    declares:
+    - gtex-tpm-recount3-long-v1
+    - sclc-george-tpm-long-v1
+    - sclc-subgroup-assignments-v1
+    - tcga-subgroup-assignments-coadread-v1
+    - tcga-subgroup-assignments-esca-maf-v1
+    - tcga-subgroup-assignments-esca-v1
+    - tcga-subgroup-assignments-hnsc-maf-v1
+    - tcga-subgroup-assignments-hnsc-v1
+    - tcga-subgroup-assignments-nsclc-maf-v1
+    - tcga-subgroup-assignments-nsclc-v1
+    - tcga-subgroup-assignments-paad-maf-v1
+    - tcga-subgroup-assignments-paad-v1
+    - tcga-subgroup-assignments-stad-v1
+    - tcga-tumor-tpm-recount3-long-v1
+    modules:
+    - tcga_gtex_expression_distribution.cli
+    emits_in_ledger: false
+    reason: bespoke read primitive (manifest-path/s3-cp)
+  tumor-vs-normal-selectivity:
+    confidence: undetermined
+    declares:
+    - acc-dge-tumor-vs-normal-sensitivity-v1
+    - blca-dge-tumor-vs-normal-sensitivity-v1
+    - brca-dge-tumor-vs-normal-sensitivity-v1
+    - cesc-dge-tumor-vs-normal-sensitivity-v1
+    - coad-dge-tumor-vs-normal-sensitivity-v1
+    - coadread-dge-tumor-vs-normal-sensitivity-by-subgroup-v1
+    - coadread-dge-tumor-vs-normal-sensitivity-v1
+    - esca-dge-tumor-vs-normal-sensitivity-v1
+    - gbm-dge-tumor-vs-normal-sensitivity-v1
+    - hnsc-dge-tumor-vs-normal-sensitivity-v1
+    - kich-dge-tumor-vs-normal-sensitivity-v1
+    - kirc-dge-tumor-vs-normal-sensitivity-v1
+    - kirp-dge-tumor-vs-normal-sensitivity-v1
+    - lgg-dge-tumor-vs-normal-sensitivity-v1
+    - lihc-dge-tumor-vs-normal-sensitivity-v1
+    - luad-dge-tumor-vs-normal-sensitivity-v1
+    - lusc-dge-tumor-vs-normal-sensitivity-v1
+    - nsclc-dge-tumor-vs-normal-sensitivity-by-subgroup-v1
+    - nsclc-dge-tumor-vs-normal-sensitivity-v1
+    - ov-dge-tumor-vs-normal-sensitivity-v1
+    - paad-dge-tumor-vs-normal-sensitivity-v1
+    - pcpg-dge-tumor-vs-normal-sensitivity-v1
+    - prad-dge-tumor-vs-normal-sensitivity-v1
+    - read-dge-tumor-vs-normal-sensitivity-v1
+    - sclc-dge-tumor-vs-normal-sensitivity-v1
+    - skcm-dge-tumor-vs-normal-sensitivity-v1
+    - stad-dge-tumor-vs-normal-sensitivity-by-subgroup-v1
+    - stad-dge-tumor-vs-normal-sensitivity-v1
+    - tgct-dge-tumor-vs-normal-sensitivity-v1
+    - thca-dge-tumor-vs-normal-sensitivity-v1
+    - ucec-dge-tumor-vs-normal-sensitivity-v1
+    - ucs-dge-tumor-vs-normal-sensitivity-v1
+    modules:
+    - dge_deseq2.read
+    emits_in_ledger: true
+    reason: 5 opaque catalog call(s); bespoke read primitive (manifest-path/s3-cp)
+  variant-level-interpretation:
+    confidence: undetermined
+    declares:
+    - civic-nightly-snapshot-2026-07-02
+    modules:
+    - civic_variant_interpretation
+    emits_in_ledger: true
+    reason: 0 concrete catalog reads; bespoke read primitive (manifest-path/s3-cp)

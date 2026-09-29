@@ -1,0 +1,148 @@
+# concepts.yaml — SSOT for the Concepts & Schemas tab of the living document.
+#
+# TYPE-LEVEL prose only (drift-free): one entry per component type with a short narration,
+# the JSON-schema that defines its shape, and a SELECTOR (not content) for a real example
+# instance. The schema shape, example fields, inventory counts, and where-defined links are
+# ALL generated from disk on every build — this file holds only the human narration + pointers.
+#
+# `schema.repo` ∈ {tc (target-contracts), dc (data-catalog), sk (skills)}.
+# `schema.defs_key` (optional) picks a sub-shape out of a $defs tagged-union schema.
+# `example.repo` + `example.glob` select the exemplar instance (first match, sorted); or
+# `example.path` for an exact file. `example.pick` = "id:<value>" pins by id field.
+
+types:
+  - id: source_manifest
+    title: Source manifest
+    order: 1
+    narration: >-
+      A source manifest is one YAML record in the data-catalog describing an external dataset
+      received whole (DepMap, TCGA, GENIE, gnomAD). It records the S3 location, per-file MD5 +
+      size, license, provenance pipeline, and data subject — the catalog is the source-of-record
+      for WHAT data exists and WHERE, never the bytes themselves. Everything downstream reads a
+      manifest to find its data.
+    schema: {repo: dc, path: schema/manifest.schema.json, defs_key: SourceRelease}
+    example: {repo: dc, glob: "manifests/sources/depmap-consortium-26q1*.yaml"}
+    inventory: {repo: dc, glob: "manifests/sources/*.yaml"}
+    doc_keys: [DATA_CARD_RULE_VERDICT_MAP, FRAMEWORK_OVERVIEW]
+
+  - id: derived_manifest
+    title: Derived manifest
+    order: 2
+    narration: >-
+      A derived manifest describes a team-produced, query-optimized product built from one or
+      more sources — a gene-SORTED parquet on S3. It pins the producing git commit + notebook
+      (reproducibility), the parquet schema and sort key (so readers do a one-gene predicate-
+      pushdown read), and `derived_from` (the lineage edge back to sources). `cited_by` is
+      auto-populated, forming an implicit do-not-delete graph.
+    schema: {repo: dc, path: schema/manifest.schema.json, defs_key: Derived}
+    example: {repo: dc, glob: "manifests/derived/allgene-depmap-rank-26q1-v1.yaml"}
+    inventory: {repo: dc, glob: "manifests/derived/*.yaml"}
+    doc_keys: [DATA_CARD_RULE_VERDICT_MAP]
+
+  - id: method
+    title: Method (analysis-methods)
+    order: 3
+    narration: >-
+      A method is deterministic compute — `fn(target=, indication=) -> summary dict` — that reads
+      a catalog product and emits NUMBERS and categorical LABELS, never a verdict. Its output
+      validates against a per-card summary schema at compose time, so schema drift is caught
+      before it reaches an evidence package. Methods live in the analysis-methods repo; a card
+      names the method that produces it.
+    schema: {repo: tc, glob: "schemas/methods/*.summary.schema.json"}
+    example: {repo: tc, glob: "schemas/methods/dependency-lineage-selectivity.summary.schema.json"}
+    inventory: {repo: tc, glob: "schemas/methods/*.summary.schema.json"}
+    doc_keys: [DATA_CARD_RULE_VERDICT_MAP, DATA_TO_SKILL_CONTRACT]
+
+  - id: card
+    title: Card (evidence contract)
+    order: 4
+    narration: >-
+      A card is the declarative contract for one piece of evidence, and the hinge of the whole
+      framework. Its identity is (measurement_type x entity_grain) — gates PULL a measurement
+      type, data PUSHES a provider, so a new dataset slots in without touching gate logic. It
+      binds the product it reads (`required_inputs`), the method that produces it (`methods`), and
+      the closed-vocabulary labels it emits (`outputs.summary_fields`). Cards emit descriptive
+      labels only; interpretation lives in the rules layer.
+    schema: {repo: tc, path: schemas/card.schema.json}
+    example: {repo: tc, glob: "cards/pan-cancer-crispr-dependency-distribution.card.yaml"}
+    inventory: {repo: tc, glob: "cards/*.card.yaml"}
+    doc_keys: [CARD_ARCHITECTURE_DECISION, DATA_TO_SKILL_CONTRACT, DATA_CARD_RULE_VERDICT_MAP]
+
+  - id: interpretation_rule
+    title: Interpretation rule
+    order: 5
+    narration: >-
+      An interpretation rule maps one card LABEL to a per-modality SIGNAL, firing a named
+      `rule_id` — e.g. "when dependency_class == common_essential -> small_molecule: killer".
+      This is the only place a descriptive label becomes a therapeutic signal. Rules never decide
+      a verdict; they produce the fired-rule set that a resolver reduces.
+    schema: {repo: tc, path: schemas/interpretation_rules.schema.json}
+    example: {repo: tc, glob: "interpretation-rules/intracellular-intrinsic.rules.yaml"}
+    inventory: {repo: tc, glob: "interpretation-rules/*.rules.yaml"}
+    doc_keys: [DATA_CARD_RULE_VERDICT_MAP, VERDICT_REPRESENTATION]
+
+  - id: resolver
+    title: Resolver (verdict ladder)
+    order: 6
+    narration: >-
+      A resolver reduces the SET of fired rule_ids to one verdict per gate. It is an ordered
+      precedence ladder that pattern-matches only over rule_ids — deliberately not Turing-complete
+      (no arithmetic; that lives in the card/method). It emits a verdict token plus a
+      `driving_rule_id` provenance anchor and a `default` (usually insufficient) so exhaustiveness
+      is provable. A single shared interpreter runs every gate, so verdicts are byte-stable.
+    schema: {repo: tc, path: schemas/resolver.schema.json}
+    example: {repo: tc, glob: "resolvers/dependency.resolver.yaml"}
+    inventory: {repo: tc, glob: "resolvers/*.resolver.yaml"}
+    doc_keys: [VERDICT_REPRESENTATION, VERDICT_REPRESENTATION_FOLD, DATA_CARD_RULE_VERDICT_MAP]
+
+  - id: skill
+    title: Skill (question + composition)
+    order: 7
+    narration: >-
+      A skill answers one biological question by composing a set of cards, firing their rules, and
+      resolving a verdict. Its SKILL.md `composition` block declares data_mode, phase, cards_used,
+      rules_scope, and status. The composed target-profile skill fans out to ~13 focused skills,
+      inherits each sub-verdict from the shared resolver spine (never re-resolves), then adds LLM
+      synthesis on top.
+    schema: {repo: sk, path: skills/_skills_common/composition_schema.py, kind: python}
+    example: {repo: sk, glob: "skills/functional-requirement/SKILL.md", kind: skill_md}
+    inventory: {repo: sk, glob: "skills/*/SKILL.md"}
+    doc_keys: [FRAMEWORK_OVERVIEW, DATA_TO_SKILL_CONTRACT, SKILL_INTENT_CHARACTERIZE_VS_DECIDE]
+
+  - id: evidence_package
+    title: Evidence package / synthesis
+    order: 8
+    narration: >-
+      An evidence package is the terminal composed output for one target x indication. It carries
+      the deterministic sub-verdicts, per-card evidence, governance (which manifest versions were
+      read, with staleness flags), and a synthesis block. The LLM narration rides in DISTINCT
+      schema slots tagged `_source: llm_synthesized`, and its recommendation is clamped by a
+      fail-closed gate — so narrative can never move an auditable verdict.
+    schema: {repo: tc, path: schemas/evidence_package.schema.json}
+    example: {repo: dp, glob: "*/*/ep-*/evidence_package.json"}
+    inventory: {repo: dp, glob: "*/*/ep-*/evidence_package.json"}
+    doc_keys: [VERDICT_REPRESENTATION, RISK_ASSESSMENT_INTEGRATION, PER_DIMENSION_EVIDENCE_REPRESENTATION]
+
+# doc_keying — maps a design-doc stem to the component types it describes (Docs tab grouping).
+# Only stems present under docs/design/*.md (tc) or docs/*.md (sk) are rendered; unknown keys are dropped.
+doc_keying:
+  FRAMEWORK_OVERVIEW: [skill, card, source_manifest]
+  DATA_CARD_RULE_VERDICT_MAP: [source_manifest, derived_manifest, method, card, interpretation_rule, resolver]
+  DATA_TO_SKILL_CONTRACT: [card, method, skill]
+  CARD_ARCHITECTURE_DECISION: [card]
+  CERTAINTY_MODEL: [interpretation_rule, resolver]
+  VERDICT_REPRESENTATION: [resolver, interpretation_rule, evidence_package]
+  VERDICT_REPRESENTATION_FOLD: [resolver]
+  VERDICT_REPRESENTATION_MIGRATION: [resolver, evidence_package]
+  GATE_MODEL_V2_MEMO: [resolver, skill]
+  OBJECTIVE_AXIS_MAP: [skill, card]
+  MODALITY_TAXONOMY: [interpretation_rule, resolver]
+  RISK_ASSESSMENT_INTEGRATION: [evidence_package, skill]
+  PER_DIMENSION_EVIDENCE_REPRESENTATION: [evidence_package, card]
+  SKILL_INTENT_CHARACTERIZE_VS_DECIDE: [skill]
+  # skills-repo docs (docs/*.md)
+  HEADLINE_CONTRACT: [evidence_package, skill]
+  TARGET_PROFILE_WALKTHROUGH: [skill, card, evidence_package]
+  FIGURE_EMITTER_ARCHITECTURE_2026-08-19: [card, evidence_package]
+  EVIDENCE_PACK_DESIGN_2026-08-21: [evidence_package]
+  DEFINITION_OF_DONE: [skill, card]

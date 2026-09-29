@@ -1,0 +1,10 @@
+# Per-repo config consumed by ~/.claude/git-hooks/pre-commit.
+
+# Approved branch prefixes for this repo.
+prefixes: feat/ fix/ chore/
+
+# Default base branch for new-worktree / land-pr (override with --base).
+default_base: main
+
+# Human-readable top-level scope roots.
+scope_roots: cards/ interpretation-rules/ schemas/ vocabularies/ tests/

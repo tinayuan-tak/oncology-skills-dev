@@ -1,0 +1,244 @@
+# Card Phase-A — PROTEIN PRESENCE CPTAC (v1)
+#
+# REVIEWER-ADDED card (2026-07-08). Content-reviewer flagged that the plan's
+# original 7-card scope was RNA-forward with a protein-shaped hole. CPTAC
+# protein-level tumor-vs-normal is the primary evidence layer for ADC/TCE
+# decisions where RNA underestimates or overestimates surface abundance.
+# This card graduates tumor-presence from RNA-only to dual-layer.
+#
+# Coverage: 10 CPTAC cohorts (BRCA, CCRCC, COAD, GBM, HNSCC, LSCC, LUAD, OV,
+# PDAC, UCEC). Indications without CPTAC coverage return
+# 'data_unavailable' — the RNA-based tumor-rna-vs-adjacent card
+# remains authoritative for those tissues.
+
+card_id: tumor-protein-abundance-cptac
+version: 1.0.0
+question: "Is {target.symbol} present at the protein level in {indication.label} tumors vs matched normals per CPTAC?"
+
+# Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a
+# non-verdict-driving field on this card; declare the rule-keyed primary + salient categoricals.
+# VERDICT-INERT projection (see capsule contract migration).
+capsule:
+  primary_class: protein_expression_class
+  categorical_fields:
+    - protein_expression_class
+    - allgene_percentile_class
+    - protein_effect_standardized_class
+    - stat_test_used
+
+tier: indication   # indication-scoped CPTAC protein presence; subtype-eligible once a per-sample protein reader ships
+
+# BLOCKED (2026-07-16): protein presence varies by molecular subgroup (filter 1
+# met), but cptac-protein-deg emits a whole-cohort tumor-vs-normal aggregate
+# (filter 2 FAILS). Tagged not-live pending a per-sample CPTAC protein reader.
+subgroup_stratification:
+  eligible: true
+  status: blocked_needs_per_sample_reader
+  axes: [msi_status]
+  rationale: "Protein presence varies by subgroup but cptac-protein-deg is a whole-cohort aggregate; needs a per-sample protein reader to recompute per stratum."
+
+# applies_when lists every indication code the CPTAC reader can resolve — the FULL key set of
+# methods/cptac_protein_deg/read.py::INDICATION_TO_CPTAC, which maps both OncoTree canonical codes
+# (COADREAD, PAAD, LUSC, HNSC) AND CPTAC-internal aliases (COAD, PDAC, LSCC, HNSCC, CCRCC) to the 10
+# CPTAC cohorts. The pipeline passes OncoTree codes as context.indication; the earlier list carried
+# ONLY the CPTAC-internal spellings, so this card would exclude the flagship COADREAD (and PAAD /
+# LUSC / HNSC) once real indication-gating is enforced (today it's a phase-1 admit-by-default stub —
+# latent, not yet firing). Listing both spellings makes the gate correct under either code system.
+applies_when:
+  - "context.indication in ['BRCA', 'CCRCC', 'COAD', 'COADREAD', 'GBM', 'HNSC', 'HNSCC', 'LSCC', 'LUAD', 'LUSC', 'OV', 'PAAD', 'PDAC', 'UCEC']"
+
+required_inputs:
+  - product_id: cptac-protein-tumor-vs-normal-per-cohort-v1
+    indication: "{indication}"
+
+methods:
+  - call: cptac-protein-deg
+    module: cptac_protein_deg
+    entrypoint: read_target_summary
+    args:
+      cohort: "{indication}"
+      gene_symbol: "{target.symbol}"
+
+outputs:
+  summary_fields:
+    - protein_expression_class                     # PRIMARY categorical
+    - protein_median_log2_tumor                    # float
+    - protein_median_log2_normal                   # float
+    - protein_effect_size                          # float — median_log2_t - median_log2_n (RAW log2; the class thresholds on this)
+    # (removed protein_effect_size_pooled_sd 2026-09-01 — legacy field the reader never emitted;
+    #  superseded by protein_effect_size_se, the MSstatsTMT moderated SE declared below.)
+    - protein_p_value                              # float
+    - protein_bh_q_value                           # float
+    - n_tumor_samples
+    - n_normal_samples
+    # Variance-standardized companion to the RAW protein_effect_size (2026-08-20). The class thresholds
+    # on the raw log2 effect, blind to variance; these expose when a `modest_up` rests on a small
+    # per-sample effect that only cleared significance via n. Exact (logFC/SE) once the product carries
+    # the MSstatsTMT SE; p-value z-score approximation on the current product. Display-only / verdict-inert.
+    - protein_effect_size_se                       # float — MSstatsTMT moderated standard error (None until product rebuild)
+    - protein_effect_standardized_t                # float — logFC/SE (exact) or sign(logFC)*z-from-p (approx)
+    - protein_effect_cohens_d                      # float — sample-size-independent effect size = t/sqrt(n_eff)
+    - protein_effect_standardized_class            # categorical — Cohen's-d band
+    - protein_effect_standardized_method           # how protein_effect_standardized_t was obtained
+    - stat_test_used                               # 'msstatstmt_limma_ebayes_moderated' | 'skipped_low_n'
+    - method_version
+    # All-gene percentile null (additive, 2026-08-05): where protein_effect_size falls
+    # among ALL genes tested in the target's OWN cohort. Contextualizes the absolute
+    # effect size ("is +1.05 unusual?"). One-directional — display + companion categorical;
+    # never moves protein_expression_class / presence_verdict.
+    - allgene_percentile                           # float 0-100 (or null)
+    - allgene_percentile_class                     # categorical (drives rules if wired)
+    - allgene_percentile_context                   # string — the cohort/metric the null was drawn from (audit)
+
+  summary_fields_vocabulary:
+    protein_expression_class:
+      - strong_up                                  # q<0.05, logFC>1.5
+      - modest_up                                  # q<0.05, 0.5<logFC<=1.5
+      - small_effect                               # q<0.05 but variance-aware Cohen's d negligible, OR |logFC|<=0.5
+      - not_significant                            # q>=0.05 (or missing logFC/q)
+      - modest_down                                # q<0.05, -1.5<=logFC<-0.5
+      - strong_down                                # q<0.05, logFC<-1.5
+      # NOTE (2026-08-21, review M3): the former single `ns` class was split by cptac_protein_deg
+      # METHOD_VERSION 1.2.0 (2026-08-14) into `not_significant` (q>=0.05) + `small_effect` (q<0.05 but a
+      # negligible variance-standardized effect, or |logFC|<=0.5 — cleared significance via cohort size,
+      # not biology; see steps/03_pool_and_write.py::_classify). The card vocab lagged the method and still
+      # declared `ns` (orphan) while omitting both real values. Both are "present but not tumor-elevated"
+      # flat classes: the skill's _MEASURED_UNRULED_PRESENT rescue maps ns/not_significant/small_effect ->
+      # protein_present_not_elevated, so the bulk_protein_ms/tumor bucket stays `measured`. No rule keys on
+      # these flat classes (deliberately un-ruled), so this is a behavior-neutral contract-truth fix.
+      # NOTE (2026-08-20, review G2a): `not_detected` removed — cptac_protein_deg.classify() never emits
+      # it (a protein absent from the CPTAC MS produces no row → data_unavailable). Whole-proteome TMT
+      # cannot assert per-gene absence; the reachable protein-absence signal is the cell-line-MS
+      # cellline-protein-abundance broadly_low class, not this tumor-vs-normal contrast card.
+      - data_unavailable
+    stat_test_used:
+      # MSstatsTMT::groupComparisonTMT tumor-vs-normal — plex batch as a random effect +
+      # limma-eBayes moderated t (steps/02_msstats_deg.R + 03_pool_and_write.py:32). NOT the
+      # welch_t/wilcoxon the v2 draft assumed.
+      - msstatstmt_limma_ebayes_moderated
+      - skipped_low_n
+    allgene_percentile_class:
+      - top_1pct                                   # >= top_1_percentile cutoff
+      - top_decile                                 # >= top_decile cutoff
+      - mid
+      - bottom_decile                              # <= bottom_decile cutoff
+      - data_unavailable
+    protein_effect_standardized_class:             # Cohen's-d band (variance-standardized effect SIZE)
+      - negligible                                 # |d| < 0.2
+      - small                                      # 0.2 <= |d| < 0.5
+      - medium                                     # 0.5 <= |d| < 0.8
+      - large                                      # |d| >= 0.8
+      - data_unavailable                           # effect/SE/p or n missing
+    protein_effect_standardized_method:
+      - moderated_se_exact                         # logFC / MSstatsTMT SE (product carries SE)
+      - pvalue_zscore_approx                       # sign(logFC)*Phi^-1(1-p/2) — pre-rebuild fallback
+      - data_unavailable
+
+  # Figure is a PER-COHORT tumor-vs-normal DISTRIBUTION BOXPLOT (upgraded 2026-07-22). Originally a
+  # median-only dumbbell, because the only product was per-cohort SUMMARY
+  # (cptac-protein-tumor-vs-normal-per-cohort-v1). A dedicated per-SAMPLE product
+  # (cptac-protein-tumor-vs-normal-per-sample-v1, 129 MB, sorted by gene so a per-gene read prunes to
+  # a few row-groups) now persists the per-aliquot log-ratios — so the honest per-sample boxplot is
+  # cheap, NOT a 15 GB raw-matrix re-read. The panel shows the target's true tumor + normal
+  # distributions across ALL CPTAC cohorts it was quantified in, with per-cohort Welch/Mann-Whitney
+  # significance recomputed from the plotted samples (so stars match the boxes).
+  figures:
+    - id: protein_per_cohort_tumor_vs_normal
+      type: per_cohort_distribution_tumor_vs_normal
+      description: "Per-CPTAC-cohort grouped boxplot: the tumor and normal per-aliquot log2 protein-ratio DISTRIBUTIONS for each of the K cohorts the target was quantified in, ordered by tumor-vs-normal median delta, with per-cohort Mann-Whitney/Welch significance (recomputed from the plotted samples). The true cross-cohort tumor-elevation signal at per-sample resolution."
+      preferred_surfaces: [markdown, ppt, decision_memo]
+      primary: true
+  plot_data: per_cohort_protein_tumor_vs_normal
+
+thresholds:
+  strong_up_effect: 1.5
+  modest_up_effect: 0.5
+  significance_q: 0.05
+  # Cohen's-d |d| bands for protein_effect_standardized_class (variance-standardized effect SIZE):
+  # negligible <0.2 <= small <0.5 <= medium <0.8 <= large. Promoted from the summary_fields_vocabulary
+  # comments to named thresholds so the salience Cohen's-d ruler single-sources the SAME cuts the
+  # standardized-class band uses (mirrors the modest/strong_up_effect log2FC cuts above).
+  cohens_d_small: 0.2
+  cohens_d_medium: 0.5
+  cohens_d_large: 0.8
+  # all-gene percentile-class cutoffs (method bins allgene_percentile → allgene_percentile_class)
+  allgene_top_1_percentile: 99.0
+  allgene_top_decile: 90.0
+  allgene_bottom_decile: 10.0
+
+warning_predicates:
+  - warning_id: low_normal_arm_count
+    if: "n_normal_samples < 10"
+    message: "Normal arm has < 10 samples in this CPTAC cohort — protein tumor-vs-normal calls are underpowered. Interpret protein_expression_class cautiously."
+  - warning_id: rna_protein_discordance
+    if: "protein_expression_class == 'strong_up' && context.rna_expression_class == 'ns'"
+    message: "Protein is strongly upregulated but RNA (tumor-rna-vs-adjacent card) is not significant. Post-transcriptional regulation elevates protein beyond RNA — this pattern is ADC/TCE-favorable but should be verified with additional evidence."
+
+caveats:
+  - |
+    CPTAC-PDC declared md5 + size are advisory (stale) per source manifest;
+    the compute layer trusts streamed md5. See methods/cptac_protein_deg/
+    for the ingest discipline.
+  - |
+    Protein abundance is TMT-labeled mass-spec ratio-based. Absolute
+    intensity is NOT copies-per-cell — the surface-abundance-density card
+    (Phase F) derives copies-per-cell separately using HPA IHC intensity
+    anchoring. Slaga 2018 (Sci Transl Med) established the TCE viability
+    threshold at > 1,000 copies/cell.
+  - |
+    10 CPTAC cohorts do NOT cover all TCGA indications. Missing: BLCA,
+    SKCM, KIRC, STAD, ESCA, LIHC, CESC, PRAD, CHOL, ACC. For those
+    indications, tumor-rna-vs-adjacent (RNA) remains the primary
+    presence signal.
+  - |
+    Small normal arms (GBM, OV, PDAC): stat_test_used='skipped_low_n' when
+    < 5 samples per arm. Consumers should treat those rows as data-
+    unavailable for statistical claims.
+  - |
+    Protein-level presence does NOT guarantee surface accessibility — a
+    protein highly expressed in tumors that is exclusively intracellular
+    is not ADC/TCE-actionable. Cross-reference the surface-topology-and-ptm
+    + surfaceome-family-classification cards before treating a strong_up
+    call as modality-actionable.
+
+measurement: bulk_protein_ms
+sample_context: tumor         # patient tumor vs normal (CPTAC per-cohort) — orthogonal to measurement (2026-07-21)
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `tumor_protein_abundance` claim.
+measurement_type: tumor_protein_abundance
+# P4 Tier-2 (2026-07-24): cross-axis — protein abundance is the SM/degrader presence read (intracellular rules) AND the antigen-presence prerequisite for biologics (surface rules H). Rules exist on BOTH axes. Declaration lands WITH the matching surface rules (PR feat/p4-surface-rules-tier2) — never declare without a rule.
+modality_relevance: [small_molecule, degrader, adc, bite_tce, antibody]
+entity_grains: [target_indication]
+schema_version: 1
+threshold_roles:
+  allgene_top_decile:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the tumor_protein_abundance reference frame over `allgene_percentile` (percentile), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'
+  cohens_d_large:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the tumor_protein_abundance reference frame over `protein_effect_cohens_d` (cohens_d), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'
+  cohens_d_medium:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the tumor_protein_abundance reference frame over `protein_effect_cohens_d` (cohens_d), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'
+  cohens_d_small:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the tumor_protein_abundance reference frame over `protein_effect_cohens_d` (cohens_d), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'
+  modest_up_effect:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the tumor_protein_abundance reference frame over `protein_effect_size` (protein_effect), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'
+  strong_up_effect:
+    role: method_parameter
+    consumed_by: cptac-protein-deg
+    note: 'The method returns strong_up when logfc > 1.5 in cptac_protein_deg/steps/03_pool_and_write.py:158-159 (classify). Applied upstream, never by a card predicate.'
+  significance_q:
+    role: method_parameter
+    consumed_by: cptac-protein-deg
+    note: 'The method gates directional protein calls on q < 0.05 in steps/03_pool_and_write.py:150 (classify). Applied upstream, never by a card predicate.'
+  allgene_top_1_percentile:
+    role: method_parameter
+    consumed_by: cptac-protein-deg
+    note: 'The method bins allgene_percentile -> allgene_percentile_class via the shared percentile_null helper (methods/percentile_null/__init__.py DEFAULT_CUTOFFS L22 -> classify_percentile L69), reached from cptac_protein_deg/read.py:492. Applied upstream, never by a card predicate.'
+  allgene_bottom_decile:
+    role: method_parameter
+    consumed_by: cptac-protein-deg
+    note: 'Shared percentile_null helper (DEFAULT_CUTOFFS L22 -> classify_percentile L73-74), reached from cptac_protein_deg/read.py:492. Applied upstream, never by a card predicate.'

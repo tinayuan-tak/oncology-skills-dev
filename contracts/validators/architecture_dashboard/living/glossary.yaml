@@ -1,0 +1,99 @@
+# glossary.yaml — hand-authored FALLBACKS + OVERRIDES for the legibility layer.
+#
+# The builder (glossary.py) auto-derives a plain-language gloss for every machine token the
+# living document surfaces (card_ids from the card `question`; rule_ids from rule signals;
+# verdict tokens; gates; measurement_types from the vocab descriptions). This file supplies
+# glosses ONLY where no source exists (enums) or where the auto-derived text should be
+# overridden. Shape: <kind>: { <token>: {label, plain_english} }.
+
+severity:
+  error:   {label: "Error", plain_english: "Broken wiring — will fail CI / block a build. Fix first."}
+  warn:    {label: "Warning", plain_english: "Advisory — not yet broken, but drifting or incomplete."}
+  info:    {label: "Info", plain_english: "Coverage gap or backlog item — honest missing piece, not a defect."}
+
+gap_type:
+  card_structural:        {label: "Card structure", plain_english: "A card does not conform to the card schema or has a bad cross-reference."}
+  dead_rule:              {label: "Dead / orphan rule", plain_english: "An interpretation rule can never fire — its card, field, or value does not exist."}
+  dangling_rung:          {label: "Dangling resolver rung", plain_english: "A resolver names a rule_id that no interpretation rule defines (rename/typo)."}
+  verdict_token:          {label: "Verdict-token mismatch", plain_english: "A nomination-gate token does not case-exactly match a verdict any resolver emits."}
+  measurement_type:       {label: "Measurement-type rot", plain_english: "The measurement-type registry has a missing tier, dangling ref, or cycle."}
+  certainty_double_count: {label: "Certainty double-count", plain_english: "A corroboration card also drives the gate verdict — confidence would be counted twice."}
+  question_hierarchy:     {label: "Question-hierarchy break", plain_english: "A question maps to a measurement_type or card that does not exist."}
+  fold_migration:         {label: "Resolver fold drift", plain_english: "A resolver is not match_all_reduce or has missing/duplicate rung priorities."}
+  claim_record:           {label: "Claim-record invariant", plain_english: "A factored claim record violates an open-world / magnitude / provenance invariant."}
+  subgroup_assignment:    {label: "Subgroup-assignment stale", plain_english: "A subgroup product's content pin or strata count diverges from the catalog."}
+  orphan_card:            {label: "Orphan card", plain_english: "A card exists on disk but no skill consumes it — wired to nothing."}
+  broken_dataset_ref:     {label: "Broken dataset ref", plain_english: "A card names a product_id that resolves to no catalog manifest."}
+  uncataloged_dataset:    {label: "Uncataloged dataset", plain_english: "A referenced product exists on S3 or is planned but has no catalog manifest yet."}
+  placeholder_card:       {label: "Placeholder card", plain_english: "A declared card has no live reader / emits a placeholder — not yet wired to data."}
+  skill_drift:            {label: "Skill health drift", plain_english: "A skill is broken or drifting per the health rollup (see detail)."}
+  coverage_backlog:       {label: "Promotion backlog", plain_english: "A target x indication exists only as an exploratory run — candidate to promote to governed."}
+  validator_unavailable:  {label: "Validator skipped", plain_english: "A gap-detection validator could not run in this environment (e.g. siblings absent)."}
+
+# status enums (skill/card maturity) surfaced from SKILL.md / health.
+status:
+  wired:            {label: "Wired", plain_english: "Fully connected: reads data, fires rules, produces a verdict."}
+  partial:          {label: "Partial", plain_english: "Some legs live, others still placeholder / data not fully landed."}
+  placeholder:      {label: "Placeholder", plain_english: "Declared but not yet connected to data or rules."}
+  operational:      {label: "Operational", plain_english: "A standalone tool skill (not part of the target-profile fan-out)."}
+  deprecated:       {label: "Deprecated", plain_english: "Retired from the fan-out; may still run standalone."}
+  production_ready: {label: "Production-ready", plain_english: "Live, resolver-bound, tested, proven on real runs."}
+  ready_unproven:   {label: "Ready (unproven)", plain_english: "Wired and live but not yet proven on a real evidence package."}
+  broken_or_drift:  {label: "Broken / drift", plain_english: "Health rollup found a break or drift signal — needs attention."}
+  live:             {label: "Live", plain_english: "Has a working reader and fires on real data."}
+  blocked:          {label: "Blocked", plain_english: "Declared measurement with no live reader yet (data not landed)."}
+  broken:           {label: "Broken", plain_english: "Reader or wiring is broken."}
+  unknown:          {label: "Unknown", plain_english: "No status signal available."}
+
+# component-type labels (for the Concepts tab + cross-links).
+component_type:
+  source_manifest:     {label: "Source manifest", plain_english: "An external dataset recorded in the data-catalog."}
+  derived_manifest:    {label: "Derived manifest", plain_english: "A team-built, query-optimized product on S3."}
+  method:              {label: "Method", plain_english: "Deterministic compute that emits numbers/labels."}
+  card:                {label: "Card", plain_english: "The evidence contract; the framework's hinge."}
+  interpretation_rule: {label: "Rule", plain_english: "Maps a label to a per-modality signal."}
+  resolver:            {label: "Resolver", plain_english: "Reduces fired rules to one verdict per gate."}
+  skill:               {label: "Skill", plain_english: "Answers one biological question by composing cards."}
+  evidence_package:    {label: "Evidence package", plain_english: "The terminal composed output for a target x indication."}
+
+# gate glosses (resolver gates). Auto-derived fallback humanizes the name; override for clarity.
+gate:
+  dependency:                 {label: "Dependency", plain_english: "Is the target genetically required in these cells?"}
+  selectivity:                {label: "Tumor selectivity", plain_english: "Is the target more present/dependent in tumor than normal?"}
+  genomic_alteration:         {label: "Genomic alteration", plain_english: "Is the target recurrently mutated / copy-altered / fused?"}
+  mechanism:                  {label: "Mechanism", plain_english: "What signaling role and MoA hooks does the target have?"}
+  safety:                     {label: "On-target safety", plain_english: "Is loss-of-function tolerated in humans?"}
+  differentiation:            {label: "Differentiation", plain_english: "Co-mutation / mutual-exclusivity patient-selection landscape."}
+  surface_modality:           {label: "Surface modality fit", plain_english: "Does surface biology support an ADC/TCE biologic?"}
+  tractability_small_molecule: {label: "Small-molecule tractability", plain_english: "Is there a compound, and does chemistry agree with genetics?"}
+  cis_coherence:              {label: "Cis coherence", plain_english: "Do locus -> expression -> dependency line up?"}
+  synthetic_lethal_partners:  {label: "Synthetic-lethal partners", plain_english: "Which partner losses make the target essential?"}
+
+# ---------------------------------------------------------------------------------------------
+# Phase model (A-K letters vs the legacy numeric "N-phase" framing).
+#
+# The biology-first spine is lettered A-K (11 letters -> the "11-phase" framing some older docs
+# and conversations refer to by number). The letter IS the phase; this table is the canonical
+# letter<->number map so both vocabularies resolve to the same thing. Not scanned by the
+# glossary-coverage test (no code path surfaces a raw phase token today) — reference only, so a
+# reader hitting either naming convention lands on one definition.
+#
+# "9 wired dimensions" = the 9 gates actually present in target-profile's fan-out today
+# (verified against health/framework_atlas.json `skills.target-profile.gates`, 2026-09-23):
+# cis_coherence, dependency, differentiation, genomic_alteration, mechanism, safety,
+# selectivity, surface_modality, tractability_small_molecule. `synthetic_lethal_partners`
+# (combination-and-vulnerability, phase I) is glossed above but NOT yet in that fan-out list —
+# it is phase-lettered and card-wired, but not yet a target-profile gate, so it does not count
+# toward the 9.
+phase:
+  A: {label: "Phase 1 - Presence", plain_english: "Is the target present at all (expression/protein)? -> tumor-presence."}
+  B: {label: "Phase 2 - Selectivity", plain_english: "Is presence tumor-selective vs normal? -> tumor-selectivity."}
+  C: {label: "Phase 3 - Dependency", plain_english: "Is the target a genetic dependency? -> functional-requirement (also the dependency leg of cis-feature-coherence)."}
+  D: {label: "Phase 4 - Mechanism", plain_english: "What signaling role / MoA hooks does it have? -> mechanism-and-pharmacology."}
+  E: {label: "Phase 5 - Genomic alteration & differentiation", plain_english: "How is it altered (mutation/CN/fusion) and what co-mutation landscape differentiates patients? -> genomic-alteration-profile, differentiation-landscape."}
+  F: {label: "Phase 6 - Tractability & surface modality", plain_english: "Is there a compound or a surface/ADC-TCE handle? -> tractability-small-molecule, surface-modality-fit."}
+  G: {label: "Phase 7 - On-target safety", plain_english: "Is loss-of-function tolerated in humans? -> on-target-safety-liability."}
+  H: {label: "Phase 8 - Roll-up overlay", plain_english: "Cross-dimension synthesis fields carried only at the target-profile roll-up (no standalone subskill emits this phase alone)."}
+  I: {label: "Phase 9 - Combination & resistance", plain_english: "What combination partners or resistance mediators condition the target? -> combination-and-vulnerability."}
+  J: {label: "Phase 10 - Literature & translational readiness", plain_english: "What does the literature say, and how translation-ready is the evidence? -> literature-context, literature-risk-assessment, translational-readiness."}
+  K: {label: "Phase 11 - Nomination synthesis", plain_english: "The terminal target-profile roll-up: sub-verdicts -> gate -> risk bins -> claim vectors."}

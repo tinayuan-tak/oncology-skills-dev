@@ -1,0 +1,155 @@
+# Card WS3 — PATHWAY NODE LEVERAGE (v0.1 — first productionized cut)
+#
+# Cross-evidence WS3 (see docs/design/PATHWAY_NODE_LEVERAGE_SPEC.md). A COMPARATIVE facet:
+# every other card asks a target-INTRINSIC question ("is X dependent / altered / tractable /
+# safe?"); this asks the portfolio-COMPARATIVE question — given the biology, is X the best NODE
+# to hit, or is it dominated by a more-dependent / more-tractable member of its neighbourhood?
+# The MARK2/3-vs-YAP/TAZ decline is the motivating case: a correct decline whose true reason (a
+# dominated pathway node) the framework could previously only flag as a gap, not evidence.
+#
+# SOFT, VERDICT-INERT CONTEXT (spec §4, §8): node_leverage_class contributes NO hard-gate veto to
+# the integrator's fail-closed ceiling and NEVER raises certainty — it is DepMap-Chronos-derived,
+# correlated with the dependency cards. It FEEDS the `differentiation` axis and can seed a
+# cross-evidence evidence-path. The measurement_type (pathway_node_leverage) is registered as a
+# derived_from type at evidence_tier=inferred, which machine-enforces that softness (an inferred
+# provider can never fire a measured-strength killer).
+#
+# NODE-SET IS A LENS SET (spec §3), not one source, on a precision/recall gradient:
+#   - complex : CORUM 5.3 co-complex members         (tightest; mechanistic; "wrong subunit?")
+#   - pathway : MSigDB C5 GO:BP most-specific gene set (functional; high recall / noisier)
+# Deferred lenses (spec §3/§7): curated-pathway (C2.CP Reactome/KEGG), PPI (STRING/BioGRID).
+#
+# LINEAGE-SCOPED (spec §6, the top correction): Chronos is restricted to the indication's DepMap
+# OncotreeLineage cohort (reusing the depmap_chronos INDICATION->lineage map), with a pan-lineage
+# fallback when the cohort is thin (< 15 lines) — FLAGGED via evidence_scope. Pan-cancer Chronos
+# makes context-specific drivers look dominated (BRAF, CTNNB1) and hides context-specific SL
+# (SMARCA4->SMARCA2), so a pan-lineage verdict carries a warning.
+#
+# CORRECTIONS baked into the method (spec §2, each validated on live data):
+#   - common-essential exclusion (else VCP/AARS1 crown themselves; the target itself is retained
+#     even if common-essential — that is its own safety signal),
+#   - tractability-yield via Pharos TDL (a druggable dominated node beats an undruggable
+#     rate-limiting one — KRAS/PIK3CA/CDK4 read dominated_but_tractability_edge, correctly
+#     drug-worthy),
+#   - noise-separation gate (min median-Chronos separation, so dominant/dominated is not called on
+#     screen noise).
+#
+# STATUS: wired — backed by analysis-methods methods/pathway_node_leverage.read_node_leverage
+# (PR #371), generic-dispatched (module + entrypoint, fn(target=, indication=)); the sources it
+# reads are all landed. First cut is data-only (no figure yet — that is the continuation, spec §7).
+
+card_id: pathway-node-leverage
+version: 0.1.0
+question: "Given the biology, is {target.symbol} the best NODE to hit within its complex / pathway neighbourhood, or is it dominated by a more-dependent / more-tractable member?"
+
+status: wired
+
+# tier intentionally UNSET (mirrors dependency-lineage-selectivity + co-mutation-and-mutual-
+# exclusivity): the claim is target-anchored yet computed lineage-scoped (a comparison, not a
+# scope-invariant target property), so neither `target` (would forbid the lineage grain) nor
+# `indication` fits cleanly. applies_when references no indication.* / subtype.* keys.
+
+applies_when:
+  - "target.depmap_screened == true"
+
+required_inputs:
+  # DepMap 26Q1 — Chronos matrix (the dependency signal), Model.csv (OncotreeLineage cohort
+  # scoping), and CRISPRInferredCommonEssentials (the exclusion list).
+  - product_id: depmap-consortium-26q1
+    release_pin: "{release_pin}"
+  # CORUM 5.3 — co-complex membership (the `complex` lens node-sets).
+  - product_id: corum-5-3
+  # MSigDB v2026.1.Hs — C5 GO:BP gene sets (the `pathway` lens node-sets).
+  - product_id: msigdb-human-v2026-1-hs
+  # Pharos IDG/TCRD — per-gene TDL (the tractability-yield leg: Tclin > Tchem > Tbio > Tdark).
+  - product_id: pharos-idg-tcrd-snapshot-2026-08-10
+  # BioGRID physical interactions — the PPI (interaction-neighbourhood) lens node-set. OPTIONAL /
+  # non-blocking: the PPI lens is REPORT-ONLY (excluded from the headline) and fail-soft in the method,
+  # so an unavailable BioGRID product only drops that one report-only lens, never the verdict.
+  - product_id: biogrid-physical-interactions-per-gene-v1
+    optional: true
+  # DepMap paralog-buffering (dual-KO) — the paralog/combinatorial correction: flags a paralog-buffered
+  # target whose single-KO leverage understates its dependency. OPTIONAL / non-blocking (fail-soft): an
+  # unavailable product yields paralog_buffering_class=data_unavailable, never blocks the verdict.
+  - product_id: depmap-paralog-buffering-per-gene-v1
+    optional: true
+
+methods:
+  - call: pathway-node-leverage
+    module: pathway_node_leverage
+    entrypoint: read_node_leverage
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - node_leverage_class            # PRIMARY categorical — the headline (WORST/most-dominated reachable verdict across lenses)
+    - evidence_scope                 # lineage-scoping provenance (within-lineage vs flagged pan-lineage fallback)
+    - paralog_buffering_class        # paralog/combinatorial correction — buffering class of the target (from dual-KO product)
+    - strongest_buffering_paralog    # the max-buffering paralog symbol (context; '' when none/unavailable)
+    - single_ko_leverage_understated # bool — true when buffered (strong/partial): single-KO leverage UNDERSTATES the target
+    - lenses                         # map: {complex: [...], pathway: [...], ppi: [...report-only...]} — the per-lens detail
+
+  summary_fields_vocabulary:
+    node_leverage_class:
+      - dominant_node                       # target is the most-dependent node (no member stronger by >= separation)
+      - dominated_but_tractability_edge     # a more-dependent node exists, but none is >= as tractable as target (target = tractable entry point)
+      - dominated_node                      # a more-dependent AND >=-as-tractable node exists
+      - weak_and_uncontested                # target does not clear the dependency floor and nothing dominates it
+      - no_node_set                         # no lens node-set contains the target (or all lenses report target_not_screenable)
+      - data_unavailable                    # live-read error / target missing
+    evidence_scope:
+      - within_indication_lineage           # Chronos scoped to the indication's DepMap lineage cohort (>= MIN_COHORT lines)
+      - pan_lineage_thin_cohort             # indication given but lineage cohort too thin — FELL BACK to pan-cancer (flagged)
+      - pan_lineage_no_indication           # no indication supplied — pan-cancer by construction
+    paralog_buffering_class:
+      - strong                              # strong paralog buffering (dual-KO delta high) — single-KO leverage understated
+      - partial                             # partial buffering
+      - none                                # no functional paralog buffering
+      - data_unavailable                    # paralog product unreachable / target absent (fail-soft)
+    single_ko_leverage_understated:         # bool coerced to 'true'/'false' by the rule engine + validator
+      - 'true'
+      - 'false'
+
+  # NOTE (per-lens detail): `lenses` is a MAP lens_name -> list of per-node-set structs, each
+  # {node_set, n_members, verdict, n_nodes, target_median_chronos, target_tdl,
+  #  target_frac_dependent, n_stronger, n_stronger_tractable, dominant_competitors:[{gene,
+  #  median_chronos, tdl}]}. `verdict` uses the same node_leverage_class vocabulary PLUS the
+  #  per-lens-only sentinels target_not_screenable / (empty list == lens does not apply). Not
+  #  declared under summary_fields_record_schemas because that block models LIST-typed fields, not
+  #  a lens-keyed map; the record shape is fixed by the method and documented here for consumers.
+
+# NOTE (method gate constants): the numeric gates live in the method
+# (methods/pathway_node_leverage), not in card predicates, because the values they compare
+# (median Chronos, lineage cohort size) are nested inside `lenses`, not top-level summary fields.
+# For provenance they are: DEP_FLOOR = -0.5 (median Chronos a node must clear to be dependency-
+# relevant), MIN_SEP = 0.15 (min median-Chronos gap to call one node stronger, vs screen noise),
+# MIN_COHORT = 15 (min lineage cell lines before lineage-scoped medians are trusted, else the
+# flagged pan-lineage fallback). No `thresholds:` block — none is predicate-referenceable here.
+
+warning_predicates:
+  - warning_id: pan_lineage_fallback
+    if: "evidence_scope != \"within_indication_lineage\""
+    message: "Node-leverage computed pan-cancer (no indication, or the lineage cohort too thin). Pan-cancer Chronos makes context-specific drivers look dominated (BRAF, CTNNB1) and hides context-specific SL (SMARCA4->SMARCA2). Treat a 'dominated' call as low-confidence until a lineage-scoped read is available."
+  - warning_id: no_node_set_only_noisy_lens
+    if: "node_leverage_class == \"no_node_set\""
+    message: "No complex or pathway node-set contains the target. A peripheral regulator that no tight (CORUM / GO:BP) set contains is itself a differentiation signal — but the leverage call cannot be made from the lenses implemented here (complex + GO:BP)."
+
+caveats:
+  - "SOFT, verdict-inert context: contributes no hard-gate veto and never raises certainty. It is DepMap-Chronos-derived (correlated with the dependency cards) and feeds the differentiation axis only."
+  - "Common-essential exclusion is always applied (DepMap CRISPRInferredCommonEssentials); without it, housekeeping genes (VCP, AARS1) crown themselves as the dominant node of any pathway. The target itself is RETAINED even if common-essential — that is its own safety signal, not a leverage disqualifier."
+  - "Lineage-scoped in production; pan-cancer is an explicit, flagged fallback (evidence_scope). Pan-cancer Chronos makes context-specific drivers look dominated and hides context-specific SL — interpret pan-lineage verdicts cautiously."
+  - "Node-set is a LENS on a precision/recall gradient: complex (CORUM, tightest/mechanistic) is more trustworthy than pathway (GO:BP, high-recall/noisy). Report each lens with its precision caveat; do not average across lenses."
+  - "Tractability-yield uses Pharos TDL only (Tclin > Tchem > Tbio > Tdark) — a coarse druggability proxy, not a target-specific chemical-matter assessment. dominated_but_tractability_edge means 'a stronger node exists but is no more druggable than the target', not 'the target is druggable in absolute terms'."
+  - "Undirected membership (co-complex / co-annotation) CANNOT ground an 'acts-through' direction claim — no directed SIGNOR/OmniPath check is performed. The verdict is a leverage comparison, not a mechanistic epistasis claim."
+  - "Paralog/combinatorial correction (spec §6): single_ko_leverage_understated flags a paralog-buffered target (strong/partial, from the DepMap dual-KO product) whose single-KO leverage UNDERSTATES its dependency — a buffered weak/dominated call is a candidate false-negative; assess dual-KO leverage. Target-level FLAG (additive, verdict-inert; does not re-rank); paralog product optional/fail-soft."
+  - "A minimum median-Chronos separation gate (min_median_separation) prevents dominant/dominated being called on screen noise; nodes within the gate are treated as indistinguishable."
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — this card is the (only) VIEW of the `pathway_node_leverage`
+# claim (registered in vocabularies/measurement_types.yaml as derived_from crispr_lof_dependency,
+# evidence_tier: inferred). No modality_relevance: node-leverage is modality-independent and routes
+# to the differentiation axis, not a modality-fit gate.
+measurement_type: pathway_node_leverage
+entity_grains: [target, target_lineage]
+schema_version: 1

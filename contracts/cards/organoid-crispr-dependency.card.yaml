@@ -1,0 +1,161 @@
+# Card — ORGANOID CRISPR DEPENDENCY  (pure-data, target-only)
+#
+# The ORGANOID-NATIVE twin of the cell-line CRISPR dependency cards
+# (pan-cancer-crispr-dependency-distribution, dependency-lineage-selectivity). Those read
+# CRISPRGeneEffect.csv — the full-panel Chronos run co-normalized across 1,538 mostly-2D
+# immortalized cell lines. This card reads OrganoidGeneEffect.csv, a SEPARATE Chronos run
+# normalized WITHIN the 114 organoid ModelIDs only (DepMap's recommended matrix for
+# organoid-specific analysis).
+#
+# NOT an orthogonal dependency signal: all 114 organoid models are ALSO in the full-panel matrix,
+# and the two runs correlate at r≈0.99 on shared cells. This is the organoid-native READING of the
+# same screens — surfaced as its own facet because organoids retain 3D architecture / differentiation
+# that 2D lines lose, and because the cohort is GI-dominated (Esophagogastric / Pancreatic /
+# Colorectal / Breast), matching the iDAS indications.
+#
+# Substrate: DepMap Consortium 26Q1, organoid-crispr-dependency-26q1-v1 (per-gene organoid
+# dependency summary derived from OrganoidGeneEffect.csv). Chronos gene-effect < -0.5 = dependent;
+# < -1.0 = strong.
+#
+# TIER: target. The organoid cohort (n≈114 across ~11 lineages) is small and not reliably
+# splittable per-indication, so this is a pan-organoid target-grain read; `indication` is accepted
+# for the dispatch contract but NOT consumed. Per-lineage organoid selectivity is a documented v2.
+
+card_id: organoid-crispr-dependency
+version: 0.3.0   # 0.3.0: per-lineage dependency bar figure (emitter in compose-dashboard)
+question: "Across the DepMap organoid CRISPR panel (Chronos, organoid-native normalization), is {target.symbol} a dependency, and how broadly across the ~114 organoid models?"
+
+tier: target   # pan-organoid per-gene dependency; NOT indication-scoped (see header).
+
+applies_when:
+  - "target.depmap_screened == true"
+
+required_inputs:
+  - product_id: organoid-crispr-dependency-26q1-v1
+  - product_id: organoid-crispr-dependency-by-lineage-26q1-v1   # v2: indication-conditioned per-lineage read
+
+methods:
+  # Generic (T11) dispatch: module.entrypoint is invoked as fn(target=, indication=). No bespoke
+  # skills _dispatch_* needed — the reader is a single-method passthrough.
+  - call: organoid-crispr-dependency
+    module: organoid_dependency_precompute.lookup
+    entrypoint: build_summary
+    args:
+      target: "{target.symbol}"
+
+outputs:
+  summary_fields:
+    - organoid_dependency_class                 # CATEGORICAL — drives interpretation-rules
+    - n_models_screened                         # organoid models with a non-NaN gene-effect for this gene
+    - n_models_total                            # organoid cohort size (114; the fraction denominator ceiling)
+    - n_dependent                               # models with gene-effect < -0.5
+    - n_strongly_dependent                      # models with gene-effect < -1.0
+    - frac_dependent                            # n_dependent / n_models_screened — the robust dependency signal
+    - frac_strongly_dependent
+    - mean_gene_effect
+    - median_gene_effect
+    - min_gene_effect                           # strongest single-model dependency
+    - organoid_dependency_percentile            # 0-100 among all genes (100 = most dependent); DISPLAY context
+    - organoid_dependency_context               # string — names the product + cohort size (audit / anti-pooling)
+    # === v2 per-lineage enrichment (additive; do NOT change the pan-organoid class above) ===
+    - per_lineage_stats                         # list of {lineage, n_models_screened, frac_dependent, n_strongly_dependent, median_gene_effect}; admitted organoid lineages (cohort n>=5)
+    - n_lineages_evaluated                      # count of admitted organoid lineages
+    - organoid_lineage                          # the organoid lineage matching the queried indication (null if unmapped/absent)
+    - organoid_lineage_frac_dependent           # frac_dependent WITHIN that lineage (the indication-conditioned signal)
+    - organoid_lineage_class                    # organoid_dependency_class computed on the lineage fraction
+    - organoid_lineage_n_screened               # organoids of that lineage screened for this gene
+    - method_version
+
+  summary_fields_vocabulary:
+    organoid_dependency_class:
+      - pan_organoid_essential                  # frac_dependent >= 0.90 — common-essential-like (low target value)
+      - broad_organoid_dependency               # 0.50 <= frac_dependent < 0.90
+      - selective_organoid_dependency           # 0.20 <= frac_dependent < 0.50 — the interesting selective band
+      - rare_organoid_dependency                # 0.05 <= frac_dependent < 0.20
+      - not_organoid_dependent                  # frac_dependent < 0.05
+      - data_unavailable                        # gene absent from the organoid matrix / product unavailable
+
+  figures:
+    - id: organoid_lineage_dependency
+      type: organoid_lineage_dependency_bar
+      description: "Fraction of organoids dependent (Chronos gene-effect < -0.5) by organoid LINEAGE, from per_lineage_stats, with dependency-band reference lines (0.2 selective / 0.5 broad / 0.9 pan-essential). The indication-matched lineage is highlighted. None when the by-lineage product is unavailable / the target is absent. (A per-organoid histogram remains a possible v3 addition — it needs a per-model reader.)"
+      preferred_surfaces: [markdown, ppt, decision_memo]
+      primary: true
+  plot_data: per_lineage_organoid_dependency
+
+thresholds:
+  # organoid_dependency_class fraction bands (must mirror the reader's classify_dependency).
+  pan_organoid_essential_frac: 0.90
+  broad_organoid_dependency_frac: 0.50
+  selective_organoid_dependency_frac: 0.20
+  rare_organoid_dependency_frac: 0.05
+  # Chronos gene-effect cutoffs (DepMap-published; shared with the cell-line CRISPR cards).
+  dependent_chronos: -0.5
+  strong_dependency_chronos: -1.0
+  # Sample-size discipline — below this the organoid fraction is underpowered.
+  min_organoid_models: 20
+
+# min_organoid_models is compared by a warning predicate on this card, so it is NOT declared here.
+# The remaining cutoffs are applied by the method, never by a card predicate: the fraction bands bin
+# organoid_dependency_class in the method's classify_dependency (organoid_dependency_precompute/
+# lookup.py:71-77, called at :293), and the Chronos cutoffs define a screened organoid as "dependent"
+# / "strongly dependent" upstream in the per-lineage build (build_by_lineage.py:39 DEPENDENT_CUTOFF,
+# applied at :114) that the lookup consumes.
+threshold_roles:
+  pan_organoid_essential_frac:
+    role: method_parameter
+    consumed_by: organoid-crispr-dependency
+  broad_organoid_dependency_frac:
+    role: method_parameter
+    consumed_by: organoid-crispr-dependency
+  selective_organoid_dependency_frac:
+    role: method_parameter
+    consumed_by: organoid-crispr-dependency
+  rare_organoid_dependency_frac:
+    role: method_parameter
+    consumed_by: organoid-crispr-dependency
+  dependent_chronos:
+    role: method_parameter
+    consumed_by: organoid-crispr-dependency
+  strong_dependency_chronos:
+    role: method_parameter
+    consumed_by: organoid-crispr-dependency
+
+warning_predicates:
+  - warning_id: small_organoid_cohort
+    if: "n_models_screened < THRESHOLD.min_organoid_models"
+    message: "{target.symbol} is screened in fewer than 20 organoid models. The organoid dependency fraction is underpowered; interpret alongside the full-panel CRISPR cards."
+  - warning_id: organoid_data_unavailable
+    if: "organoid_dependency_class == 'data_unavailable'"
+    message: "{target.symbol} is absent from the DepMap organoid gene-effect matrix (organoid screens cover ~18k genes; a small number are not scored). A COVERAGE GAP, not evidence of non-dependency — consult the cell-line CRISPR cards."
+
+caveats:
+  - |
+    The organoid Chronos matrix (OrganoidGeneEffect.csv) is normalized WITHIN the 114 organoid
+    models, distinct from the full-panel CRISPRGeneEffect.csv. The two runs correlate at r≈0.99 on
+    shared models — this card is the organoid-native READING of the same screens, NOT an independent
+    dependency measurement. Agreement with the cell-line cards is expected; disagreement is worth
+    inspecting (organoids retain 3D architecture / differentiation 2D lines lose).
+  - |
+    The organoid cohort is GI-dominated (Esophagogastric / Pancreatic / Colorectal / Breast /
+    Prostate). frac_dependent is a pan-organoid fraction over a lineage-SKEWED cohort — a
+    dependency concentrated in the GI-heavy models will read as "broad" here even if it is
+    lineage-selective. Per-lineage organoid selectivity is a documented v2 follow-up.
+  - |
+    Chronos gene-effect reflects ex-vivo organoid dependency; in-vivo dependency may differ due to
+    microenvironment, vasculature, and immune context absent from organoid culture.
+  - |
+    organoid_dependency_class is descriptive; therapeutic interpretation lives in
+    target-contracts/interpretation-rules/ (keyed on this card_id, so the cell-line CRISPR rules
+    do not fire for it).
+  - |
+    organoid_dependency_percentile is a pan-gene DISPLAY facet (rank of the median gene-effect
+    among all genes); frac_dependent is the load-bearing dependency signal the class keys on.
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — an ORGANOID-context view of the crispr_lof_dependency claim
+# (Chronos LOF dependency, organoid-native normalization). Same measured claim, distinct cohort;
+# interpretation-rules are keyed on this card_id so they stay isolated from the cell-line rules.
+measurement_type: crispr_lof_dependency
+modality_relevance: [small_molecule, degrader]
+entity_grains: [target]
+schema_version: 1

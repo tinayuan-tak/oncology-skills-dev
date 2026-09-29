@@ -1,0 +1,300 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/takeda-rnd/rnd-computational-biology-oncology-target-contracts/schemas/subgroup_catalog.schema.json",
+  "title": "Subgroup Catalog",
+  "description": "Schema for per-indication subgroup catalogs. Lives at data-catalog/subgroup-catalogs/{indication}/{version}.yaml. Defines atomic strata (single-axis subgroups) and composite cohorts (intersections of atomic strata) along with the derivation rule that maps source data to per-sample assignments. The subgroup_assigner_* methods consume this catalog and emit assignment Parquets validating against subgroup_assignment.schema.json. See plan § Subgroup Framework (Section near line 1024) + the iter-1b subtyping additions.",
+  "type": "object",
+  "required": [
+    "id",
+    "manifest_kind",
+    "indication",
+    "version",
+    "schema_version",
+    "atomic_strata"
+  ],
+  "unevaluatedProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Stable kebab-case identifier for this catalog version (e.g., 'coadread-subgroups-2026-q2').",
+      "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$",
+      "minLength": 5,
+      "maxLength": 100
+    },
+    "manifest_kind": {
+      "type": "string",
+      "const": "subgroup_catalog",
+      "description": "Discriminator for data-catalog manifest indexing; always 'subgroup_catalog' for this schema."
+    },
+    "indication": {
+      "type": "string",
+      "description": "OncoTree code or canonical indication abbreviation (COADREAD, PDAC, NSCLC, SCLC, GC).",
+      "pattern": "^[A-Z][A-Z_0-9]*$",
+      "minLength": 2,
+      "maxLength": 30
+    },
+    "version": {
+      "type": "string",
+      "description": "Catalog version identifier (typically a release-pin tag like '2026-Q2').",
+      "minLength": 3,
+      "maxLength": 30
+    },
+    "default_source": {
+      "type": "object",
+      "description": "Default data-source binding for atomic strata that don't override. Backward-compat: iter-1a YAMLs use `source:` at top level — the schema accepts either form. Iter-1b convention: use `default_source` to make the override semantics explicit.",
+      "unevaluatedProperties": false,
+      "properties": {
+        "manifest_id": {"type": "string", "minLength": 1},
+        "field": {"type": "string"},
+        "derivation": {"type": "string"},
+        "derivation_method": {"type": "string"}
+      }
+    },
+    "source": {
+      "type": "object",
+      "description": "Iter-1a convention: top-level `source` block. Equivalent to `default_source`. Kept for backward compatibility.",
+      "unevaluatedProperties": false,
+      "properties": {
+        "manifest_id": {"type": "string", "minLength": 1},
+        "field": {"type": "string"},
+        "derivation": {"type": "string"},
+        "derivation_method": {"type": "string"}
+      }
+    },
+    "atomic_strata": {
+      "type": "array",
+      "description": "Single-axis strata. Each stratum has an id, label, rule, and (when not using default_source) its own data-source binding.",
+      "items": {"$ref": "#/$defs/atomic_stratum"},
+      "minItems": 1,
+      "maxItems": 50
+    },
+    "composite_cohorts": {
+      "type": "array",
+      "description": "Intersections of atomic strata (e.g., 'MSS_RASMut_3Lplus' = MSS AND KRAS_mut AND treatment_line_3plus). Iter-1b ships with no composite cohorts; iter-2 may add.",
+      "items": {"$ref": "#/$defs/composite_cohort"},
+      "maxItems": 50
+    },
+    "iter2_expansion_pending": {
+      "type": "array",
+      "description": "Free-form list of strata explicitly deferred to iter-2 (e.g., classifier-derived subtypes). Documentation only; no schema enforcement beyond it being a list of strings.",
+      "items": {"type": "string"}
+    },
+    "review_decision": {
+      "type": "string",
+      "enum": ["pending", "approved", "deprecated"],
+      "description": "Sign-off state. Only `approved` catalogs are usable in latest_approved data mode."
+    },
+    "reviewers_required": {
+      "type": "array",
+      "description": "Per-role reviewer status (comp_bio_director, translational_lead, medical_reviewer).",
+      "items": {
+        "type": "object",
+        "required": ["role", "status"],
+        "unevaluatedProperties": false,
+        "properties": {
+          "role": {"type": "string", "enum": ["comp_bio_director", "translational_lead", "medical_reviewer"]},
+          "status": {"type": "string", "enum": ["pending_signature", "signed", "optional_for_iter1"]}
+        }
+      }
+    },
+    "note": {"type": "string"},
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    }
+  },
+  "$defs": {
+    "atomic_stratum": {
+      "type": "object",
+      "required": ["id", "label", "rule"],
+      "unevaluatedProperties": false,
+      "$comment": "The `dependentRequired` block below is the COMPENSATING STRENGTHENING for declaring the five keys that made this corpus invalid. Declaring a key to take an error count to zero is, on its own, relaxing a gate to match the build -- it adds no checking power. This block adds the power back, and it is BIDIRECTIONAL on purpose: forward (n -> note) stops an unprovenanced count, and reverse (note -> n) stops a note for a cohort the stratum does not declare, which would be provenance with nothing behind it. Verified landable, not aspirational: all 7 cohort families pair exactly 1:1 on main as of 2026-09-13 (depmap 84/84, tcga 32/32, tcga_coadread 24/24, tcga_nsclc 18/18, tcga_pdac 12/12, tcga_sclc 5/5, tcga_gc 5/5 = 180/180), so this lands green and only constrains future edits. ★ EXTENDED 2026-09-14 to close a HALF-DECLARED NAME FAMILY in SIX places. A NAME FAMILY IS TWO HALVES -- the token that DECLARES a cohort in `applicable_data_sources`, and the `expected_n_<token>` key that CARRIES that cohort's count. Declaring only the first half yields a schema that lets a stratum name a cohort and then FORBIDS it from recording that cohort's denominator, and because the corpus cannot contain a key the schema rejects, the missing half reads as forgotten rather than forbidden and nothing goes red. Three of the six (`genie`, `genie_bpc`, `george_2015`) were introduced by the 2026-09-13 closure itself -- it added them to the enum, which is what took the corpus from 110 errors to 0, without their count keys. The other three (`ccle`, `gdsc`, `tempus`) have been asymmetric since the schema was WRITTEN (f9a7c22), which is the real finding: the defect is structural, not a slip, and it recurred in 2026-09-13 precisely because nothing asserted the two halves cover the same token set. `tests/schemas/test_subgroup_catalog_contract.py::test_every_declarable_source_can_record_its_own_denominator` now DERIVES that assertion from this file, so a seventh token cannot be added to the enum alone. All six new families pair 0/0 today, so the addition lands green and only enables future writes; the data-catalog PR that follows fills 7 of the 11 (stratum, declared-cohort) pairs that were unrecordable, all 7 on `genie`/`genie_bpc`.",
+      "dependentRequired": {
+        "expected_n_tcga": ["expected_n_tcga_denominator_note"],
+        "expected_n_tcga_denominator_note": ["expected_n_tcga"],
+        "expected_n_depmap": ["expected_n_depmap_denominator_note"],
+        "expected_n_depmap_denominator_note": ["expected_n_depmap"],
+        "expected_n_tcga_coadread": ["expected_n_tcga_coadread_denominator_note"],
+        "expected_n_tcga_coadread_denominator_note": ["expected_n_tcga_coadread"],
+        "expected_n_tcga_pdac": ["expected_n_tcga_pdac_denominator_note"],
+        "expected_n_tcga_pdac_denominator_note": ["expected_n_tcga_pdac"],
+        "expected_n_tcga_nsclc": ["expected_n_tcga_nsclc_denominator_note"],
+        "expected_n_tcga_nsclc_denominator_note": ["expected_n_tcga_nsclc"],
+        "expected_n_tcga_sclc": ["expected_n_tcga_sclc_denominator_note"],
+        "expected_n_tcga_sclc_denominator_note": ["expected_n_tcga_sclc"],
+        "expected_n_tcga_gc": ["expected_n_tcga_gc_denominator_note"],
+        "expected_n_tcga_gc_denominator_note": ["expected_n_tcga_gc"],
+        "expected_n_genie": ["expected_n_genie_denominator_note"],
+        "expected_n_genie_denominator_note": ["expected_n_genie"],
+        "expected_n_genie_bpc": ["expected_n_genie_bpc_denominator_note"],
+        "expected_n_genie_bpc_denominator_note": ["expected_n_genie_bpc"],
+        "expected_n_george_2015": ["expected_n_george_2015_denominator_note"],
+        "expected_n_george_2015_denominator_note": ["expected_n_george_2015"],
+        "expected_n_ccle": ["expected_n_ccle_denominator_note"],
+        "expected_n_ccle_denominator_note": ["expected_n_ccle"],
+        "expected_n_gdsc": ["expected_n_gdsc_denominator_note"],
+        "expected_n_gdsc_denominator_note": ["expected_n_gdsc"],
+        "expected_n_tempus": ["expected_n_tempus_denominator_note"],
+        "expected_n_tempus_denominator_note": ["expected_n_tempus"]
+      },
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Stable identifier for this stratum (e.g., MSI_H, KRAS_mut, KRAS_G12C). Convention: TitleCase-with-underscores for biological terms; ALL_CAPS_WITH_UNDERSCORES acceptable.",
+          "pattern": "^[A-Za-z][A-Za-z0-9_]*$",
+          "minLength": 2,
+          "maxLength": 60
+        },
+        "label": {
+          "type": "string",
+          "description": "Human-readable name for the stratum (e.g., 'MSI-High', 'KRAS-mutant').",
+          "minLength": 2,
+          "maxLength": 200
+        },
+        "description": {
+          "type": "string",
+          "description": "Biological / clinical definition of the stratum."
+        },
+        "rule": {
+          "type": "string",
+          "description": "CEL-compatible predicate that, when evaluated against source data, identifies samples belonging to this stratum. For directly_tagged: `clinical.{field} == '{value}'`. For maf_filter: predicates over MAF records (e.g., `gene_symbol == 'KRAS' && variant in ['p.G12C', 'p.G12D']`). For classifier_run (iter-2): `classifier.label == '{slot_id}'`.",
+          "minLength": 5,
+          "maxLength": 500
+        },
+        "derivation_source": {
+          "type": "string",
+          "enum": ["directly_tagged_clinical", "directly_tagged_source_provided", "maf_filter_per_rule", "classifier_run"],
+          "description": "How this stratum's assignments are derived. Iter-1b operational: directly_tagged_*, maf_filter_per_rule. Iter-2: classifier_run. Required for any stratum that doesn't inherit derivation from default_source/source."
+        },
+        "data_source": {
+          "type": "object",
+          "description": "Per-stratum data-source override. If absent, the catalog's default_source/source block applies.",
+          "unevaluatedProperties": false,
+          "properties": {
+            "manifest_id": {"type": "string", "minLength": 1},
+            "field": {"type": "string"},
+            "method": {"type": "string"},
+            "min_caller_count": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Caller-agreement threshold for multi-caller consensus products (tcga-fusion-consensus-per-sample-v1: TumorFusions + Gao 2018 + cBioPortal PanCancer Atlas). 1 = union / 'any caller', which is what 'any fusion partner' means. Shipped in NSCLC and PAAD fusion strata since 2026-07-22 but UNDECLARED here until 2026-09-13, so a typo in the key name would have been silently ignored by any reader defaulting it."
+            }
+          }
+        },
+        "expected_n_tcga": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Measured member count for this stratum on the canonical TCGA cohort. NOT an estimate: as of 2026-09-13 every declaration in every catalog is either a measured count or paired with a note saying explicitly that it is not (data-catalog #598 measured all 180). Read it together with its `_denominator_note` sibling, which `dependentRequired` makes mandatory -- the bare integer is ambiguous between a measurement, a real zero, and an N/A sentinel."
+        },
+        "expected_n_tcga_coadread": {"type": "integer", "minimum": 0},
+        "expected_n_tcga_pdac": {"type": "integer", "minimum": 0},
+        "expected_n_tcga_nsclc": {"type": "integer", "minimum": 0},
+        "expected_n_tcga_sclc": {"type": "integer", "minimum": 0},
+        "expected_n_tcga_gc": {"type": "integer", "minimum": 0},
+        "expected_n_genie": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Measured member count on the GENIE registry cohort. ★ ADDED 2026-09-14 to close a HALF-DECLARED NAME FAMILY. The 2026-09-13 schema closure added `genie`/`genie_bpc` to the `applicable_data_sources` enum -- which is what took the corpus from 110 validation errors to 0 -- but did NOT add the matching `expected_n_*` names. Under `unevaluatedProperties: false` that produced a schema which lets a stratum DECLARE a cohort and then forbids it from ever recording that cohort's denominator. Declared 3 times (COADREAD KRAS_mut / KRAS_G12C / BRAF_V600E) with 0 keys, because the key was UNREPRESENTABLE, not because it was forgotten."
+        },
+        "expected_n_genie_bpc": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Measured member count on the GENIE-BPC (Biopharma Collaborative) cohort, which carries treatment-line detail the registry does not. ★ ADDED 2026-09-14, same half-declared-family defect as `expected_n_genie`. This one hid MEASURED data: the 6 line-of-therapy strata (COADREAD + NSCLC LOT_1L_only / LOT_2L / LOT_3Lplus) declare `genie_bpc` as their ONLY source, and their assignments shards have been published the whole time -- 205/203/768 of 1176 evaluable for COADREAD, 298/243/552 of 1093 for NSCLC, all six clearing the n>=30 floor. They read as unmeasured because the schema gave them nowhere to say otherwise."
+        },
+        "expected_n_george_2015": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Measured member count on the George et al. 2015 SCLC cohort. ★ ADDED 2026-09-14, third instance of the same half-declared family from the 2026-09-13 closure: the token was added to `applicable_data_sources` specifically so the SCLC NAPY claim could be RECORDED, and the key that carries its count was not, so the claim remained half-unrecordable. 0 keys today (the SCLC catalog declares only tcga/depmap on its strata) -- this makes the NAPY measurement writable when it is run."
+        },
+        "expected_n_ccle": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Measured member count on the CCLE cell-line cohort. ★ ADDED 2026-09-14. Unlike the genie/george families this one is NOT from the 2026-09-13 closure -- `ccle`, `gdsc` and `tempus` have been declarable in `applicable_data_sources` since the schema was written (f9a7c22) with no matching count key, so the asymmetry is ORIGINAL to the file rather than introduced. That is why it recurred: nothing anywhere asserted the two halves cover the same tokens, so the second half was invisible by construction. 0 keys today."
+        },
+        "expected_n_gdsc": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Measured member count on the GDSC cell-line cohort. ★ ADDED 2026-09-14; see `expected_n_ccle` for why this family was missing since f9a7c22. 0 keys today."
+        },
+        "expected_n_tempus": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Measured member count on the Tempus real-world cohort. ★ ADDED 2026-09-14; see `expected_n_ccle` for why this family was missing since f9a7c22. 0 keys today."
+        },
+        "expected_n_tcga_denominator_note": {
+          "type": "string",
+          "minLength": 20,
+          "description": "Provenance for the sibling `expected_n_tcga`, in one of four forms: `Observed emit <date> against <manifest> (n~<evaluable> evaluable of <rows> rows; <members> members).` | `NOT MEASURED as of <date> (<disposition>): <reason>` | `Not applicable ...` (the 0 is an N/A sentinel, not a measured zero) | `Corrected ...` (a stray expectation for a source the stratum excludes). ★ The denominator quoted is the EVALUABLE one, never the cohort size: HNSC HPV_negative has 279 rows but HPV is called on only 52, so `45` alone reads as 45-of-279 and misleads by 5x."
+        },
+        "expected_n_depmap_denominator_note": {
+          "type": "string",
+          "minLength": 20,
+          "description": "Provenance for the sibling `expected_n_depmap`; same four forms as `expected_n_tcga_denominator_note`."
+        },
+        "expected_n_tcga_coadread_denominator_note": {"type": "string", "minLength": 20},
+        "expected_n_tcga_pdac_denominator_note": {"type": "string", "minLength": 20},
+        "expected_n_tcga_nsclc_denominator_note": {"type": "string", "minLength": 20},
+        "expected_n_tcga_sclc_denominator_note": {"type": "string", "minLength": 20},
+        "expected_n_tcga_gc_denominator_note": {"type": "string", "minLength": 20},
+        "expected_n_genie_denominator_note": {"type": "string", "minLength": 20},
+        "expected_n_genie_bpc_denominator_note": {"type": "string", "minLength": 20},
+        "expected_n_george_2015_denominator_note": {"type": "string", "minLength": 20},
+        "expected_n_ccle_denominator_note": {"type": "string", "minLength": 20},
+        "expected_n_gdsc_denominator_note": {"type": "string", "minLength": 20},
+        "expected_n_tempus_denominator_note": {"type": "string", "minLength": 20},
+        "applies_within": {
+          "type": "string",
+          "description": "Subset of the indication's cohort within which the stratum's rule should be evaluated. L6 fix (post-adversarial-review): mutation strata for histologically-mixed indications (NSCLC = LUAD + LUSC) declare which histology denominator the expected_n is calibrated against, AND phase-2 subgroup_assigner_maf_filter restricts iteration to that cohort before applying the predicate.",
+          "minLength": 2,
+          "maxLength": 50
+        },
+        "expected_n_depmap": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Approximate DepMap cell-line count for this stratum (when applicable)."
+        },
+        "applicable_data_sources": {
+          "type": "array",
+          "description": "Which data sources support this stratum. IN USE as of 2026-09-13: tcga (81), depmap (62), genie_bpc (6), genie (3). ★ genie/genie_bpc shipped in the COADREAD and NSCLC catalogs while absent from this enum, which is why the corpus was schema-invalid (9 of the 110 errors): the enum was the NARROWER of the two vocabularies routing this one axis. The other is `subtype_crosswalk.yaml`'s per-stratum `cohorts:` list. FORWARD-DECLARED with zero catalog uses, for two different reasons: `george_2015` because the crosswalk ALREADY claims it for the four SCLC NAPY strata and no catalog could express that claim while the token was missing here (so those 4 discrepancies were structurally unfixable, not curator error); `tempus`/`ccle`/`gdsc` because iter-2 is expected to need them and a widened enum cannot invalidate anything. Full reconciliation of the two vocabularies is TRACKED, NOT done here -- see `cohort_claim_reconciliation` in subtype_crosswalk.yaml.",
+          "items": {"type": "string", "enum": ["tcga", "depmap", "genie", "genie_bpc", "george_2015", "tempus", "ccle", "gdsc"]}
+        },
+        "literature_anchor": {
+          "type": "object",
+          "unevaluatedProperties": false,
+          "properties": {
+            "pmid": {"type": "integer", "minimum": 1},
+            "doi": {"type": "string"},
+            "note": {"type": "string"}
+          }
+        },
+        "iter1b_status": {
+          "type": "string",
+          "enum": ["active", "deferred", "data_blocked"]
+        }
+      }
+    },
+    "composite_cohort": {
+      "type": "object",
+      "required": ["id", "label", "components"],
+      "unevaluatedProperties": false,
+      "properties": {
+        "id": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]*$", "minLength": 2, "maxLength": 80},
+        "label": {"type": "string", "minLength": 2, "maxLength": 200},
+        "description": {"type": "string"},
+        "components": {
+          "type": "object",
+          "description": "Intersection of atomic strata + optional non-molecular constraints (line of therapy, etc.).",
+          "properties": {
+            "molecular_subgroups": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "Atomic stratum IDs that must ALL be true for a sample to belong to this composite cohort."
+            },
+            "treatment_constraints": {"type": "object"},
+            "clinical_constraints": {"type": "object"}
+          }
+        }
+      }
+    }
+  }
+}

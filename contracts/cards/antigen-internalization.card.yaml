@@ -1,0 +1,124 @@
+# Card — ANTIGEN INTERNALIZATION / SURFACE TURNOVER (v1)
+#
+# Closes a NAMED blind leg of the partial surface_modality sufficiency axis
+# (OBJECTIVE_AXIS_MAP §6; target_profiling_axes surface_modality coverage_note):
+# "endocytosis/turnover for ADC-vs-TCE discrimination". adc-tce-modality-fit's
+# endocytosis signal is HARDCODED NULL (endocytosis_confidence='unmeasured';
+# internalizing_antigen_targets.yaml is an explicit B1 stopgap supplying only a
+# binary curated-positive, never a MEASURED read). No existing card MEASURES
+# whether antibody binding triggers receptor-mediated endocytosis efficient
+# enough to deliver an ADC payload, nor the antigen's surface turnover.
+#
+# THE DISCRIMINATING AXIS: an ADC requires INTERNALIZATION (payload must reach
+# the cytosol); a T-cell engager / naked antibody does NOT (it acts at the
+# surface synapse). Internalization is therefore the measured axis that routes a
+# surface antigen to ADC-viable vs TCE-only. non_internalizing_surface_stable is
+# NOT a target killer — it is a MODALITY discriminator (routes to TCE / antibody).
+#
+# ASYMMETRY (load-bearing, mirrors pmhc-presentation / shed-ectodomain-liability):
+# absence of an internalization measurement is a WEAK negative (unmeasured),
+# NEVER proof of non-internalization. The curated clinical-ADC-precedent tier
+# (internalizing_antigen_targets.yaml, promoted here from adc-tce-modality-fit's
+# private consumption) supplies a measured-positive only for antigens with an
+# approved / late-clinical ADC.
+
+card_id: antigen-internalization
+version: 1.0.0
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
+status: placeholder_not_wired   # no internalization/turnover product materialized; belongs in placeholder_cards, not required_cards
+question: "Is {target.symbol}'s surface antigen INTERNALIZED upon antibody binding (receptor-mediated endocytosis efficient enough for ADC payload delivery), and what is its surface turnover — the measured axis distinguishing ADC-viable from TCE-only?"
+
+tier: target   # internalization / turnover is a property of the protein, indication-independent (like shed-ectodomain-liability); never stratifies
+
+applies_when: []   # biologics-relevant; scoped downstream by the composed modality card (mirrors cd-antigen-backbone / shed-ectodomain-liability)
+
+required_inputs:
+  # MEASURED tier: an antibody-internalization / surface-protein turnover product
+  # (surface-proteomics pulse-chase, or curated-experimental promotion). Not yet
+  # materialized -> status placeholder_not_wired.
+  - product_id: antibody-internalization-per-protein-v1
+  # CURATED clinical-ADC-precedent tier = vocabularies/internalizing_antigen_targets.yaml
+  # (a target-contracts-internal reference consumed by the reader, like
+  # shed_antigen_targets.yaml / isoform_selective_targets.yaml) — intentionally
+  # NOT a catalog product, so absent from required_inputs.
+
+methods:
+  - call: antigen-internalization
+    args:
+      target: "{target.symbol}"
+
+outputs:
+  summary_fields:
+    - internalization_class                          # PRIMARY categorical
+    - internalization_evidence_tier                  # measured_assay | clinical_precedent | none
+    - fraction_internalized                          # float|null; fraction of surface-bound antibody internalized at the assay endpoint
+    - surface_turnover_class                         # fast | moderate | slow | unmeasured
+    - surface_half_life_hours                        # float|null; measured surface half-life where available
+    - clinical_adc_precedent                         # str|null; approved/late-clinical ADC anchoring a clinical_precedent call
+    - method_version
+
+  summary_fields_vocabulary:
+    internalization_class:
+      - rapidly_internalizing              # efficient receptor-mediated endocytosis -> ADC payload delivery viable (ADC-favorable)
+      - slowly_internalizing               # measurable but slow internalization -> ADC-marginal (linker/payload-dependent)
+      - non_internalizing_surface_stable   # surface-stable / membrane-retained -> ADC-disfavored, routes to TCE / naked antibody (NOT a killer)
+      - clinically_internalizing           # curated clinical-ADC precedent -> internalization established (measured-positive tier)
+      - unmeasured                         # no internalization assay AND not in the curated precedent vocab -> WEAK negative, never proof of non-internalization
+    internalization_evidence_tier:
+      - measured_assay
+      - clinical_precedent
+      - none
+    surface_turnover_class:
+      - fast
+      - moderate
+      - slow
+      - unmeasured
+
+  figure: internalization_turnover_panel
+
+thresholds:
+  rapidly_internalizing_fraction: 0.50    # >= 50% of surface-bound antibody internalized at endpoint (ADC-favorable); iter-1 conservative
+  slowly_internalizing_fraction: 0.20     # 20-50% -> slow; < 20% surface-stable
+
+interpretation_hints:
+  - if: "internalization_class == 'rapidly_internalizing' || internalization_class == 'clinically_internalizing'"
+    call: "internalizing: ADC payload delivery viable"
+    dominant: true
+  - if: "internalization_class == 'non_internalizing_surface_stable'"
+    call: "surface-stable non-internalizing: ADC-disfavored, TCE / naked-antibody preferred"
+  - if: "internalization_class == 'slowly_internalizing'"
+    call: "slow internalization: ADC-marginal (linker- and payload-dependent)"
+  - if: "internalization_class == 'unmeasured'"
+    call: "internalization unmeasured — ADC-vs-TCE discrimination unresolved"
+
+caveats:
+  - |
+    Internalization discriminates MODALITY, it does not gate the target. An ADC
+    requires receptor-mediated endocytosis to deliver payload; a T-cell engager /
+    naked antibody acts at the surface and does NOT. non_internalizing_surface_stable
+    is therefore a route-to-TCE signal, never a target killer.
+  - |
+    ASYMMETRY (load-bearing): absence of an internalization measurement is a WEAK
+    negative (unmeasured) — NEVER proof the antigen is non-internalizing. Only a
+    measured assay or a clinical-ADC precedent establishes internalization; a target
+    not covered stays 'unmeasured' (the honest coverage gap, mirroring pmhc / shed).
+  - |
+    The clinical_precedent tier is grounded in approved / late-clinical ADCs against
+    the antigen (internalizing_antigen_targets.yaml) — an ADC that delivers payload
+    is internalizing by definition. A citable regulatory/trial crosswalk, NOT a
+    research-grade 'may internalize' prediction; it supplies positives only.
+  - |
+    This card SUPERSEDES the hardcoded-null endocytosis field in adc-tce-modality-fit:
+    once wired it feeds that composed card as a derived_from input, replacing
+    endocytosis_confidence='unmeasured' with a measured / clinical-precedent read.
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the NEW `antigen_internalization` claim
+# (needs a measurement_types.yaml registry entry; see dependencies).
+measurement_type: antigen_internalization
+# declaration-only routing key — internalization discriminates ADC (needs it) from
+# TCE / naked antibody (does not); not an SM concern. A matching surface-axis rule
+# must be added to interpretation-rules/surface-intrinsic.rules.yaml (see dependencies).
+modality_relevance: [adc, bite_tce, antibody]
+entity_grains: [target]
+schema_version: 1

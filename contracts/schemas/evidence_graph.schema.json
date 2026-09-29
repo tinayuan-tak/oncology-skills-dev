@@ -1,0 +1,480 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/takeda-rnd/rnd-computational-biology-oncology-target-contracts/schemas/evidence_graph.schema.json",
+  "title": "Evidence Graph",
+  "$comment": "PROV / ECO / SEPIO crosswalk (advisory; NO ontology is imported and NO RDF is emitted — the bespoke JSON stays canonical). The `chain` edges map onto W3C PROV: a dataset node is a prov:Entity; a card's evidence is a prov:Activity that prov:used the dataset(s) and whose class value prov:wasGeneratedBy the method; a rule is a prov:Activity that prov:used the evidence, and the verdict prov:wasDerivedFrom the driving rule (verdict.driving_rule_id). ECO: the optional card.confidence.eco_id annotates evidence_state with an Evidence & Conclusion Ontology code (measured/comparator -> ECO:0000006 experimental evidence; inferred -> ECO:0000363 imported information used in automatic assertion; data_unavailable -> null). SEPIO framing: each verdict-bearing card is an evidence line (the card node) whose evidence items are its datasets + key_evidence and whose assertion is the fired rule; literature.axes are corroborating/contrasting evidence lines (agreement_vs_omics). These IDs are optional/nullable interoperability hooks only.",
+  "description": "Schema for the additive, DISPLAY-ONLY claim graph emitted at decision.headline.evidence_graph by a subskill data package. It is a one-way relational projection over data already present in decision.json (verdict spine + cards + fired_rules + subgroup_signals/evidence_capsules + question_table + optional literature_synthesis/llm_synthesis) so downstream renderers read explicit, stably-keyed edges (question <-> card <-> rule <-> dataset <-> literature-axis <-> citation <-> narrative) instead of re-deriving joins. It introduces NO new science and feeds NO rule/resolver/gate. Datasets and citations are deduplicated into id-keyed arrays; every other node references them by id. Referential integrity is an invariant: every id referenced by an edge must resolve to a node in the same package. Fields are widely nullable because the graph is an honest projection: an unmeasured/unbound signal, an axis with no literature, or a question with no cards is emitted with null/empty edges, never dropped.",
+  "type": "object",
+  "required": ["schema_version", "skill", "verdict", "questions", "cards", "rules", "datasets", "literature", "citations", "narrative"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {"type": "string", "const": "1.0"},
+    "skill": {"type": ["string", "null"]},
+    "target": {"type": ["string", "null"]},
+    "indication": {"type": ["string", "null"]},
+    "verdict": {"$ref": "#/$defs/verdict"},
+    "questions": {"type": "array", "items": {"$ref": "#/$defs/question"}},
+    "cards": {"type": "array", "items": {"$ref": "#/$defs/card"}},
+    "rules": {"type": "array", "items": {"$ref": "#/$defs/rule"}},
+    "datasets": {"type": "array", "items": {"$ref": "#/$defs/dataset"}},
+    "literature": {"$ref": "#/$defs/literature"},
+    "citations": {"type": "array", "items": {"$ref": "#/$defs/citation"}},
+    "narrative": {"$ref": "#/$defs/narrative"}
+  },
+  "$defs": {
+    "id_ref": {"type": "string", "minLength": 1},
+    "id_ref_array": {"type": "array", "items": {"$ref": "#/$defs/id_ref"}},
+    "signal": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tier": {"type": ["string", "null"]},
+        "polarity": {"type": ["string", "null"], "description": "Canonical display polarity (ordinal_view vocabulary): supportive | neutral | opposing | killer | not_applicable. Nullable when unbound. Not a verdict input."},
+        "label": {"type": ["string", "null"]},
+        "liability": {"type": "boolean", "description": "True when this card carries a safety/normal-tissue liability class (polarity is then killer). Orthogonal flag so a renderer can label a liability distinctly from a generic killer without re-deriving it from the class string. Absent on question signals."}
+      }
+    },
+    "verdict": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {"type": ["string", "null"]},
+        "call": {"type": ["string", "null"]},
+        "polarity": {"type": ["string", "null"]},
+        "driving_rule_id": {"type": ["string", "null"]},
+        "confidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "level": {"type": ["string", "null"]},
+            "coverage": {"type": ["object", "null"]}
+          }
+        },
+        "top_tension": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "text": {"type": ["string", "null"]},
+            "severity": {"type": ["integer", "number", "null"]},
+            "source_card_ids": {"$ref": "#/$defs/id_ref_array"}
+          }
+        }
+      }
+    },
+    "question": {
+      "type": "object",
+      "required": ["id", "card_ids", "rule_ids", "literature_axis_ids"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"$ref": "#/$defs/id_ref"},
+        "seq": {"type": ["integer", "null"]},
+        "text": {"type": ["string", "null"]},
+        "axis_id": {"type": ["string", "null"]},
+        "role": {"type": ["string", "null"], "enum": ["verdict_bearing", "corroboration", "display_only", "context", "descriptive", null]},
+        "signal": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "tier": {"type": ["string", "null"]},
+            "polarity": {"type": ["string", "null"]},
+            "label": {"type": ["string", "null"]}
+          }
+        },
+        "confidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "level": {"type": ["string", "null"]},
+            "dots": {"type": ["integer", "null"]},
+            "label": {"type": ["string", "null"]}
+          }
+        },
+        "card_ids": {"$ref": "#/$defs/id_ref_array"},
+        "rule_ids": {"$ref": "#/$defs/id_ref_array"},
+        "literature_axis_ids": {"type": "array", "items": {"type": "string"}},
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "card_id": {"$ref": "#/$defs/id_ref"},
+              "field": {"type": ["string", "null"]},
+              "value": {},
+              "label": {"type": ["string", "null"]}
+            }
+          }
+        },
+        "prose": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "primary": {"type": ["string", "null"]},
+            "support": {"type": ["string", "null"]}
+          }
+        }
+      }
+    },
+    "card": {
+      "type": "object",
+      "required": ["id", "role", "question_ids", "dataset_ids", "rule_ids", "chain"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"$ref": "#/$defs/id_ref"},
+        "measurement_type": {"type": ["string", "null"]},
+        "tier": {"type": ["string", "null"]},
+        "role": {"type": "string", "enum": ["verdict_bearing", "display_only"]},
+        "question_ids": {"$ref": "#/$defs/id_ref_array"},
+        "axis_id": {"type": ["string", "null"]},
+        "signal": {"$ref": "#/$defs/signal"},
+        "confidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "level": {"type": ["string", "null"]},
+            "dots": {"type": ["integer", "null"]},
+            "evidence_state": {"type": ["string", "null"]},
+            "eco_id": {"type": ["string", "null"], "description": "OPTIONAL Evidence & Conclusion Ontology code annotating evidence_state (measured -> ECO:0000006 experimental evidence; comparator -> ECO:0000006; inferred -> ECO:0000363 imported/computational; else null). An advisory interoperability annotation only — no ontology is imported and no RDF is emitted (see the top-level $comment PROV/ECO/SEPIO crosswalk). Nullable; feeds no rule/gate."},
+            "n": {"type": ["integer", "number", "null"]}
+          }
+        },
+        "class": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "field": {"type": ["string", "null"]},
+            "value": {}
+          }
+        },
+        "dataset_ids": {"$ref": "#/$defs/id_ref_array"},
+        "rule_ids": {"$ref": "#/$defs/id_ref_array"},
+        "chain": {
+          "type": "object",
+          "required": ["rule_id", "contributes_to_verdict", "is_driving"],
+          "additionalProperties": false,
+          "properties": {
+            "dataset_ids": {"$ref": "#/$defs/id_ref_array"},
+            "data": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {"field": {"type": ["string", "null"]}, "value": {}}
+              }
+            },
+            "rule_id": {"type": ["string", "null"]},
+            "contributes_to_verdict": {"type": "boolean"},
+            "is_driving": {"type": "boolean"}
+          }
+        },
+        "key_fields": {"type": "object"},
+        "key_evidence": {"$ref": "#/$defs/key_evidence"}
+      }
+    },
+    "key_evidence": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "description": "Bounded, typed promotion of the DECISIVE data points behind this card, projected from the evidence_capsule (top_k_strata / n_basis / categorical_anchors / sibling_caveats / conflict_pairs) plus per-measurement_type-pinned significance fields. ADDITIVE + DISPLAY-ONLY: the grounding substrate for the narrator + card-chain renderer. Full arrays remain only in decision.cards[].summary. All members optional/nullable (an honest projection: absent -> omitted). Feeds NO rule/resolver/gate.",
+      "properties": {
+        "interpretation": {
+          "type": "array",
+          "description": "Typed reference-frame RULER(s) that place this card's decisive number(s) on a scale so a bare metric reads as a gauged statement (e.g. median_chronos -1.18 sits between the non-essential floor -0.04 and the pan-essential ceiling -1.50, past the -0.5 cut). A LIST because one card can carry >1 ruler (amp-expr needs a panel-value gauge AND a stratum-value gauge; the resolver may band on a different value than `effect.value` holds). Populated in Stage 2 from the per-measurement_type SALIENCE_SPEC `reference_frame` (which NAMES summary fields — never recomputes) + the card's resolver class/position field; DORMANT (unemitted) at Stage 1. ADDITIVE + DISPLAY-ONLY: feeds NO rule/resolver/gate. Vocabulary is a superset of claim_record.magnitude (level/value/scale/distance_to_cut) so display + factored record converge (Stage 3).",
+          "items": {"$ref": "#/$defs/gauged_value"}
+        },
+        "effect": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "description": "The load-bearing effect for this card (e.g. the indication/strongest stratum's median_chronos, a log2FC, a correlation r, a LOEUF).",
+          "properties": {
+            "metric": {"type": ["string", "null"]},
+            "value": {"type": ["number", "integer", "null"]},
+            "direction": {"type": ["string", "null"], "description": "lower_is_stronger | higher_is_stronger | higher_is_worse | near_zero_is_independent | ... (display hint; not a verdict input)."}
+          }
+        },
+        "n": {"type": ["integer", "number", "null"], "description": "Panel/cohort/model basis for the effect."},
+        "significance": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "description": "The significance statistic behind the effect (q_value / p_value / mannwhitney_q / LOEUF / pLI). The most-dropped decisive field pre-key_evidence.",
+          "properties": {
+            "stat": {"type": ["string", "null"]},
+            "value": {"type": ["number", "integer", "null"]}
+          }
+        },
+        "omnibus": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "description": "A cross-stratum omnibus test (e.g. lineage_omnibus_p / subtype_omnibus_p). Explicitly pinned; does not rely on the anchor-hint heuristic.",
+          "properties": {
+            "stat": {"type": ["string", "null"]},
+            "value": {"type": ["number", "integer", "null"]}
+          }
+        },
+        "top_strata": {
+          "type": "array",
+          "description": "<=3 salient strata rows (indication + strongest + weakest), each carrying its effect value, n, and q where the row has it.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "label": {"type": ["string", "null"]},
+              "role": {"type": ["string", "null"], "enum": ["indication", "strongest", "weakest", "subtype", null]},
+              "value": {"type": ["number", "integer", "null"]},
+              "n": {"type": ["integer", "number", "null"]},
+              "q": {"type": ["number", "integer", "null"]}
+            }
+          }
+        },
+        "categorical": {
+          "type": "array",
+          "description": "Decisive non-numeric labels the numeric selectors cannot carry (fit_class, highest_tissue, dep_control_position_class, ...).",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "field": {"type": ["string", "null"]},
+              "value": {}
+            }
+          }
+        },
+        "n_basis": {"type": ["object", "null"], "description": "The decisive count(s) behind a categorical/liability verdict (n_pathogenic_germline, n_lethal, ...)."},
+        "conflict": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "description": "Sibling-card tier disagreement on this measurement_type (from the capsule's conflict_pairs).",
+          "properties": {
+            "this_class": {"type": ["string", "null"]},
+            "other": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "card": {"type": ["string", "null"]},
+                  "class": {"type": ["string", "null"]},
+                  "tier": {"type": ["string", "null"]}
+                }
+              }
+            }
+          }
+        },
+        "subtype_axis": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "description": "Subtype/subgroup-stratified evidence (is the call subtype-restricted, and which subtype?). Null when the subtype axis is absent (--subtypes off) so standard-run graphs stay byte-stable.",
+          "properties": {
+            "driving_axis": {"type": ["string", "null"], "description": "e.g. MSI, CMS, sidedness."},
+            "restriction_class": {"type": ["string", "null"], "description": "e.g. pan_subtype_uniform (a decisive NEGATIVE) | subtype_stratifies_survival."},
+            "omnibus": {
+              "type": ["object", "null"],
+              "additionalProperties": false,
+              "properties": {
+                "stat": {"type": ["string", "null"]},
+                "value": {"type": ["number", "integer", "null"]}
+              }
+            },
+            "which_separate": {
+              "type": ["object", "null"],
+              "additionalProperties": false,
+              "properties": {
+                "highest": {"type": ["string", "null"]},
+                "lowest": {"type": ["string", "null"]}
+              }
+            },
+            "top_subtypes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "label": {"type": ["string", "null"]},
+                  "value": {"type": ["number", "integer", "null"]},
+                  "n": {"type": ["integer", "number", "null"]}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "gauged_value": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "One typed reference-frame ruler for a single card metric (a member of key_evidence.interpretation[]). Names its OWN metric/value/scale (the gauged number is often NOT effect.value) and unifies the four reference kinds via frame.kind + anchors[].role. ORDINAL layers (level/position) are READ VERBATIM from a resolver *_class field, never recomputed from value-vs-anchors (the effect uses the stratum value while the band used the panel value -> recompute = stored contradiction). Graceful degradation: emit the layers present (a value+scale gauge still beats a bare number). Additive, DISPLAY-ONLY, nullable. 'No bare number': value non-null => scale non-null (enforced by the allOf below).",
+      "properties": {
+        "metric": {"type": ["string", "null"], "description": "The summary field this ruler gauges (e.g. median_chronos_panel, amp_expr_effect_size)."},
+        "value": {"type": ["number", "integer", "null"], "description": "The gauged number itself (sig_round'd). NOT necessarily effect.value."},
+        "scale": {"type": ["string", "null"], "description": "The unit/scale the value lives on (chronos, log2fc, percentile, neglog_m, loeuf, ...). Required whenever value is present (no bare numbers)."},
+        "direction": {"type": ["string", "null"], "description": "lower_is_stronger | higher_is_stronger | higher_is_worse | near_zero_is_independent | ... (orients the gauge; not a verdict input)."},
+        "level": {"type": ["string", "null"], "description": "Ordinal strength bin = the RESOLVER-derived {strong|moderate|weak|none} ordinal that is authoritative on claim_record.magnitude.level. NOT populated on the display gauge today (dormant — no consumer reads it). If ever surfaced here it MUST be that same resolver-derived level (byte-aligned with magnitude.level by construction), NEVER recomputed from value-vs-anchors NOR read from a single card *_class: that class is `position` (a DIFFERENT axis — see position/position_source), a per-card descriptive band, not the multi-card verdict strength, so a verbatim class read would not equal magnitude.level."},
+        "position": {"type": ["string", "null"], "description": "Categorical band (e.g. between_controls, above_ceiling) READ VERBATIM from a resolver *_class field — never computed from value vs anchors."},
+        "position_source": {"type": ["string", "null"], "description": "The resolver summary field `position` was read from (e.g. dep_control_position_class), for provenance + the align-value-with-band check."},
+        "distance_to_cut": {"type": ["number", "integer", "null"], "description": "Signed offset from the decision cut (or a comparator baseline). PREFER surfacing the summary's own delta/distance field over computing value-anchor; compute only from two pinned sig_round'd numbers."},
+        "cohort_percentile": {"type": ["number", "integer", "null"], "description": "For frame.kind=cohort_percentile OR tier_rarity: the value's empirical percentile within the known-target reference cohort (0-100, polarity-signed so higher == stronger). For cohort_percentile the value is a continuous number; for tier_rarity it is the fraction of the cohort at a tier at-or-beyond this one (an ordinal ladder with heavy ties — see frame.kind). `cohort_scope` names WHICH cohort this percentile was drawn from. DISPLAY-ONLY."},
+        "cohort_n": {"type": ["integer", "null"], "description": "For frame.kind=cohort_percentile OR tier_rarity: the number of known targets behind the percentile (the cohort basis; min-N gated). This is the count in the cohort named by `cohort_scope` — an indication-scoped cohort_n is smaller than the pan-cancer one, which is why the min-N gate can force the pan_cancer fallback."},
+        "cohort_scope": {"type": ["string", "null"], "description": "For frame.kind=cohort_percentile OR tier_rarity: names WHICH reference cohort `cohort_percentile` / `cohort_n` / `bits` were computed against — an indication code (e.g. COADREAD) for an indication-scoped percentile, or `pan_cancer` for the whole known-target corpus. A percentile is only interpretable against its cohort: 90th within COADREAD and 90th pan-cancer are different claims, and an indication percentile that silently fell back to pan-cancer (because the indication cohort was below the min-N gate) is a DIFFERENT measurement wearing the same number. Making the scope explicit is what stops the fallback from being invisible. Absent/null on the pan-cancer gauges that predate indication scoping — those are pan_cancer by construction; a reader treats a missing scope as pan_cancer. DISPLAY-ONLY."},
+        "bits": {"type": ["number", "null"], "minimum": 0, "description": "For frame.kind=cohort_percentile OR tier_rarity: the two-sided empirical surprise of cohort_percentile within the cohort (named by cohort_scope), in bits — min(-log2 p_hat, log2(cohort_n+1)), where the 1/(n+1) floor on p_hat IS the log2(n+1) ceiling on the bits, so an extremum is capped at the cohort's resolution instead of scoring inf. Two-sided because polarity is already carried by `direction`. 0.0 is a REAL answer (an exactly-median value is worth no bits) and must not be confused with absence — an unreadable or excluded frame carries `bits_withheld` and NO `bits` key at all. DISPLAY-ONLY, like every other layer here."},
+        "bits_withheld": {"type": ["string", "null"], "description": "Mutually exclusive with `bits` (enforced by the allOf below): the machine reason no surprise could be computed, so a missing rank is auditable rather than silent. Known reasons: display_only_ruler (the axis mints no atlas numeric on purpose — a mutation-SHAPE fraction has no fixed polarity) | significance_scale_not_rankable (a q/p-value scale: driver q ~ 0 for every gene that has one, so -log2 q is maximal for the whole corpus and discriminates nothing) | reference_undermeasured_<frac> (the atlas column's reference_mask_fraction is below the usable-reference gate; the fraction is IN the reason so the refusal reads without re-opening the atlas) | reference_quality_unknown (column absent from feature_order, an artifact predating reference_mask_fraction, or a ::mask column — masks record 1.000 BY CONSTRUCTION, so the gate is vacuous against them while a rank inside a 0/1 Bernoulli column still returns a confident-looking percentile) | percentile_unreadable."},
+        "frame": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "description": "The reference frame the value is placed on. kind selects which anchors are meaningful: percentile (min/max implicit) | floor_cut_ceiling (floor/cut/ceiling, uses `position`) | comparator_delta (comparator baseline, offset = distance_to_cut = the delta) | distance_to_cut (cut, signed offset) | graded_band (>=2 ordered cut anchors, e.g. modest+strong, value read against the ladder) | count_of_total (value is a count, a `total` anchor gives the denominator + a `cut` anchor the count threshold, e.g. elevated in 4 of 6 cohorts past the 3 cut) | cohort_percentile (value placed as its percentile within the known-target reference cohort; cohort_percentile + cohort_n carry the position, no anchors) | tier_rarity (an ORDINAL ladder placed as its cohort rarity: the axis carries no continuous numeric to percentile, only an ordered class ladder [e.g. rnai_dependency_class, constraint_class], so `value` is the tier index, the ordered tiers ride in `anchors` as role=tier [label=tier name, value=index], and cohort_percentile = the % of the cohort at a tier at-or-beyond this one [heavy ties, a step function], with cohort_n + bits computed exactly as for cohort_percentile and cohort_scope naming the cohort. This is what gives an ordinal-only axis a cohort-relative rarity without inventing a numeric).",
+          "properties": {
+            "kind": {"type": ["string", "null"], "enum": ["percentile", "floor_cut_ceiling", "comparator_delta", "distance_to_cut", "graded_band", "count_of_total", "cohort_percentile", "tier_rarity", null]},
+            "anchors": {
+              "type": "array",
+              "description": "The named reference points on the frame (a floor, a cut, a ceiling, a comparator baseline, a total denominator). role is the frame slot; value is sig_round'd.",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "role": {"type": ["string", "null"], "description": "floor | cut | ceiling | comparator | total | min | max | tier (one rung of a tier_rarity ordinal ladder; value = the tier index, label = the tier name) | ..."},
+                  "label": {"type": ["string", "null"], "description": "The summary field / human label this anchor came from (e.g. non_essential_floor)."},
+                  "value": {"type": ["number", "integer", "null"]}
+                }
+              }
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "$comment": "No bare number: if value is a real number, scale must be a non-null string.",
+          "if": {"required": ["value"], "properties": {"value": {"type": ["number", "integer"]}}},
+          "then": {"required": ["scale"], "properties": {"scale": {"type": "string"}}}
+        },
+        {
+          "$comment": "A rank and the reason there is no rank cannot both be true. Carrying both would let a reader take the number while a second reader takes the refusal, which is how a withheld measurement silently becomes a used one.",
+          "not": {"required": ["bits", "bits_withheld"]}
+        },
+        {
+          "$comment": "Bits are a property of a DISTRIBUTION: they are only meaningful against a cohort, and only computable from a percentile and a basis. So a real `bits` number requires a real cohort_percentile AND a real cohort_n — this is what stops log2(n+1) being computed against an empty column and reported as a confident 0.",
+          "if": {"required": ["bits"], "properties": {"bits": {"type": "number"}}},
+          "then": {
+            "required": ["cohort_percentile", "cohort_n"],
+            "properties": {
+              "cohort_percentile": {"type": ["number", "integer"]},
+              "cohort_n": {"type": "integer", "minimum": 1}
+            }
+          }
+        }
+      ]
+    },
+    "rule": {
+      "type": "object",
+      "required": ["id", "card_id"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"$ref": "#/$defs/id_ref"},
+        "card_id": {"type": ["string", "null"]},
+        "field": {"type": ["string", "null"]},
+        "value": {},
+        "dominant": {"type": "boolean"},
+        "is_driving": {"type": "boolean"},
+        "rationale": {"type": ["string", "null"]}
+      }
+    },
+    "dataset": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"$ref": "#/$defs/id_ref"},
+        "s3_uri": {"type": ["string", "null"]},
+        "license": {"type": ["string", "null"]}
+      }
+    },
+    "literature": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Empty object {} when no literature lane; otherwise the projected axes + blind spots.",
+      "properties": {
+        "axes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["axis_id", "question_ids", "citation_ids"],
+            "additionalProperties": false,
+            "properties": {
+              "axis_id": {"type": ["string", "null"]},
+              "question_ids": {"$ref": "#/$defs/id_ref_array"},
+              "read": {"type": ["string", "null"]},
+              "agreement_vs_omics": {"type": ["string", "null"]},
+              "confidence": {"type": ["string", "null"]},
+              "assertion": {"type": ["string", "null"]},
+              "citation_ids": {"$ref": "#/$defs/id_ref_array"}
+            }
+          }
+        },
+        "blind_spots": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["citation_ids"],
+            "additionalProperties": false,
+            "properties": {
+              "text": {"type": ["string", "null"]},
+              "why_omics_blind": {"type": ["string", "null"]},
+              "citation_ids": {"$ref": "#/$defs/id_ref_array"}
+            }
+          }
+        },
+        "overall_consistency": {"type": ["string", "null"]},
+        "key_divergence": {"type": ["string", "null"]}
+      }
+    },
+    "citation": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"$ref": "#/$defs/id_ref"},
+        "label": {"type": ["string", "null"]},
+        "pmid": {"type": ["string", "null"]},
+        "doi": {"type": ["string", "null"]},
+        "verified": {"type": "boolean"}
+      }
+    },
+    "narrative": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Empty object {} when no llm_synthesis (or an error/skip stub); otherwise the anchored narration. Stage 2 leads with `exec_bullets` (a short crisp grounded executive summary); `rationale` is the demoted verbose full-narrative prose (renderer shows bullets first, prose behind an expander). Advisory + VERDICT-INERT: never sets the call; goldens must not depend on it (optional, provenance-wrapped trailer).",
+      "properties": {
+        "exec_bullets": {
+          "type": "array",
+          "description": "PRIMARY output (Stage 2): a short list (<=~6) of crisp bullets, each reasoning ACROSS signals and carrying the salient omics + literature data point (from key_evidence + literature axes), anchored to the package. Absent/empty when --synthesize is off.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "text": {"type": ["string", "null"]},
+              "polarity": {"type": ["string", "null"], "enum": ["supportive", "opposing", "neutral", "killer", "not_applicable", null]},
+              "cites": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "question_ids": {"$ref": "#/$defs/id_ref_array"},
+                  "card_ids": {"$ref": "#/$defs/id_ref_array"},
+                  "citation_ids": {"$ref": "#/$defs/id_ref_array"}
+                }
+              }
+            }
+          }
+        },
+        "relevance": {"type": ["string", "null"]},
+        "rationale": {"type": ["string", "null"], "description": "The demoted verbose 'full narrative' prose (secondary; behind an expander)."},
+        "confidence_qualifier": {"type": ["string", "null"]},
+        "key_caveat": {"type": ["string", "null"]},
+        "cites": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "question_ids": {"$ref": "#/$defs/id_ref_array"},
+            "card_ids": {"$ref": "#/$defs/id_ref_array"},
+            "rule_ids": {"$ref": "#/$defs/id_ref_array"}
+          }
+        }
+      }
+    }
+  }
+}

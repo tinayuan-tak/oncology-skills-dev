@@ -1,0 +1,33 @@
+{
+  "$comment": "PER-SKILL PINS (source) for translational-readiness. VARIANT = gateless-descriptive: verdict_fn=None → skill_report.call NULL (build_skill_report may omit driving_rule_id); role:descriptive + polarity:not_scored const. MULTI-VECTOR — the 4 parallel *_class fields are the primary output (no single verdict), so their closed-vocab enums are PINNED as value-constraints (not `required`; organoid_lineage_class stays schema-open — enum-by-reuse, not independently card-declared). Enums from each card's summary_fields_vocabulary. Append-only within contract major version.",
+  "skill": "translational-readiness",
+  "role_variant": "gateless_descriptive",
+  "$defs": {
+    "model_availability_class_enum": {"type": "string", "enum": ["deep_model_coverage", "moderate_model_coverage", "sparse_model_coverage", "data_unavailable"]},
+    "genotype_matched_class_enum": {"type": "string", "enum": ["matched_deep", "matched_sparse", "none", "data_unavailable"]},
+    "pdx_drug_response_class_enum": {"type": "string", "enum": ["pdx_objective_responders", "pdx_no_objective_response", "pdx_response_unavailable", "data_unavailable"]},
+    "organoid_dependency_class_enum": {"type": "string", "enum": ["pan_organoid_essential", "broad_organoid_dependency", "selective_organoid_dependency", "rare_organoid_dependency", "not_organoid_dependent", "data_unavailable"]}
+  },
+  "pins": {
+    "properties": {
+      "skill": {"const": "translational-readiness"},
+      "headline": {
+        "type": "object",
+        "properties": {
+          "model_availability_class": {"$ref": "#/$defs/model_availability_class_enum"},
+          "genotype_matched_class": {"$ref": "#/$defs/genotype_matched_class_enum"},
+          "pdx_drug_response_class": {"$ref": "#/$defs/pdx_drug_response_class_enum"},
+          "organoid_dependency_class": {"$ref": "#/$defs/organoid_dependency_class_enum"},
+          "skill_report": {
+            "type": ["object", "null"],
+            "properties": {
+              "call": {"type": "null"},
+              "role": {"const": "descriptive"},
+              "polarity": {"const": "not_scored"}
+            }
+          }
+        }
+      }
+    }
+  }
+}

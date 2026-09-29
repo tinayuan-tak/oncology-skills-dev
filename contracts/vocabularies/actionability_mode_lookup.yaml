@@ -1,0 +1,31 @@
+# actionability_mode_lookup.yaml
+# Curated OVERRIDES for the derived actionability_mode facet (skills/target-profile tp_facets.py
+# _actionability_mode_facet). The facet DERIVES mode {cis_feature|abundance|mixed|dependency_relational
+# |insufficient} post-hoc from fired sub_results; for a small set of high-value targets whose derived
+# call could COLLAPSE a known dual (a thin/one-sided run misses that the target is genuinely both), a
+# curated entry pins the mode. HYBRID: derived by default, curated-overridden only for listed targets;
+# the derived value is retained in the facet as `derived_dominant` for audit. Absent target → pure derived.
+#
+# Curation discipline (mirrors target_biology_axis_lookup.yaml): each entry carries a rationale + a
+# literature/clinical anchor. Seed = the documented multi-axis duals the biology_axis lookup already
+# flags with iter2_note (EGFR/ERBB2/MET) — the class the facet's dominant call is most likely to under-call.
+enum_id: actionability_mode_lookup
+version: 1.0.0
+schema_version: 1
+curation_status: seed
+mode_enum: [cis_feature, abundance, mixed, dependency_relational]
+
+overrides:
+  - hgnc_symbol: ERBB2
+    aliases: [HER2, NEU]
+    mode: mixed
+    rationale: "ERBB2 amplification is BOTH the cis handle (amp+GoF biomarker, HER2-directed TKIs / mut-selective) AND the abundance readout (IHC3+/high surface density → ADC trastuzumab-deruxtecan, TCE). The amplification IS the density driver — the two modes are causally coupled, so a run that fires only one arm must not collapse to it."
+    anchor: "T-DM1 / T-DXd (ADC) + neratinib/tucatinib (SM) clinical precedent; biology_axis_lookup ERBB2 iter2_note."
+  - hgnc_symbol: EGFR
+    mode: mixed
+    rationale: "Activating mutations (cis: exon19del/L858R → TKIs) AND a surface antigen (abundance: ADC, e.g. patritumab-deruxtecan / EGFRvIII-directed). Documented multi-axis; a mutation-only run under-calls the ADC/abundance story and vice-versa."
+    anchor: "EGFR-TKIs + EGFR/HER3 ADCs; biology_axis_lookup EGFR iter2_note (multi-axis)."
+  - hgnc_symbol: MET
+    mode: mixed
+    rationale: "MET exon-14 skipping / amplification (cis: capmatinib/tepotinib, ex14 biomarker) AND a surface antigen (abundance: ADC telisotuzumab-vedotin, c-Met-high). Both are active clinical modalities."
+    anchor: "capmatinib/tepotinib (SM, METex14) + telisotuzumab-vedotin (ADC); biology_axis_lookup MET iter2_note."

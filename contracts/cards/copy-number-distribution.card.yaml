@@ -1,0 +1,286 @@
+# COPY-NUMBER DISTRIBUTION  (pure-data, gene-level CN across cell lines)
+#
+# Mirrors DepMap's per-gene "Copy Number" target panel. Emits descriptive
+# categorical labels + numerics describing the CN landscape across ~1500 cell
+# lines, per-lineage stratification, and a derived copy_number_class.
+#
+# DESIGN NOTE — "no copy-number events" is a valid descriptive outcome:
+#   Many targets (e.g. KRAS, BRAF) are MUTATION-driven, not CN-driven. The
+#   correct biological call for those targets is `broadly_neutral` — meaning
+#   "no recurrent CN amplification or deletion across the panel." That's
+#   INFORMATIVE evidence (the CN axis isn't a driver), not a gap or failure.
+#   The Tier-2 rule treats broadly_neutral as a NEUTRAL signal across modalities
+#   — neither supporting nor opposing the program. Killer logic is reserved for
+#   cases where CN data is reachable AND informative AND maps to a known
+#   modality-incompatible pattern (e.g. homozygous deletion → degrader not viable).
+#
+# Threshold convention (DepMap raw relative CN scale):
+#   CN < 0.5   = deep / homozygous deletion
+#   CN <= 0.92 = shallow deletion (heterozygous loss)
+#   0.92 < CN <= 1.07 = neutral (diploid ± noise)
+#   CN > 1.07  = shallow amplification
+#   CN > 1.5   = focal amplification (one extra copy or more)
+#   CN > 4     = high-level amplification
+# (per DepMap portal docs + Mermel et al GISTIC2 conventions for relative-CN matrices)
+#
+# ASYMMETRY + FOCAL-VS-ARM CAVEAT:
+#   The recurrent-amplification score counts ONLY focal/high gain (>1.5); the
+#   recurrent-deletion score also includes shallow (hemizygous) loss. This asymmetry
+#   is intentional and validated — do NOT symmetrize (adding shallow gain destroys
+#   neutral-specificity; dropping shallow loss erases real hemizygous TSG deletions).
+#   copy_number_class is therefore a pan-cancer relative-CN class, NOT a focal-vs-arm
+#   call. The focal-vs-arm distinction lives in the ADDITIVE patient_focal_cn_class
+#   (GISTIC, indication-specific); the biallelic-LoF signal lives in
+#   cn_homozygous_deletion_recurrent / the deep-del fraction. Do NOT re-tune these
+#   bands (see analysis-methods/methods/depmap_cn_distribution/cli.py).
+#
+#   MEASURED NULL RATE (2026-09-12) — the asymmetry's PRICE, and why the DELETION arm
+#   is no longer a driver-establishing resolver conjunct. Over 1433 gene columns sampled
+#   at random from the 26Q1 WGS CN panel (IsDefaultEntryForMC-filtered):
+#     cn_recurrent_deletion_score      >= 0.20 for 60.1% of ALL genes (mean 0.255,
+#                                      median 0.228 — the cut sits BELOW the genomic
+#                                      median; p5/p25/p50/p75/p90/p95/p99 =
+#                                      0.076/0.151/0.228/0.325/0.42/0.50/0.75)
+#     cn_recurrent_amplification_score >= 0.20 for  2.9% of all genes
+#     cn_fraction_deep_deletion        >= 0.20 for  1.5% of all genes
+#   A 20-40x specificity gap between the two arms of the same classifier: the
+#   shallow-inclusive deletion arm is measuring the aneuploid CELL-LINE BACKGROUND
+#   (hemizygous loss is the modal state of a cancer genome), not target-specific loss.
+#   The bands are NOT re-tuned (that would erase real hemizygous TSG loss, and the
+#   class is still the right DISPLAY/modality read). What changed instead is WHICH
+#   field the verdict keys on: genomic_alteration.resolver.yaml >= 1.9.0 no longer
+#   accepts `recurrently_deleted` as a driver-establishing conjunct, keying its
+#   deletion rungs on cn_homozygous_deletion_recurrent (deep/biallelic, 1.5% null) or
+#   the indication-native patient_focal_cn_class (GISTIC -2) instead.
+#
+# Data source: dmc-26q1/OmicsCNGeneMC_WES.csv. Matrix shape: cell-line-rows ×
+# gene-columns (similar to CRISPR matrix); first physical column is
+# ModelConditionID, second is IsDefaultEntryForMC. Bridge to ModelID requires
+# Model.csv's ModelConditionID column for joining.
+#
+# Coverage gap to be aware of: not all genes are in the WES CN matrix. MYC and
+# BRAF are notably absent in 26Q1; KRAS and MET are present. When a target is
+# absent from the panel, the card emits data_unavailable + dependency_class →
+# data_unavailable (rule: cn-data-unavailable-insufficient).
+
+card_id: copy-number-distribution
+version: 1.5.1    # 1.5.1 (2026-09-23): + `underpowered` patient_copy_number_class + patient_focal_cn_class values
+                  # (PR-C3 companion, genomic n-honesty vertical) — the patient-CN cross-check reaches the same
+                  # coverage-gap floor as the cell-line class. Vocab-only: both fields' existing rules are
+                  # equals-only positive matches, so an unmatched value already fails safe (no new rule needed).
+                  # Emitted by tcga_patient_cn's _classify/_focal_class power floor (n_samples<20) in PR-C3.
+                  # 1.5.0 (2026-09-23): + `underpowered` copy_number_class value (PR-C2 genomic n-honesty vertical) — a
+                  # coverage GAP (classifier looked but too few CN-covered samples cleared the recurrence power floor),
+                  # distinct from data_unavailable (could-not-look). Consumed by cn-data-unavailable-insufficient's
+                  # widened matcher so it reads insufficient, never a driver/passenger. Emitted by the _classify_cn
+                  # power floor in PR-C3; inert until then.
+                  # 1.4.0 (2026-09-12): cn_homozygous_deletion_recurrent PROMOTED verdict-inert → VERDICT-BEARING
+                  # (fires cn-recurrent-homozygous-deletion-supportive on the resolver's deletion rungs, replacing the
+                  # shallow-inclusive copy_number_class whose measured genome-wide null rate is 60.1% — see header).
+                  # 1.3.0: includes patient_focal_cn_class (FOCAL gate → CN-consensus VERDICT rung, cell-line OR patient), patient CN cross-check, homdel flag
+question: "Across DepMap cell lines, what is the copy-number landscape for {target.symbol}? Is the target recurrently amplified, deleted, or broadly neutral?"
+
+# Evidence-capsule projection contract. Measured before this declaration (ABL1/CML): class read
+# `recurrently_deleted` while the capsule surfaced four alphabetical `cn_fraction_*` values and the
+# two scores that SET the class — cn_recurrent_deletion_score 0.2016 vs the recurrent_event_fraction
+# 0.2 cut, cn_recurrent_amplification_score 0.047 — were structurally unreachable, because "score"
+# is not an `_ANCHOR_HINTS` substring. 11 fields matched the hints, so the cap at 4 also dropped the
+# patient-cohort arm entirely. VERDICT-INERT projection.
+capsule:
+  primary_class: copy_number_class
+  categorical_fields:
+    - copy_number_class
+    - patient_focal_cn_class
+    - patient_copy_number_class
+    - cn_distribution_shape
+    - cn_homozygous_deletion_recurrent
+    - cn_assay_used
+  numeric_anchors:
+    - cn_recurrent_amplification_score  # vs recurrent_event_fraction 0.2 — sets copy_number_class
+    - cn_recurrent_deletion_score
+    - cn_fraction_high_amplification
+    - cn_fraction_deep_deletion
+    - patient_high_amp_fraction         # the patient-cohort arm, dropped entirely by the cap at 4
+    - patient_homdel_fraction
+    - cn_median_panel
+
+
+applies_when:
+  - "context.data_sources.depmap_cn_available == true"
+
+required_inputs:
+  - product_id: depmap-consortium-26q1
+    release_pin: "{release_pin}"
+  - product_id: tcga-patient-cn-per-gene-v1     # PATIENT GISTIC cross-check (additive; skill dispatcher merges)
+
+methods:
+  - call: depmap-cn-distribution
+    args:
+      target: "{target.symbol}"
+      release_pin: "{release_pin}"
+      amplification_threshold: "THRESHOLD.amplification_threshold"
+      deletion_threshold: "THRESHOLD.deletion_threshold"
+  # PATIENT-tumour CN cross-check (tcga_patient_cn, TCGA GISTIC). The skill dispatcher merges its
+  # patient_* fields onto the cell-line output — the two-function-merge pattern the genome-state +
+  # fusion cards use. ADDITIVE/verdict-inert: the CN verdict still rests on the cell-line copy_number_class.
+  - call: tcga-patient-cn
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - cn_n_cell_lines_evaluated
+    - cn_assay_used                       # 'wes' (preferred) or 'wgs' (fallback when target absent from WES panel)
+    - cn_median_panel
+    - cn_p25_panel
+    - cn_p75_panel
+    - cn_p5_panel
+    - cn_p95_panel
+    - cn_iqr
+    - cn_fraction_deep_deletion         # CN < 0.5
+    - cn_fraction_shallow_deletion       # 0.5 <= CN <= 0.92
+    - cn_fraction_neutral                # 0.92 < CN <= 1.07
+    - cn_fraction_shallow_amplification  # 1.07 < CN <= 1.5
+    - cn_fraction_focal_amplification    # 1.5 < CN <= 4
+    - cn_fraction_high_amplification     # CN > 4
+    - cn_distribution_shape
+    - cn_recurrent_amplification_score   # combined focal + high amp fraction
+    - cn_recurrent_deletion_score        # combined shallow + deep del fraction
+    - copy_number_class                  # DESCRIPTIVE CATEGORICAL (drives Tier-2 rules)
+    # Recurrent HOMOZYGOUS (deep) deletion flag (2026-08-06; VERDICT-BEARING since 2026-09-12).
+    # copy_number_class folds deep + shallow del into recurrently_deleted; this isolates recurrent DEEP
+    # deletion (CN<0.5 in >=20% of the panel) — the canonical BIALLELIC loss-of-function event, and the
+    # degrader-relevant pattern (no protein to degrade). It is now THE cell-line deletion field the
+    # genomic resolver's driver-establishing deletion rungs key on (rule:
+    # cn-recurrent-homozygous-deletion-supportive), because it is the arm that SURVIVES an
+    # aneuploidy-background null: 1.5% of genes genome-wide vs 60.1% for the shallow-inclusive
+    # copy_number_class (header, measured 2026-09-12). The shallow-inclusive class stays a
+    # DISPLAY/modality signal. A degrader-not-viable KILLER rule keyed on this remains a deferred
+    # follow-up (this promotion is driver-ESTABLISHING only, never a veto).
+    - cn_homozygous_deletion_recurrent
+    - cn_top_amplified_lineages          # per-lineage stats for amplified lineages
+    - cn_top_deleted_lineages            # per-lineage stats for deleted lineages
+    # ---- PATIENT-tumour CN cross-check (TCGA GISTIC, tcga-patient-cn-per-gene-v1) ----
+    # The verdict-driving copy_number_class above is DepMap CELL-LINE CN. The patient_* fields below are
+    # the TUMOUR cross-check (per-indication GISTIC amp/del prevalence), same class vocabulary so they
+    # line up directly. NOTE two DIFFERENT patient fields with DIFFERENT verdict status: the ANY-gain
+    # patient_copy_number_class is ADDITIVE/verdict-inert (a DISPLAY cross-check — fires NO rule), but the
+    # FOCAL patient_focal_cn_class below IS VERDICT-BEARING (fires the CN-consensus rung — see next block).
+    # Where cell-line and patient CN DISAGREE (e.g. a locus amplified in patients but not the cell-line
+    # panel) is the decision-useful signal.
+    - patient_copy_number_class          # TCGA GISTIC cohort CN class, ANY-gain (mirrors copy_number_class vocab; DISPLAY cross-check)
+    # FOCAL categorical (2026-08-06): gates on HIGH-LEVEL +2 amp / -2 homdel, NOT arm-level any-gain.
+    # THIS is the field the CN-CONSENSUS VERDICT rung fires on (cell-line OR patient focal) — so
+    # arm-level noise (e.g. KRAS 12p, recurrently_amplified any-gain but focal_neutral) does NOT drive
+    # the verdict. Categorical companion (rule engine is equals-only) — same pattern as the homdel flag.
+    - patient_focal_cn_class             # recurrent_focal_amplification / recurrent_focal_deletion / focal_neutral
+    - patient_amplified_fraction         # fraction of tumours with GISTIC >= +1
+    - patient_high_amp_fraction          # fraction with GISTIC +2 (high-level/focal — drives patient_focal_cn_class)
+    - patient_deleted_fraction           # fraction with GISTIC <= -1
+    - patient_homdel_fraction            # fraction with GISTIC -2 (homozygous deletion — drives focal deletion)
+    - patient_cn_context                 # human-readable patient-CN summary
+
+  summary_fields_vocabulary:
+    copy_number_class:
+      - recurrently_amplified            # >=20% of panel shows focal+high amp
+      - recurrently_deleted              # >=20% of panel shows shallow+deep del
+      - mixed                            # both amp and del recurrent (different lineages)
+      - broadly_neutral                  # neither amp nor del recurrent — VALID DESCRIPTIVE CALL
+      - data_unavailable                 # target absent from CN matrix or load failed
+      - underpowered                     # classifier LOOKED but too few CN-covered samples cleared the recurrence power floor — a coverage GAP (looked-but-too-thin), NOT a measured-negative. Reads as unmeasured/insufficient, never a driver and never passenger-via-fall-through (PR-C2). Emitted by _classify_cn below its power floor (PR-C3).
+    cn_homozygous_deletion_recurrent:
+      - recurrent_homozygous_deletion    # deep deletion (CN<0.5) in >=20% of the panel — degrader-relevant (no protein)
+      - not_recurrent_homozygous_deletion
+      - data_unavailable                 # target absent from CN matrix or load failed
+    patient_copy_number_class:           # TCGA GISTIC tumour cohort, ANY-gain — DISPLAY cross-check (NOT the verdict gate)
+      - recurrently_amplified            # >=20% of tumours GISTIC-amplified (>= +1, includes arm-level)
+      - recurrently_deleted              # >=20% deleted (<= -1)
+      - mixed                            # both recurrent, neither dominates by 1.5x
+      - broadly_neutral                  # neither recurrent
+      - data_unavailable                 # gene absent from GISTIC or no TCGA-mapped cohort for the indication
+      - underpowered                     # classifier LOOKED but too few GISTIC-covered samples cleared the recurrence power floor (< 20 samples) — a coverage GAP (looked-but-too-thin), NOT a measured-negative. Fires no rule (display cross-check); emitted by _classify below its power floor (PR-C3).
+    patient_focal_cn_class:              # FOCAL gate — the CN-CONSENSUS VERDICT input (high-level +2 / homdel -2 only)
+      - recurrent_focal_amplification    # high-level (+2) in >=10% of tumours — focal oncogene amp (drives verdict)
+      - recurrent_focal_deletion         # homdel (-2) in >=10% — focal TSG loss (drives verdict)
+      - focal_neutral                    # no recurrent FOCAL event (arm-level any-gain lands here — verdict-safe)
+      - data_unavailable                 # gene absent from GISTIC or no TCGA-mapped cohort for the indication
+      - underpowered                     # classifier LOOKED but too few GISTIC-covered samples cleared the recurrence power floor (< 20 samples) — a coverage GAP, NOT a measured-negative. Unmatched by cn-patient-focal-{amplified,deleted}-supportive (equals-only), so it never fires the CN-consensus rescue — same fail-safe effect as focal_neutral. Emitted by _focal_class below its power floor (PR-C3).
+    cn_assay_used:
+      - wes
+      - wgs
+      - data_unavailable
+    cn_distribution_shape:
+      - amp_dominant
+      - del_dominant
+      - bimodal_mixed
+      - tight_neutral
+      - dispersed_neutral
+      - unclassified
+
+  figures:
+    - id: density_cn
+      type: density_histogram_with_kde
+      description: "Pan-cancer CN distribution with KDE overlay. Threshold reference lines at deletion (0.92) and amplification (1.5). Tight distribution near 1.0 = broadly neutral; long left tail = recurrent deletion; long right tail = recurrent amplification."
+      preferred_surfaces: [markdown, ppt, decision_memo]
+      primary: true
+    - id: lineage_strip_cn
+      type: per_lineage_strip_plot
+      description: "Per-lineage CN strip plot, lineages ordered by median CN descending (n≥5 only). Identifies lineage-specific amplification or deletion (e.g., MYC amp in HCC, NF1 deletion in NF1-syndrome lines)."
+      preferred_surfaces: [markdown, ppt]
+    - id: waterfall_cn
+      type: ranked_waterfall
+      description: "Per-cell-line CN sorted ascending. Preserves per-line resolution that density bins out; secondary view."
+      preferred_surfaces: [markdown, ppt]
+  plot_data: per_cell_line_cn_with_lineage_tags
+
+thresholds:
+  # DepMap raw relative-CN scale conventions
+  deep_deletion_threshold: 0.5
+  shallow_deletion_threshold: 0.92
+  neutral_lower_threshold: 0.92
+  neutral_upper_threshold: 1.07
+  shallow_amplification_threshold: 1.07
+  amplification_threshold: 1.5            # focal amplification (one extra copy or more)
+  high_amplification_threshold: 4.0
+  deletion_threshold: 0.92                # passed to method as "deletion if <= this"
+  # Class derivation thresholds
+  recurrent_event_fraction: 0.20          # >=20% of panel → recurrent
+  recurrent_event_dominant_ratio: 2.0     # amp/del ratio for "dominant" call (else "mixed")
+  # Warning thresholds
+  min_panel_coverage_threshold: 500
+  lineage_dominance_threshold: 0.80
+
+warning_predicates:
+  - warning_id: low_cn_panel_coverage
+    if: "cn_n_cell_lines_evaluated < THRESHOLD.min_panel_coverage_threshold"
+    message: "WES CN panel has missing scores for many cell lines — interpretation may be biased toward the captured subset."
+  - warning_id: cn_lineage_imbalanced_amp
+    if: "cn_top_amplified_lineages.0.fraction_of_amp_tail >= THRESHOLD.lineage_dominance_threshold"
+    message: "Amplification tail is essentially one-lineage-driven; pan-cancer 'recurrently_amplified' label may be misleading."
+  - warning_id: cn_lineage_imbalanced_del
+    if: "cn_top_deleted_lineages.0.fraction_of_del_tail >= THRESHOLD.lineage_dominance_threshold"
+    message: "Deletion tail is essentially one-lineage-driven; pan-cancer 'recurrently_deleted' label may be misleading."
+
+caveats:
+  - "copy_number_class == recurrently_deleted does NOT establish a target-specific deletion. The score is shallow-inclusive and clears its 0.20 cut for 60.1% of ALL genes genome-wide (median gene 0.228, ABOVE the cut), vs 2.9% for the amplification arm and 1.5% for the deep-deletion fraction (measured 2026-09-12, 1433 sampled genes). It reads the aneuploid cell-line background, not target-specific loss."
+  - "Because of that 60.1% null rate, the genomic resolver (>= 1.9.0) fires NO driver-establishing rung on recurrently_deleted — treat it as a DISPLAY/modality read. A deletion DRIVER claim keys on cn_homozygous_deletion_recurrent (biallelic, 1.5% null) or patient_focal_cn_class (indication-native GISTIC -2). The amplification arm is unaffected (2.9% null, no measured defect)."
+  - "Most cancer driver genes (KRAS, BRAF, EGFR, etc.) are MUTATION-driven, not CN-driven. A 'broadly_neutral' call is the correct, expected outcome for these — NOT a coverage gap."
+  - "Method uses WES gene-level CN (OmicsCNGeneMC_WES.csv, n≈1954) as PRIMARY. When the target gene is absent from the WES panel (e.g. MYC, BRAF in 26Q1), method falls back to WGS gene-level CN (OmicsCNGeneWGS.csv, n≈800, full genome coverage). Card emits cn_assay_used ∈ {wes, wgs} to surface which source was used per target. Different denominators per target are honest reporting, not silent imputation."
+  - "CN scale is raw relative CN (median ~1.0 = diploid), NOT log2 ratio. Thresholds: deep del < 0.5, shallow del < 0.92, neutral 0.92-1.07, shallow amp >1.07, focal amp >1.5, high amp >4."
+  - "Copy number ≠ functional effect: a focal amplification can be passenger; a homozygous deletion of a tumor-suppressor can be a driver. Functional inference requires the dependency cards as orthogonal evidence."
+  - "TWO CN COHORTS, CONSENSUS VERDICT: copy_number_class is DepMap CELL-LINE CN; the patient_* fields are TCGA PATIENT-tumour GISTIC (tcga-patient-cn-per-gene-v1, per-INDICATION). The genomic CN-driver verdict rung fires on EITHER cell-line recurrent amp/del OR patient FOCAL amp/del (cell-line-OR-patient consensus) — strictly ADDITIVE: it only RESCUES false-negatives (e.g. ERBB2/BRCA, cell-line-neutral but patient-focal-amplified), never weakens an existing cell-line call."
+  - "The patient VERDICT gate is patient_focal_cn_class (HIGH-LEVEL +2 amp / -2 homdel only) — NOT patient_copy_number_class, which fires on any-gain (>= +1, includes arm-level noise like KRAS 12p) and stays a DISPLAY cross-check. This focal gate keeps arm-level gain out of the verdict. Patient CN uses raw GISTIC discrete (honest amp+del), NOT the LoF-biased 'min-wins' two-hit product."
+  - "The two CN cohorts can legitimately DIFFER (cell-line = pan-cancer + culture-selected; patient = indication-specific, in-vivo). A gene amplified in patients but not the cell-line panel — or the reverse — is a decision-useful discrepancy to surface, not an error. patient_high_amp_fraction (GISTIC +2) is the cleaner focal-oncogene signal vs patient_amplified_fraction (any gain, includes arm-level)."
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `copy_number_alteration` claim.
+measurement_type: copy_number_alteration
+# modality_relevance: routing key for downstream modality-fit gates (cross-axis — amplification routes
+# to the surface ADC/TCE/antibody gates, homozygous deletion to the SM/degrader gates)
+modality_relevance: [small_molecule, degrader, adc, bite_tce, antibody]
+entity_grains: [target, target_lineage]
+schema_version: 1
+threshold_roles:
+  recurrent_event_fraction:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the copy_number_alteration reference frame over `cn_recurrent_amplification_score` (event_fraction), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'

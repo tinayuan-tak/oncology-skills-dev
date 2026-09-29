@@ -1,0 +1,121 @@
+# Card — GDSC DRUG ACTIVITY  (Sanger GDSC1+GDSC2, release 8.5)  — pure-data, VERDICT-INERT
+#
+# The SECOND, ORTHOGONAL cell-line drug-sensitivity platform, sibling of prism-compound-activity
+# (Broad PRISM). Same claim (`prism_compound_activity` — "does an annotated compound hit this
+# target in cancer cell lines?"), DIFFERENT lab + assay + compound library:
+#   - prism-compound-activity: Broad PRISM (OncRef 25Q4 Log2AUC + Repurposing 24Q2), DepMap ModelIDs
+#   - gdsc-drug-activity:       Sanger GDSC1+GDSC2 dose-response (fitted LN_IC50 / AUC), Sanger SIDM lines
+# A target whose small-molecule tractability REPRODUCES across GDSC and PRISM is far more credible
+# than either alone. This is the ProCan->Gygi analog on the tractability side: VERDICT-INERT DISPLAY
+# in tractability-small-molecule. It feeds NO interpretation rule and NO resolver rung (no rule keys
+# card_id gdsc-drug-activity), so the tractability verdict is byte-stable with or without it — PRISM's
+# rules own the druggability call; GDSC is orthogonal corroboration.
+#
+# Substrate: gdsc-drug-activity-per-gene-v1 — a per-gene rollup (one row per GDSC putative-TARGET
+# token) of 575,197 fitted GDSC1+GDSC2 dose-response curves (Yang et al. NAR 2013; Iorio et al. Cell
+# 2016). The reader pyarrow-pushdowns one gene_symbol token (gene-sorted parquet).
+#
+# gene_symbol is a FREE-TEXT PUTATIVE-TARGET token, NOT a clean HGNC key: only ~65.9% resolve to a
+# single HGNC gene (product `.target_resolution.parquet` sidecar). The reader resolves a framework
+# HGNC symbol DIRECT (symbol == token) then via the sidecar HGNC-ALIAS fallback (RPS6KA1 -> RSK1).
+# A symbol matching no token -> no_compounds_found (a measured weak-negative, NOT a data gap).
+
+card_id: gdsc-drug-activity
+version: 1.0.0
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
+question: "Across the Sanger GDSC1+GDSC2 dose-response panel, is there a compound annotated as targeting {target.symbol}, and how potent is the most-sensitive agent (a 2nd, independent platform corroborating PRISM)?"
+
+tier: target   # pan-cancer / indication-independent: cell lines are Sanger SIDM ids with no OncoTree/lineage crosswalk, so there is no indication or lineage axis (unlike PRISM's per_lineage_activity).
+
+applies_when:
+  - "context.data_sources.gdsc_drug_activity_available == true"
+
+required_inputs:
+  # Consumed via the derived per-gene rollup: the reader pyarrow-pushdowns one gene_symbol token
+  # (filters=[("gene_symbol","=",token)]) over the gene-sorted parquet instead of parsing the GDSC
+  # dose-response XLSX at runtime. Declaring the derived product keeps resolve_cards' provenance stamp
+  # equal to what is actually read.
+  - product_id: gdsc-drug-activity-per-gene-v1
+
+methods:
+  # The GENERIC skills dispatcher (_live_readers._generic_dispatch) resolves module + entrypoint from
+  # this block and invokes methods/gdsc_drug_activity/read.py::read_target_summary(target=, indication=).
+  # No bespoke dispatcher needed. indication is accepted but NOT consumed (no indication axis).
+  - call: gdsc-drug-activity
+    module: gdsc_drug_activity
+    entrypoint: read_target_summary
+    args:
+      target: "{target.symbol}"
+
+outputs:
+  # summary_fields EXACTLY match methods/gdsc_drug_activity/read.py::read_target_summary emitted keys
+  # (underscore-prefixed provenance keys _data_note / _live_read_error / _remediation are NOT listed).
+  summary_fields:
+    - gdsc_activity_class          # CATEGORICAL potency band (most-sensitive-drug LN_IC50) — DISPLAY-ONLY, drives no rule
+    - n_drugs                      # distinct GDSC DRUG_IDs whose TARGET includes this token
+    - n_cell_lines_tested          # distinct Sanger SIDM cell lines with >=1 curve for those drugs
+    - median_ln_ic50               # median LN_IC50 across all contributing curves (natural-log IC50 uM; lower = more sensitive)
+    - median_auc                   # median AUC across contributing curves (lower = more sensitive)
+    - min_median_ln_ic50           # most-sensitive drug: min over per-drug median LN_IC50 (best single agent's typical potency)
+    - most_sensitive_drug_name     # DRUG_NAME achieving min_median_ln_ic50
+    - datasets                     # '|'-joined screens contributing (GDSC1, GDSC2, or GDSC1|GDSC2)
+    - looks_like_gene_symbol       # product heuristic: token is a single alnum symbol (convenience; sidecar is authoritative)
+    - gdsc_target_token            # PROVENANCE: the native GDSC TARGET token matched (may differ from {target.symbol} via alias)
+    - resolved_via                 # PROVENANCE: how the token was matched ('direct' | 'hgnc_alias'); null when unmatched
+    - method_version
+
+  summary_fields_vocabulary:
+    gdsc_activity_class:
+      - potent_activity            # most-sensitive drug min_median_ln_ic50 <= 0.0 (best agent typical IC50 <= ~1 uM)
+      - moderate_activity          # 0.0 < min_median_ln_ic50 <= 3.0 (best agent typical IC50 <= ~20 uM)
+      - weak_activity              # min_median_ln_ic50 > 3.0 (or a matched token with no numeric potency)
+      - no_compounds_found         # the symbol matches no GDSC putative-target token — a measured weak-negative, NOT a data gap
+      - data_unavailable           # the derived product / sidecar could not be read (S3/infra failure) — DISTINCT from no_compounds_found
+    resolved_via:
+      - direct                     # {target.symbol} is itself a native GDSC TARGET token
+      - hgnc_alias                 # matched via the target_resolution sidecar (a deprecated/alias native token -> this HGNC symbol)
+
+thresholds:
+  # DISPLAY-ONLY potency bands on the most-sensitive drug's LN_IC50 (this card is verdict-inert — these
+  # colour a class label and drive NO verdict). ln(IC50)=0 <=> IC50=1 uM; ln(IC50)=3 <=> IC50~=20 uM.
+  potent_max_ln_ic50: 0.0
+  moderate_max_ln_ic50: 3.0
+
+warning_predicates:
+  - warning_id: gdsc_putative_target_free_text
+    if: "resolved_via == 'hgnc_alias'"
+    message: "{target.symbol} was matched to a GDSC putative-target token via the HGNC-alias sidecar (gdsc_target_token differs). GDSC's TARGET is a free-text putative annotation; confirm the token is the intended gene before reading the potency as on-target."
+  - warning_id: gdsc_no_compounds
+    if: "gdsc_activity_class == 'no_compounds_found'"
+    message: "No GDSC1/2 compound annotates as targeting {target.symbol}. A first-in-class opportunity on this platform, NOT a data-availability gap — cross-reference the PRISM sibling (prism-compound-activity)."
+
+caveats:
+  - |
+    2nd, ORTHOGONAL platform: Sanger GDSC1+GDSC2 fitted dose-response (release 8.5; Yang et al. NAR
+    2013, Iorio et al. Cell 2016) complementing the Broad PRISM prism-compound-activity card.
+    Different lab, assay, and compound library — agreement corroborates SM tractability, disagreement
+    is a real assay/library signal, not noise. VERDICT-INERT display in tractability-small-molecule
+    (fires no rule, no resolver rung); the druggability verdict lives with the PRISM rules.
+  - |
+    gene_symbol is GDSC's FREE-TEXT PUTATIVE-TARGET token, NOT a clean HGNC key: only ~65.9% of tokens
+    resolve to a single HGNC gene (130/381 are family/complex/pathway/placeholder tokens). The reader
+    resolves DIRECT then via the target_resolution sidecar HGNC-alias fallback; gdsc_target_token +
+    resolved_via record which token was read. Treat potency as on-target only once the token is
+    confirmed to be the intended gene (not a protein family like PDGFR/VEGFR).
+  - |
+    NO lineage/indication axis: cell lines are Sanger SIDM ids with no DepMap-ModelID/OncotreeLineage
+    crosswalk yet, so unlike PRISM there is no per-lineage activity or lineage-selectivity here;
+    n_cell_lines_tested counts distinct SIDM ids pan-cancer. LN_IC50 is natural-log IC50 (uM);
+    min_median_ln_ic50 is the most-sensitive single agent's typical potency (lower = more sensitive).
+  - |
+    RESEARCH-ONLY source (Sanger DepMap data-usage policy): internal Takeda target/biomarker/drug-
+    discovery research permitted; NO external redistribution without Sanger consent. This card carries
+    only AGGREGATE per-gene median/count rollups (no per-curve payloads). Cite Yang 2013 + Iorio 2016.
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — a 2nd-platform view of the `prism_compound_activity` claim (same
+# claim as PRISM: does an annotated compound hit the target in cancer cell lines?). VERDICT-INERT here.
+measurement_type: prism_compound_activity
+modality_relevance: [small_molecule]
+entity_grains: [target]     # target-grain only: no SIDM->lineage crosswalk, so target_lineage is NOT emittable on this platform
+schema_version: 1

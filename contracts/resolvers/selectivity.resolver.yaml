@@ -1,0 +1,184 @@
+# tumor-selectivity (Gate B) verdict resolver (gap #5, 2026-07-20).
+# Declarative transcription of skills/tumor-selectivity/scripts/run.py::_verdict.
+# Verdict strings are the selectivity_class values verbatim (the risk-table _biological()
+# reshape keys off strong_tumor_selective / not_selective without translation).
+gate: selectivity
+version: 1.2.0
+description: Tumor-vs-normal selectivity precedence (first match wins).
+resolve:
+  - verdict: strong_tumor_selective
+    when_fired: tvn-strong-selective-supportive
+    priority: 0
+  - verdict: modest_tumor_selective
+    when_fired: tvn-modest-selective-supportive
+    priority: 1
+  - verdict: field_effect_tumor_selective
+    when_fired: tvn-field-effect-selective-supportive
+    priority: 2
+  - verdict: discordant_across_comparators
+    when_fired: tvn-discordant-neutral-flagged
+    priority: 3
+  - verdict: not_selective
+    when_fired: tvn-not-selective-neutral
+    priority: 4
+  - verdict: not_informative
+    when_fired: tvn-not-informative-neutral
+    priority: 5
+  - verdict: data_unavailable
+    when_fired: tvn-data-unavailable-insufficient
+    priority: 6
+default: insufficient
+evaluation: match_all_reduce
+
+# POST-RESOLVER PYTHON CLAMP verdicts — minted by skills/_skills_common/selectivity_veto.py
+# (apply_normal_breadth_veto + the stromal-confound arm), NOT by any rung above. They DOWNGRADE a
+# selective axis-A verdict AFTER this resolver runs, so they can never appear in `resolve[].verdict`
+# — but they ARE real emitted selectivity verdicts. Declared here so (1) a reviewer reading this
+# resolver sees the COMPLETE emitted enum (8 rung/default + these 3 = 11), and (2) the tooling that
+# derives "what this gate can emit" (validators/validate_verdict_tokens.py::emitted_verdicts_by_gate,
+# and thus test_kill_capable_completeness) folds them in — so a nomination-gate entry for a clamp KILL
+# is no longer wrongly rejected as "the resolver never emits it". Kept in lockstep with
+# selectivity_veto._CLAMP_VERDICTS (= _VETO_OUTCOMES ∪ the marrow-coverage abstain) by a skills-side
+# guard test. The FIRST THREE are the rule-fired veto outcomes (precedence block below); the FOURTH is
+# the substrate-conditioned ABSTAIN (marrow_coverage_abstain block below) — a distinct kind of clamp
+# output that is NOT driven by any fired rule_id, so it is deliberately absent from `precedence`.
+clamp_verdicts:
+  - selective_but_broadly_normal       # SAFE-axis KILL: no therapeutic / full-normal window (housekeeping, GAPDH/TROP2)
+  - selective_with_normal_liability    # selectivity-PRESERVING: sc-normal critical-organ OR broad-abundant normal protein
+  - selective_but_stromal_confound     # INT-axis KILL: the axis-A signal is in stromal/CAF cells, not malignant
+  - selective_pending_marrow_coverage  # ABSTAIN (#796): marrow substrate transiently unavailable on a marrow-plausible target — withhold the confident selective call, re-run to resolve
+
+# POST-RESOLVER CLAMP — the FULL, PR-reviewable declaration of what selectivity_veto.py does after this
+# resolver runs. It is NOT executed by the resolver interpreter (which pattern-matches fired rule_ids
+# only); it is declared here because the clamp is conditioned on THIS resolver's OUTPUT verdict — it
+# only downgrades an already-selective axis-A call — which a rung firing on the fired-set alone cannot
+# express (Step 1c of the framework-architecture remediation: closes the "one hole in the declarative
+# decision spine", finding 6). selectivity_veto.py is kept byte-for-byte in lockstep with this block by
+# a skills-side guard test (tumor-selectivity/tests/test_verdict.py).
+post_resolver_clamp:
+  module: skills/_skills_common/selectivity_veto.py
+  direction: downgrade_only            # one-directional; NO-OP unless the current verdict is selective axis-A
+  applies_to_input_verdicts:           # the guard (_AXIS_A_SELECTIVE) — why this cannot be a rung
+    - strong_tumor_selective
+    - modest_tumor_selective
+    - field_effect_tumor_selective
+  precedence:                          # first firing arm wins the verdict + driving label (Option B order)
+    - {when_fired: tvn-stromal-confound-veto,                  verdict: selective_but_stromal_confound}  # INT-axis KILL (wrong cells) — outranks the SAFE-axis KILLs
+    - {when_fired: tvn-no-therapeutic-window-veto,             verdict: selective_but_broadly_normal}    # SAFE-axis KILL: no essential-organ window
+    - {when_fired: tvn-no-full-normal-window-veto,             verdict: selective_but_broadly_normal}    # SAFE-axis KILL: no pan-normal window
+    - {when_fired: tvn-sc-normal-critical-organ-veto,          verdict: selective_with_normal_liability} # selectivity-PRESERVING named-organ flag
+    - {when_fired: tvn-tphp-broad-abundant-normal-protein-veto, verdict: selective_with_normal_liability} # selectivity-PRESERVING normal-protein liability
+  upgrade:                             # #978 RESCUE — one-directional UP, applied BEFORE the downgrade precedence
+    applies_to_input_verdicts: [not_informative, discordant_across_comparators]
+    requires:                          # AND-of-ORs: CPTAC-protein-up AND population-normal-crossing-up
+      - [protein-strongly-up-supportive, protein-modestly-up-neutral]
+      - [tumor-vs-normal-crossing-strong-supportive]
+    verdict: field_effect_tumor_selective
+  # MODALITY-CONDITIONAL KILL SUPPRESSION (2026-09-12) — the precedence walk above is modulated by the
+  # OPTIONAL `--modality` lens. Three of the five arms already declare `adc: neutral` in their own
+  # interpretation-rules `signals:` block on purpose (tvn-no-full-normal-window-veto names
+  # sacituzumab/Dato-DXd; the sc-normal arm names FOLR1/mirvetuximab + ERBB2; the TPHP arm carries the
+  # same precedent). The clamp used to ignore that lens and map every fired arm straight to its verdict,
+  # so the framework KILLED validated ADC antigens in their approved indication on evidence THIS contract
+  # calls neutral for ADCs. The clamp now reads the fired rule's OWN signals — no Python-side modality
+  # table — so a new arm's lens is honoured with no code change.
+  modality_conditional:
+    signal_source: interpretation_rules.signals   # the fired rule's own per-modality declaration
+    suppressing_signals: [neutral, supportive]    # an EXPLICIT non-opposing declaration for the chosen modality
+    # `insufficient` is NOT a suppressor: it means "coverage gap, not used as opposing evidence"
+    # elsewhere in the grammar, but a veto arm only fires when the measurement EXISTS — treating it as a
+    # waiver would read a data-availability token as a safety judgement. Missing/unknown/opposing = KILL stands.
+    suppressible_verdicts:                        # ONLY the KILLs are waivable
+      - selective_but_broadly_normal
+      - selective_but_stromal_confound
+    never_suppressed_verdicts:                    # the PRESERVING outcome always stands
+      # A named normal liability blocks nothing and is informative for EVERY modality (its arms also
+      # declare `adc: neutral`), so suppressing it would DELETE safety signal rather than unblock a
+      # nomination. It is arbitrated downstream by on-target-safety-liability + surface-modality-fit.
+      - selective_with_normal_liability
+    # PRECONDITION — the clause the ADC-neutrality comment itself states: "broad-LOW normal (CLEAN VS THE
+    # ESSENTIAL SET) is ADC-tolerable". Waiving on the `adc: neutral` declaration ALONE ignored it, and the
+    # 36-target panel measured designed true negatives ESCAPING: RPL13A/COADREAD (ribosomal housekeeping
+    # decoy, tumor 641 TPM vs BONE_MARROW 617 — essential ratio 1.04) and MUC1/BRCA (182 vs LUNG 134,
+    # ratio 1.36) both rose from the housekeeping KILL to the selectivity-PRESERVING verdict. Both are
+    # `narrow_window` on the essential axis, and `narrow_window` fires NO rung in the intracellular lens
+    # (only `no_therapeutic_window` does), so the full-normal KILL was the ONLY thing holding a
+    # 600-TPM-everywhere gene down. A narrow window against a VITAL organ is not payload-buffered.
+    requires_essential_window_class:               # read from the card, not the fired set — see above
+      card_id: modality-therapeutic-window
+      field: therapeutic_window_class
+      one_of: [clean_window]                       # anything else FAILS CLOSED and the KILL stands
+    on_suppression: fall_through_to_next_arm      # NOT "verdict stands" — the next arm still gets its turn
+    # `selective_but_broadly_normal` is minted by TWO arms with OPPOSITE lens behaviour — the
+    # full-normal arm is waivable (`adc: neutral`), the no-therapeutic-window arm is not — which is why
+    # suppressibility is declared per-VERDICT here and evaluated per-ARM by the executor. An arm that is
+    # `opposing` for the chosen modality therefore still KILLs, and two arms are opposing for ALL FOUR
+    # modalities by design. Naming them here is what makes that a CHECKED claim rather than a comment:
+    # validate_resolvers stops warning about these two specifically, keeps warning about any OTHER inert
+    # arm, and ERRORS if either of these ever becomes waivable (STALE_EXPECTED_INERT_ARM) — the warning
+    # used to fire permanently, which made it indistinguishable from one nobody had read.
+    expected_inert_arms:
+      - rule_id: tvn-no-therapeutic-window-veto
+        reason: >-
+          Tumor expression sits BELOW a vital normal organ. No payload, valency or affinity choice
+          buys back a window that is inverted at the antigen level, so every modality is opposing.
+      - rule_id: tvn-stromal-confound-veto
+        reason: >-
+          The signal is attributable to stroma, not to the tumor cells — the antigen is not on the
+          cell any modality would have to bind, so this is a target-identity failure, not a
+          tolerability one that a modality lens could trade against.
+    no_modality_behavior: worst_case_identical    # `--modality` absent (default, and every composed/
+    # flip-analysis path today) reproduces the pre-2026-09-12 walk byte-for-byte.
+    provenance_fields:                            # a waived KILL must be VISIBLE, never silently absent
+      - modality_suppressed_veto_arms
+      - modality_suppressed_veto_note
+      - verdict_modality_lens
+
+# POST-RESOLVER MARROW-COVERAGE ABSTAIN (2026-09-27, #796) — a SECOND, orthogonal post-resolver clamp
+# stage, applied AFTER `post_resolver_clamp` above (selectivity_veto.apply_marrow_coverage_abstain runs
+# after apply_normal_breadth_veto in run.py::_verdict). NOT a veto arm: it is not driven by any fired
+# rule_id, so it lives OUTSIDE `post_resolver_clamp.precedence` and its output is NOT in `_VETO_OUTCOMES`.
+#
+# THE BUG (#796): the primary-marrow reader (analysis-methods tcga_gtex_tpm_quantiles/marrow.py) caches
+# a read failure for the whole process. A TRANSIENT outage (network / creds / throttle / 5xx / parse)
+# used to be indistinguishable from a definitive config miss — both surfaced `marrow_substrate ==
+# "unavailable"`. When marrow drops out of the essential-organ denominator, `window_ratio_essential`
+# INFLATES, `therapeutic_window_class` moves OFF `no_therapeutic_window`, the `tvn-no-therapeutic-window-
+# veto` never fires, and the essential-window KILL SILENTLY VANISHES for myeloid-argmax targets
+# (CD33 / CLEC12A / IL3RA / FLT3). analysis-methods now flags the transient case as a DISTINCT
+# `marrow_substrate == "unavailable_transient"` token (definitive config misses keep `"unavailable"`).
+#
+# THE ABSTAIN: when the marrow substrate is transiently unavailable AND the target is marrow-PLAUSIBLE
+# (could plausibly have marrow as its essential-window argmax), a selective axis-A call is WITHHELD as
+# `selective_pending_marrow_coverage` — "the safety denominator is transiently incomplete; re-run to
+# resolve". It does NOT fabricate a KILL and does NOT clear a KILL that fired on other grounds: it only
+# acts on a verdict that is STILL a selective axis-A class after the veto walk (if any veto fired, the
+# verdict is already a KILL/liability ∉ applies_to_input_verdicts and this stage is a no-op).
+#
+# MARROW-PLAUSIBILITY is derived WITHOUT the missing marrow value — the transient is process-wide and
+# hits every target, so the plausibility signal MUST come from an INDEPENDENT substrate. It reads the
+# sc-normal-celltype-expression card's `sc_normal_essential_max_tissue` (CELLxGENE single-cell atlas,
+# unaffected by the HPA bulk-marrow outage): a target whose single-cell normal essential-organ argmax
+# is bone marrow is exactly one for which the bulk-marrow denominator, had it loaded, could have been
+# the essential-window argmax. If this signal is absent the abstain does NOT fire (fail-open on the
+# withhold — a transient with no independent marrow evidence leaves the call unchanged, never scope-
+# creeps to all targets).
+marrow_coverage_abstain:
+  module: skills/_skills_common/selectivity_veto.py
+  applied_after: post_resolver_clamp             # runs on the veto walk's OUTPUT verdict
+  direction: withhold_only                       # abstain; never fabricates or clears a KILL
+  verdict: selective_pending_marrow_coverage
+  disposition: uncorroborated                    # blocks `strong`, NOT a measured contradiction (nomination_verdict_gate.yaml)
+  applies_to_input_verdicts:                      # only a STILL-selective axis-A call can be withheld
+    - strong_tumor_selective
+    - modest_tumor_selective
+    - field_effect_tumor_selective
+  requires_marrow_substrate:                      # the transient token minted by analysis-methods marrow.py (#796)
+    card_id: modality-therapeutic-window
+    field: marrow_substrate
+    one_of: [unavailable_transient]               # the DEFINITIVE `unavailable` does NOT trigger the abstain
+  requires_marrow_plausible:                      # INDEPENDENT substrate — derived WITHOUT the missing marrow value
+    card_id: sc-normal-celltype-expression
+    field: sc_normal_essential_max_tissue
+    one_of: ["bone marrow"]                       # single-cell normal essential-organ argmax is marrow
+  driver_label: tvn-marrow-coverage-transient-abstain   # provenance label (NOT a resolver rung / fired rule_id)

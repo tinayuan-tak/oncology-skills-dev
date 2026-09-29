@@ -1,0 +1,212 @@
+# health_rules.yaml — the declarative, PR-reviewable health roll-up ladder.
+#
+# Mirrors the framework's own resolvers/*.resolver.yaml philosophy: ordered,
+# first-match-wins, and the matched rule id is recorded as `health_reason` (the
+# analogue of driving_rule_id) so a reviewer can trace WHY a component got its
+# verdict. The rollup interpreter (rollup.py) evaluates these conditions against
+# the derived probe signals — it contains NO hard-coded verdict logic itself, so
+# thresholds/precedence are reviewable here in data, not buried in Python.
+#
+# Two ladders: card health rolls up first, then feeds skill health.
+# Conditions are a small fixed vocabulary evaluated by rollup.py::_match:
+#   all: [<cond>, ...]   — every sub-condition must hold
+#   any: [<cond>, ...]   — at least one holds
+#   <signal>: <value>    — probe signal == value  (dotted paths allowed)
+#   <signal>__in: [..]   — probe signal in list
+#   <signal>__truthy: true/false
+
+version: 1.0.0
+
+# ---------------------------------------------------------------------------
+# CARD HEALTH  (enum: broken | placeholder | blocked | partial | wired | self_produced | live)
+#   wired = has a resolvable reader (bespoke CARD_DISPATCHERS entry OR a built backing method reached
+#           via generic dispatch) but has not yet fired in a governed package the probe indexes — WIRED,
+#           awaiting its first firing, NOT a defect. Split out of `partial` 2026-08-31 (the old label
+#           read as broken in the tally / a false-negative for verified-live generic-routed cards).
+#           Treated identically to `partial` in the SKILL rollup, so skill_health stays byte-stable.
+# First match wins, top to bottom.
+# ---------------------------------------------------------------------------
+card_health:
+  # A standalone scan-hook skill emits a data-package card named after itself, OUTSIDE the
+  # per-target card/resolver spine; when it has no contract YAML its "product" is the skill's
+  # own live computation, not a landed manifest — self_produced, NOT a broken contract ref.
+  # Sits ABOVE card-missing-yaml so it wins for these (card_id ∈ skill_names AND no YAML).
+  - id: card-self-produced-scan
+    verdict: self_produced
+    when: {is_self_produced_skill_card: true}
+    reason: "self-produced scan-hook output card (card_id is a skill name; no contract YAML by design)"
+
+  - id: card-missing-yaml
+    verdict: broken
+    when: {card_yaml_exists: false}
+    reason: "card_id consumed by a skill but no cards/<id>.card.yaml exists"
+
+  # GROUND TRUTH DOMINATES INFERENCE: a card that actually fired end-to-end in a
+  # real package is live, regardless of any method-path heuristic. This rung sits
+  # ABOVE the method-unbuilt check so a stale methods.call label (dispatcher routes
+  # elsewhere under the hood) can never mislabel a demonstrably-working card broken.
+  - id: card-live-fired
+    verdict: live
+    when: {fires_in_real_package: true}
+    reason: "fires passed/passed_with_warnings in at least one real evidence package"
+
+  - id: card-placeholder
+    verdict: placeholder
+    when: {is_placeholder: true}
+    reason: "card is a declared placeholder / blocked-status card"
+
+  # BROKEN = no path to data at all: no live-reader dispatcher AND its declared
+  # backing method module is absent AND it never fired. All three reliable signals
+  # agree it cannot work. (A card WITH a live reader is never broken here — the
+  # dispatcher may route to a differently-named method; that ambiguity is a soft
+  # `stale_method_label` flag surfaced separately, not a broken verdict.)
+  - id: card-no-path
+    verdict: broken
+    when:
+      all:
+        - {has_live_reader: false}
+        - {fires_in_real_package: false}
+        - {method_dir_exists: false}
+    reason: "no live reader, no backing method module, never fired — no path to data"
+
+  # Has a live reader whose DECLARED method module is unbuilt, and never fired: the
+  # genuine registered-but-unbuilt drift (gnomad-constraint-lookup, opentargets-clingen).
+  # Distinguished from card-no-path by having a dispatcher registered.
+  - id: card-registered-method-unbuilt
+    verdict: broken
+    when:
+      all:
+        - {has_live_reader: true}
+        - {fires_in_real_package: false}
+        - {method_dir_exists: false}
+    reason: "dispatcher registered but declared backing method module is absent, and never fires"
+
+  # Not in CARD_DISPATCHERS, but a BUILT backing method module exists — the card routes through the
+  # GENERIC dispatcher (read_live_summary → _generic_dispatch, driven by the card_spec module/entrypoint),
+  # so it HAS a working reader; it just hasn't fired in a governed package the probe indexes. This is
+  # `partial` (reader exists, unproven here), NOT `blocked`. Sits ABOVE card-no-reader-no-fire so a
+  # generic-dispatched card is never mislabeled a coverage gap. (has_live_reader=false only means "no
+  # bespoke CARD_DISPATCHERS entry"; method_dir_exists is the framework's own backing-exists signal,
+  # used identically by card-no-path / card-registered-method-unbuilt above.)
+  - id: card-generic-dispatch-never-fires
+    verdict: wired
+    when:
+      all:
+        - {has_live_reader: false}
+        - {fires_in_real_package: false}
+        - {method_dir_exists: true}
+    reason: "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint) — WIRED, awaiting its first governed firing (NOT a defect: verified generic-routed cards read fine, e.g. translational-readiness / tractability legs)"
+
+  - id: card-no-reader-no-fire
+    verdict: blocked
+    when:
+      all:
+        - {has_live_reader: false}
+        - {fires_in_real_package: false}
+    reason: "no live-reader dispatcher, no backing method module, and never fired — card cannot pull data (honest coverage gap)"
+
+  - id: card-reader-never-fires
+    verdict: wired
+    when:
+      all:
+        - {has_live_reader: true}
+        - {fires_in_real_package: false}
+    reason: "has a bespoke live reader but has not fired passed/warned in any real package yet — WIRED, awaiting its first governed firing (NOT a defect)"
+
+  # NOTE: no second `fires_in_real_package: true` rung here — that verdict is owned
+  # by card-live-fired at the TOP of the ladder (ground-truth dominates). A duplicate
+  # rung this far down is unreachable (first-match-wins), so it was removed (2026-08-05).
+  - id: card-default
+    verdict: partial
+    when: {}
+    reason: "no card rule matched (fallback)"
+
+# ---------------------------------------------------------------------------
+# SKILL HEALTH  (enum: production_ready | partial | placeholder | broken_or_drift)
+# First match wins. Drift-severity conditions sit ABOVE the positive verdicts so a
+# drifting skill can never read production_ready.
+# ---------------------------------------------------------------------------
+skill_health:
+  - id: skill-no-entrypoint
+    verdict: broken_or_drift
+    when: {derived.has_entrypoint: false}
+    reason: "no scripts/run.py entrypoint"
+
+  - id: skill-unparseable
+    verdict: broken_or_drift
+    when: {derived.kind: UNPARSEABLE}
+    reason: "run.py could not be parsed"
+
+  - id: skill-error-drift
+    verdict: broken_or_drift
+    when: {has_error_drift: true}
+    reason: "an error-severity drift flag fired (declared status contradicts file reality)"
+
+  - id: skill-placeholder
+    verdict: placeholder
+    when: {derived.is_placeholder: true}
+    reason: "run.py emits a structured placeholder (emit_placeholder) — question declared, not wired"
+
+  # Non-verdict support skills (orchestration/retrieval/workflow) consume no cards and
+  # bind no resolver — evaluated BEFORE the card-gap rung, which would otherwise mark a
+  # legitimately cardless skill partial. Production bar: entrypoint + tests + no drift.
+  - id: skill-support-ready
+    verdict: production_ready
+    when:
+      all:
+        - {derived.has_entrypoint: true}
+        - {derived.kind__in: [ORCHESTRATION, RETRIEVAL, WORKFLOW]}
+        - {has_tests: true}
+        - {consumes_cards: false}
+    reason: "support skill: has entrypoint + tests, no card dependencies, no drift"
+
+  - id: skill-support-untested
+    verdict: partial
+    when:
+      all:
+        - {derived.kind__in: [ORCHESTRATION, RETRIEVAL, WORKFLOW]}
+        - {consumes_cards: false}
+    reason: "support skill with no tests (or other soft gap) — not yet production-ready"
+
+  - id: skill-partial-core-gap
+    verdict: partial
+    when:
+      all:
+        - {consumes_cards: true}
+        - {core_cards_healthy: false}
+    reason: "a verdict-driving (core) card is placeholder/blocked/broken"
+
+  - id: skill-partial-declared
+    verdict: partial
+    when: {declared.status: partial}
+    reason: "declared partial and no stronger signal overrides it"
+
+  # PROVEN: wired + tested AND at least one verdict-driving card has actually FIRED
+  # in a real evidence package (end-to-end demonstrated).
+  - id: skill-production-ready
+    verdict: production_ready
+    when:
+      all:
+        - {derived.has_entrypoint: true}
+        - {derived.kind__in: [FOCUSED, COMPOSED]}
+        - {has_tests: true}
+        - {core_cards_healthy: true}
+        - {core_cards_fired: true}
+    reason: "wired + tested, and ≥1 core card has fired in a real package (proven end-to-end)"
+
+  # UNPROVEN: wired + tested, core-card readers all work (live-or-partial), but NONE
+  # has fired in a real package yet — should work, not yet demonstrated end-to-end.
+  - id: skill-ready-unproven
+    verdict: ready_unproven
+    when:
+      all:
+        - {derived.has_entrypoint: true}
+        - {derived.kind__in: [FOCUSED, COMPOSED]}
+        - {has_tests: true}
+        - {core_cards_healthy: true}
+    reason: "wired + tested and core-card readers work, but no core card has fired in a real package yet (ready, unproven)"
+
+  - id: skill-default
+    verdict: partial
+    when: {}
+    reason: "no skill rule matched (fallback)"

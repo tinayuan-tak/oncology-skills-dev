@@ -1,0 +1,108 @@
+# Card — dosage-sensitivity safety via ClinGen gene-disease validity
+#
+# A verdict-moving safety card. ClinGen curated gene-disease validity (Open Targets 26.06) → is losing
+# ONE copy of {target.symbol} pathogenic (haploinsufficiency / autosomal-dominant loss = the highest
+# concern for a degrader / full-inhibition modality) or does disease require BOTH copies lost
+# (recessive = lower single-allele safety concern)?
+#
+# DERIVED signal (ClinGen has no dosage column): dosage_sensitivity_class from allelicRequirements
+# gated on confidence.
+#   autosomal_dominant_loss → ANY high-confidence (Definitive/Strong) AD association. Single-allele
+#                             loss is pathogenic → haploinsufficiency safety concern. Fires the
+#                             full-KO safety warning.
+#   dosage_sufficient       → high-confidence associations are exclusively recessive (AR). Disease
+#                             needs both copies → lower single-allele concern. Favorable/neutral.
+#   unresolved              → only X-linked/mito/semidominant, or rows exist but none high-confidence.
+#   no_clingen_entry        → gene absent from ClinGen. insufficient → unresolvable symbol.
+#
+# ANY-association reduction: BRCA1/MLH1 are BOTH AD (cancer-predisposition) AND AR (Fanconi/other) —
+# the dominant association wins because single-copy loss is pathogenic for at least that disease. A
+# majority-vote over allelic requirements would MISS the haploinsufficiency concern.
+#
+# BYTE-STABLE: the warning below is card-level context; its RULE is resolver-wired.
+
+card_id: clingen-dosage
+version: 1.1.0    # 1.1.0: + germline_inheritance_mode facet (recessive-only full-KO REASSURANCE the dosage class discards; the in-hand OMIM-style inheritance signal)
+question: "Is loss of one copy of {target.symbol} pathogenic (ClinGen autosomal-dominant / haploinsufficiency), implying a dosage-sensitivity safety concern for a full-KO modality — and what is the germline INHERITANCE MODE (recessive-only = carriers healthy = full-KO reassurance)?"
+
+tier: target   # scope-invariant: ClinGen gene-disease dosage validity is a property of the gene. Never stratifies.
+
+applies_when: []
+
+required_inputs:
+  - product_id: opentargets-26-06
+
+methods:
+  - call: opentargets-clingen-dosage
+    args:
+      target: "{target.symbol}"
+
+outputs:
+  summary_fields:
+    - dosage_sensitivity_class            # PRIMARY categorical
+    - n_high_confidence                   # int; Definitive/Strong rows
+    - n_total_rows                        # int; all ClinGen rows for the gene
+    - n_autosomal_dominant                # int; high-confidence AD rows
+    - n_autosomal_recessive               # int; high-confidence AR rows
+    - allelic_requirements                # list; distinct high-confidence allelicRequirements tokens
+    - top_disease                         # the dominant-loss disease driving the call
+    - top_confidence                      # Definitive | Strong
+    # ---- germline INHERITANCE MODE facet (KO-safety; the in-hand OMIM-style signal) ----
+    # dosage_sensitivity_class is dominant-focused + collapses recessive→dosage_sufficient. This
+    # surfaces the FULL inheritance picture — especially recessive_only, a POSITIVE full-KO
+    # reassurance (heterozygous carriers of a strictly-recessive-disease gene are healthy). Additive.
+    - germline_inheritance_mode           # recessive_only / dominant / dominant_and_recessive / xlinked_or_other / ...
+    - inheritance_allelic_requirements    # list; distinct high-confidence AR/AD/XL tokens
+    - method_version
+
+  summary_fields_vocabulary:
+    dosage_sensitivity_class:
+      - autosomal_dominant_loss
+      - dosage_sufficient
+      - unresolved
+      - no_clingen_entry
+      - insufficient
+    germline_inheritance_mode:
+      - recessive_only                    # exclusively AR high-confidence disease — carriers healthy → full-KO REASSURANCE
+      - dominant                          # any AD high-confidence disease — haploinsufficiency → full-KO caution
+      - dominant_and_recessive            # both AD + AR across diseases (e.g. BRCA1/ATM/MLH1) — mode is disease-specific
+      - xlinked_or_other                  # only X-linked / mito / semidominant / undetermined
+      - no_mendelian_disease              # gene in ClinGen but no high-confidence disease (or absent)
+      - insufficient                      # unresolvable symbol / entity unavailable
+
+  # NO figure: tables-only (deferred with the other safety-axis figures).
+
+warning_predicates:
+  - warning_id: clingen_dominant_loss_safety_concern
+    if: "dosage_sensitivity_class == 'autosomal_dominant_loss'"
+    message: "{target.symbol}: ClinGen autosomal-dominant loss is pathogenic ({top_disease}, {top_confidence}) — single-copy loss suffices for disease (haploinsufficiency), a safety concern for full-KO modalities (degrader/RNA/full SM). Mutant-selective tx vs an activating driver spares WT, nullifying this."
+
+caveats:
+  - |
+    ClinGen carries no dosage column; dosage_sensitivity_class is DERIVED from allelicRequirements
+    (AD → dominant-loss, AR → dosage-sufficient) gated on confidence (Definitive/Strong only —
+    Disputed/Refuted excluded). A gene can be both AD and AR across diseases (BRCA1, MLH1); the card
+    reports autosomal_dominant_loss whenever ANY high-confidence dominant association exists, because
+    single-copy loss is then pathogenic for at least that disease.
+  - |
+    This is a germline gene-disease-validity signal about the WILD-TYPE gene's dosage sensitivity. It
+    does not capture adult-vs-developmental requirements (cross-reference mouse-ko-phenotype), and a
+    mutant-selective therapy against an activating driver spares WT and largely nullifies the concern
+    (resolver mechanism-conditioning downgrade).
+  - |
+    germline_inheritance_mode is the in-hand OMIM-style inheritance signal (same ClinGen
+    allelicRequirements — no OMIM license). recessive_only = a strictly-recessive-disease gene whose
+    heterozygous carriers are healthy → a POSITIVE full-KO reassurance the dominant-focused
+    dosage_sensitivity_class understates (it collapses recessive → dosage_sufficient). ADDITIVE /
+    verdict-inert: fires no rule; the safety verdict still rests on dominant-loss + constraint + mouse-KO.
+  - |
+    Deferred, license/cross-release-gated follow-ups for a richer human-KO safety picture: direct OMIM
+    morbidmap ingestion (finer phenotype-severity + full inheritance beyond ClinGen's curated set) and
+    gnomAD-v2 obs_hom_lof (observed healthy human knockouts). The ClinGen-derived inheritance mode here
+    covers the non-redundant inheritance-axis value without either gate.
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `dosage_sensitivity_safety` claim (ClinGen dominant-loss
+# / haploinsufficiency). Provider: opentargets-26-06 evidence_clingen (measured curated genetics).
+measurement_type: dosage_sensitivity_safety
+entity_grains: [target]
+schema_version: 1

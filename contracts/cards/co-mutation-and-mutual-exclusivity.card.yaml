@@ -1,0 +1,134 @@
+# Card Phase-E — CO-MUTATION AND MUTUAL EXCLUSIVITY (v1)
+#
+# Reviewer-driven Phase E card (differentiation-landscape skill partial
+# graduation). Panel-intersect-aware Fisher's-exact co-mutation scanner
+# across TCGA MC3 (whole-exome) + GENIE 19.0-public (panel-based).
+# REVIEWER-DRIVEN STATISTICAL BLOCKER FIX (2026-07-08): pooled Q-values
+# emitted ONLY when both target and partner are on ALL contributing GENIE
+# panels. Genes outside the panel-intersect get per-source Q-values only
+# (`pooled_eligible: false`), preventing the naive-pooling failure mode
+# that produces artifactual mutual-exclusivity signals for panel-absent
+# genes.
+#
+# Interpretation surface (cooccurrence_class is the PRIMARY categorical):
+#   `strong_cooccurring`      → q < 0.001 AND log2_or > 1.0 in pooled OR both per-source
+#   `modest_cooccurring`      → q < 0.05 AND log2_or > 0.5
+#   `strong_mutually_exclusive` → q < 0.001 AND log2_or < -1.0
+#   `modest_mutually_exclusive` → q < 0.05 AND log2_or < -0.5
+#   `ns`                      → no significant pattern
+#   `data_unavailable`        → target not present in cooccurrence-fisher parquet
+
+card_id: co-mutation-and-mutual-exclusivity
+version: 1.0.0
+question: "Which genes co-occur with or are mutually exclusive to {target.symbol} mutations across TCGA MC3 + GENIE 19.0-public?"
+
+# tier intentionally unset: this card is pan-cohort (TCGA MC3 + GENIE, no single
+# indication), so neither `target` (would forbid its subtype-eligibility) nor
+# `indication` fits cleanly. The subgroup_stratification block below carries the
+# subtype-eligibility signal without over-claiming a tier.
+
+# BLOCKED (2026-07-16): co-mutation structure genuinely varies by molecular
+# subgroup (e.g. BRAF co-mutation differs MSI-H vs MSS; filter 1 met), but the
+# bound `cooccurrence-fisher-pancohort` product ships pan-cohort Fisher pairs
+# aggregated at emit time — no per-sample mutation rows to re-run Fisher within a
+# stratum member-set (filter 2 FAILS). Tagged not-live; no per-subgroup panorama
+# field until a per-sample co-occurrence reader ships.
+subgroup_stratification:
+  eligible: true
+  status: blocked_needs_per_sample_reader
+  axes: [msi_status]
+  rationale: "Co-mutation patterns vary by subgroup but pancohort-cooccurrence-fisher-v1 is an emit-time aggregate; needs per-sample mutation rows to recompute Fisher per stratum."
+
+applies_when:
+  - "context.data_sources.tcga_mc3_available == true"
+
+required_inputs:
+  - product_id: pancohort-cooccurrence-fisher-v1
+
+methods:
+  - call: cooccurrence-fisher-pancohort
+    module: cooccurrence_fisher_pancohort
+    entrypoint: read_target_summary
+    args:
+      target_symbol: "{target.symbol}"
+      panel_intersect_mode: strict
+
+outputs:
+  summary_fields:
+    - cooccurrence_class                    # PRIMARY categorical (verdict-driving; TCGA-WES-only passenger floored → ns)
+    - cooccurrence_class_prefloor           # AUDIT: raw pre-floor class (all partners incl. per-source-only). Verdict-INERT — no rule keys on it; differs from cooccurrence_class only when a TCGA-WES-only passenger was demoted
+    - top_cooccurring                       # list<struct: partner_symbol, log2_or, q_value, source, pooled_eligible>
+    - top_mutually_exclusive                # list<struct: partner_symbol, log2_or, q_value, source, pooled_eligible>
+    - n_significant_cooccurring             # count at q < 0.05, log2_or > 0.5
+    - n_significant_mutually_exclusive      # count at q < 0.05, log2_or < -0.5
+    - n_pairs_panel_intersect_eligible      # count of pairs where pooled analysis ran
+    - n_pairs_per_source_only               # count of pairs where only per-source Q available
+    - has_cooccurring_driver                # bool — >= 1 top_cooccurring at q<0.001
+    - has_mutually_exclusive_driver         # bool — >= 1 top_mutually_exclusive at q<0.001
+    - method_version
+
+  summary_fields_vocabulary:
+    # bool field keyed by has-cooccurring-driver-supportive (equals: 'true'). String vocab (schema
+    # requires strings); rule engine + validator coerce bool<->'true'/'false' (ENFORCED 2026-08-15).
+    has_cooccurring_driver:
+      - 'true'
+      - 'false'
+    cooccurrence_class:
+      - strong_cooccurring
+      - modest_cooccurring
+      - strong_mutually_exclusive
+      - modest_mutually_exclusive
+      - both_patterns_present               # target has significant cooccurring AND mutex partners
+      - ns
+      - data_unavailable
+
+  figure: cooccurrence_forest_two_column
+  plot_data: long_format_cooccurrence_fisher
+
+thresholds:
+  strong_cooccurrence_log2or: 1.0
+  modest_cooccurrence_log2or: 0.5
+  strong_cooccurrence_q: 0.001
+  modest_cooccurrence_q: 0.05
+
+warning_predicates:
+  - warning_id: many_pairs_panel_ineligible
+    if: "n_pairs_per_source_only > n_pairs_panel_intersect_eligible"
+    message: "More partners fell to per-source-only Q-values than were panel-intersect-eligible. Interpret pooled-cohort claims cautiously; the pooled cohort covers only a subset of partners."
+  - warning_id: strong_mutex_no_cooccurring
+    if: "n_significant_mutually_exclusive > 3 && n_significant_cooccurring == 0"
+    message: "Target has strong mutually-exclusive partners but no cooccurring partners. This pattern typically indicates {target.symbol} is a driver that operates in a distinct oncogenic pathway from its exclusive partners — inspect the top_mutually_exclusive list for pathway-context clues."
+
+caveats:
+  - |
+    Fisher's exact assumes independent sample-mutation observations; does
+    NOT model per-tumor mutation-rate heterogeneity. For governance-grade
+    discovery-quality co-mutation analysis, DISCOVER (Canisius 2016 Genome
+    Biology doi:10.1186/s13059-016-1114-x) or SELECT (Mina 2020 Cell
+    doi:10.1016/j.cell.2020.11.046) are the principled alternatives. Iter-2
+    upgrade planned.
+  - |
+    Panel-intersect eligibility: pooled Q-values (source='pooled') are
+    emitted ONLY when both target and partner are on ALL GENIE panels
+    contributing to the pooled cohort. Genes outside the intersect get
+    per-source Q-values only. Every emitted row carries `pooled_eligible`
+    so consumers can distinguish. The naive-pooling failure mode (treating
+    "not sequenced in GENIE" as "not co-mutated") is prevented by this
+    filter.
+  - |
+    BH-FDR corrects for multiplicity within THIS scan (target × per-panel-
+    covered partners). Not multiplicity across all possible target-partner
+    combinations in the genome.
+  - |
+    top_cooccurring / top_mutually_exclusive lists are ranked by
+    -log10(q) × sign(log2_or). Ties broken by partner mutation frequency.
+  - |
+    Per-source rows preserve source-specific effects that pooled analysis
+    would hide (e.g. TCGA cohort composition vs GENIE community cohort).
+    Governance readers should surface per-source disagreement when the
+    pooled call disagrees with either source.
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `mutation_cooccurrence` claim.
+measurement_type: mutation_cooccurrence
+entity_grains: [target, target_subtype]
+schema_version: 1

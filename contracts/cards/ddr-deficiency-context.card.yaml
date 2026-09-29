@@ -1,0 +1,73 @@
+# Card — DDR / HRD-DEFICIENCY COHORT CONTEXT  (pre-integrated companion facet)
+#
+# INDICATION-LEVEL, TARGET-INDEPENDENT context: how HRD/DNA-damage-repair-deficient is this cancer's
+# TCGA cohort? A pre-integrated multi-omics RESULT — the PanCanAtlas DDR footprint resource
+# (Knijnenburg et al. 2018 Cell Rep) ALREADY did the per-sample HRD integration (HRD_Score = the
+# Myriad-style composite HRD-TAI + HRD-LST + HRD-LOH; mutSig3 = the HRD mutational signature; PARPi7 =
+# a PARPi-response signature). This card is a per-INDICATION cohort rollup of that result; a target
+# maps in only as context ("is my target in an HRD-enriched indication?").
+#
+# WHY IT MATTERS: HRD context is the cheapest partial handle on the framework's PARP1/HRD blind axis
+# (the pooled dependency scalar cannot see BRCA/HRD-conditional synthetic lethality). This card does
+# NOT establish that dependency (that is the separate, verdict-moving partner-conditional-dependency
+# work); it surfaces the cohort HRD PRIOR that frames it.
+#
+# Interpretation surface (ddr_context_class is PRIMARY):
+#   hrd_enriched      → >= 30% of the cohort is HRD-high (HRD_Score >= 42) — an HRD/PARPi-relevant
+#                       indication (OV 55%, LUSC/ESCA/SARC/UCS). Frames HRD-conditional target hypotheses.
+#   hrd_intermediate  → 10-30% HRD-high (BRCA 19%, NSCLC 25%, STAD 24%).
+#   hrd_low           → < 10% HRD-high — a DDR-proficient cohort (COADREAD, THCA/KICH/LAML/GBM 0%).
+#   data_unavailable  → indication not in the DDR resource / cohort below the n>=15 floor.
+#
+# DISPLAY facet — VERDICT-INERT. Surfaces the cohort HRD class to render/LLM; touches NO resolver rung.
+
+card_id: ddr-deficiency-context
+version: 1.0.0
+# interpretation (informational): ddr_context_class describes the cohort's HRD enrichment.
+interpretation: informational
+question: "How HRD/DDR-deficient is the {indication.label} cohort — is it an HRD-enriched (PARPi-relevant) indication, intermediate, or DDR-proficient?"
+
+tier: indication   # per-indication cohort property; target-independent. Never stratifies by target.
+
+applies_when:
+  - "true"   # any indication; data_unavailable-safe when not in the DDR resource
+
+required_inputs:
+  - product_id: pancanatlas-ddr-deficiency-per-indication-v1   # per-indication HRD rollup (Knijnenburg 2018)
+
+methods:
+  - call: pancanatlas-ddr-context
+    module: pancanatlas_ddr_context
+    entrypoint: read_ddr_deficiency_context
+    args:
+      target: "{target.symbol}"        # accepted for signature; NOT consumed (per-indication class)
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - ddr_context_class                          # PRIMARY categorical (cohort HRD level)
+    - frac_hrd_high                              # fraction of cohort with HRD_Score >= 42 (the metric)
+    - median_hrd_score                           # cohort median HRD_Score
+    - median_mutsig3                             # cohort median HRD mutational signature
+    - n_samples                                  # DDR-resource samples in the indication cohort
+    - hrd_high_cut                               # the HRD-high threshold (42.0; provenance)
+    - pooled_from                                # TCGA codes pooled (e.g. [COAD, READ] for COADREAD)
+
+  summary_fields_vocabulary:
+    ddr_context_class:
+      - hrd_enriched
+      - hrd_intermediate
+      - hrd_low
+      - data_unavailable
+
+  figure: ddr_deficiency_context_card
+
+caveats:
+  - "Cohort-level HRD PRIOR, NOT a per-target or per-patient HRD call. A target in an hrd_enriched cohort is not thereby HRD-conditional; conversely a validated HRD-SL target (PARP1) is not made a dependency by this card — see the separate partner-conditional-dependency work."
+  - "HRD_Score here is the Myriad-style composite (HRD-TAI + HRD-LST + HRD-LOH). HRD-high cut = 42 (Myriad myChoice / TCGA convention). The fraction, not the median, drives the class (an HRD-enriched cohort is a SUBSET phenomenon)."
+  - "Per-sample scores are pre-integrated by Knijnenburg 2018 — this card does not recompute HRD. Aliased indications pool their TCGA codes sample-weighted (COADREAD = COAD+READ)."
+  - "VERDICT-INERT: drives no resolver rung. Cohort HRD context is a synthesis/render prior, not a nomination signal."
+
+measurement_type: ddr_deficiency_context
+entity_grains: [cohort]
+schema_version: 1

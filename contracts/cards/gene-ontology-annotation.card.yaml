@@ -1,0 +1,96 @@
+# Card — GENE ONTOLOGY ANNOTATION (v1; target-intrinsic)
+#
+# The INDICATION-INDEPENDENT GO-annotation view of a target: which GO terms the gene-product is
+# annotated with, split into the three GO namespaces — biological_process (BP), molecular_function
+# (MF), cellular_component (CC) — with total + experimental-evidence counts + top terms per namespace.
+# A gene's GO annotations are cancer-independent. Consumed by the target-intrinsic dossier. Descriptive,
+# no verdict.
+#
+# Complements the two mechanism/pathway cards: signaling-network-mechanism = directed SIGNOR edges;
+# reactome-pathway-membership = curated pathway membership; THIS card = the broader GO functional
+# annotation (MF = what the protein DOES, CC = where it IS, BP = what processes it's IN).
+#
+# annotation_class (PRIMARY): well_annotated (>=20 terms) | partial (5-19) | sparse (1-4) |
+#   data_unavailable (not in GOA human / not resolvable to a UniProt AC).
+
+card_id: gene-ontology-annotation
+version: 1.0.0
+# interpretation (informational): annotation_class is well_annotated/partial/sparse — GO annotation completeness.
+interpretation: informational
+question: "Which Gene Ontology terms (biological process / molecular function / cellular component) is {target.symbol} annotated with?"
+
+tier: target   # GO annotation is a property of the gene, independent of indication
+
+applies_when:
+  - "context.data_sources.gene_ontology_available == true"
+
+required_inputs:
+  - product_id: gene-ontology-release-2026-05-19   # source manifest (goa_human.gaf + go-basic.obo + resolver sidecar); read directly, resolver-sidecar-backed
+
+derived_from:
+  - card_id: target-identity-summary   # HGNC symbol -> UniProt-AC resolution (via the GOA resolver sidecar)
+
+methods:
+  - call: gene-ontology-annotation
+    module: gene_ontology_annotation   # generic-dispatch wiring (no bespoke _dispatch_* needed)
+    entrypoint: read_target_summary
+    args:
+      target: "{target.symbol}"
+
+outputs:
+  summary_fields:
+    - annotation_class             # PRIMARY categorical (well_annotated | partial | sparse | data_unavailable)
+    - n_go_terms_total             # distinct GO terms annotated (all namespaces, deduped)
+    - n_go_terms_experimental      # of those, with experimental evidence (EXP/IDA/IPI/IMP/IGI/IEP/HTP/...)
+    - n_biological_process         # count of BP terms
+    - n_molecular_function         # count of MF terms
+    - n_cellular_component         # count of CC terms
+    - top_biological_process       # list<{go_id, name, evidence}> — experimental-first, top 8
+    - top_molecular_function       # list<{go_id, name, evidence}>
+    - top_cellular_component       # list<{go_id, name, evidence}>
+    - uniprot_ac_resolved          # provenance: the AC the annotation was looked up by
+
+  summary_fields_vocabulary:
+    annotation_class:
+      - well_annotated
+      - partial
+      - sparse
+      - data_unavailable
+
+warning_predicates:
+  - warning_id: not_in_goa
+    if: "annotation_class == 'data_unavailable'"
+    message: "{target.symbol} is not in GOA Human (or not resolvable to a UniProt accession). GO annotation is UNKNOWN, not empty — a coverage gap for a poorly-annotated gene, never 'has no function'."
+  - warning_id: mostly_electronic_evidence
+    if: "n_go_terms_experimental == 0"
+    message: "{target.symbol} has GO annotations but NONE with experimental evidence (all IEA/ISS electronic/computational). Interpret the functional annotation cautiously — no curated experimental support."
+
+caveats:
+  - |
+    GO annotation is target-intrinsic (cancer-independent): the same regardless of indication. This
+    card takes no indication and emits no verdict — descriptive molecular context for the
+    target-intrinsic dossier.
+  - |
+    Three namespaces are reported SEPARATELY, never merged: molecular_function (what the protein does),
+    cellular_component (where it localizes), biological_process (what processes it participates in).
+    Counts + top-terms are per-namespace.
+  - |
+    Experimental evidence (IDA/IPI/IMP/...) is distinguished from electronic (IEA) + computational
+    (ISS/ISA). n_go_terms_experimental + the top-term ranking prefer experimentally-supported terms;
+    the mostly_electronic_evidence warning fires when none are experimental.
+  - |
+    HGNC symbol -> UniProt-AC resolution uses the target_id_resolver sidecar shipped with the GOA
+    source (never the GAF gene-symbol column — deprecated-symbol risk). Pinned to
+    gene-ontology-release-2026-05-19. GO + GOA are CC-BY-4.0 (cite the GO Consortium).
+  - |
+    CALIBRATION / INTERPRETATION: annotation_class (well_annotated >=20, partial 5-19, sparse 1-4) is a
+    proxy for how heavily a gene has been STUDIED + curated (annotation depth), NOT a signal of target
+    quality. Heavily-studied oncogenes and obscure genes alike accrue high counts when well annotated; a
+    low count reflects a research-attention gap, not weak biology. Read the class as descriptive
+    completeness of the functional annotation — never as evidence for or against nominating the target.
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `gene_ontology_annotation` claim (target-grain).
+# No measurement/sample_context — expression-family-only fields; this is a reference-annotation card.
+measurement_type: gene_ontology_annotation
+entity_grains: [target]
+schema_version: 1

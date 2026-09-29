@@ -1,0 +1,71 @@
+# Card — GENOTYPE-MATCHED MODEL AVAILABILITY (does an available HCMI model carry THIS target's alteration?)
+#
+# The genotype-MATCHED refinement of target-model-availability, for the translational-readiness skill —
+# a VERDICT-INERT display/context card. target-model-availability asks the INDICATION-level, target-
+# INDEPENDENT "how many patient-derived (HCMI) models exist to validate ANY target here?"; THIS card
+# asks the target-DEPENDENT complement: "for target X in indication Y, do the available HCMI patient-
+# derived models actually CARRY a functional coding alteration in X — is there a genotype-matched model
+# to validate the nomination?" (HCMI-CMDC DR45 WXS aliquot-MAF join on top of the availability crosswalk).
+#
+# TARGET+INDICATION grain (tier: indication cohort context, keyed on (gene_symbol, indication)): filters
+# the per-(gene, indication) product on BOTH the gene and the indication. A missing (gene, indication)
+# pair is an HONEST NEGATIVE (`none`, no altered model), DISTINCT from `data_unavailable` (the product
+# itself absent/unreachable). An indication='ALL' pan-indication rollup is available.
+#
+# ROLE — verdict-INERT translational cohort-context facet. Reaches the LLM / matrix / headline; drives
+# NO resolver rung. Genotype-matched availability GATING or DOWNGRADING a nomination is a later,
+# verdict-moving step gated by a backtest.
+#
+# genotype_matched_class (PRIMARY): matched_deep (>=5 models) | matched_sparse (1-4) | none (0) |
+#   data_unavailable.
+#
+# ZERO new ingestion: HCMI-CMDC DR45 (hcmi-cmdc-dr45-0) was already in the catalog; this joins the 805
+# case ClinicalData JSONs (model -> indication) to the 923 WXS aliquot MAFs (the genotype).
+
+card_id: target-genotype-matched-model
+version: 1.0.0
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
+question: "In {indication.label}, do available patient-derived (HCMI) models carry a functional coding alteration in {target.symbol} — is there a genotype-matched model to validate the nomination?"
+
+tier: indication   # indication-level cohort context (patient-derived model coverage), refined to THIS target's genotype
+
+applies_when:
+  - "true"   # any target/indication; data_unavailable-safe when the product is absent, `none` when no altered model is found
+
+required_inputs:
+  - product_id: hcmi-genotype-matched-model-per-gene-v1   # per-(gene_symbol, indication) genotype-matched-model counts
+
+methods:
+  - call: target-genotype-matched-model
+    module: hcmi_model_availability      # generic-dispatch wiring (shares the module with target-model-availability)
+    entrypoint: read_genotype_matched_model
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - genotype_matched_class             # PRIMARY categorical (verdict-INERT; genotype-matched translational coverage)
+    - n_models_with_alteration           # distinct HCMI models carrying >=1 functional coding alteration in the target (within the indication)
+    - n_models_with_recurrent_hotspot    # distinct altered models whose alteration shares a >=2-model HGVSp_Short (self-contained recurrence cue)
+    - n_models_in_indication             # DENOMINATOR — distinct HCMI patient-derived models crosswalked to this indication
+    - variant_classes_present            # semicolon-joined functional coding Variant_Classification values observed for the target
+    - hgvsp_examples                     # semicolon-joined sample (up to 5) of observed HGVSp_Short protein-change strings
+    - source                             # source release tag (HCMI-CMDC-DR45)
+  summary_fields_vocabulary:
+    genotype_matched_class:
+      - matched_deep                     # >=5 HCMI models carry a functional coding alteration in the target (deep genotype-matched coverage)
+      - matched_sparse                   # 1-4 HCMI models carry a functional coding alteration (sparse genotype-matched coverage)
+      - none                             # 0 models carry an alteration in the target (honest negative — no genotype-matched model)
+      - data_unavailable                 # product absent/unreachable, or the indication not in the HCMI crosswalk (coverage gap)
+
+caveats:
+  - "VERDICT-INERT translational cohort-context facet: reaches the LLM / matrix / headline but drives NO resolver rung. Genotype-matched availability gating nomination confidence is a later, verdict-moving step gated by a backtest."
+  - "`none` (no HCMI model carries a functional coding alteration in the target) is an HONEST NEGATIVE, DISTINCT from `data_unavailable` (the product itself is absent/unreachable, or the indication is not in the HCMI (primary_site, disease_type) crosswalk). Never a fabricated count."
+  - "WXS CODING mutations ONLY (9 functional coding Variant_Classification classes; no CN / fusion / expression). COARSE = any-functional-coding gene-level match; n_models_with_recurrent_hotspot is a light >=2-model HGVSp recurrence cue, NOT a curated driver-hotspot annotation. Covers the 12 crosswalked indications (COADREAD / PAAD / ESCA / BRCA / SKCM / NSCLC / GC / OV / BLCA / UCEC / HNSC / THCA) + an 'ALL' rollup."
+  - "MODEL-DRIFT caveat: HCMI next-generation cancer models can acquire/lose alterations relative to the originating tumour over passage; a matched model is a nomination-VALIDATION substrate, not a claim the patient tumour carried the alteration."
+
+measurement_type: genotype_matched_model   # per-(target, indication) genotype-matched model coverage (DATA_TO_SKILL_CONTRACT Rule 1)
+entity_grains: [target_indication]
+schema_version: 1

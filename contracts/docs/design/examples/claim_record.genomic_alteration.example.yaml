@@ -1,0 +1,33 @@
+# Factored claim record — WORKED EXAMPLE (genomic_alteration, measured-positive with magnitude).
+# Illustrative only; ZERO runtime consumers at M0. Validated by validators/validate_claim_record.py.
+# Demonstrates: a closed-world measured_positive finding carrying a retained raw value + scale +
+# distance-to-cut (invariant B satisfied), a GoF mechanism, a 2-channel modality_scope, and a
+# corroborated certainty where level == min(coverage, corroboration) (invariant D).
+axis: genomic_alteration
+finding:
+  state: multi_class_driver          # a verdict genomic_alteration.resolver actually emits (invariant C)
+  direction: supports
+  magnitude:
+    level: strong
+    value: 0.34                       # e.g. recurrent-SNV frequency in the indication cohort
+    scale: mutation_frequency
+    distance_to_cut: 0.24             # cut at 0.10 => well above the driver threshold
+  availability: measured_positive
+mechanism:
+  classes: [activating_mutation, focal_amplification]
+  role: GoF
+modality_scope:
+  small_molecule: favorable
+  biologics: favorable
+certainty:
+  level: high                         # <= min(coverage=high, corroboration=high)  (downgrade-only)
+  coverage: high
+  corroboration: high                 # ordinal CERTAINTY_MODEL vocabulary (high = corroborated)
+  unknown_mass: 0.0
+  strength: multi_class_driver
+provenance:
+  fired_rule_ids: [recurrent-snv-driver, focal-amplification-driver, oncogene-role-driver]
+  cards: [variant-level-interpretation, copy-number-alteration, alteration-role]
+  source_product_ids: [mc3-mutation-frequency-per-gene-v1]
+  versions: {resolver: 1.4.0}
+  legacy_verdict: multi_class_driver     # measured finding: renders to its own state (identity)

@@ -1,0 +1,125 @@
+# Card — RECOMMENDED MODELS (patient↔model expression correspondence; Q4)
+#
+# Q4 of the 12-question expression spec: which DepMap models represent the patient tumor population
+# FOR THIS TARGET, and which are the positive / negative-control / resistance models for a screen?
+#
+# SCOPE (P3-Option-B): the EXPRESSION-SIMILARITY correspondence — ranks models by how well their
+# TARGET expression sits within the patient tumor TARGET distribution (both log2(TPM+1), directly
+# comparable: recount3 patient TPM vs DepMap OmicsExpressionTPMLogp1) + classifies screen role from
+# the model's Chronos dependency. This is the expression-plan slice of the shared master-plan P3
+# patient↔model primitive. It is NOT:
+#   - full-transcriptome Celligner alignment (a heavier separate build), nor
+#   - the genomic "same functional event" join (canonical P3 / genomic M11 — needs the unbuilt
+#     alteration-class harmonization layer the genomic-alteration plan owns).
+#
+# ROUTES INTO GATES (master-sequencing plan Part 3): primary = Patient-population (Q10); also
+# corroborates Required (C) — a target with in-lineage positive (expressed+dependent) models has a
+# model-backed dependency basis. modality_relevance metadata is a follow-up (schema field TBD).
+
+card_id: recommended-models
+version: 0.2.0   # 0.2.0 (2026-09-18): DECLARE the already-emitted `indication` echo (see summary_fields).
+                #        Additive + already-true; no method change, no grain change (already target_indication).
+question: "Which DepMap models represent {indication.label} tumors for {target.symbol} (expression-matched), and which are the positive / negative-control / resistance models for a screen?"
+
+tier: indication
+
+applies_when:
+  # needs BOTH a patient tumor TPM (indication mapped in the recount3 studies map) AND a DepMap lineage.
+  - "context.indication in ['COADREAD', 'COAD', 'READ', 'LUAD', 'LUSC', 'BRCA', 'PAAD', 'PDAC', 'SKCM', 'STAD', 'PRAD', 'OV', 'KIRC', 'HNSC', 'BLCA', 'LIHC', 'ESCA']"
+
+required_inputs:
+  - product_id: tcga-tumor-tpm-recount3-long-v1        # patient tumor TARGET distribution
+  - product_id: depmap-consortium-26q1                 # model TARGET TPM + Chronos + Model.csv lineage
+
+methods:
+  - call: patient-model-expression-correspondence
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - correspondence_class                       # PRIMARY categorical (drives Tier-2 rules)
+    - recommended_models                         # the ranked table (record schema below)
+    - n_models_considered
+    - n_positive_models
+    - n_positive_models_in_lineage
+    - n_lineage_models
+    - patient_median_log2tpm
+    - patient_iqr
+    # `indication` DECLARES A FIELD THE PRODUCER ALREADY EMITS (v0.2.0). It is NOT new output:
+    # patient_model_expression_correspondence/read.py:86 has always put the queried indication CODE in
+    # the summary, and functional-requirement's run.py::_infer_indication has always READ it — as an
+    # UNDECLARED key. Declaring it is the point: the card preprocessor that writes
+    # dependency-lineage-selectivity's `indication_dependency_class` recovers the indication from here,
+    # and a preprocessor is handed ONLY the card list (preprocess_cards_for_gate(cards, gate)), so a
+    # card field is the only channel that exists. The CODE is required, not `depmap_lineage`: the code
+    # keys indication_crosswalk.depmap_oncotree_codes, which is what de-confounds the coarse lineages
+    # that merge >1 indication (Lung -> LUAD/SCLC, Esophagus/Stomach -> STAD/ESCA/ESCC).
+    # Deliberately NOT minted as a new `queried_indication` field: that would put the same fact in two
+    # places, which is the defect class this audit is closing, and a newly-named field would be
+    # undeclared-by-the-producer until a methods release — false on landing.
+    - indication                                 # queried indication CODE, echoed by the method (see above)
+    - depmap_lineage
+    - release_pin
+  summary_fields_record_schemas:
+    recommended_models:
+      model_id: string
+      cell_line: string
+      lineage: string
+      lineage_match: boolean
+      target_log2tpm: number
+      chronos: number
+      screen_role: {enum: [positive_model, resistance_model, negative_control, indeterminate], type: string}
+      representativeness: number
+  summary_fields_vocabulary:
+    correspondence_class: [well_modeled_in_lineage, well_modeled_off_lineage, poorly_modeled, data_unavailable]
+  figure: recommended_models_scatter             # target TPM vs Chronos, roles colored, patient IQR shaded
+
+thresholds:
+  dependent_chronos: -0.5           # model DEPENDENT on target (positive_model gate)
+  not_dependent_chronos: -0.2       # model NOT dependent (resistance_model gate)
+  detectable_log2tpm: 1.0           # model "expresses" target (below → negative_control)
+  # Sample-size discipline (existence-power, not estimation-power): the in-lineage correspondence
+  # distinction (well_modeled_in_lineage needs n_positive_models_in_lineage >= 1) rests on how many
+  # DepMap models of the patient's lineage exist at all. Below this floor, a well_modeled_off_lineage
+  # or poorly_modeled call reflects a thin lineage panel, not a measured absence of a representative
+  # in-lineage model. Keyed on n_lineage_models (small + variable across lineages), NOT on
+  # n_models_considered — that counts every DepMap model with a target TPM (~1900), so a floor on it
+  # could never fire (a green that cannot fail).
+  min_lineage_models: 5
+
+# The first three are applied by the method (never a card predicate): it emits the already-derived
+# correspondence_class, applying each cutoff itself. Verified consumed in
+# patient_model_expression_correspondence/read.py:19-23 (DEPENDENT_CHRONOS / NOT_DEPENDENT_CHRONOS /
+# DETECTABLE_LOG2TPM). min_lineage_models is compared by a warning predicate on this card, so it is
+# deliberately NOT declared in threshold_roles (that would trip MISDECLARED_THRESHOLD_ROLE).
+threshold_roles:
+  dependent_chronos:
+    role: method_parameter
+    consumed_by: patient-model-expression-correspondence
+  not_dependent_chronos:
+    role: method_parameter
+    consumed_by: patient-model-expression-correspondence
+  detectable_log2tpm:
+    role: method_parameter
+    consumed_by: patient-model-expression-correspondence
+
+warning_predicates:
+  - warning_id: few_lineage_models
+    if: "n_lineage_models < THRESHOLD.min_lineage_models"
+    message: "Fewer than 5 DepMap models of {indication.label}'s lineage. The in-lineage vs off-lineage distinction is underpowered — a well_modeled_off_lineage or poorly_modeled call reflects a thin lineage panel, not a measured absence of an in-lineage model. Read alongside the pan-cancer cards."
+
+caveats:
+  - "EXPRESSION-similarity correspondence, NOT the genomic same-functional-event join (canonical P3/M11) and NOT full-transcriptome Celligner — both deferred. A model can match on target expression yet carry a different driver context; genomic-event matching is the genomic-alteration plan's job."
+  - "Representativeness is TARGET-focused (model target TPM within the patient target IQR), not whole-transcriptome similarity — a model representative for this target may be unrepresentative overall."
+  - "Chronos is pan-lineage per-model dependency; a positive_model is expressed+dependent but the dependency may be context-driven. Screen role is a starting panel, not a validated model set."
+  - "Lineage is DepMap OncotreeLineage (e.g. Bowel ⊋ COADREAD); in-lineage is a lineage-scoped approximation of the indication."
+
+measurement: bulk_rna
+sample_context: tumor          # patient tumor distribution is the reference; models compared against it
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — NEW measurement_type: the patient↔model correspondence join.
+measurement_type: patient_model_correspondence
+entity_grains: [target_indication]
+schema_version: 1

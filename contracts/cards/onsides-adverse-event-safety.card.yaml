@@ -1,0 +1,78 @@
+# Card — OnSIDES adverse-drug-event (ADE) safety CONTEXT
+#
+# Attaches an OnSIDES drug-label ADE profile to the target gene — per-MedDRA-term adverse-effect
+# granularity (incl. boxed-warning severity) beyond OT 26.06's coarse per-target drug-warning boolean.
+# The gene attribution is built by a FUZZY drug-NAME join (onsides-drug-adverse-event-per-ingredient-v1
+# ⋈ dgidb-drug-target-directional-v1), materialized as onsides-adverse-event-per-gene-v1.
+#
+# DELIBERATELY VERDICT-INERT (byte-stable): no warning_predicates, no resolver reference — mirrors
+# drug-warning-safety. A fuzzy-joined DRUG-LEVEL AE signal must NOT move a safety verdict: it is
+# CONFOUNDED (off-target / class-effect possible), class-wide (recall-union over every gene a drug
+# engages → cannot separate on- from off-target), and coarse (per-MedDRA-term, not per-organ). It
+# ORIENTS the reader about the target's pharmacovigilance history but never fires a HOLD. INFERRED
+# tier. The authoritative verdict-moving safety reads are the dedicated cards (gnomad-lof-constraint +
+# the P5 human-genetics legs).
+
+card_id: onsides-adverse-event-safety
+version: 1.0.0
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
+question: "What drug-label adverse-drug-event terms (incl. boxed-warning severity) do drugs that ENGAGE {target.symbol} carry (pharmacovigilance safety context)?"
+
+tier: target   # scope-invariant: drug-label ADE history is a property of the target's pharmacology, indication- and subgroup-agnostic. Never stratifies.
+
+applies_when: []
+
+required_inputs:
+  - product_id: onsides-adverse-event-per-gene-v1
+
+methods:
+  - call: onsides-adverse-event
+    module: onsides_adverse_event           # generic-dispatch wiring (no bespoke _dispatch_* needed);
+    entrypoint: read_target_summary         # read_live_summary -> _generic_dispatch calls fn(target=, indication=)
+    args:
+      target: "{target.symbol}"
+
+outputs:
+  summary_fields:
+    - onsides_ade_class                     # PRIMARY categorical
+    - n_drugs_mapped                        # int — OnSIDES ingredients fuzzy-mapped to this gene
+    - n_meddra_terms                        # int — distinct labeled MedDRA ADE terms across mapped drugs
+    - has_boxed_warning                     # bool — any mapped drug carries a BOXED-WARNING ADE
+    - n_boxed_warning_terms                 # int — distinct MedDRA terms seen in a boxed warning (severity)
+    - n_high_confidence_terms               # int — distinct terms in OnSIDES' curated high-confidence subset
+    - example_terms                         # str — top MedDRA ADE terms by reporting-label breadth ('|'-joined)
+    - example_boxed_warning_terms           # str — top boxed-warning MedDRA terms ('|'-joined; may be null)
+    - example_drugs                         # str — mapped OnSIDES ingredient names ('|'-joined; provenance)
+    - method_version
+
+  summary_fields_vocabulary:
+    onsides_ade_class:
+      - boxed_warning_ade         # >=1 mapped drug carries a BOXED-WARNING ADE (the high-severity signal)
+      - labeled_ade_profile       # mapped drug(s) with labeled ADE terms, none in a boxed warning
+      - no_mapped_drug_ade        # gene absent from the product (fuzzy drug->gene join mapped no drug — coverage gap, NOT safety evidence)
+
+  # NO figure: tables-only (consistent with the other safety-axis context cards).
+
+# NO warning_predicates — verdict-inert context (mirrors drug-warning-safety).
+
+caveats:
+  - |
+    Pharmacovigilance CONTEXT, not an on-target verdict. Drug-level + class-wide: the gene attribution
+    is a fuzzy drug-NAME join and DGIdb directional interactions are a recall-union over every gene a
+    drug engages, so a multi-target drug attributes its whole ADE list to each gene it hits — CANNOT
+    separate on-target from off-target toxicity. INFERRED tier. Never fires a safety HOLD.
+  - |
+    FUZZY drug-name -> gene join (normalized ingredient_name -> DGIdb drug_name_norm -> gene_symbol).
+    Match-rate ~63% of OnSIDES ingredients; unmatched drugs (biologics/vaccines/combinations) are an
+    honest coverage gap. no_mapped_drug_ade / absence is a coverage gap, NEVER evidence of safety.
+  - |
+    Per-MedDRA-TERM grain only — NOT per-organ. System-Organ-Class (SOC) rollup requires the licensed
+    MedDRA MDHIER hierarchy (not in the catalog), so per-organ rollup is deferred. has_boxed_warning /
+    n_boxed_warning_terms carry the high-severity signal in lieu of a per-organ liability map.
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `onsides_adverse_event_safety` claim (pharmacovigilance context).
+# Provider: onsides-adverse-event-per-gene-v1 (OnSIDES ADE ⋈ DGIdb directional, fuzzy drug-name join; INFERRED).
+measurement_type: onsides_adverse_event_safety
+entity_grains: [target]
+schema_version: 1

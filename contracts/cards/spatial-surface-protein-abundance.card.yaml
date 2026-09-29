@@ -1,0 +1,75 @@
+# Card — SPATIAL SURFACE-PROTEIN ABUNDANCE (in-situ, by tumour compartment)
+#
+# For {target} in {indication}, what is the MEASURED in-situ PROTEIN abundance (NanoString GeoMx DSP)
+# in the TUMOUR compartment vs the microenvironment (TME)? Reads the region-protein product
+# (spatial-surface-protein-{indication}-v1) via the spatial_surface_protein method.
+#
+# WHY THIS CARD EXISTS: Axis-3 surface-abundance-density estimates copies/cell from bulk CPTAC × HPA IHC
+# (a grade-D proxy). This card adds an independent, MEASURED in-situ protein signal resolved to the
+# tumour vs TME compartment — a distinct claim (region-averaged antibody signal, NOT absolute
+# copies/cell), so it is a SEPARATE card rather than an overwrite of the calibrated Axis-3 absolute_*
+# slots. The decision-relevant readouts: tumour_enriched_protein (target protein concentrated in the
+# tumour compartment — a measured presence argument) and tme_enriched_protein (concentrated in the
+# microenvironment — a tumour-specificity caveat).
+
+card_id: spatial-surface-protein-abundance
+version: 0.1.0
+question: "For {target.symbol} in {indication.label}, is the target's protein measured in-situ in the TUMOUR compartment (GeoMx DSP), and is it enriched in tumour vs the microenvironment?"
+
+tier: indication   # the region-protein product is per-indication
+
+applies_when:
+  # indications with a landed spatial region-protein product (INDICATION_TO_SURFACE_PROTEIN in the method).
+  # NSCLC/LUAD/LUSC all resolve to the one NSCLC IO-panel product (both histologies), mirroring the method map.
+  - "context.indication in ['HNSC', 'NSCLC', 'LUAD', 'LUSC']"
+
+required_inputs:
+  - product_id: spatial-surface-protein-hnsc-v1              # HNSC — GeoMx DSP 580-protein (GSE288406, primary)
+  - product_id: spatial-surface-protein-hnsc-gse200601-v1    # HNSC — GeoMx DSP 68-plex IO panel (GSE200601); fallback that rescues IO/surface targets the 580-plex drops
+  - product_id: spatial-surface-protein-nsclc-v1             # NSCLC (adeno+squamous) — GeoMx DSP 68-plex IO panel (GSE221322)
+
+methods:
+  - call: spatial-surface-protein-abundance
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - spatial_protein_class           # PRIMARY — tumour-compartment protein readout
+    - tumour_abundance_lcpm           # cross-donor median normalized log-CPM in the TUMOUR compartment
+    - tme_abundance_lcpm              # ... in the TME compartment
+    - tumour_vs_tme_delta             # tumour - TME (log-CPM); >0 tumour-enriched, <0 TME-enriched
+    - detected_tumour
+    - n_donors
+  summary_fields_vocabulary:
+    # `underpowered` (2026-09-18, F5): declared ahead of PR F, which adds an n_donors power floor to
+    # classify_surface_protein so a class computed off too few donors emits `underpowered` — the "we
+    # could barely look" band, DISTINCT from data_unavailable ("we could not look"). Note the method
+    # currently hardcodes n_datasets: 1 (stats.py:79), so a dataset floor alone would never fire; the
+    # PR F floor gates on n_donors. No emitter yet; forward declaration.
+    spatial_protein_class: [tumour_enriched_protein, tme_enriched_protein, tumour_present_no_compartment_preference, underpowered, data_unavailable]
+
+thresholds:
+  enriched_delta: 0.5   # |tumour - TME| log-CPM margin for compartment enrichment (method-applied)
+
+caveats:
+  - "MEASURED in-situ protein (NanoString GeoMx DSP), region-level (ROI = segmented TUMOUR vs TME region), NOT absolute copies/cell — a distinct claim from the Axis-3 bulk-CPTAC×HPA copies/cell estimate. Complements, does not replace, surface-abundance-density."
+  - "spatial_protein_class: tumour_enriched_protein = protein concentrated in the tumour compartment (measured presence argument); tme_enriched_protein = concentrated in the microenvironment (a tumour-SPECIFICITY caveat — e.g. CD34 endothelial / CD68 macrophage); tumour_present_no_compartment_preference = detected, |tumour-TME| < 0.5 log-CPM."
+  - "Cross-donor median over the indication's GeoMx cohort (donor = replicate). Cohorts: HNSC (GSE288406, 580-plex, 68 patients) and NSCLC/LUAD/LUSC (GSE221322, 68-plex IO panel, 48 patients — both histologies)."
+  - "Antibody-named GeoMx panel: a target returns data_unavailable when its antibody name does not resolve to the queried HGNC symbol (not measured / not on panel), never a fabricated negative. The NSCLC IO panel (GSE221322) ships with an explicit antibody->HGNC crosswalk (PD-L1->CD274, Her2->ERBB2, EpCAM->EPCAM, B7-H3->CD276, Tim-3->HAVCR2, ...); the HNSC 580-plex resolves by literal symbol only (a full crosswalk there is a v2 enrichment)."
+
+measurement: spatial_protein
+sample_context: tumor
+
+measurement_type: spatial_surface_protein
+# modality-agnostic surface-presence lens (measured in-situ protein). Declaration lands WITH its rules
+# (this branch).
+modality_relevance: [adc, bite_tce, antibody]
+entity_grains: [target_indication]
+schema_version: 1
+threshold_roles:
+  enriched_delta:
+    role: method_parameter
+    consumed_by: spatial-surface-protein-abundance
+    note: 'The method calls tumour_enriched_protein / tme_enriched_protein when |tumour_vs_tme_delta| >= 0.5 log-CPM in spatial_surface_protein/stats.py:14 (_ENRICHED_DELTA), applied at classify_surface_protein L66/L68. Applied upstream, never by a card predicate.'

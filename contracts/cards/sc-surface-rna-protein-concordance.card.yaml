@@ -1,0 +1,74 @@
+# Card — sc RNA↔SURFACE-PROTEIN CONCORDANCE (CITE-seq; single-cell surface arm)
+#
+# The SINGLE-CELL SURFACE-grain sibling of cellline-rna-protein-concordance (cell-line) and
+# rna-protein-concordance-tumor (tumor). Same question — does RNA predict PROTEIN for this target? —
+# but the protein layer is the SURFACE antigen measured on the SAME cells by CITE-seq ADT, and the
+# correlation is taken ACROSS CELL TYPES (from sc-cite-rna-protein-concordance-v1).
+#
+# WHY A SEPARATE CARD (grain-split, not a new number): the cell-line arm answers "is RNA an adequate
+# SM biomarker?" (→ small_molecule/degrader). The tumor arm answers "is the protein present in patient
+# tumors?" (→ adc/bite_tce/antibody, bulk). THIS arm answers the biologics-specific question the other
+# two cannot: does single-cell RNA predict SURFACE presence — the exact quantity an antibody/TCE/ADC
+# must reach? Same measurement_type (rna_protein_concordance), new grain (target, single-cell surface),
+# reported SIDE-BY-SIDE with the siblings, never averaged.
+#
+# WHY IT MATTERS: surface protein is decoupled from RNA far more than total protein — trafficking,
+# shedding, and internalization mean an RNA-high cell type is often NOT surface-antigen-high. Verified
+# in the v1 substrate (Hao 2021 PBMC, 169 surface genes): ~1/3 are poor_proxy (e.g. CD68 intracellular
+# r≈-0.20, CD69 activation-transient r≈-0.61), while canonical lineage antigens track tightly (CD8A
+# 0.98, CD19 0.97, CD20 0.98). A poor_proxy here means an scRNA-based surface-presence argument for a
+# biologic cannot be trusted — the antigen must be confirmed at the protein level.
+#
+# SCOPE (v1): immune compartment (PBMC, sample_context: normal). Tumor-compartment surface concordance
+# requires tumor CITE-seq (future). Indication-independent (a per-target property) → tier: target.
+
+card_id: sc-surface-rna-protein-concordance
+version: 0.1.0
+question: "Does {target.symbol} single-cell RNA predict its SURFACE protein (CITE-seq ADT) across cell types — is scRNA an adequate proxy for the surface antigen, or must protein be measured directly for a biologic?"
+
+tier: target   # single-cell surface concordance is a per-target property, indication-independent
+
+applies_when:
+  - "true"   # pan-target; graceful data_unavailable when the target is not in the CITE-seq surface panel
+
+required_inputs:
+  - product_id: sc-cite-rna-protein-concordance-v1   # per-gene sc RNA↔surface-protein (ADT) concordance
+
+methods:
+  - call: sc-surface-concordance
+    args:
+      target: "{target.symbol}"
+
+outputs:
+  summary_fields:
+    - rna_as_biomarker            # PRIMARY categorical (shared vocab with the two sibling concordance cards)
+    - rna_protein_r               # Pearson across cell types (RNA detection fraction vs mean CLR ADT)
+    - rna_protein_spearman        # retained for transparency; diverges for lineage-restricted markers
+    - n_cell_types                # cell types contributing to the correlation
+    - compartment_scope           # 'immune_pbmc' (v1) — the compartment the concordance was measured in
+    - adt_proteins                # the ADT feature(s) mapped to this target
+    - substrate                   # 'cite_seq_surface' (distinguishes from the cell-line + tumor cards)
+  summary_fields_vocabulary:
+    rna_as_biomarker: [adequate_proxy, partial_proxy, poor_proxy, indeterminate, data_unavailable]
+
+# No thresholds block: the class is precomputed in sc-cite-rna-protein-concordance-v1 (Pearson
+# 0.6/0.3) and surfaced verbatim — the card does not re-derive it (unlike the cell-line/tumor arms).
+
+caveats:
+  - "SINGLE-CELL SURFACE-grain sibling of cellline-rna-protein-concordance + rna-protein-concordance-tumor. Same measurement_type, new grain (single-cell surface). Report SIDE-BY-SIDE, never averaged — the point is that surface protein decouples from RNA MORE than total protein does."
+  - "Metric is PEARSON across cell types (RNA detection fraction vs mean CLR ADT); Spearman is retained but diverges for lineage-restricted markers (a marker on ONE cell type scores ~0 under Spearman yet is a perfect proxy — Pearson rewards the aligned spike). Classified on Pearson at 0.6/0.3."
+  - "A poor_proxy verdict is a MODALITY caution (the scRNA surface-presence argument is inadequate; protein must be confirmed for an ADC/TCE/mAb), NOT a target killer."
+  - "v1 scope is the IMMUNE compartment (Hao 2021 PBMC; sample_context normal). Tumor-cell surface concordance requires tumor CITE-seq. A target ABSENT from the panel returns data_unavailable — not surface-profiled by ADT, an honest coverage gap, never a pass."
+
+measurement: sc_rna
+sample_context: normal          # Hao 2021 PBMC — normal donor immune cells (RNA vs surface ADT on the same cells)
+
+# DATA_TO_SKILL_CONTRACT — rna_protein_concordance at the single-cell SURFACE grain.
+measurement_type: rna_protein_concordance
+# modality routing: biologics only (the surface antigen question). Subset of the type's union
+# [small_molecule,degrader,adc,bite_tce,antibody]; the SM/degrader lenses are carried by the cell-line
+# sibling. Declaration lands WITH its Block-I' surface rules (feat/sc-surface-concordance-rules) —
+# never declare a lens without a rule that carries it.
+modality_relevance: [adc, bite_tce, antibody]
+entity_grains: [target]
+schema_version: 1

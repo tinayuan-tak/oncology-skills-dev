@@ -1,0 +1,188 @@
+# MUTATION-STRATIFIED DEPENDENCY  (pure-data, target-only)
+#
+# Mirrors DepMap's "Mutation" page: does dependency on {target} stratify by {target}'s
+# OWN mutation status across the cell-line panel? Drives biomarker hypotheses
+# (oncogene-addiction: mutant cells strongly dependent ↔ inhibitor-stratified clinical
+# strategy).
+#
+# DECOUPLED FROM INDICATION: the method evaluates the FULL DepMap panel.
+# Per-indication mutation prevalence + per-indication mutation-stratified dependency
+# are downstream synthesis questions consulting the per_hotspot_records / TCGA mutation
+# rates separately. One evidence package per target serves all indications + modalities.
+#
+# Demonstration cases:
+#   - BRAF: V600E hotspot → mutant cells strongly dependent (oncogene-addiction; vemurafenib-class)
+#   - KRAS: G12/G13/Q61 hotspots → mutant cells strongly dependent (G12C inhibitors; sotorasib)
+#   - MYC: no canonical activating hotspot → not_mutation_stratified (translocation-driven)
+#
+# Two-tier mutation grouping (both reported, stronger signal drives categorical):
+#   - HOTSPOT: known-oncogenic positions (BRAF-V600, KRAS-G12, PIK3CA-H1047, etc.)
+#     Source: OmicsSomaticMutationsMatrixHotspot.csv (model × gene boolean, 9.5 MB)
+#   - DAMAGING: broader LOF (frameshift, nonsense, splice-site)
+#     Source: OmicsSomaticMutationsMatrixDamaging.csv (model × gene boolean, 328 MB)
+#   - "any-mutation" = either matrix true
+#
+# Inputs (DepMap 26Q1):
+#   - CRISPRGeneEffect.csv (Chronos matrix; reused from the dependency-distribution loader)
+#   - OmicsSomaticMutationsMatrixHotspot.csv (small fast read)
+#   - OmicsSomaticMutationsMatrixDamaging.csv
+#   - OmicsSomaticMutations.csv (long-format MAF — lazy-loaded for per-hotspot figure detail)
+#   - Model.csv (lineage context)
+
+card_id: mutation-stratified-dependency
+version: 1.0.0
+question: "Is dependency on {target.symbol} stratified by {target.symbol}'s own mutation status across the DepMap panel? (Oncogene-addiction biomarker hypothesis.)"
+
+# Evidence-capsule projection contract. 11 fields matched the hints; the alphabetical first four were
+# the DAMAGING effect size plus three hotspot CLASSIFIER metrics, so the card's own headline gauges —
+# hotspot_effect_size and the median_chronos_hotspot_{mutant,wildtype} pair the salience ruler is cut
+# against — never reached the capsule. VERDICT-INERT projection.
+capsule:
+  primary_class: mutation_stratification_class
+  categorical_fields:
+    - mutation_stratification_class
+    - pan_lineage_mutation_stratification_class
+    - evidence_scope
+    - lineage_context_divergent
+  numeric_anchors:
+    - hotspot_effect_size
+    - delta_chronos_hotspot_mut_vs_wt   # vs strong_effect_delta -0.5 / moderate -0.2
+    - median_chronos_hotspot_mutant
+    - median_chronos_hotspot_wildtype
+    - hotspot_mannwhitney_q
+    - damaging_effect_size
+    - delta_chronos_damaging_mut_vs_wt
+    - n_hotspot_mutant
+
+
+applies_when:
+  - "target.depmap_screened == true"
+
+required_inputs:
+  - product_id: depmap-consortium-26q1
+    release_pin: "{release_pin}"
+
+methods:
+  - call: depmap-mutation-stratified
+    module: depmap_mutation_dependency
+    entrypoint: read_mutation_stratified_dependency
+    args:
+      target: "{target.symbol}"
+      release_pin: "{release_pin}"
+
+outputs:
+  summary_fields:
+    # === Panel-wide context (target-only) ===
+    - n_cell_lines_evaluated                   # cells with BOTH Chronos AND mutation-matrix coverage
+    # === Hotspot stratification (oncogene-addiction signal) ===
+    - n_hotspot_mutant                         # cells with target hotspot mutation
+    - n_hotspot_wildtype                       # cells without (within evaluated set)
+    - median_chronos_hotspot_mutant
+    - median_chronos_hotspot_wildtype
+    - delta_chronos_hotspot_mut_vs_wt          # mutant - WT (negative = mutant more dependent)
+    - hotspot_mannwhitney_p
+    - hotspot_mannwhitney_q                    # BH-corrected (across all mutations on this panel)
+    - hotspot_effect_size                      # rank-biserial correlation
+    # === Damaging stratification (broader LOF; reported for completeness) ===
+    - n_damaging_mutant
+    - n_damaging_wildtype
+    - median_chronos_damaging_mutant
+    - median_chronos_damaging_wildtype
+    - delta_chronos_damaging_mut_vs_wt
+    - damaging_mannwhitney_p
+    - damaging_mannwhitney_q
+    - damaging_effect_size
+    # === Combined "any mutation" stratification ===
+    - n_any_mutant                             # union of hotspot + damaging
+    - n_any_wildtype
+    - delta_chronos_any_mut_vs_wt
+    - any_mannwhitney_q
+    # === Per-hotspot Chronos breakdown (when hotspots are detected) ===
+    - per_hotspot_stats                        # list of {protein_change, n, median_chronos, p25, p75}
+    # === Categorical (Tier-2 vocabulary; drives interpretation-rules) ===
+    - mutation_stratification_class
+    # === Indication-conditioning provenance — the stratified test now runs
+    #     WITHIN the indication's DepMap lineage when powered; these say at what scope the call was made.
+    - evidence_scope                           # within_indication | within_indication_mut_vs_pan_wt | pan_lineage_evidence_only | pan_no_indication
+    - lineage_context_divergent                # True when within-lineage & pan-DepMap disagree in direction
+    - pan_lineage_mutation_stratification_class # the pan-DepMap class (audit; kept when a within-lineage scope wins)
+    - indication_lineage                       # the resolved DepMap OncotreeLineage for the indication (null if unmapped)
+    - pan_fallback_strong_capped_to_moderate   # True when a pan-fallback STRONG call was capped to moderate (confound unresolved)
+    # === Dependency-classification PERFORMANCE — the hotspot biomarker treated
+    #     as a classifier for the DepMap-dependency phenotype (Chronos <= -0.5). DEPENDENCY performance,
+    #     NOT drug-response / clinical. PPV-lift (PPV / base-rate) separates rare-sharp markers (BRAF ~9.6x)
+    #     from common-dependency high-PPV-low-lift markers (KRAS ~2.2x) the coarse class hides.
+    - hotspot_dependency_ppv                   # P(dependent | hotspot-mutant)
+    - hotspot_dependency_sensitivity           # P(hotspot-mutant | dependent)
+    - hotspot_dependency_specificity           # P(WT | not dependent)
+    - hotspot_dependency_base_rate             # P(dependent) over the evaluated panel (the PPV null)
+    - hotspot_dependency_ppv_lift              # PPV / base-rate — informativeness above the prior
+
+  summary_fields_vocabulary:
+    evidence_scope: [within_indication, within_indication_mut_vs_pan_wt, pan_lineage_evidence_only, pan_no_indication]   # consumed by mutant-indication-scoped-context: only indication-scoped evidence earns a biomarker verdict (scope-coherence Phase 1)
+    mutation_stratification_class:
+      - mutant_strongly_dependent              # mutant median chronos significantly < WT (oncogene-addiction)
+      - mutant_moderately_dependent            # significant but smaller effect
+      - wt_strongly_dependent                  # WT cells more dependent (tumor-suppressor pattern; rare)
+      - not_mutation_stratified                # no significant mut-vs-WT difference
+      - insufficient_mutation_rate             # <min threshold cells carry the mutation; test underpowered
+      - data_unavailable
+
+  figures:
+    - id: mut_vs_wt_strip
+      type: mutation_stratified_strip
+      description: "Per-cell-line Chronos strip plot split into Mutant / Wild-type groups (hotspot + damaging tiers shown side-by-side). Reference lines at Chronos = -1.0 + 0. Annotated with q-values."
+      preferred_surfaces: [markdown, ppt, decision_memo]
+      primary: true
+    - id: per_hotspot_chronos
+      type: per_hotspot_chronos_strip
+      description: "Per-hotspot Chronos distribution — one column per recurrent protein-change (e.g. BRAF V600E, KRAS G12D / G12V / G13D). Skipped if <3 hotspots detected."
+      preferred_surfaces: [html, markdown_alt]
+  plot_data: per_cell_line_chronos_with_mutation_status
+
+thresholds:
+  # Sample-size discipline — Mann-Whitney becomes meaningless below these
+  min_mutant_cells: 5
+  min_wildtype_cells: 30
+  # Significance + effect-size cutoffs
+  stratification_alpha: 0.05                  # BH-adjusted q
+  strong_effect_delta: -0.5                   # mutant median ≥ 0.5 lower than WT = strong
+  moderate_effect_delta: -0.2                 # ≥ 0.2 lower = moderate
+  # Per-hotspot inclusion cutoff for figure
+  min_cells_per_hotspot: 3
+
+threshold_roles:
+  moderate_effect_delta:
+    role: method_parameter
+    consumed_by: depmap-mutation-stratified
+  stratification_alpha:
+    role: method_parameter
+    consumed_by: depmap-mutation-stratified
+  strong_effect_delta:
+    role: method_parameter
+    consumed_by: depmap-mutation-stratified
+warning_predicates:
+  - warning_id: rare_mutation
+    if: "n_hotspot_mutant + n_damaging_mutant < 10"
+    message: "Total mutant cell lines is <10; mutation-stratification estimates have wide CI. Read alongside per_hotspot_stats."
+  - warning_id: hotspot_damaging_disagreement
+    if: "hotspot_mannwhitney_q < 0.05 && damaging_mannwhitney_q >= 0.05 && (delta_chronos_hotspot_mut_vs_wt - delta_chronos_damaging_mut_vs_wt >= 0.3 || delta_chronos_hotspot_mut_vs_wt - delta_chronos_damaging_mut_vs_wt <= -0.3)"
+    message: "Hotspot mutations show stratification but damaging (broader) mutations do not — suggests oncogene-addiction pattern (specific gain-of-function), not generic LOF dependency."
+
+caveats:
+  - "Mutation status is derived from DepMap's OmicsSomaticMutationsMatrix{Hotspot,Damaging}.csv — known-oncogenic hotspots + broader LOF separately. Activating non-hotspot variants are NOT captured."
+  - "Two directional passes: a FORWARD one-sided MW (mutant more dependent) drives the oncogene-addiction classes; a SECOND-PASS reverse MW (WT more dependent) makes `wt_strongly_dependent` reachable, gated on its own BH q + a strong positive delta (>= +0.5). The reverse class is TSG synthetic-dependency biology, verdict-inert (neutral rule only). A zero-variance tier is flagged `_uncomputable_tiers`, never reported as a tested negative."
+  - "Cell-line mutation-stratified dependency is necessary but NOT sufficient for clinical biomarker — needs orthogonal validation (PDX, GTEx-context, isogenic models)."
+  - "Recurrent hotspot list is target-specific; framework defers to DepMap's hotspot annotation rather than re-deriving."
+  - "Strict 'is the target mutated' boolean — does not stratify by clonality / VAF / co-mutation patterns. Those are downstream questions."
+
+# DATA_TO_SKILL_CONTRACT Rule 1/4 — view of the DERIVED `mutation_stratified_dependency` claim (is
+# dependency stratified by the target's own mutation status?), derived_from [mutation_status,
+# crispr_lof_dependency]. mutation_status is the per-line mutant/WT boolean (a registered type with
+# no standalone card — the latent-unowned input the survey surfaced), distinct from the variant-class
+# spectrum. Both inputs co-resident in DepMap but still a type→type edge (appendix case 7).
+measurement_type: mutation_stratified_dependency
+# modality_relevance: routing key for downstream modality-fit gates
+modality_relevance: [small_molecule, degrader]
+entity_grains: [target]
+schema_version: 1

@@ -1,0 +1,338 @@
+# Card — SC-NORMAL-CELLTYPE-EXPRESSION  (single-cell RNA, normal tissue, cell-type resolution)
+#
+# On-target-off-tumor safety substrate at cell-type resolution — the single-cell RNA layer
+# of the normal-tissue safety column. Complements normal-tissue-liability (F4, HPA IHC protein
+# breadth) with CELL-TYPE-RESOLVED RNA detection and cross-donor consistency.
+#
+# ADC/TCE programs need to know WHICH specific normal cell types express the target, not just
+# that "protein is detected somewhere" — a cardiomyocyte hit is clinically different from a
+# fibroblast hit. Cell-type resolution at single-cell resolution (not bulk average) is the
+# discriminating axis.
+#
+# Substrate:
+#   Tier-1 cross-donor aggregations from CELLxGENE Census normal-tissue pseudobulk shards:
+#   sc-normal-celltype-expression-{tissue}-v1 parquets (median_det, expressing_donor_fraction,
+#   n_donors_reliable, n_cell_types_above_20pct, detection_pct_rank per gene×cell_type).
+#   Tier-2 source: sc-pseudobulk-normal-celltype-{tissue}-v1 (raw donor×cell_type×gene).
+#
+# WIRED 2026-08-06: colon + lung shards first (COADREAD/NSCLC safety priority).
+# EXPANDED 2026-08-08: 9 tissues landed — colon/lung/stomach/skin/small_intestine (tumor-matched)
+# + heart/liver/kidney/bone_marrow (always-on safety-essential).
+# COMPLETED 2026-08-11: brain shard landed (always-on safety-essential CNS) — 10 tissues wired then.
+# EXPANDED since: all 19 landed normal-tissue Census shards are now enumerated in required_inputs
+#   (added esophagus/pancreas/ovary/prostate — reached via INDICATION_TO_TISSUES — plus adrenal/
+#   bladder/large_intestine/spleen/uterus reachable via TISSUE_TO_PRODUCT). See required_inputs.
+
+card_id: sc-normal-celltype-expression
+version: 0.1.0
+question: "In which normal tissue cell types is {target.symbol} expressed by scRNA, and how broadly and consistently across donors?"
+
+# Evidence-capsule projection. Without this block the projector falls back to the alphabetical-first
+# *_class field, which here is the DISPLAY-only sc_normal_expression_class (e < s) — NOT the
+# verdict-driving class. Pin the primary class explicitly so the capsule / LLM narrator /
+# nomination.json project the field that actually drives the gates.
+#
+# REPOINTED 2026-09-18, and the previous wording is RETRACTED, not edited away. It read: "NOT the
+# verdict-driving sc_normal_safety_essential_class ... project the field that actually drives the
+# tumor-selectivity clamp." Both halves were true when written and are now false. Neither gating
+# rule that keys on this card reads the boolean any more:
+#   · sc-normal-high-liability-bite-killer   (surface, dominant) — repointed to the grade by TC #786
+#   · tvn-sc-normal-critical-organ-veto      (selectivity clamp) — repointed to the grade in THIS PR
+# so sc_normal_safety_essential_class is now a DISPLAY class and the grade is what drives both gates.
+#
+# HOW THIS WAS CAUGHT, because the mechanism generalises: after #786 the clamp arm was the LAST
+# gating reader of the boolean, so tests/validators/test_card_capsule_contract.py's mirror-guard
+# (`test_declared_primary_class_is_a_field_the_gating_rules_read`) stayed green ONLY because the
+# cross-gate desync #786 opened was still there. Closing the desync removed the final gating reader
+# and the guard fired — a green that was being propped up by the very defect this PR fixes. It reds
+# in CI's whole-repo step, which scripts/preland.sh does NOT run (all 24 preland steps are
+# file-scoped), so preland EXIT=0 is not a superset of contracts-validate.
+#
+# The boolean STAYS in categorical_fields: the grade is a strict refinement of it (see
+# test_veto_grade_is_a_STRICT_REFINEMENT_of_the_safety_essential_class), so showing both lets a
+# reader see the coarse class AND which rung of it the target landed on.
+capsule:
+  primary_class: sc_normal_essential_veto_grade
+  categorical_fields:
+    - sc_normal_essential_veto_grade
+    - sc_normal_safety_essential_class
+    - sc_normal_expression_class
+    - sc_normal_abundance_class
+
+tier: target   # normal-tissue cell-type expression is a property of the gene, not a tumor subgroup
+
+applies_when:
+  - "true"    # always attempt; graceful data_unavailable if no tissue shard matches indication
+
+required_inputs:
+  # Tumor-matched normal tissues (queried when the indication maps to them):
+  - product_id: sc-normal-celltype-expression-colon-v1
+  - product_id: sc-normal-celltype-expression-lung-v1
+  - product_id: sc-normal-celltype-expression-stomach-v1
+  - product_id: sc-normal-celltype-expression-skin-v1
+  - product_id: sc-normal-celltype-expression-small-intestine-v1
+  # Always-on SAFETY-ESSENTIAL tissues (queried for EVERY target regardless of indication —
+  # on-target toxicity in these organs is modality-limiting independent of tumor type):
+  - product_id: sc-normal-celltype-expression-heart-v1
+  - product_id: sc-normal-celltype-expression-liver-v1
+  - product_id: sc-normal-celltype-expression-kidney-v1
+  - product_id: sc-normal-celltype-expression-bone-marrow-v1
+  # Brain — always-on safety-essential CNS shard (largest Census shard: 36M cells, 172 cell types).
+  # Many intracellular/kinase targets have documented CNS normal expression distinct from periphery.
+  - product_id: sc-normal-celltype-expression-brain-v1
+  # Additional tumor-matched normal tissues the method ALREADY queries via INDICATION_TO_TISSUES
+  # (ESCA/HNSC→esophagus, PAAD→pancreas, OV→ovary, PRAD→prostate) — declared here to close a
+  # provenance gap (method read them; the card did not list them):
+  - product_id: sc-normal-celltype-expression-esophagus-v1
+  - product_id: sc-normal-celltype-expression-pancreas-v1
+  - product_id: sc-normal-celltype-expression-ovary-v1
+  - product_id: sc-normal-celltype-expression-prostate-gland-v1
+  # Remaining landed atlas shards, reachable via TISSUE_TO_PRODUCT (analysis-methods, Phase 1.5a) —
+  # available for future indication maps / an expanded always-on safety set; declared for full
+  # provenance completeness (all 19 landed normal-tissue shards are now enumerated):
+  - product_id: sc-normal-celltype-expression-adrenal-gland-v1
+  - product_id: sc-normal-celltype-expression-bladder-organ-v1
+  - product_id: sc-normal-celltype-expression-large-intestine-v1
+  - product_id: sc-normal-celltype-expression-spleen-v1
+  - product_id: sc-normal-celltype-expression-uterus-v1
+
+methods:
+  - call: sc-normal-celltype-expression
+    args:
+      target: "{target.symbol}"
+      indication: "{context.indication}"
+
+outputs:
+  summary_fields:
+    - sc_normal_expression_class          # PRIMARY liability ladder (rules-keyed field)
+    - sc_normal_safety_essential_class    # ORGAN-AWARE safety-essential veto instrument (axis-D):
+                                          # critical_organ_liability (non-origin heart/liver/kidney/marrow
+                                          # essential-cell expression — hard-veto class) / origin_tissue_liability
+                                          # (essential expression only in the tumor's tissue-of-origin —
+                                          # window-arbitrated) / none / data_unavailable. Categorical companion
+                                          # to safety_essential_flags so the rule engine can fire on it.
+    - max_detection_cell_type             # cell type with highest median_det
+    - max_detection_fraction              # median_det of that cell type
+    - expressing_donor_fraction_max       # cross-donor consistency at the peak cell type
+    - safety_essential_flags              # {cell_type: median_det} for safety-essential cell types only
+    - n_cell_types_above_20pct            # breadth indicator: how many cell types have median_det > 0.20
+    # ABUNDANCE at the liability-anchor cell type (#984 Tier-2) — the liability ladder above is
+    # DETECTION-only; a normal cell detected at trivial vs high abundance reads the same liability.
+    # Tissue-robust fixed bands on median_abund (log1p_cp10k). Display/confidence — VERDICT-INERT here
+    # (a low_abundance normal liability is a candidate veto down-weight, owned by tumor-selectivity,
+    # backtest-gated — NOT a rung on this card).
+    - sc_normal_abundance_class           # low_/moderate_/high_abundance at the liability-driving cell type
+    - sc_normal_peak_median_abund         # median_abund (log1p_cp10k) at that cell type
+    # NAMED essential-cell driver of sc_normal_safety_essential_class (de-anonymizes the veto). Sourced
+    # from the veto-FIRING essential set (argmax detection among off-origin essential hits when
+    # critical_organ_liability, else the origin-tissue essential hit) — NOT the pooled max_detection_cell_type
+    # (which can name a non-essential epithelial cell). None when no essential hit fired. VERDICT-INERT.
+    - sc_normal_essential_max_cell_type   # the essential cell type the safety-essential class keyed on
+    - sc_normal_essential_max_tissue      # its tissue (the named critical organ)
+    - sc_normal_essential_max_detection_fraction   # median_det at that essential cell
+    - sc_normal_essential_donor_fraction  # cross-donor consistency at that essential cell
+    - sc_normal_essential_n_datasets_reliable      # independent-atlas replication at that essential cell
+    - sc_normal_essential_median_abund    # median_abund (log1p_cp10k) at that essential cell
+    # GRADED companion to sc_normal_safety_essential_class (2026-09-16). The class is a BOOLEAN
+    # (critical_organ_liability) that fires on 474/504 corpus-20260914 pairs (94.0%) and drives a
+    # dominant BiTE/TCE killer — a boolean firing on 94% of a corpus cannot discriminate. This field
+    # carries the compartment x severity the killer actually needs, so the hard-veto rung
+    # (accessible_high_severity) fires on 330/504 (65.5%) instead of the boolean's 94.0%.
+    # RE-MEASURED LIVE 2026-09-18 (AM #660/#661/#663) over all 504 pairs, from coverage/emission_ledger.yaml
+    # (not estimated from the truncated top-15 footprint): accessible_high_severity 330 / accessible_
+    # moderate_severity 86 / accessible_low_confidence 35 / not_applicable 26 / bbb_protected 23 /
+    # origin_tissue 4 (accessible_ungraded + data_unavailable 0). Of the 144 pairs relieved relative to
+    # the boolean, the SEVERITY/replication axis is 84% (121 = 86 moderate + 35 low_confidence) and the
+    # compartment axis 16% (23 bbb_protected, i.e. brain-only). Brain wins the ARGMAX on 55.3% of
+    # firings but only 23/504 (4.6%) are brain-ONLY — so the compartment axis is a CORRECTNESS GUARD
+    # (230/259 brain-argmax critical calls also carry an accessible hit), not the base-rate repair.
+    # NOTE: 65.5% is much closer to the 94.0% boolean than the 44.2% figure this comment once cited —
+    # three AM PRs promoting targets INTO high_severity moved it, not a change to the rule; anyone
+    # citing a rate here should RE-MEASURE, this field's population is a function of its inputs.
+    # VERDICT-DRIVING (the BiTE/TCE killer keys on it) — unlike the sc_normal_essential_max_* fields.
+    - sc_normal_essential_veto_grade      # compartment x severity of the veto's OWN off-origin pool
+    - sc_normal_ceiling_detection_fraction  # global max median_det across reliable cell types — the
+                                          # single-cell tumor-vs-normal WINDOW denominator (positive atlas use)
+    - n_reliable_cell_types               # count of cell types passing the min-donor reliability gate
+    - per_cell_type_top                   # ranked (top-15 by detection) normal footprint; each element carries
+                                          # cell_type/tissue/median_detection_fraction/expressing_donor_fraction/
+                                          # n_donors_reliable/median_abund/n_datasets_reliable/is_safety_essential
+    - tissues_queried                     # list of tissue shards used (depends on indication)
+    - origin_tissues                      # tumor tissue(s)-of-origin used for the off-origin split (echo; read.py:234)
+    - indication                          # the indication resolved to origin_tissues (echo; read.py:235)
+    - method_version
+
+  summary_fields_vocabulary:
+    sc_normal_expression_class:
+      - HIGH_LIABILITY    # any cell type: median_det > 0.50 AND expressing_donor_fraction > 0.70
+      - MODERATE_LIABILITY  # any cell type: median_det > 0.20 OR expressing_donor_fraction > 0.30
+      - LOW_LIABILITY     # detected but below MODERATE thresholds
+      - NOT_EXPRESSED     # all cell types: median_det < 0.01
+      - data_unavailable  # no product for queried tissue(s) OR all n_donors_reliable < 5
+    sc_normal_safety_essential_class:      # organ-aware axis-D veto instrument (2026-08-07)
+      - critical_organ_liability   # essential-cell expression in a NON-origin critical organ
+                                   # (heart/liver/kidney/marrow) — the hard-veto class (HER2-CAR-lung /
+                                   # MAGE-A3-cardiac / CEA-colitis failure mode). Downstream: the selectivity
+                                   # clamp maps this arm to selective_with_normal_liability (a SELECTIVITY-
+                                   # PRESERVING named-organ flag), NOT the housekeeping selective_but_broadly_
+                                   # normal (that stays owned by the therapeutic-window veto). The named-organ
+                                   # SAFETY severity is arbitrated by on-target-safety-liability + modality.
+      - origin_tissue_liability    # essential-cell expression ONLY in the tumor's tissue-of-origin
+                                   # (e.g. MSLN pleural/lung in NSCLC) — on-tissue, therapeutic-window-
+                                   # arbitrated, NOT a hard veto (a validated ADC target must survive).
+      - none                       # no safety-essential expression above the 0.05 floor
+      - data_unavailable           # no product for queried tissue(s) OR insufficient donor coverage
+    sc_normal_essential_veto_grade:        # GRADED veto instrument (2026-09-16). Same essential-cell hits
+                                           # sc_normal_safety_essential_class finds, partitioned by
+                                           # COMPARTMENT (can a systemically dosed biologic reach the organ?)
+                                           # x SEVERITY (magnitude x cross-donor consistency x independent-atlas
+                                           # replication). The partition runs over the WHOLE above-floor
+                                           # off-origin pool, NOT the argmax organ: measured live,
+                                           # 230 of 259 brain-argmax critical calls (88.8%) ALSO carry an
+                                           # accessible-organ hit, so an argmax-based compartment call
+                                           # would FAIL OPEN on 230 real lung/liver/marrow liabilities.
+      - accessible_high_severity   # off-origin essential hit in a SYSTEMICALLY ACCESSIBLE critical organ
+                                   # (heart/liver/kidney/marrow/lung/pancreas/adrenal), det >= 0.50 AND
+                                   # donor >= 0.70 AND >= 2 independent atlases. The BiTE/TCE hard-veto rung.
+      - accessible_ungraded        # accessible hit whose GRADING INPUTS are absent (no n_datasets_reliable /
+                                   # expressing_donor_fraction column). Deliberately VETO-ELIGIBLE and NOT a
+                                   # low rung — thinner data must never buy a better safety verdict.
+      - accessible_moderate_severity  # accessible + replicated, below the HIGH bar. Opposing, not a killer.
+      - accessible_low_confidence  # accessible but det < 0.30 OR single-atlas (the EPCAM/FOLR1 shape: a
+                                   # det 0.99 / 0.71 hit resting on ONE atlas). Opposing, not a killer.
+      - bbb_protected              # EVERY above-floor off-origin hit is brain parenchyma. Still a real
+                                   # liability — GD2 and B7-H3 prove brain is not a free pass — so this stays
+                                   # OPPOSING for bite_tce; it only releases the HARD veto, on the ground that
+                                   # a systemically dosed TCE is the modality least able to reach parenchyma.
+                                   # NOT a free pass for a BBB-CROSSING modality: small_molecule / degrader
+                                   # would warrant a veto here, but this card emits NOTHING on those channels
+                                   # (modality_relevance: adc/bite_tce/antibody) and this change does not
+                                   # widen it — that is a separate, out-of-scope decision. Live: 5.8%.
+      - origin_tissue              # essential hits exist but ALL in the tumor's tissue-of-origin —
+                                   # window-arbitrated, mirrors origin_tissue_liability on the class.
+      - not_applicable             # no safety-essential hit at all (the pool is EMPTY, not merely exempted).
+      - data_unavailable           # no product for queried tissue(s) OR insufficient donor coverage. A
+                                   # COVERAGE GAP, deliberately spelled differently from not_applicable
+                                   # (a measured absence) so a gap can never read as a clean safety result.
+    sc_normal_abundance_class:             # normal-tissue abundance at the liability-anchor cell type (#984 Tier-2).
+                                           # Fixed bands = p25/p75 of the detected-abundance distribution, validated
+                                           # tissue-invariant across colon/lung/kidney/liver/brain/pancreas.
+      - high_abundance             # median_abund >= 0.64 log1p_cp10k — genuinely high normal expression (EPCAM/CEA-class)
+      - moderate_abundance         # 0.24 <= median_abund < 0.64 — modest (ERBB2-class)
+      - low_abundance              # median_abund < 0.24 — trivial-abundance normal detection (FOLR1-class)
+      - data_unavailable           # no detected normal cell / abundance column absent
+
+thresholds:
+  high_liability_median_det: 0.50
+  high_liability_donor_fraction: 0.70
+  moderate_liability_median_det: 0.20
+  moderate_liability_donor_fraction: 0.30
+  min_reliable_donors: 5
+  not_expressed_ceiling: 0.01
+  # F7(b) — the hardcoded cuts that set sc_normal_safety_essential_class and
+  # sc_normal_essential_veto_grade (the DOMINANT BiTE/TCE killer + selectivity clamp).
+  # Declared here for contract visibility so a method-side change can no longer shift a
+  # dominant-killer verdict with zero contract trace. All method_parameter (see threshold_roles).
+  safety_flag_floor: 0.05
+  critical_organ_off_origin_det_floor: 0.20
+  high_severity_min_datasets: 2
+  low_confidence_det_ceiling: 0.30
+  low_confidence_max_datasets: 1
+  replication_dominant_det_floor: 0.40
+  replication_dominant_n_datasets: 15
+
+warning_predicates:
+  - warning_id: sc_normal_essential_cell_type
+    if: "len(safety_essential_flags) > 0"
+    message: "{target.symbol} shows scRNA expression in safety-essential normal cell types: {safety_essential_flags}. Check modality tolerance — essential-cell-type expression is a primary BiTE/TCE safety concern."
+  - warning_id: sc_normal_broad_expression
+    if: "n_cell_types_above_20pct >= 5"
+    message: "{target.symbol} is detected at >20% cells in {n_cell_types_above_20pct} distinct normal cell types — broad normal-tissue RNA footprint across cell lineages."
+  - warning_id: sc_normal_data_unavailable
+    if: "sc_normal_expression_class == 'data_unavailable'"
+    message: "{target.symbol} scRNA normal-tissue assessment unavailable (no tissue shard for indication, or insufficient donor coverage). Normal-cell-type liability is UNKNOWN, not low — do not read absence as a favorable window."
+
+caveats:
+  - |
+    scRNA Census pseudobulk (mean log1p CP10K + detection fraction per donor×cell_type) reflects
+    TRANSCRIPT, not protein. Low-abundance surface targets (GPCRs, CD antigens with regulated
+    expression) are systematically under-detected by scRNA. Complement with HPA IHC (protein) and
+    membrane proteomics where available.
+  - |
+    Cell types are raw CELLxGENE Census Cell Ontology labels. Naming consistency varies across
+    contributing atlases (e.g. 'colonocyte' vs 'colon epithelial cell'). Detection-fraction
+    aggregation is done within canonical labels; cross-label synonyms are not merged at this tier.
+  - |
+    n_cells >= 10 filter applied at Tier-1 aggregation: donor-cell-type groups with fewer than 10
+    cells are excluded (statistically unreliable detection estimates). Small cell populations in
+    sparse tissues may be systematically absent.
+  - |
+    Coverage grows as additional tissue shards land (sc-normal-celltype-expression-{tissue}-v1).
+    For indications without a matched tissue product, the result is data_unavailable — this is
+    a coverage gap, not a confirmed safety pass.
+  - |
+    MIN_RELIABLE_DONORS = 5: if a cell type is represented by fewer than 5 donors with n_cells >= 10,
+    that cell type is not used for classification. Very rare normal cell types (e.g. enteroendocrine
+    cells in colon from small atlases) may be under-represented.
+
+measurement: sc_rna
+sample_context: normal
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `sc_normal_celltype_expression` claim.
+measurement_type: sc_normal_celltype_expression
+modality_relevance: [adc, bite_tce, antibody]
+entity_grains: [target]
+schema_version: 1
+threshold_roles:
+  not_expressed_ceiling:
+    role: method_parameter
+    consumed_by: sc-normal-celltype-expression
+    note: 'Method bins median_det -> sc_normal_expression_class (the rules-keyed verdict class): NOT_EXPRESSED when all median_det < 0.01, else the LOW_LIABILITY floor (NOT_EXPRESSED_CEILING, stats.py:31) at classify L752. Applied upstream, never a card predicate; also the skill-side salience display ruler.'
+  moderate_liability_median_det:
+    role: method_parameter
+    consumed_by: sc-normal-celltype-expression
+    note: 'Method bins median_det -> sc_normal_expression_class (rules-keyed verdict class): MODERATE_LIABILITY fires on median_det > 0.20 (MODERATE_LIABILITY_DET, stats.py:29) at classify L749, twin of moderate_liability_donor_fraction. Applied upstream, never a card predicate; also skill-side display ruler.'
+  high_liability_median_det:
+    role: method_parameter
+    consumed_by: sc-normal-celltype-expression
+    note: 'Method bins median_det -> sc_normal_expression_class (the rules-keyed verdict class): HIGH_LIABILITY needs median_det > 0.50 (HIGH_LIABILITY_DET_THRESHOLD, stats.py:27) at classify L739, paired with the 0.70 donor cut L740. Applied upstream, never a card predicate; also the skill-side display ruler.'
+  high_liability_donor_fraction:
+    role: method_parameter
+    consumed_by: sc-normal-celltype-expression
+    note: 'The method applies the 0.70 cross-donor fraction cut in sc_normal_expression/stats.py:28 (HIGH_LIABILITY_DONOR_FRACTION), at L461/L465 (grade) and L677 (classify). Applied upstream, never by a card predicate.'
+  moderate_liability_donor_fraction:
+    role: method_parameter
+    consumed_by: sc-normal-celltype-expression
+    note: 'The method applies the 0.30 cross-donor fraction cut in stats.py:30 (MODERATE_DONOR_FRACTION), at L686. Applied upstream, never by a card predicate.'
+  min_reliable_donors:
+    role: method_parameter
+    consumed_by: sc-normal-celltype-expression
+    note: 'The method requires n_donors_reliable >= 5 in stats.py:32 (MIN_RELIABLE_DONORS), at L604/L607. Applied upstream, never by a card predicate.'
+  safety_flag_floor:
+    role: method_parameter
+    consumed_by: sc-normal-celltype-expression
+    note: 'sc_normal_safety_essential_class / veto-grade floor: a safety-essential cell counts only at median_det > 0.05 (SAFETY_FLAG_FLOOR, stats.py:676; census annotation-noise floor). Feeds the dominant BiTE/TCE killer + selectivity clamp. Applied upstream, never a card predicate.'
+  critical_organ_off_origin_det_floor:
+    role: method_parameter
+    consumed_by: sc-normal-celltype-expression
+    note: 'Off-origin critical-organ veto floor: a non-origin heart/liver/kidney/marrow essential hit flips to critical_organ_liability only at median_det > 0.20 (CRITICAL_ORGAN_OFF_ORIGIN_DET_FLOOR, stats.py:686; backtest-gated 2026-09-04). Applied upstream, never a card predicate.'
+  high_severity_min_datasets:
+    role: method_parameter
+    consumed_by: sc-normal-celltype-expression
+    note: 'veto-grade accessible_high_severity requires >= 2 independent atlases (n_datasets_reliable, stats.py:461) alongside det >= 0.50 + donor >= 0.70. Sets the dominant BiTE/TCE hard-veto rung. Applied upstream, never a card predicate.'
+  low_confidence_det_ceiling:
+    role: method_parameter
+    consumed_by: sc-normal-celltype-expression
+    note: 'veto-grade accessible_low_confidence when median_det < 0.30 (stats.py:469), demoting an accessible hit off the hard-veto rung to opposing. Applied upstream, never a card predicate.'
+  low_confidence_max_datasets:
+    role: method_parameter
+    consumed_by: sc-normal-celltype-expression
+    note: 'veto-grade accessible_low_confidence when n_datasets_reliable <= 1 (single-atlas; stats.py:469), demoting an accessible hit off the hard-veto rung. Applied upstream, never a card predicate.'
+  replication_dominant_det_floor:
+    role: method_parameter
+    consumed_by: sc-normal-celltype-expression
+    note: 'Replication-dominant severity path: a hit at median_det >= 0.40 (REPLICATION_DOMINANT_DET_FLOOR, stats.py:66) with donor >= 0.70 and heavy atlas replication grades accessible_high_severity. Applied upstream, never a card predicate.'
+  replication_dominant_n_datasets:
+    role: method_parameter
+    consumed_by: sc-normal-celltype-expression
+    note: 'Replication-dominant severity path: heavy replication = n_datasets_reliable >= 15 (REPLICATION_DOMINANT_N_DATASETS, stats.py:67; corpus p90), pairing with the 0.40 det floor to reach accessible_high_severity. Applied upstream, never a card predicate.'

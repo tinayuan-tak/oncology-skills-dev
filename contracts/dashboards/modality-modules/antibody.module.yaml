@@ -1,0 +1,67 @@
+# antibody.module.yaml — modality module for naked / blocking antibodies
+# Layers on top of surface-intrinsic-base. ITER-1B SCOPE: antibody-against-surface-intrinsic
+# targets ONLY (e.g., HER2 binding antibody, CLDN18.2 antibody, TROP2 antibody). Antibody-
+# against-extrinsic targets (PD-L1, CTLA-4, TGF-β) deferred to iter-2 with extrinsic base.
+#
+# Antibody is the modality where "normal-tissue threshold" depends most on the functional
+# consequence of binding — binding may be tolerable even on normal tissue if the antibody
+# doesn't trigger effector functions there. Pathway context matters more than for ADC/BiTE.
+
+modality_module: antibody
+version: 1.0.0
+extends_axes: [surface_intrinsic]                    # iter-1b: surface_intrinsic only; iter-2 may add extrinsic
+
+additional_cards:
+  - card_id: functional-blockade-rationale
+    version: ">=1.0.0,<2"
+    data_status: method_pending
+    data_status_note: "Antibody functional blockade requires evidence that binding produces a functional consequence (receptor antagonism, ligand sequestration). Literature-mined card; iter-2 deliverable. iter-1b emits as excluded_by_applies_when with structured 'method_pending' reason."
+
+threshold_overlays:
+  normal-tissue-liability:
+    severity_threshold: pathway_dependent
+    note: "Antibody safety depends on the functional consequence of binding, not just expression. Pathway context (does binding trigger effector functions? does it antagonize a survival pathway?) matters more than absolute expression absence."
+  protein-surface-evidence:
+    weighting: heavy
+    note: "Antibody requires confirmed surface localization. Even more critical than for small_molecule; antibody is structurally restricted to extracellular binding sites."
+
+tunable_threshold_categories:
+  - severity_threshold
+  - weighting
+  - note_field
+
+headline_decision_question: "Is the target accessible, disease-relevant, and blockable with an acceptable safety window?"
+
+modality_specific_caveats:
+  - "iter-1b antibody scope is RESTRICTED to surface-intrinsic targets (tumor-cell-surface antigens). Antibody-against-extrinsic targets (PD-L1, CTLA-4, TGF-β) requires the extrinsic dashboard base, deferred to iter-2. The framework will refuse antibody-on-extrinsic queries with a structured error."
+  - "Naked antibody efficacy depends on Fc-mediated effector function (ADCC, ADCP, CDC) AND/OR direct functional blockade. iter-1b assesses neither directly — synthesis flags this as a gap requiring functional-blockade-rationale (iter-2)."
+  - "Antibody is differentiated from ADC by absence of payload (lower potency, lower toxicity ceiling). For high-prevalence surface antigens with weak intrinsic biology, antibody may underperform ADC. Synthesis surfaces this comparison when both modules are loaded."
+
+synthesis_emphasis:
+  primary_cards:
+    # EG1 (iter-2): lineage-restriction-evidence is added as PRIMARY for antibody because
+    # broadly-expressed surface antigens have narrow therapeutic windows for naked antibody
+    # (no payload buffer); CLDN18.2 / GUCY2C class antibodies depend on tissue-restriction.
+    - lineage-restriction-evidence
+    - tumor-vs-normal-selectivity
+    - protein-surface-evidence
+    - clinical-precedent
+  secondary_cards:
+    - normal-tissue-liability
+    - tumor-rna-vs-adjacent
+  modality_killer_conditions:
+    - card_id: protein-surface-evidence
+      predicate_type: excluded_by_applies_when
+      predicate_value: true
+      message: "Antibody not viable — protein-surface evidence absent. Antibody is structurally restricted to extracellular binding sites; surface presence is fundamental."
+    - card_id: protein-surface-evidence
+      predicate_type: interpretation_call_equals
+      predicate_value: "not informative for surface-modality programs"
+      message: "Antibody not viable — protein evidence is intracellular-only or weak. Surface accessibility is the gating biology for antibody binding."
+    - card_id: tumor-rna-vs-adjacent
+      predicate_type: interpretation_call_equals
+      predicate_value: "not informative"
+      message: "Antibody program weak — tumor expression insufficient. Antibody without payload requires intrinsic expression-driven biology."
+
+iter1b_status: active
+schema_version: 1

@@ -1,0 +1,63 @@
+{
+  "$comment": "PER-SKILL PINS (source) for genomic-alteration-profile. VARIANT = gating-scalar (multi-class): pins role:gating + the emitted (reconciled) genomic_alteration_profile/call enum, no polarity const (dynamic: positive driver / negative passenger / neutral). Genomic emits a MULTI-CLASS verdict — the scalar genomic_alteration_profile PLUS genomic_alteration_by_class (SNV/CN/Fusion/Splice) and genomic_alteration_by_scope; those two are typed-open objects (dynamic class/scope keys). Enum = _GENOMIC_VERDICT_PHRASE in skills/genomic-alteration-profile/scripts/run.py (the emitted vocabulary = genomic_alteration resolver rungs + the Phase-3 reconciled caveat token biomarker_dependency_unconfirmed). Append-only within contract major version. NOTE: this skill hand-rolls main(); the emitter was fixed to emit the envelope-required run_health + provenance (skills PR).",
+  "skill": "genomic-alteration-profile",
+  "role_variant": "gating_scalar",
+  "$defs": {
+    "genomic_alteration_profile_enum": {
+      "type": "string",
+      "enum": [
+        "biomarker_stratified_dependency",
+        "moderate_biomarker_dependency",
+        "multi_class_driver",
+        "confirmed_driver",
+        "multi_class_lof_driver",
+        "confirmed_lof_driver",
+        "drug_response_biomarker",
+        "recurrent_amplification_driver",
+        "recurrent_deletion_driver",
+        "recurrent_fusion_driver",
+        "recurrent_snv_driver",
+        "recurrent_snv_subclonal_uncertain",
+        "splice_exon_skip_driver",
+        "lof_dominant_pattern",
+        "missense_dominant_pattern",
+        "passenger_pattern",
+        "biomarker_dependency_unconfirmed",
+        "mixed_pattern",
+        "insufficient"
+      ]
+    }
+  },
+  "pins": {
+    "properties": {
+      "skill": {"const": "genomic-alteration-profile"},
+      "headline": {
+        "type": "object",
+        "required": ["genomic_alteration_profile"],
+        "properties": {
+          "genomic_alteration_profile": {"$ref": "#/$defs/genomic_alteration_profile_enum"},
+          "genomic_alteration_by_class": {
+            "description": "Per-alteration-class decomposition (SNV/CN/Fusion/Splice) — dynamic class keys.",
+            "type": ["object", "null"]
+          },
+          "genomic_alteration_by_scope": {
+            "description": "Per-scope breakdown (pan_cancer/indication/subtype) — dynamic scope keys.",
+            "type": ["object", "null"]
+          },
+          "skill_report": {
+            "type": ["object", "null"],
+            "properties": {
+              "call": {
+                "oneOf": [
+                  {"$ref": "#/$defs/genomic_alteration_profile_enum"},
+                  {"type": "null"}
+                ]
+              },
+              "role": {"const": "gating"}
+            }
+          }
+        }
+      }
+    }
+  }
+}

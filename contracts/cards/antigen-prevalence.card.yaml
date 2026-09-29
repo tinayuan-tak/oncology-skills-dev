@@ -1,0 +1,85 @@
+# Card iter-1b/6 — ANTIGEN PREVALENCE
+# Iter-1b operational card. Composes from tumor expression product + a prevalence threshold
+# to estimate "what fraction of tumors express the antigen at clinically-relevant levels?"
+# Patient-selection question; key for surface-modality programs (ADC, BiTE/TCE, antibody).
+
+card_id: antigen-prevalence
+version: 1.0.0
+# interpretation (descriptive): emits no categorical class.
+interpretation: descriptive
+status: wired   # LIVE 2026-09-19: build_antigen_prevalence (analysis-methods #671, on main) reads the per-sample tumor-TPM product and projects the two prevalence fractions. Routes via the GENERIC dispatcher (methods[0].module/entrypoint below). Wired into surface-intrinsic-base as an OPTIONAL, COADREAD-gated card (v1 pilot cohort).
+question: "What fraction of {indication.label} tumors express {target.symbol} at clinically relevant levels?"
+
+tier: indication   # indication-level prevalence; subtype-eligible-in-principle (see below), deliberately pooled in v1
+
+# WIRED (2026-09-19): the original 2026-07-16 block was WRONG about the substrate, not the
+# biology. Prevalence needs PER-SAMPLE rows (a whole-cohort differential like
+# dge-tumor-vs-adjacent cannot yield a fraction-of-samples-above-cutoff); the per-sample
+# product `tcga-tumor-tpm-recount3-long-v1` already ships and the pooled reader now projects
+# the two fractions. v1 is POOLED whole-cohort only. Per-subgroup stratification is OUT OF SCOPE this iteration:
+# the per-sample substrate now EXISTS, but the bound reader pools; a per-stratum recount (panorama)
+# method (mirroring PANORAMA_DISPATCHERS) is eligible-in-principle follow-on. Not yet stratified.
+subgroup_stratification:
+  eligible: true
+  status: out_of_scope   # per schema: deliberately not stratified this iteration
+  axes: [msi_status]
+  rationale: "Per-sample substrate now ships (tcga-tumor-tpm-recount3-long-v1) and the bound reader returns a whole-cohort POOLED fraction; v1 is deliberately pooled. Per-stratum recount (a panorama method fanning the read over each stratum member-set) is eligible-in-principle follow-on, not built this iteration."
+
+applies_when:
+  - "target.tumor_expression_p95 >= THRESHOLD.expression_p95_min"
+  - "indication.tumor_sample_count >= THRESHOLD.min_samples_for_prevalence"
+
+required_inputs:
+  - product_id: tcga-tumor-tpm-recount3-long-v1   # per-sample tumor TPM (log2(TPM+1)), the substrate prevalence needs; products.yaml registry id, catalog carries it per-study via each manifest's product_id: field
+    indication: "{indication}"
+    release_pin: "{release_pin}"
+
+methods:
+  - call: prevalence-aggregator
+    # GENERIC dispatch (skills _live_readers._generic_dispatch): module resolves to the object that
+    # DIRECTLY holds the entrypoint — the cli submodule, not the package (which does not re-export it).
+    module: tcga_gtex_expression_distribution.cli
+    entrypoint: build_antigen_prevalence
+    args:
+      # Only target + indication are forwarded by the generic dispatcher. The two TPM cutoffs are NOT
+      # passed through; the method hardcodes CLINICAL_RELEVANCE_TPM=1.0 / HIGH_EXPRESSION_TPM=10.0 as
+      # constants that MIRROR the `thresholds:` block below (kept in sync by hand). cutoff_used_tpm in
+      # the output makes the honoured cutoff auditable.
+      target: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - fraction_clinically_relevant
+    - fraction_high_expression
+    - n_samples
+    - median_tpm
+    - cutoff_used_tpm
+  figure: prevalence_curve_with_thresholds
+  plot_data: per_sample_expression_with_prevalence_thresholds
+
+interpretation_hints:
+  - if: "fraction_high_expression >= THRESHOLD.broad_population_threshold"
+    call: "broad patient population at high expression"
+  - if: "fraction_clinically_relevant >= THRESHOLD.targeted_population_threshold && fraction_high_expression < THRESHOLD.broad_population_threshold"
+    call: "targeted patient population (selection biomarker required)"
+  - if: "fraction_clinically_relevant < THRESHOLD.targeted_population_threshold"
+    call: "narrow patient population — patient-selection strategy critical"
+
+thresholds:
+  expression_p95_min: 1.0
+  min_samples_for_prevalence: 50
+  clinical_relevance_tpm: 1.0                  # iter-1b conservative; calibration deferred
+  high_expression_tpm: 10.0                    # iter-1b conservative; modality-tuned in iter-2
+  broad_population_threshold: 0.60
+  targeted_population_threshold: 0.20
+
+caveats:
+  - "Prevalence thresholds are iter-1b conservative defaults; modality-specific calibration is iter-2 work (different thresholds for ADC vs BiTE/TCE)."
+  - "RNA-derived prevalence is an upper-bound estimate; protein-level prevalence (via IHC) is typically narrower and is the gating clinical question."
+  - "Patient-selection biomarker development requires a deployable assay; iter-1b cannot assess assay feasibility."
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `antigen_expressing_prevalence` claim.
+measurement_type: antigen_expressing_prevalence
+entity_grains: [target_indication]
+schema_version: 1

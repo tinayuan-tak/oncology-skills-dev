@@ -1,0 +1,7118 @@
+_doc: 'T1 emission ledger: the (card_id, field, value) triples the corpus actually emits, per declaring
+  card. out_of_vocab GATES (a contradiction between two committed files); never_emitted and saturation
+  are DIMENSIONS, not gates. Regenerate with validators/build_emission_ledger.py; --self-check gates declaration-side
+  drift. Grain is per (card_id, field) and is never pooled by field name.'
+corpus_vintage: target-archetype-corpus-20260920
+n_packages: 504
+n_unparseable: 0
+producing_shas:
+  6cd0bb6929e65b505f2e04b5905db6854f2e5699: 145
+  71f08e6ced6e5ab92fe1e73bb72b9b9c514333e6: 76
+  c71eb8e625ef1d125ab71564cdfafb3d60da6c10: 68
+  0fcd7d67e9c3bd63915e367879627bf4b7e550e4: 63
+  68c892dc191c53c97d8005cc3bc51949c15a8d19: 48
+  282f1cc1f27331de6881eb41445c58dd387c7d36: 34
+  066f762a862bca1afb50d3c66a46401d47b1ad9e: 31
+  a2cb61d72a8632e0020540ae4b9b5e5aff89b4e8: 23
+  472bf767d060c8dc502add4f14bdffae4ddcddc1: 16
+provenance: 'heterogeneous: packages were produced by different code'
+counts:
+  cards_declaring_vocabulary: 138
+  cards_with_observations: 132
+  declared_pairs: 305
+  pairs: 291
+  out_of_vocab: 0
+  never_observed_pairs: 18
+  dead_tokens: 362
+ungated_absences:
+  "orphan: declared on no field \u2014 already gated by validate_cards":
+  - functional-gene-state::sample_state
+  - normal-tissue-protein-abundance-tphp::tissue_category
+  - prism-compound-activity::metric_source
+  - variant-level-interpretation::resistance_class
+known_out_of_vocab:
+  as_of: '2026-09-29'
+  keys: []
+known_never_observed:
+  as_of: '2026-09-29'
+  keys:
+  - antigen-internalization::internalization_class
+  - antigen-internalization::internalization_evidence_tier
+  - antigen-internalization::surface_turnover_class
+  - cellline-surfaceome-abundance::allgene_percentile_class
+  - cellline-surfaceome-abundance::protein_abundance_source
+  - cellline-surfaceome-abundance::protein_expression_class
+  - cellline-surfaceome-abundance::surface_localization_class
+  - normal-tissue-protein-abundance-tphp::tphp_hpa_blind_vital_organ_liability_class
+  - pan-cancer-crispr-dependency-distribution::broad_dependency_band
+  - sc-surface-normal-safety-solid::sc_surface_normal_solid_class
+  - sc-surface-normal-safety-solid::sc_surface_safety_essential_class
+  - surface-localization-concordance::cellline_surface_localization_class
+  - surface-localization-concordance::orthogonal_surface_confirmation_class
+  - surface-localization-concordance::surface_context_concordance_class
+  - surface-topology-and-ptm::endocytosis_motif_types
+  - temporal-setting-expression-shift::temporal_shift_class
+  - tumor-scrna-celltype-expression::malignant_expresser_bimodality_class
+  - tumor-vs-normal-percentile-crossing-by-subtype::percentile_crossing_class
+  reasons:
+    antigen-internalization::internalization_class: card_never_emitted
+    antigen-internalization::internalization_evidence_tier: card_never_emitted
+    antigen-internalization::surface_turnover_class: card_never_emitted
+    cellline-surfaceome-abundance::protein_expression_class: card_never_emitted
+    cellline-surfaceome-abundance::allgene_percentile_class: card_never_emitted
+    cellline-surfaceome-abundance::protein_abundance_source: card_never_emitted
+    cellline-surfaceome-abundance::surface_localization_class: card_never_emitted
+    normal-tissue-protein-abundance-tphp::tphp_hpa_blind_vital_organ_liability_class: field_absent
+    pan-cancer-crispr-dependency-distribution::broad_dependency_band: field_absent
+    sc-surface-normal-safety-solid::sc_surface_normal_solid_class: card_never_emitted
+    sc-surface-normal-safety-solid::sc_surface_safety_essential_class: card_never_emitted
+    surface-localization-concordance::surface_context_concordance_class: card_never_emitted
+    surface-localization-concordance::cellline_surface_localization_class: card_never_emitted
+    surface-localization-concordance::orthogonal_surface_confirmation_class: card_never_emitted
+    surface-topology-and-ptm::endocytosis_motif_types: always_empty_array
+    temporal-setting-expression-shift::temporal_shift_class: card_never_emitted
+    tumor-scrna-celltype-expression::malignant_expresser_bimodality_class: field_absent
+    tumor-vs-normal-percentile-crossing-by-subtype::percentile_crossing_class: card_never_emitted
+by_card:
+  abundance-dependency:
+    abundance_dependency_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - insufficient_paired_models
+      - no_protein_dependency_link
+      - protein_predicts_dependency
+      - weak_protein_dependency_link
+      observed:
+        no_protein_dependency_link: 312
+        weak_protein_dependency_link: 77
+        protein_predicts_dependency: 24
+        insufficient_paired_models: 6
+      n_non_null: 419
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 419
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: no_protein_dependency_link
+      saturation: 0.7446
+  adc-tce-modality-fit:
+    endocytosis_confidence:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - clinically_internalizing
+      - high
+      - low
+      - moderate
+      - unmeasured
+      observed:
+        unmeasured: 494
+        clinically_internalizing: 7
+      n_non_null: 501
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 501
+      out_of_vocab: []
+      never_emitted:
+      - high
+      - low
+      - moderate
+      top: unmeasured
+      saturation: 0.986
+    fit_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - ADC_preferred
+      - TCE_preferred
+      - both_viable
+      - data_unavailable
+      - isoform_dependent_undefined
+      - modality_ambiguous
+      - neither_viable
+      observed:
+        neither_viable: 373
+        both_viable: 94
+        TCE_preferred: 20
+        modality_ambiguous: 11
+        data_unavailable: 3
+      n_non_null: 501
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 501
+      out_of_vocab: []
+      never_emitted:
+      - ADC_preferred
+      - isoform_dependent_undefined
+      top: neither_viable
+      saturation: 0.7445
+    surface_confirmation_state:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - annotation_only
+      - clinically_precedented
+      - confirmed_protein
+      - not_applicable
+      observed:
+        not_applicable: 387
+        confirmed_protein: 97
+        annotation_only: 12
+        clinically_precedented: 5
+      n_non_null: 501
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 501
+      out_of_vocab: []
+      never_emitted: []
+      top: not_applicable
+      saturation: 0.7725
+  alteration-clinical-association:
+    alteration_survival_association_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - alteration_mutated_better_survival
+      - alteration_mutated_worse_survival
+      - data_unavailable
+      - insufficient_survival_data
+      - no_survival_association
+      observed:
+        insufficient_survival_data: 150
+        no_survival_association: 16
+        alteration_mutated_worse_survival: 1
+      n_non_null: 167
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 167
+      out_of_vocab: []
+      never_emitted:
+      - alteration_mutated_better_survival
+      - data_unavailable
+      top: insufficient_survival_data
+      saturation: 0.8982
+  alteration-role:
+    alteration_role:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - curated_cancer_gene
+      - data_unavailable
+      - direct_driver_gof
+      - direct_driver_lof
+      - passenger
+      - predictive_biomarker
+      observed:
+        direct_driver_gof: 210
+        curated_cancer_gene: 99
+        direct_driver_lof: 82
+        data_unavailable: 64
+        predictive_biomarker: 35
+        passenger: 12
+      n_non_null: 502
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 502
+      out_of_vocab: []
+      never_emitted: []
+      top: direct_driver_gof
+      saturation: 0.4183
+    functional_direction:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - activating
+      - ambiguous
+      - loss_of_function
+      observed:
+        activating: 291
+        loss_of_function: 100
+        ambiguous: 35
+      n_non_null: 426
+      n_null: 76
+      n_absent: 0
+      n_packages_with_card: 502
+      out_of_vocab: []
+      never_emitted: []
+      top: activating
+      saturation: 0.6831
+    oncokb_gene_type:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - INSUFFICIENT_EVIDENCE
+      - NEITHER
+      - ONCOGENE
+      - ONCOGENE_AND_TSG
+      - TSG
+      observed:
+        ONCOGENE: 301
+        TSG: 102
+        ONCOGENE_AND_TSG: 20
+        NEITHER: 11
+        INSUFFICIENT_EVIDENCE: 4
+      n_non_null: 438
+      n_null: 64
+      n_absent: 0
+      n_packages_with_card: 502
+      out_of_vocab: []
+      never_emitted: []
+      top: ONCOGENE
+      saturation: 0.6872
+  amp-expr-stratified-dependency:
+    amp_expr_stratification_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - amp_expr_negative_more_dependent
+      - amplified_overexpressed_moderately_dependent
+      - amplified_overexpressed_strongly_dependent
+      - data_unavailable
+      - insufficient_amp_expr_rate
+      - not_amp_expr_stratified
+      observed:
+        not_amp_expr_stratified: 216
+        insufficient_amp_expr_rate: 197
+        amplified_overexpressed_moderately_dependent: 74
+        amplified_overexpressed_strongly_dependent: 15
+      n_non_null: 502
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 502
+      out_of_vocab: []
+      never_emitted:
+      - amp_expr_negative_more_dependent
+      - data_unavailable
+      top: not_amp_expr_stratified
+      saturation: 0.4303
+    evidence_scope:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - pan_lineage_evidence_only
+      - pan_no_indication
+      - within_indication
+      - within_indication_mut_vs_pan_wt
+      observed:
+        pan_lineage_evidence_only: 455
+        within_indication: 47
+      n_non_null: 502
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 502
+      out_of_vocab: []
+      never_emitted:
+      - pan_no_indication
+      - within_indication_mut_vs_pan_wt
+      top: pan_lineage_evidence_only
+      saturation: 0.9064
+  caf-compartment-expression-luo:
+    caf_expression_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - caf_broadly_detected
+      - caf_low
+      - caf_subset_detected
+      - data_unavailable
+      observed:
+        caf_subset_detected: 243
+        caf_broadly_detected: 207
+        caf_low: 51
+      n_non_null: 501
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 501
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: caf_subset_detected
+      saturation: 0.485
+  cd-antigen-backbone:
+    cd_antigen_backbone_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - cd_antigen
+      - data_unavailable
+      - established_io_backbone
+      - not_cd_antigen
+      observed:
+        not_cd_antigen: 442
+        cd_antigen: 58
+        established_io_backbone: 4
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: not_cd_antigen
+      saturation: 0.877
+  cellline-isoform-expression:
+    isoform_expression_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - balanced
+      - data_unavailable
+      - isoform_diverse
+      - single_isoform_dominant
+      observed:
+        balanced: 219
+        single_isoform_dominant: 204
+        isoform_diverse: 71
+      n_non_null: 494
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 494
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: balanced
+      saturation: 0.4433
+  cellline-methylation-expression-coherence:
+    evidence_scope:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - pan_lineage_evidence_only
+      - pan_no_indication
+      - within_indication
+      - within_indication_mut_vs_pan_wt
+      observed:
+        pan_no_indication: 431
+      n_non_null: 431
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 431
+      out_of_vocab: []
+      never_emitted:
+      - pan_lineage_evidence_only
+      - within_indication
+      - within_indication_mut_vs_pan_wt
+      top: pan_no_indication
+      saturation: 1.0
+    methylation_silencing_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - methylation_invariant_panel
+      - methylation_uncoupled
+      - silencing_coupled_moderate
+      - silencing_coupled_strong
+      - silencing_lineage_confounded
+      observed:
+        methylation_invariant_panel: 219
+        methylation_uncoupled: 117
+        silencing_coupled_strong: 46
+        silencing_lineage_confounded: 43
+        silencing_coupled_moderate: 6
+      n_non_null: 431
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 431
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: methylation_invariant_panel
+      saturation: 0.5081
+    silencing_driver:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - pan_panel_correlation
+      - subset_hypermethylation
+      observed:
+        subset_hypermethylation: 93
+        pan_panel_correlation: 2
+      n_non_null: 95
+      n_null: 336
+      n_absent: 0
+      n_packages_with_card: 431
+      out_of_vocab: []
+      never_emitted: []
+      top: subset_hypermethylation
+      saturation: 0.9789
+  cellline-protein-abundance:
+    allgene_percentile_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - bottom_decile
+      - data_unavailable
+      - mid
+      - top_1pct
+      - top_decile
+      observed:
+        mid: 327
+        bottom_decile: 56
+        top_decile: 26
+        top_1pct: 5
+      n_non_null: 414
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 414
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: mid
+      saturation: 0.7899
+    protein_expression_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - broadly_high
+      - broadly_low
+      - broadly_moderate
+      - data_unavailable
+      - lineage_restricted
+      - sub_broad_detection
+      observed:
+        broadly_moderate: 276
+        broadly_high: 92
+        broadly_low: 39
+        lineage_restricted: 7
+      n_non_null: 414
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 414
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      - sub_broad_detection
+      top: broadly_moderate
+      saturation: 0.6667
+  cellline-protein-abundance-procan:
+    allgene_percentile_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - bottom_decile
+      - data_unavailable
+      - mid
+      - top_1pct
+      - top_decile
+      observed:
+        mid: 276
+        top_decile: 36
+        bottom_decile: 24
+        top_1pct: 7
+      n_non_null: 343
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 343
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: mid
+      saturation: 0.8047
+    protein_abundance_source:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - procan_dia_swath
+      observed:
+        procan_dia_swath: 343
+      n_non_null: 343
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 343
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: procan_dia_swath
+      saturation: 1.0
+    protein_expression_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - broadly_high
+      - broadly_low
+      - broadly_moderate
+      - data_unavailable
+      - lineage_restricted
+      - sub_broad_detection
+      observed:
+        broadly_high: 95
+        broadly_low: 94
+        sub_broad_detection: 85
+        broadly_moderate: 69
+      n_non_null: 343
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 343
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      - lineage_restricted
+      top: broadly_high
+      saturation: 0.277
+  cellline-rna-distribution:
+    allgene_percentile_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - bottom_decile
+      - data_unavailable
+      - mid
+      - top_1pct
+      - top_decile
+      observed:
+        mid: 370
+        top_decile: 95
+        top_1pct: 25
+        bottom_decile: 14
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: mid
+      saturation: 0.7341
+    control_position_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - above_all_positives
+      - above_negatives_below_positives
+      - below_negatives
+      - data_unavailable
+      - within_positives
+      observed:
+        above_all_positives: 229
+        within_positives: 205
+        above_negatives_below_positives: 70
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - below_negatives
+      - data_unavailable
+      top: above_all_positives
+      saturation: 0.4544
+    expression_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - broadly_high
+      - broadly_low
+      - broadly_moderate
+      - data_unavailable
+      - lineage_restricted
+      observed:
+        broadly_high: 235
+        broadly_moderate: 153
+        lineage_restricted: 90
+        broadly_low: 26
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: broadly_high
+      saturation: 0.4663
+    isoform_expression_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - balanced
+      - data_unavailable
+      - isoform_diverse
+      - single_isoform_dominant
+      observed:
+        balanced: 219
+        single_isoform_dominant: 204
+        isoform_diverse: 71
+        data_unavailable: 10
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted: []
+      top: balanced
+      saturation: 0.4345
+  cellline-rna-distribution-by-subtype:
+    subtype_axis_quality:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - empty
+      - exploratory
+      - powered
+      - unavailable
+      - underpowered
+      - unevaluable
+      observed:
+        exploratory: 185
+        unevaluable: 80
+        underpowered: 40
+      n_non_null: 305
+      n_null: 0
+      n_absent: 199
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - empty
+      - powered
+      - unavailable
+      top: exploratory
+      saturation: 0.6066
+    subtype_stratification_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - pan_subtype_uniform
+      - subtype_depleted
+      - subtype_enriched
+      - subtype_variable
+      observed:
+        pan_subtype_uniform: 303
+        subtype_depleted: 1
+        subtype_enriched: 1
+      n_non_null: 305
+      n_null: 199
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - subtype_variable
+      top: pan_subtype_uniform
+      saturation: 0.9934
+  cellline-rna-protein-concordance:
+    rna_as_biomarker:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - adequate_proxy
+      - data_unavailable
+      - insufficient_paired_models
+      - partial_proxy
+      - poor_proxy
+      observed:
+        poor_proxy: 170
+        partial_proxy: 153
+        data_unavailable: 123
+        adequate_proxy: 52
+        insufficient_paired_models: 6
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted: []
+      top: poor_proxy
+      saturation: 0.3373
+  cis-feature-expression-coherence:
+    cis_dosage_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - cn_dosage_coupled_moderate
+      - cn_dosage_coupled_strong
+      - cn_dosage_uncoupled
+      - cn_invariant_panel
+      - data_unavailable
+      observed:
+        cn_dosage_coupled_moderate: 230
+        cn_dosage_uncoupled: 167
+        cn_dosage_coupled_strong: 103
+        cn_invariant_panel: 2
+      n_non_null: 502
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 502
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: cn_dosage_coupled_moderate
+      saturation: 0.4582
+    cis_dosage_direction:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - amplification_coupled
+      - deletion_coupled
+      observed:
+        amplification_coupled: 187
+        deletion_coupled: 146
+      n_non_null: 333
+      n_null: 169
+      n_absent: 0
+      n_packages_with_card: 502
+      out_of_vocab: []
+      never_emitted: []
+      top: amplification_coupled
+      saturation: 0.5616
+    cis_dosage_direction_basis:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - amplified_vs_deleted_contrast
+      - cn_distribution_asymmetry
+      observed:
+        amplified_vs_deleted_contrast: 332
+        cn_distribution_asymmetry: 1
+      n_non_null: 333
+      n_null: 169
+      n_absent: 0
+      n_packages_with_card: 502
+      out_of_vocab: []
+      never_emitted: []
+      top: amplified_vs_deleted_contrast
+      saturation: 0.997
+    cis_dosage_driver:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - focal_amplification_subset
+      - pan_panel_correlation
+      observed:
+        pan_panel_correlation: 310
+        focal_amplification_subset: 23
+      n_non_null: 333
+      n_null: 169
+      n_absent: 0
+      n_packages_with_card: 502
+      out_of_vocab: []
+      never_emitted: []
+      top: pan_panel_correlation
+      saturation: 0.9309
+    evidence_scope:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - pan_lineage_evidence_only
+      - pan_no_indication
+      - within_indication
+      - within_indication_mut_vs_pan_wt
+      observed:
+        pan_no_indication: 502
+      n_non_null: 502
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 502
+      out_of_vocab: []
+      never_emitted:
+      - pan_lineage_evidence_only
+      - within_indication
+      - within_indication_mut_vs_pan_wt
+      top: pan_no_indication
+      saturation: 1.0
+  cis-feature-protein-coherence:
+    cis_protein_dosage_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - cn_invariant_panel
+      - data_unavailable
+      - prot_dosage_coupled_moderate
+      - prot_dosage_coupled_strong
+      - prot_dosage_uncoupled
+      observed:
+        prot_dosage_uncoupled: 224
+        prot_dosage_coupled_moderate: 119
+        prot_dosage_coupled_strong: 28
+        cn_invariant_panel: 2
+      n_non_null: 373
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 373
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: prot_dosage_uncoupled
+      saturation: 0.6005
+    evidence_scope:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - pan_lineage_evidence_only
+      - pan_no_indication
+      - within_indication
+      - within_indication_mut_vs_pan_wt
+      observed:
+        pan_no_indication: 373
+      n_non_null: 373
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 373
+      out_of_vocab: []
+      never_emitted:
+      - pan_lineage_evidence_only
+      - within_indication
+      - within_indication_mut_vs_pan_wt
+      top: pan_no_indication
+      saturation: 1.0
+  cited-literature-evidence:
+    cited_evidence_status:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - insufficient
+      - no_evidence
+      - ok
+      observed:
+        ok: 502
+        no_evidence: 2
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      - insufficient
+      top: ok
+      saturation: 0.996
+  clingen-dosage:
+    dosage_sensitivity_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - autosomal_dominant_loss
+      - dosage_sufficient
+      - insufficient
+      - no_clingen_entry
+      - unresolved
+      observed:
+        autosomal_dominant_loss: 210
+        insufficient: 210
+        unresolved: 59
+        dosage_sufficient: 25
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - no_clingen_entry
+      top: autosomal_dominant_loss
+      saturation: 0.4167
+    germline_inheritance_mode:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - dominant
+      - dominant_and_recessive
+      - insufficient
+      - no_mendelian_disease
+      - recessive_only
+      - xlinked_or_other
+      observed:
+        dominant: 210
+        insufficient: 210
+        no_mendelian_disease: 43
+        recessive_only: 25
+        xlinked_or_other: 16
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - dominant_and_recessive
+      top: dominant
+      saturation: 0.4167
+  clinvar-pathogenicity-safety:
+    clinvar_pathogenic_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - germline_pathogenic
+      - germline_pathogenic_low_review
+      - insufficient
+      - no_clinvar_entry
+      - no_pathogenic_signal
+      - somatic_only
+      observed:
+        germline_pathogenic: 339
+        no_pathogenic_signal: 137
+        germline_pathogenic_low_review: 25
+        insufficient: 3
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - no_clinvar_entry
+      - somatic_only
+      top: germline_pathogenic
+      saturation: 0.6726
+  co-mutation-and-mutual-exclusivity:
+    cooccurrence_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - both_patterns_present
+      - data_unavailable
+      - modest_cooccurring
+      - modest_mutually_exclusive
+      - ns
+      - strong_cooccurring
+      - strong_mutually_exclusive
+      observed:
+        strong_cooccurring: 98
+        both_patterns_present: 48
+        ns: 38
+        modest_cooccurring: 10
+        strong_mutually_exclusive: 1
+      n_non_null: 195
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 195
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      - modest_mutually_exclusive
+      top: strong_cooccurring
+      saturation: 0.5026
+    has_cooccurring_driver:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - 'false'
+      - 'true'
+      observed:
+        'true': 146
+        'false': 49
+      n_non_null: 195
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 195
+      out_of_vocab: []
+      never_emitted: []
+      top: 'true'
+      saturation: 0.7487
+      emitted_types:
+        bool: 195
+  coessential-module:
+    coessential_module_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - in_coherent_module
+      - isolated_dependency
+      - sparse_module
+      observed:
+        sparse_module: 205
+        in_coherent_module: 148
+        isolated_dependency: 65
+      n_non_null: 418
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 418
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: sparse_module
+      saturation: 0.4904
+  combinatorial-dependency:
+    combinatorial_dependency_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - context_synthetic_lethal
+      - data_unavailable
+      - no_interaction
+      - no_paralog_screened
+      - strong_synthetic_lethal
+      - suppressive_interaction
+      observed:
+        context_synthetic_lethal: 187
+        no_paralog_screened: 145
+        no_interaction: 98
+        strong_synthetic_lethal: 71
+        suppressive_interaction: 1
+      n_non_null: 502
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 502
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: context_synthetic_lethal
+      saturation: 0.3725
+  combo-chemical-synergy:
+    synergy_opportunity_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - context_synergy_opportunity
+      - data_unavailable
+      - no_synergy_screen
+      - no_synergy_signal
+      - strong_synergy_opportunity
+      - synergy_opportunity
+      observed:
+        no_synergy_screen: 402
+        synergy_opportunity: 98
+        context_synergy_opportunity: 1
+        strong_synergy_opportunity: 1
+      n_non_null: 502
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 502
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      - no_synergy_signal
+      top: no_synergy_screen
+      saturation: 0.8008
+  combo-crispr-screen:
+    combination_opportunity_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - combination_opportunity
+      - context_combination_opportunity
+      - data_unavailable
+      - no_anchor_screen
+      - no_combination_signal
+      - strong_combination_opportunity
+      observed:
+        no_anchor_screen: 485
+        strong_combination_opportunity: 9
+        combination_opportunity: 8
+      n_non_null: 502
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 502
+      out_of_vocab: []
+      never_emitted:
+      - context_combination_opportunity
+      - data_unavailable
+      - no_combination_signal
+      top: no_anchor_screen
+      saturation: 0.9661
+    combination_opportunity_class_prefloor:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - combination_opportunity
+      - context_combination_opportunity
+      - data_unavailable
+      - no_anchor_screen
+      - no_combination_signal
+      - strong_combination_opportunity
+      observed:
+        no_anchor_screen: 485
+        strong_combination_opportunity: 9
+        combination_opportunity: 8
+      n_non_null: 502
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 502
+      out_of_vocab: []
+      never_emitted:
+      - context_combination_opportunity
+      - data_unavailable
+      - no_combination_signal
+      top: no_anchor_screen
+      saturation: 0.9661
+  competitor-landscape:
+    competitor_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - active_clinical_competitor
+      - approved_competitor
+      - early_or_preclinical_competitor
+      - insufficient
+      - no_known_competitor
+      observed:
+        no_known_competitor: 272
+        active_clinical_competitor: 171
+        approved_competitor: 61
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - early_or_preclinical_competitor
+      - insufficient
+      top: no_known_competitor
+      saturation: 0.5397
+    indication_scope:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - indication
+      - target_level
+      observed:
+        indication: 291
+        target_level: 213
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted: []
+      top: indication
+      saturation: 0.5774
+  copy-number-distribution:
+    cn_assay_used:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - wes
+      - wgs
+      observed:
+        wgs: 502
+        data_unavailable: 2
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - wes
+      top: wgs
+      saturation: 0.996
+    cn_distribution_shape:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - amp_dominant
+      - bimodal_mixed
+      - del_dominant
+      - dispersed_neutral
+      - tight_neutral
+      - unclassified
+      observed:
+        del_dominant: 296
+        dispersed_neutral: 102
+        bimodal_mixed: 59
+        amp_dominant: 23
+        tight_neutral: 17
+        unclassified: 7
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted: []
+      top: del_dominant
+      saturation: 0.5873
+    cn_homozygous_deletion_recurrent:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - not_recurrent_homozygous_deletion
+      - recurrent_homozygous_deletion
+      observed:
+        not_recurrent_homozygous_deletion: 492
+        recurrent_homozygous_deletion: 10
+        data_unavailable: 2
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted: []
+      top: not_recurrent_homozygous_deletion
+      saturation: 0.9762
+    copy_number_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - broadly_neutral
+      - data_unavailable
+      - mixed
+      - recurrently_amplified
+      - recurrently_deleted
+      - underpowered
+      observed:
+        recurrently_deleted: 296
+        broadly_neutral: 183
+        recurrently_amplified: 23
+        data_unavailable: 2
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - mixed
+      - underpowered
+      top: recurrently_deleted
+      saturation: 0.5873
+    patient_copy_number_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - broadly_neutral
+      - data_unavailable
+      - mixed
+      - recurrently_amplified
+      - recurrently_deleted
+      - underpowered
+      observed:
+        recurrently_amplified: 137
+        recurrently_deleted: 135
+        broadly_neutral: 104
+        data_unavailable: 97
+        mixed: 31
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - underpowered
+      top: recurrently_amplified
+      saturation: 0.2718
+    patient_focal_cn_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - focal_neutral
+      - recurrent_focal_amplification
+      - recurrent_focal_deletion
+      - underpowered
+      observed:
+        focal_neutral: 381
+        data_unavailable: 97
+        recurrent_focal_amplification: 19
+        recurrent_focal_deletion: 7
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - underpowered
+      top: focal_neutral
+      saturation: 0.756
+  copy-number-stratified-dependency:
+    cn_stratification_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - amplified_moderately_dependent
+      - amplified_strongly_dependent
+      - data_unavailable
+      - insufficient_amplification_rate
+      - neutral_strongly_dependent
+      - not_cn_stratified
+      observed:
+        not_cn_stratified: 256
+        insufficient_amplification_rate: 171
+        amplified_moderately_dependent: 62
+        amplified_strongly_dependent: 13
+      n_non_null: 502
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 502
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      - neutral_strongly_dependent
+      top: not_cn_stratified
+      saturation: 0.51
+    evidence_scope:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - pan_lineage_evidence_only
+      - pan_no_indication
+      - within_indication
+      - within_indication_mut_vs_pan_wt
+      observed:
+        pan_lineage_evidence_only: 440
+        within_indication: 61
+        within_indication_mut_vs_pan_wt: 1
+      n_non_null: 502
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 502
+      out_of_vocab: []
+      never_emitted:
+      - pan_no_indication
+      top: pan_lineage_evidence_only
+      saturation: 0.8765
+  crispr-rnai-dependency-concordance:
+    concordance_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - discordant
+      - moderately_concordant_dependent
+      - moderately_concordant_non_dependent
+      - partially_assayed
+      - strongly_concordant_dependent
+      - strongly_concordant_non_dependent
+      observed:
+        strongly_concordant_non_dependent: 276
+        moderately_concordant_non_dependent: 105
+        discordant: 62
+        strongly_concordant_dependent: 33
+        moderately_concordant_dependent: 20
+      n_non_null: 496
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 496
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      - partially_assayed
+      top: strongly_concordant_non_dependent
+      saturation: 0.5565
+  cross-consortium-dependency:
+    cross_consortium_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - concordant_dependent
+      - concordant_non_dependent
+      - data_unavailable
+      - discordant
+      - single_consortium_only
+      observed:
+        concordant_non_dependent: 304
+        concordant_dependent: 184
+        discordant: 16
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      - single_consortium_only
+      top: concordant_non_dependent
+      saturation: 0.6032
+  cross-consortium-paralog-gi:
+    cross_consortium_paralog_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - corroborated_multi_consortium
+      - data_unavailable
+      - no_cross_consortium_signal
+      - not_screened_off_panel
+      - single_consortium_corroboration
+      observed:
+        not_screened_off_panel: 228
+        no_cross_consortium_signal: 224
+        single_consortium_corroboration: 50
+      n_non_null: 502
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 502
+      out_of_vocab: []
+      never_emitted:
+      - corroborated_multi_consortium
+      - data_unavailable
+      top: not_screened_off_panel
+      saturation: 0.4542
+    dede_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - constitutive_buffering
+      - context_buffering
+      - data_unavailable
+      - no_interaction
+      - not_screened
+      - suppressive
+      observed:
+        not_screened: 441
+        no_interaction: 53
+        constitutive_buffering: 4
+        context_buffering: 4
+      n_non_null: 502
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 502
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      - suppressive
+      top: not_screened
+      saturation: 0.8785
+    in4mer_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - constitutive_buffering
+      - context_buffering
+      - data_unavailable
+      - no_interaction
+      - not_screened
+      - suppressive
+      observed:
+        no_interaction: 230
+        not_screened: 230
+        constitutive_buffering: 42
+      n_non_null: 502
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 502
+      out_of_vocab: []
+      never_emitted:
+      - context_buffering
+      - data_unavailable
+      - suppressive
+      top: no_interaction
+      saturation: 0.4582
+  ddr-deficiency-context:
+    ddr_context_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - hrd_enriched
+      - hrd_intermediate
+      - hrd_low
+      observed:
+        hrd_intermediate: 172
+        hrd_low: 121
+        hrd_enriched: 80
+      n_non_null: 373
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 373
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: hrd_intermediate
+      saturation: 0.4611
+  degradation-feasibility:
+    degradability_feasibility_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - plausible_untested
+      - precedented_degradable
+      - ubiquitination_substrate
+      - unfavorable_location
+      observed:
+        ubiquitination_substrate: 196
+        unfavorable_location: 181
+        plausible_untested: 111
+        precedented_degradable: 14
+      n_non_null: 502
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 502
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: ubiquitination_substrate
+      saturation: 0.3904
+    degrader_precedent_modality:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - PROTAC
+      - molecular_glue
+      observed:
+        PROTAC: 14
+      n_non_null: 14
+      n_null: 488
+      n_absent: 0
+      n_packages_with_card: 502
+      out_of_vocab: []
+      never_emitted:
+      - molecular_glue
+      top: PROTAC
+      saturation: 1.0
+    degrader_recruited_e3:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - CRBN
+      - CRBN/VHL
+      - DCAF15
+      - IAP
+      - MDM2
+      - VHL
+      observed:
+        CRBN: 10
+        CRBN/VHL: 4
+      n_non_null: 14
+      n_null: 488
+      n_absent: 0
+      n_packages_with_card: 502
+      out_of_vocab: []
+      never_emitted:
+      - DCAF15
+      - IAP
+      - MDM2
+      - VHL
+      top: CRBN
+      saturation: 0.7143
+    e3_substrate_evidence:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - literature
+      - none_in_ubibrowser
+      - predicted_only
+      observed:
+        literature: 297
+        predicted_only: 204
+        none_in_ubibrowser: 1
+      n_non_null: 502
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 502
+      out_of_vocab: []
+      never_emitted: []
+      top: literature
+      saturation: 0.5916
+  dependency-lineage-selectivity:
+    enrichment_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - broadly_lineage_dependent
+      - data_unavailable
+      - lineage_selective
+      - no_lineage_enrichment
+      observed:
+        no_lineage_enrichment: 347
+        lineage_selective: 113
+        broadly_lineage_dependent: 44
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: no_lineage_enrichment
+      saturation: 0.6885
+    indication_dependency_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - dependent_not_enriched
+      - indication_not_supplied
+      - not_dependent_in_indication
+      - not_in_panel
+      - selective_in_indication
+      - underpowered
+      observed:
+        not_dependent_in_indication: 397
+        dependent_not_enriched: 97
+        selective_in_indication: 10
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      - indication_not_supplied
+      - not_in_panel
+      - underpowered
+      top: not_dependent_in_indication
+      saturation: 0.7877
+    lineage_omnibus_effect_size_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - large
+      - moderate
+      - negligible
+      observed:
+        negligible: 337
+        moderate: 127
+        large: 40
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: negligible
+      saturation: 0.6687
+  dependency-predictability:
+    pred_dominant_feature_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - arm_level_cn
+      - cross_gene_copy_number
+      - cross_gene_expression
+      - data_unavailable
+      - fusion
+      - lineage
+      - metabolomics
+      - methylation_tss
+      - mol_signature
+      - ms_protein
+      - msi_status
+      - oncokb_gof
+      - oncokb_lof
+      - own_copy_number
+      - own_expression
+      - own_mut_damaging
+      - own_mut_hotspot
+      - paralog_dep
+      - rppa_protein
+      - sv_gene
+      - unpredictable
+      observed:
+        unpredictable: 220
+        cross_gene_expression: 77
+        own_expression: 44
+        own_mut_hotspot: 36
+        mol_signature: 2
+        cross_gene_copy_number: 1
+        lineage: 1
+      n_non_null: 381
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 381
+      out_of_vocab: []
+      never_emitted:
+      - arm_level_cn
+      - data_unavailable
+      - fusion
+      - metabolomics
+      - methylation_tss
+      - ms_protein
+      - msi_status
+      - oncokb_gof
+      - oncokb_lof
+      - own_copy_number
+      - own_mut_damaging
+      - paralog_dep
+      - rppa_protein
+      - sv_gene
+      top: unpredictable
+      saturation: 0.5774
+    predictability_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - context_or_driver_dependent
+      - data_unavailable
+      - own_omics_driven
+      - unpredictable
+      - weakly_predictable
+      observed:
+        unpredictable: 220
+        weakly_predictable: 114
+        own_omics_driven: 27
+        context_or_driver_dependent: 20
+      n_non_null: 381
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 381
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: unpredictable
+      saturation: 0.5774
+  domain-modality-relevance:
+    modality_implication_basis:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - curated
+      - heuristic
+      - none
+      observed:
+        heuristic: 477
+        curated: 14
+      n_non_null: 491
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 491
+      out_of_vocab: []
+      never_emitted:
+      - none
+      top: heuristic
+      saturation: 0.9715
+    modality_implication_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - context_dependent
+      - data_unavailable
+      - indeterminate
+      - inhibitor_sufficient
+      - removal_favored
+      - removal_required_scaffolding
+      observed:
+        indeterminate: 226
+        removal_favored: 137
+        inhibitor_sufficient: 119
+        context_dependent: 9
+      n_non_null: 491
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 491
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      - removal_required_scaffolding
+      top: indeterminate
+      saturation: 0.4603
+  drug-warning-safety:
+    drug_warning_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - black_box_warned
+      - insufficient
+      - no_targeted_drug
+      - no_warning
+      - other_warning
+      - withdrawn_drug
+      observed:
+        no_warning: 227
+        no_targeted_drug: 166
+        black_box_warned: 94
+        withdrawn_drug: 17
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - insufficient
+      - other_warning
+      top: no_warning
+      saturation: 0.4504
+  expression-clinical-association:
+    survival_association_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - expression_high_better_survival
+      - expression_high_worse_survival
+      - insufficient_survival_data
+      - no_survival_association
+      observed:
+        no_survival_association: 307
+        insufficient_survival_data: 41
+        expression_high_worse_survival: 38
+        expression_high_better_survival: 21
+      n_non_null: 407
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 407
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: no_survival_association
+      saturation: 0.7543
+  expression-dependency-correlation:
+    correlation_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - moderate_negative
+      - no_correlation
+      - positive_anomaly
+      - strong_negative
+      - weak_negative
+      observed:
+        no_correlation: 290
+        weak_negative: 109
+        moderate_negative: 55
+        strong_negative: 50
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      - positive_anomaly
+      top: no_correlation
+      saturation: 0.5754
+  expression-purity-confound:
+    purity_confound_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - insufficient_paired_samples
+      - microenvironment_confounded
+      - purity_independent
+      - tumor_intrinsic
+      observed:
+        purity_independent: 330
+        insufficient_paired_samples: 40
+        microenvironment_confounded: 21
+        tumor_intrinsic: 17
+      n_non_null: 408
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 408
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: purity_independent
+      saturation: 0.8088
+  functional-gene-state:
+    functional_state_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - predominantly_monoallelic
+      - rarely_altered
+      - recurrent_biallelic_inactivation
+      - sporadic_biallelic_inactivation
+      observed:
+        sporadic_biallelic_inactivation: 328
+        rarely_altered: 85
+        recurrent_biallelic_inactivation: 46
+        predominantly_monoallelic: 42
+      n_non_null: 501
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 501
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: sporadic_biallelic_inactivation
+      saturation: 0.6547
+    sample_state:
+      grain: orphan
+      arity: none
+      status: field_absent
+      declared:
+      - biallelic+epigenetic
+      - biallelic-genetic
+      - epigenetic
+      - monoallelic
+      - uncertain
+      - wt
+      observed: {}
+      n_non_null: 0
+      n_null: 0
+      n_absent: 501
+      n_packages_with_card: 501
+      out_of_vocab: []
+      never_emitted:
+      - biallelic+epigenetic
+      - biallelic-genetic
+      - epigenetic
+      - monoallelic
+      - uncertain
+      - wt
+      top: null
+      saturation: null
+      saturation_na: 'arity=none: top/total is a token share, not a package share'
+      n_emissions: 0
+      n_empty_array: 0
+  fusion-rearrangement-landscape:
+    fusion_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - no_recurrent_fusion
+      - promiscuous_amplicon_fusion
+      - recurrent_fusion_driver
+      - sporadic_fusion
+      - underpowered
+      observed:
+        no_recurrent_fusion: 358
+        sporadic_fusion: 84
+        recurrent_fusion_driver: 20
+        data_unavailable: 9
+        promiscuous_amplicon_fusion: 5
+      n_non_null: 476
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 476
+      out_of_vocab: []
+      never_emitted:
+      - underpowered
+      top: no_recurrent_fusion
+      saturation: 0.7521
+    fusion_recurrence_confidence:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - high_recurrent_partner
+      - moderate_promiscuous
+      observed:
+        moderate_promiscuous: 19
+        high_recurrent_partner: 6
+      n_non_null: 25
+      n_null: 451
+      n_absent: 0
+      n_packages_with_card: 476
+      out_of_vocab: []
+      never_emitted: []
+      top: moderate_promiscuous
+      saturation: 0.76
+    genie_sv_recurrence_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - bottom_decile
+      - data_unavailable
+      - mid
+      - top_1pct
+      - top_decile
+      observed:
+        data_unavailable: 260
+        bottom_decile: 97
+        mid: 82
+        top_decile: 25
+        top_1pct: 12
+      n_non_null: 476
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 476
+      out_of_vocab: []
+      never_emitted: []
+      top: data_unavailable
+      saturation: 0.5462
+  fusion-stratified-dependency:
+    evidence_scope:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - pan_lineage_evidence_only
+      - pan_no_indication
+      - within_indication
+      - within_indication_mut_vs_pan_wt
+      observed:
+        pan_lineage_evidence_only: 484
+        within_indication: 19
+        within_indication_mut_vs_pan_wt: 1
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - pan_no_indication
+      top: pan_lineage_evidence_only
+      saturation: 0.9603
+    fusion_stratification_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - fusion_negative_strongly_dependent
+      - fusion_positive_moderately_dependent
+      - fusion_positive_strongly_dependent
+      - insufficient_fusion_rate
+      - not_fusion_stratified
+      observed:
+        not_fusion_stratified: 249
+        insufficient_fusion_rate: 209
+        fusion_positive_moderately_dependent: 40
+        fusion_positive_strongly_dependent: 5
+        fusion_negative_strongly_dependent: 1
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: not_fusion_stratified
+      saturation: 0.494
+    fusion_stratification_confound:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - alteration_confounded
+      - alteration_independent
+      - not_applicable
+      - unassessed
+      observed:
+        not_applicable: 459
+        alteration_confounded: 30
+        alteration_independent: 15
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - unassessed
+      top: not_applicable
+      saturation: 0.9107
+  gdsc-drug-activity:
+    gdsc_activity_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - moderate_activity
+      - no_compounds_found
+      - potent_activity
+      - weak_activity
+      observed:
+        no_compounds_found: 324
+        moderate_activity: 103
+        potent_activity: 52
+        weak_activity: 23
+      n_non_null: 502
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 502
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: no_compounds_found
+      saturation: 0.6454
+    resolved_via:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - direct
+      - hgnc_alias
+      observed:
+        direct: 149
+        hgnc_alias: 29
+      n_non_null: 178
+      n_null: 324
+      n_absent: 0
+      n_packages_with_card: 502
+      out_of_vocab: []
+      never_emitted: []
+      top: direct
+      saturation: 0.8371
+  gene-burden-safety:
+    burden_safety_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - direction_unresolved
+      - insufficient
+      - lof_risk_phenotype
+      - no_burden_signal
+      - protective
+      observed:
+        insufficient: 341
+        direction_unresolved: 72
+        lof_risk_phenotype: 66
+        protective: 15
+        no_burden_signal: 10
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted: []
+      top: insufficient
+      saturation: 0.6766
+  gene-ontology-annotation:
+    annotation_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - partial
+      - sparse
+      - well_annotated
+      observed:
+        well_annotated: 414
+        partial: 84
+        sparse: 1
+      n_non_null: 499
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 499
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: well_annotated
+      saturation: 0.8297
+  genomic-event-model-match:
+    event_correspondence_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - event_matched_dependent_in_lineage
+      - event_matched_dependent_off_lineage
+      - event_matched_not_dependent
+      - no_event_match
+      - no_target_event
+      observed:
+        no_target_event: 143
+        data_unavailable: 140
+        event_matched_dependent_in_lineage: 76
+        event_matched_not_dependent: 76
+        event_matched_dependent_off_lineage: 64
+        no_event_match: 2
+      n_non_null: 501
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 501
+      out_of_vocab: []
+      never_emitted: []
+      top: no_target_event
+      saturation: 0.2854
+    patient_event_state:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - activating_mutation
+      - biallelic-genetic
+      - monoallelic
+      observed:
+        monoallelic: 192
+        biallelic-genetic: 14
+        activating_mutation: 12
+      n_non_null: 218
+      n_null: 283
+      n_absent: 0
+      n_packages_with_card: 501
+      out_of_vocab: []
+      never_emitted: []
+      top: monoallelic
+      saturation: 0.8807
+    patient_functional_state_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - predominantly_monoallelic
+      - rarely_altered
+      - recurrent_biallelic_inactivation
+      - sporadic_biallelic_inactivation
+      observed:
+        sporadic_biallelic_inactivation: 328
+        rarely_altered: 85
+        recurrent_biallelic_inactivation: 46
+        predominantly_monoallelic: 42
+      n_non_null: 501
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 501
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: sporadic_biallelic_inactivation
+      saturation: 0.6547
+  genomic-instability-state:
+    aneuploidy_burden_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - highly_aneuploid
+      - intermediate_aneuploidy
+      - quiet_genome
+      observed:
+        highly_aneuploid: 212
+        intermediate_aneuploidy: 119
+        data_unavailable: 40
+        quiet_genome: 5
+      n_non_null: 376
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 376
+      out_of_vocab: []
+      never_emitted: []
+      top: highly_aneuploid
+      saturation: 0.5638
+    hrd_scar_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - hrd_enriched
+      - hrd_intermediate
+      - hrd_rare
+      observed:
+        hrd_enriched: 286
+        hrd_intermediate: 50
+        data_unavailable: 40
+      n_non_null: 376
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 376
+      out_of_vocab: []
+      never_emitted:
+      - hrd_rare
+      top: hrd_enriched
+      saturation: 0.7606
+    model_mmr_signature_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - mmr_signature_enriched
+      - mmr_signature_intermediate
+      - mmr_signature_rare
+      observed:
+        mmr_signature_rare: 177
+        mmr_signature_intermediate: 101
+        data_unavailable: 53
+        mmr_signature_enriched: 45
+      n_non_null: 376
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 376
+      out_of_vocab: []
+      never_emitted: []
+      top: mmr_signature_rare
+      saturation: 0.4707
+    model_msi_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - msi_high_enriched
+      - msi_intermediate
+      - mss_dominant
+      observed:
+        mss_dominant: 177
+        msi_intermediate: 101
+        data_unavailable: 53
+        msi_high_enriched: 45
+      n_non_null: 376
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 376
+      out_of_vocab: []
+      never_emitted: []
+      top: mss_dominant
+      saturation: 0.4707
+    msi_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - msi_high_enriched
+      - msi_intermediate
+      - mss_dominant
+      observed:
+        data_unavailable: 291
+        msi_intermediate: 45
+        msi_high_enriched: 40
+      n_non_null: 376
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 376
+      out_of_vocab: []
+      never_emitted:
+      - mss_dominant
+      top: data_unavailable
+      saturation: 0.7739
+    wgd_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - wgd_enriched
+      - wgd_intermediate
+      - wgd_rare
+      observed:
+        wgd_intermediate: 212
+        wgd_enriched: 119
+        data_unavailable: 40
+        wgd_rare: 5
+      n_non_null: 376
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 376
+      out_of_vocab: []
+      never_emitted: []
+      top: wgd_intermediate
+      saturation: 0.5638
+  gnomad-lof-constraint:
+    constraint_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - highly_constrained
+      - indeterminate
+      - moderately_constrained
+      - tolerant
+      observed:
+        highly_constrained: 300
+        tolerant: 138
+        moderately_constrained: 61
+        indeterminate: 5
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted: []
+      top: highly_constrained
+      saturation: 0.5952
+    human_ko_observed_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - constrained_no_ko
+      - data_unavailable
+      - natural_ko_observed
+      - no_natural_ko
+      observed:
+        constrained_no_ko: 278
+        no_natural_ko: 194
+        natural_ko_observed: 29
+        data_unavailable: 3
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted: []
+      top: constrained_no_ko
+      saturation: 0.5516
+  hpa-pathology-cancer-ihc:
+    prognostic_type:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - favorable
+      - none
+      - unfavorable
+      observed:
+        none: 281
+        unfavorable: 16
+        favorable: 9
+      n_non_null: 306
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 306
+      out_of_vocab: []
+      never_emitted: []
+      top: none
+      saturation: 0.9183
+    protein_presence_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - ihc_detected_high
+      - ihc_detected_low
+      - ihc_detected_moderate
+      - ihc_not_detected
+      observed:
+        ihc_detected_high: 194
+        ihc_detected_moderate: 43
+        ihc_detected_low: 39
+        ihc_not_detected: 30
+      n_non_null: 306
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 306
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: ihc_detected_high
+      saturation: 0.634
+  ici-response-association:
+    ici_response_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - higher_in_nonresponders
+      - higher_in_responders
+      - no_ici_association
+      observed:
+        higher_in_nonresponders: 4
+        higher_in_responders: 1
+      n_non_null: 5
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 5
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      - no_ici_association
+      top: higher_in_nonresponders
+      saturation: 0.8
+  ici-response-imvigor210:
+    ici_response_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - higher_in_nonresponders
+      - higher_in_responders
+      - no_ici_association
+      observed:
+        no_ici_association: 3
+      n_non_null: 3
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 3
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      - higher_in_nonresponders
+      - higher_in_responders
+      top: no_ici_association
+      saturation: 1.0
+    immune_phenotype_enriched_in:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - desert
+      - excluded
+      - inflamed
+      observed:
+        desert: 2
+        excluded: 1
+      n_non_null: 3
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 3
+      out_of_vocab: []
+      never_emitted:
+      - inflamed
+      top: desert
+      saturation: 0.6667
+  immune-context:
+    antigen_conditioned_call:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - antigen_high_immune_cold
+      - antigen_high_immune_hot
+      - antigen_high_immune_intermediate
+      - antigen_high_is_colder
+      - data_unavailable
+      observed:
+        antigen_high_immune_intermediate: 217
+        antigen_high_is_colder: 62
+        data_unavailable: 54
+        antigen_high_immune_cold: 48
+        antigen_high_immune_hot: 37
+      n_non_null: 418
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 418
+      out_of_vocab: []
+      never_emitted: []
+      top: antigen_high_immune_intermediate
+      saturation: 0.5191
+    immune_context_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - immune_cold
+      - immune_hot
+      - immune_intermediate
+      - lymphoid_denominator_unreliable
+      observed:
+        immune_intermediate: 314
+        lymphoid_denominator_unreliable: 47
+        immune_cold: 31
+        immune_hot: 26
+      n_non_null: 418
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 418
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: immune_intermediate
+      saturation: 0.7512
+  known-drug-tractability:
+    approved_drug_engagement_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - approved_biologic_only
+      - approved_direct
+      - approved_indirect_only
+      - not_approved
+      observed:
+        approved_direct: 233
+        approved_indirect_only: 175
+        not_approved: 85
+        approved_biologic_only: 9
+      n_non_null: 502
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 502
+      out_of_vocab: []
+      never_emitted: []
+      top: approved_direct
+      saturation: 0.4641
+    approved_drug_modality:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - biologic
+      - not_applicable
+      - small_molecule_or_unknown
+      observed:
+        small_molecule_or_unknown: 408
+        not_applicable: 85
+        biologic: 9
+      n_non_null: 502
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 502
+      out_of_vocab: []
+      never_emitted: []
+      top: small_molecule_or_unknown
+      saturation: 0.8127
+    direct_engagement_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - direct_typed
+      - indirect_or_untyped_only
+      - sparse_direct
+      - unmeasured
+      observed:
+        direct_typed: 250
+        indirect_or_untyped_only: 146
+        sparse_direct: 106
+      n_non_null: 502
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 502
+      out_of_vocab: []
+      never_emitted:
+      - unmeasured
+      top: direct_typed
+      saturation: 0.498
+    known_drug_tractability_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - approved_drug_tractable
+      - category_only
+      - clinically_actionable
+      - druggable_genome
+      - interaction_only
+      - no_known_drug_evidence
+      observed:
+        approved_drug_tractable: 417
+        clinically_actionable: 40
+        druggable_genome: 19
+        category_only: 10
+        no_known_drug_evidence: 10
+        interaction_only: 6
+      n_non_null: 502
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 502
+      out_of_vocab: []
+      never_emitted: []
+      top: approved_drug_tractable
+      saturation: 0.8307
+  measured-potency-tractability:
+    chembl_approved_engagement_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - approved_direct
+      - approved_indirect_only
+      - not_chembl_approved
+      observed:
+        approved_direct: 228
+        not_chembl_approved: 202
+        approved_indirect_only: 72
+      n_non_null: 502
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 502
+      out_of_vocab: []
+      never_emitted: []
+      top: approved_direct
+      saturation: 0.4542
+    chembl_clinical_phase_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - approved
+      - clinical
+      - data_unavailable
+      - preclinical_or_none
+      observed:
+        approved: 300
+        clinical: 81
+        data_unavailable: 74
+        preclinical_or_none: 47
+      n_non_null: 502
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 502
+      out_of_vocab: []
+      never_emitted: []
+      top: approved
+      saturation: 0.5976
+    measured_bioactivity_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - no_measured_activity
+      - potent_measured_ligand
+      - weak_measured_ligand
+      observed:
+        potent_measured_ligand: 325
+        weak_measured_ligand: 78
+        data_unavailable: 74
+        no_measured_activity: 25
+      n_non_null: 502
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 502
+      out_of_vocab: []
+      never_emitted: []
+      top: potent_measured_ligand
+      saturation: 0.6474
+  modality-exon-window:
+    exon_window_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - essential_exon_liability
+      - exon_heterogeneity_flag
+      - not_expressed_in_cohort
+      - not_in_product
+      - uniform_gene_window
+      observed:
+        not_in_product: 320
+        essential_exon_liability: 118
+        not_expressed_in_cohort: 12
+        exon_heterogeneity_flag: 1
+      n_non_null: 451
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 451
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      - uniform_gene_window
+      top: not_in_product
+      saturation: 0.7095
+  modality-therapeutic-window:
+    full_normal_window_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - clean_full_normal_window
+      - data_unavailable
+      - narrow_full_normal_window
+      - no_full_normal_window
+      - not_expressed_in_cohort
+      observed:
+        no_full_normal_window: 291
+        narrow_full_normal_window: 40
+        not_expressed_in_cohort: 31
+        clean_full_normal_window: 4
+      n_non_null: 366
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 366
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: no_full_normal_window
+      saturation: 0.7951
+    therapeutic_window_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - clean_window
+      - data_unavailable
+      - narrow_window
+      - no_therapeutic_window
+      - not_expressed_in_cohort
+      observed:
+        no_therapeutic_window: 265
+        narrow_window: 62
+        not_expressed_in_cohort: 31
+        clean_window: 8
+      n_non_null: 366
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 366
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: no_therapeutic_window
+      saturation: 0.724
+    window_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - clean_window
+      - data_unavailable
+      - essential_tissue_liability
+      - narrow_window
+      - not_expressed_in_cohort
+      observed:
+        essential_tissue_liability: 333
+        not_expressed_in_cohort: 31
+        clean_window: 2
+      n_non_null: 366
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 366
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      - narrow_window
+      top: essential_tissue_liability
+      saturation: 0.9098
+  mouse-ko-phenotype:
+    impc_ko_phenotype_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - developmental_only
+      - insufficient
+      - lethal_ko
+      - mild_phenotype
+      - no_phenotype
+      - severe_organ_phenotype
+      observed:
+        no_phenotype: 279
+        developmental_only: 134
+        severe_organ_phenotype: 51
+        mild_phenotype: 37
+      n_non_null: 501
+      n_null: 0
+      n_absent: 3
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - insufficient
+      - lethal_ko
+      top: no_phenotype
+      saturation: 0.5569
+    impc_viability_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - lethal_preweaning
+      - subviable
+      - unknown
+      - unmeasured
+      - viable
+      observed:
+        unmeasured: 275
+        lethal_preweaning: 94
+        unknown: 58
+        viable: 47
+        subviable: 27
+      n_non_null: 501
+      n_null: 0
+      n_absent: 3
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted: []
+      top: unmeasured
+      saturation: 0.5489
+    ko_phenotype_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - developmental_only
+      - insufficient
+      - lethal_ko
+      - mild_phenotype
+      - no_phenotype
+      - severe_organ_phenotype
+      observed:
+        developmental_only: 199
+        lethal_ko: 157
+        severe_organ_phenotype: 102
+        insufficient: 33
+        mild_phenotype: 13
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - no_phenotype
+      top: developmental_only
+      saturation: 0.3948
+  mutation-drug-response:
+    drug_response_stratification_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - insufficient_mutant_or_drug_data
+      - mutant_drug_resistant
+      - mutant_moderately_drug_sensitive
+      - mutant_strongly_drug_sensitive
+      - no_on_target_compound
+      - not_drug_response_stratified
+      observed:
+        no_on_target_compound: 286
+        not_drug_response_stratified: 104
+        insufficient_mutant_or_drug_data: 61
+        mutant_strongly_drug_sensitive: 41
+        mutant_moderately_drug_sensitive: 9
+        mutant_drug_resistant: 2
+      n_non_null: 503
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 503
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: no_on_target_compound
+      saturation: 0.5686
+  mutation-hotspot-frequency:
+    driver_recurrence_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - bottom_decile
+      - data_unavailable
+      - mid
+      - top_1pct
+      - top_decile
+      observed:
+        mid: 205
+        bottom_decile: 68
+        top_1pct: 51
+        top_decile: 49
+      n_non_null: 373
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 373
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: mid
+      saturation: 0.5496
+    genie_driver_recurrence_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - bottom_decile
+      - data_unavailable
+      - mid
+      - top_1pct
+      - top_decile
+      observed:
+        mid: 194
+        data_unavailable: 108
+        top_decile: 39
+        bottom_decile: 22
+        top_1pct: 10
+      n_non_null: 373
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 373
+      out_of_vocab: []
+      never_emitted: []
+      top: mid
+      saturation: 0.5201
+    pooled_driver_recurrence_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - bottom_decile
+      - data_unavailable
+      - mid
+      - top_1pct
+      - top_decile
+      observed:
+        mid: 188
+        top_decile: 70
+        top_1pct: 62
+        data_unavailable: 28
+        bottom_decile: 25
+      n_non_null: 373
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 373
+      out_of_vocab: []
+      never_emitted: []
+      top: mid
+      saturation: 0.504
+  mutation-stratified-dependency:
+    evidence_scope:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - pan_lineage_evidence_only
+      - pan_no_indication
+      - within_indication
+      - within_indication_mut_vs_pan_wt
+      observed:
+        pan_lineage_evidence_only: 441
+        within_indication: 54
+        within_indication_mut_vs_pan_wt: 8
+      n_non_null: 503
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 503
+      out_of_vocab: []
+      never_emitted:
+      - pan_no_indication
+      top: pan_lineage_evidence_only
+      saturation: 0.8767
+    mutation_stratification_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - insufficient_mutation_rate
+      - mutant_moderately_dependent
+      - mutant_strongly_dependent
+      - not_mutation_stratified
+      - wt_strongly_dependent
+      observed:
+        not_mutation_stratified: 274
+        insufficient_mutation_rate: 123
+        mutant_moderately_dependent: 83
+        mutant_strongly_dependent: 21
+        wt_strongly_dependent: 2
+      n_non_null: 503
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 503
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: not_mutation_stratified
+      saturation: 0.5447
+  mutation-stratified-surface:
+    mutant_stratified_surface_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - mutant_down_surface
+      - mutant_up_surface
+      - not_in_product
+      - not_stratified
+      - underpowered
+      observed:
+        not_in_product: 499
+        mutant_up_surface: 1
+        not_stratified: 1
+      n_non_null: 501
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 501
+      out_of_vocab: []
+      never_emitted:
+      - mutant_down_surface
+      - underpowered
+      top: not_in_product
+      saturation: 0.996
+  mutation-type-counts:
+    mut_dominant_mutation_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - inframe_indel
+      - lof
+      - missense
+      - mixed
+      - none
+      observed:
+        missense: 457
+        lof: 44
+        none: 3
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - inframe_indel
+      - mixed
+      top: missense
+      saturation: 0.9067
+    mutation_landscape_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - lof_dominant
+      - missense_dominant
+      - mixed
+      - no_mutations
+      - underpowered
+      observed:
+        missense_dominant: 377
+        mixed: 81
+        lof_dominant: 43
+        no_mutations: 3
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      - underpowered
+      top: missense_dominant
+      saturation: 0.748
+  mutational-signature-context:
+    apobec_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - enriched
+      - intermediate
+      - rare
+      observed:
+        rare: 227
+        intermediate: 183
+        enriched: 3
+      n_non_null: 413
+      n_null: 0
+      n_absent: 91
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: rare
+      saturation: 0.5496
+    clock_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - enriched
+      - intermediate
+      - rare
+      observed:
+        enriched: 368
+        intermediate: 40
+        rare: 5
+      n_non_null: 413
+      n_null: 0
+      n_absent: 91
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: enriched
+      saturation: 0.891
+    dominant_process:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - apobec
+      - data_unavailable
+      - hrd
+      - mmr_deficiency
+      - no_dominant_process
+      - pole
+      - tobacco
+      - uv
+      observed:
+        apobec: 126
+        no_dominant_process: 116
+        data_unavailable: 91
+        mmr_deficiency: 85
+        tobacco: 60
+        hrd: 21
+        uv: 5
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - pole
+      top: apobec
+      saturation: 0.25
+    hrd_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - enriched
+      - intermediate
+      - rare
+      observed:
+        rare: 392
+        intermediate: 21
+      n_non_null: 413
+      n_null: 0
+      n_absent: 91
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      - enriched
+      top: rare
+      saturation: 0.9492
+    mmr_deficiency_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - enriched
+      - intermediate
+      - rare
+      observed:
+        rare: 328
+        intermediate: 85
+      n_non_null: 413
+      n_null: 0
+      n_absent: 91
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      - enriched
+      top: rare
+      saturation: 0.7942
+    pole_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - enriched
+      - intermediate
+      - rare
+      observed:
+        rare: 413
+      n_non_null: 413
+      n_null: 0
+      n_absent: 91
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      - enriched
+      - intermediate
+      top: rare
+      saturation: 1.0
+    tobacco_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - enriched
+      - intermediate
+      - rare
+      observed:
+        rare: 313
+        enriched: 60
+        intermediate: 40
+      n_non_null: 413
+      n_null: 0
+      n_absent: 91
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: rare
+      saturation: 0.7579
+    uv_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - enriched
+      - intermediate
+      - rare
+      observed:
+        rare: 408
+        enriched: 5
+      n_non_null: 413
+      n_null: 0
+      n_absent: 91
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      - intermediate
+      top: rare
+      saturation: 0.9879
+  myeloid-compartment-expression-cheng:
+    myeloid_expression_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - myeloid_broadly_detected
+      - myeloid_low
+      - myeloid_subset_detected
+      observed:
+        myeloid_broadly_detected: 208
+        myeloid_subset_detected: 167
+        myeloid_low: 85
+      n_non_null: 460
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 460
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: myeloid_broadly_detected
+      saturation: 0.4522
+  normal-tissue-liability:
+    essential_tissue_flag:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - absent
+      - present
+      - unknown
+      observed:
+        present: 281
+        absent: 149
+        unknown: 74
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted: []
+      top: present
+      saturation: 0.5575
+    normal_tissue_breadth_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - broad_normal_expression
+      - data_unavailable
+      - moderate_normal_expression
+      - not_detected_in_normal
+      - restricted_normal_expression
+      observed:
+        broad_normal_expression: 262
+        not_detected_in_normal: 96
+        moderate_normal_expression: 81
+        restricted_normal_expression: 65
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: broad_normal_expression
+      saturation: 0.5198
+    safety_tissue_flags:
+      grain: scalar
+      arity: array
+      status: observed
+      declared:
+      - broad
+      - essential_from_broad_detection
+      - essential_tissue
+      - gi_tract
+      observed:
+        broad: 262
+        essential_tissue: 224
+        gi_tract: 73
+        essential_from_broad_detection: 57
+      n_non_null: 616
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted: []
+      top: broad
+      saturation: null
+      saturation_na: 'arity=array: top/total is a token share, not a package share'
+      n_emissions: 504
+      n_empty_array: 148
+  normal-tissue-liability-gtex:
+    liability_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - broadly_expressed_normal
+      - critical_organ_liability
+      - data_unavailable
+      - moderate_normal_breadth
+      - restricted_normal
+      observed:
+        critical_organ_liability: 227
+        broadly_expressed_normal: 196
+        restricted_normal: 54
+        moderate_normal_breadth: 27
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: critical_organ_liability
+      saturation: 0.4504
+  normal-tissue-protein-abundance-tphp:
+    fetal_vs_adult_flag:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - adult_and_fetal
+      - adult_only
+      - data_unavailable
+      - fetal_only
+      - none
+      observed:
+        adult_and_fetal: 436
+        adult_only: 7
+        fetal_only: 5
+      n_non_null: 448
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 448
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      - none
+      top: adult_and_fetal
+      saturation: 0.9732
+    normal_protein_breadth_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - broad_normal_protein
+      - data_unavailable
+      - moderate_normal_protein
+      - not_detected_in_normal_protein
+      - restricted_normal_protein
+      observed:
+        broad_normal_protein: 273
+        moderate_normal_protein: 93
+        restricted_normal_protein: 77
+        not_detected_in_normal_protein: 5
+      n_non_null: 448
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 448
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: broad_normal_protein
+      saturation: 0.6094
+    tissue_category:
+      grain: orphan
+      arity: none
+      status: field_absent
+      declared:
+      - blood_compartment
+      - body_fluid
+      - fetal_germ_layer
+      - non_tissue
+      - solid_tissue
+      - unassignable
+      observed: {}
+      n_non_null: 0
+      n_null: 0
+      n_absent: 448
+      n_packages_with_card: 448
+      out_of_vocab: []
+      never_emitted:
+      - blood_compartment
+      - body_fluid
+      - fetal_germ_layer
+      - non_tissue
+      - solid_tissue
+      - unassignable
+      top: null
+      saturation: null
+      saturation_na: 'arity=none: top/total is a token share, not a package share'
+      n_emissions: 0
+      n_empty_array: 0
+    tphp_hpa_blind_vital_organ_liability_class:
+      grain: scalar
+      arity: none
+      status: field_absent
+      declared:
+      - data_unavailable
+      - no_vital_organ_signal
+      - vital_organ_abundant
+      - vital_organ_low
+      observed: {}
+      n_non_null: 0
+      n_null: 0
+      n_absent: 448
+      n_packages_with_card: 448
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      - no_vital_organ_signal
+      - vital_organ_abundant
+      - vital_organ_low
+      top: null
+      saturation: null
+      saturation_na: 'arity=none: top/total is a token share, not a package share'
+      n_emissions: 0
+      n_empty_array: 0
+    tphp_normal_protein_liability_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - broad_and_abundant
+      - data_unavailable
+      - detected_not_abundant
+      - restricted
+      observed:
+        detected_not_abundant: 188
+        restricted: 175
+        broad_and_abundant: 85
+      n_non_null: 448
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 448
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: detected_not_abundant
+      saturation: 0.4196
+    tphp_vital_organ_liability_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - no_vital_organ_signal
+      - vital_organ_abundant
+      - vital_organ_low
+      observed:
+        vital_organ_low: 242
+        vital_organ_abundant: 172
+        no_vital_organ_signal: 34
+      n_non_null: 448
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 448
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: vital_organ_low
+      saturation: 0.5402
+  oncogenic-pathway-alteration:
+    oncogenic_pathway_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - frequently_altered
+      - profiled
+      observed:
+        frequently_altered: 352
+        profiled: 21
+      n_non_null: 373
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 373
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: frequently_altered
+      saturation: 0.9437
+  onsides-adverse-event-safety:
+    onsides_ade_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - boxed_warning_ade
+      - labeled_ade_profile
+      - no_mapped_drug_ade
+      observed:
+        no_mapped_drug_ade: 270
+        labeled_ade_profile: 140
+        boxed_warning_ade: 92
+      n_non_null: 502
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 502
+      out_of_vocab: []
+      never_emitted: []
+      top: no_mapped_drug_ade
+      saturation: 0.5378
+  organoid-crispr-dependency:
+    organoid_dependency_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - broad_organoid_dependency
+      - data_unavailable
+      - not_organoid_dependent
+      - pan_organoid_essential
+      - rare_organoid_dependency
+      - selective_organoid_dependency
+      observed:
+        not_organoid_dependent: 250
+        broad_organoid_dependency: 87
+        rare_organoid_dependency: 86
+        selective_organoid_dependency: 46
+        pan_organoid_essential: 31
+      n_non_null: 500
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 500
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: not_organoid_dependent
+      saturation: 0.5
+  pan-cancer-crispr-dependency-distribution:
+    broad_dependency_band:
+      grain: scalar
+      arity: none
+      status: field_absent
+      declared:
+      - below_band
+      - pan_essential_band
+      - partial_broad_band
+      observed: {}
+      n_non_null: 0
+      n_null: 0
+      n_absent: 504
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - below_band
+      - pan_essential_band
+      - partial_broad_band
+      top: null
+      saturation: null
+      saturation_na: 'arity=none: top/total is a token share, not a package share'
+      n_emissions: 0
+      n_empty_array: 0
+    dep_control_position_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - as_essential_as_pan_essential
+      - between_controls
+      - data_unavailable
+      - non_dependent_near_negatives
+      observed:
+        between_controls: 332
+        non_dependent_near_negatives: 141
+        as_essential_as_pan_essential: 31
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: between_controls
+      saturation: 0.6587
+    dependency_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - broadly_dependent
+      - common_essential
+      - common_essential_unanchored
+      - common_essential_underpowered
+      - data_unavailable
+      - non_dependent
+      - non_dependent_underpowered
+      - strongly_selective
+      observed:
+        non_dependent: 359
+        broadly_dependent: 62
+        strongly_selective: 44
+        common_essential: 22
+        non_dependent_underpowered: 17
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - common_essential_unanchored
+      - common_essential_underpowered
+      - data_unavailable
+      top: non_dependent
+      saturation: 0.7123
+    distribution_shape:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - bimodal_selective
+      - non_essential
+      - pan_essential
+      - shifted_dependent
+      - unclassified
+      observed:
+        non_essential: 376
+        shifted_dependent: 51
+        bimodal_selective: 44
+        pan_essential: 33
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - unclassified
+      top: non_essential
+      saturation: 0.746
+    pan_essential_fraction_call:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - broadly_dependent
+      - common_essential
+      - common_essential_underpowered
+      - data_unavailable
+      - non_dependent
+      - non_dependent_underpowered
+      - strongly_selective
+      observed:
+        non_dependent: 359
+        broadly_dependent: 51
+        strongly_selective: 44
+        common_essential: 33
+        non_dependent_underpowered: 17
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - common_essential_underpowered
+      - data_unavailable
+      top: non_dependent
+      saturation: 0.7123
+  pan-cancer-rnai-dependency-distribution:
+    rnai_dependency_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - broadly_dependent
+      - common_essential
+      - common_essential_underpowered
+      - data_unavailable
+      - non_dependent
+      - strongly_selective
+      observed:
+        non_dependent: 387
+        broadly_dependent: 49
+        strongly_selective: 45
+        common_essential: 15
+      n_non_null: 496
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 496
+      out_of_vocab: []
+      never_emitted:
+      - common_essential_underpowered
+      - data_unavailable
+      top: non_dependent
+      saturation: 0.7802
+    rnai_distribution_shape:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - bimodal_selective
+      - non_essential
+      - pan_essential
+      - shifted_dependent
+      - unclassified
+      observed:
+        non_essential: 387
+        shifted_dependent: 49
+        bimodal_selective: 45
+        pan_essential: 15
+      n_non_null: 496
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 496
+      out_of_vocab: []
+      never_emitted:
+      - unclassified
+      top: non_essential
+      saturation: 0.7802
+  paralog-buffering:
+    paralog_buffering_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - none
+      - partial
+      - strong
+      observed:
+        none: 158
+        partial: 115
+        strong: 84
+      n_non_null: 357
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 357
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: none
+      saturation: 0.4426
+    strongest_paralog_ohnolog_status:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - annotated
+      - data_unavailable
+      - unknown_fallback
+      observed:
+        unknown_fallback: 357
+      n_non_null: 357
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 357
+      out_of_vocab: []
+      never_emitted:
+      - annotated
+      - data_unavailable
+      top: unknown_fallback
+      saturation: 1.0
+  partner-conditional-dependency:
+    partner_stratification_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - insufficient_partner_deficient_rate
+      - no_partner_mapped
+      - not_partner_stratified
+      - partner_conditional_moderately_dependent
+      - partner_conditional_strongly_dependent
+      - partner_neutral_strongly_dependent
+      observed:
+        no_partner_mapped: 491
+        partner_conditional_strongly_dependent: 9
+        not_partner_stratified: 2
+        partner_conditional_moderately_dependent: 2
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      - insufficient_partner_deficient_rate
+      - partner_neutral_strongly_dependent
+      top: no_partner_mapped
+      saturation: 0.9742
+  pathway-activity-context:
+    pathway_activity_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - profiled
+      - relatively_high
+      observed:
+        relatively_high: 327
+        profiled: 46
+      n_non_null: 373
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 373
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: relatively_high
+      saturation: 0.8767
+  pathway-node-leverage:
+    evidence_scope:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - pan_lineage_no_indication
+      - pan_lineage_thin_cohort
+      - within_indication_lineage
+      observed:
+        within_indication_lineage: 501
+      n_non_null: 501
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 501
+      out_of_vocab: []
+      never_emitted:
+      - pan_lineage_no_indication
+      - pan_lineage_thin_cohort
+      top: within_indication_lineage
+      saturation: 1.0
+    node_leverage_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - dominant_node
+      - dominated_but_tractability_edge
+      - dominated_node
+      - no_node_set
+      - weak_and_uncontested
+      observed:
+        dominated_node: 299
+        dominated_but_tractability_edge: 77
+        dominant_node: 75
+        weak_and_uncontested: 50
+      n_non_null: 501
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 501
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      - no_node_set
+      top: dominated_node
+      saturation: 0.5968
+    paralog_buffering_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - none
+      - partial
+      - strong
+      observed:
+        none: 158
+        data_unavailable: 145
+        partial: 114
+        strong: 84
+      n_non_null: 501
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 501
+      out_of_vocab: []
+      never_emitted: []
+      top: none
+      saturation: 0.3154
+    single_ko_leverage_understated:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - 'false'
+      - 'true'
+      observed:
+        'false': 303
+        'true': 198
+      n_non_null: 501
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 501
+      out_of_vocab: []
+      never_emitted: []
+      top: 'false'
+      saturation: 0.6048
+      emitted_types:
+        bool: 501
+  pathway-stratified-surface:
+    pathway_stratified_surface_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - not_in_product
+      - not_stratified
+      - pathway_high_down_surface
+      - pathway_high_up_surface
+      - underpowered
+      observed:
+        not_in_product: 499
+        not_stratified: 1
+        pathway_high_up_surface: 1
+      n_non_null: 501
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 501
+      out_of_vocab: []
+      never_emitted:
+      - pathway_high_down_surface
+      - underpowered
+      top: not_in_product
+      saturation: 0.996
+  patient-cis-coherence:
+    evidence_scope:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - patient_indication
+      observed:
+        patient_indication: 501
+      n_non_null: 501
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 501
+      out_of_vocab: []
+      never_emitted: []
+      top: patient_indication
+      saturation: 1.0
+    patient_cis_dosage_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - cn_dosage_coupled_moderate
+      - cn_dosage_coupled_strong
+      - cn_dosage_uncoupled
+      - cn_invariant_panel
+      - data_unavailable
+      observed:
+        cn_dosage_uncoupled: 166
+        data_unavailable: 144
+        cn_dosage_coupled_moderate: 116
+        cn_dosage_coupled_strong: 63
+        cn_invariant_panel: 12
+      n_non_null: 501
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 501
+      out_of_vocab: []
+      never_emitted: []
+      top: cn_dosage_uncoupled
+      saturation: 0.3313
+    patient_methylation_silencing_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - epigenetic_silencing
+      - insufficient_methylation_data
+      - no_silencing_signal
+      observed:
+        insufficient_methylation_data: 444
+        no_silencing_signal: 51
+        epigenetic_silencing: 6
+      n_non_null: 501
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 501
+      out_of_vocab: []
+      never_emitted: []
+      top: insufficient_methylation_data
+      saturation: 0.8862
+  phospho-pathway-activity:
+    phospho_activity_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - phospho_active
+      - phospho_low
+      - phospho_not_detected
+      - phospho_present
+      observed:
+        phospho_present: 94
+        phospho_not_detected: 86
+        phospho_active: 24
+        phospho_low: 5
+      n_non_null: 209
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 209
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: phospho_present
+      saturation: 0.4498
+  pmhc-epitope-evidence-iedb:
+    epitope_evidence_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - no_positive_epitopes
+      - not_observed
+      - presented_not_tcell_confirmed
+      - tcell_validated
+      observed:
+        presented_not_tcell_confirmed: 269
+        tcell_validated: 230
+        not_observed: 1
+      n_non_null: 500
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 500
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      - no_positive_epitopes
+      top: presented_not_tcell_confirmed
+      saturation: 0.538
+  pmhc-presentation:
+    pmhc_presentation_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - broadly_presented_normal
+      - data_unavailable
+      - intermediate_presentation
+      - not_observed
+      - restricted_presentation
+      observed:
+        intermediate_presentation: 215
+        broadly_presented_normal: 204
+        restricted_presentation: 62
+        not_observed: 5
+      n_non_null: 486
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 486
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: intermediate_presentation
+      saturation: 0.4424
+  ppi-interactome:
+    interactome_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - connected
+      - data_unavailable
+      - hub
+      - no_high_confidence_interactors
+      - sparse
+      observed:
+        hub: 389
+        connected: 101
+        sparse: 9
+        no_high_confidence_interactors: 2
+      n_non_null: 501
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 501
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: hub
+      saturation: 0.7764
+    physical_interactome_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - no_physical_interactors
+      - physical_hub
+      - physically_connected
+      - physically_sparse
+      observed:
+        physical_hub: 437
+        physically_connected: 45
+        physically_sparse: 16
+        no_physical_interactors: 3
+      n_non_null: 501
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 501
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: physical_hub
+      saturation: 0.8723
+  precog-prognostic-association:
+    pan_cancer_prognostic_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - expression_high_better_survival
+      - expression_high_worse_survival
+      - no_prognostic_association
+      observed:
+        no_prognostic_association: 286
+        expression_high_worse_survival: 129
+        expression_high_better_survival: 82
+      n_non_null: 497
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 497
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: no_prognostic_association
+      saturation: 0.5755
+    prognostic_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - expression_high_better_survival
+      - expression_high_worse_survival
+      - no_prognostic_association
+      observed:
+        no_prognostic_association: 360
+        data_unavailable: 53
+        expression_high_worse_survival: 53
+        expression_high_better_survival: 31
+      n_non_null: 497
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 497
+      out_of_vocab: []
+      never_emitted: []
+      top: no_prognostic_association
+      saturation: 0.7243
+  prism-compound-activity:
+    highest_clinical_phase:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - approved
+      - phase_1_plus
+      - preclinical
+      - tool
+      observed:
+        phase_1_plus: 217
+        tool: 127
+        preclinical: 1
+      n_non_null: 345
+      n_null: 159
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - approved
+      top: phase_1_plus
+      saturation: 0.629
+    metric_source:
+      grain: orphan
+      arity: none
+      status: field_absent
+      declared:
+      - annotation_only
+      - log2auc
+      - single_dose_lfc
+      observed: {}
+      n_non_null: 0
+      n_null: 0
+      n_absent: 504
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - annotation_only
+      - log2auc
+      - single_dose_lfc
+      top: null
+      saturation: null
+      saturation_na: 'arity=none: top/total is a token share, not a package share'
+      n_emissions: 0
+      n_empty_array: 0
+    prism_activity_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - clinical_precedent_only
+      - clinically_active
+      - data_unavailable
+      - no_compounds_found
+      - tool_compound_only
+      - weakly_active
+      observed:
+        no_compounds_found: 159
+        clinically_active: 147
+        tool_compound_only: 128
+        clinical_precedent_only: 70
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      - weakly_active
+      top: no_compounds_found
+      saturation: 0.3155
+    prism_lineage_selectivity:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - broadly_active
+      - data_unavailable
+      - lineage_selective
+      - no_lineage_signal
+      observed:
+        data_unavailable: 287
+        broadly_active: 94
+        lineage_selective: 72
+        no_lineage_signal: 51
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted: []
+      top: data_unavailable
+      saturation: 0.5694
+  prism-crispr-concordance:
+    crispr_prism_concordance_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - crispr_confirmed_engagement
+      - data_unavailable
+      - discordant_off_target_likely
+      - mixed_engagement
+      - rnai_confirmed_engagement
+      - thin_evidence
+      - triangulated_target_engaged
+      observed:
+        thin_evidence: 127
+        mixed_engagement: 107
+        discordant_off_target_likely: 70
+        triangulated_target_engaged: 37
+        rnai_confirmed_engagement: 3
+        crispr_confirmed_engagement: 1
+      n_non_null: 345
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 345
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: thin_evidence
+      saturation: 0.3681
+  protein-domains-class:
+    domain_evidence:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - both
+      - curated
+      - interpro_only
+      - none
+      observed:
+        both: 354
+        interpro_only: 72
+        none: 35
+        curated: 3
+      n_non_null: 464
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 464
+      out_of_vocab: []
+      never_emitted: []
+      top: both
+      saturation: 0.7629
+    protein_class:
+      grain: scalar
+      arity: array
+      status: observed
+      declared:
+      - cell_adhesion
+      - chaperone
+      - chromatin_regulator
+      - cytokine
+      - gpcr
+      - growth_factor
+      - hydrolase
+      - ion_channel
+      - isomerase
+      - kinase
+      - ligase
+      - lyase
+      - oxidoreductase
+      - protease
+      - receptor
+      - transcription_factor
+      - transferase
+      - transporter
+      - ubiquitin_system
+      observed:
+        transferase: 183
+        kinase: 144
+        transcription_factor: 144
+        receptor: 93
+        hydrolase: 62
+        chromatin_regulator: 41
+        ubiquitin_system: 36
+        cell_adhesion: 34
+        transporter: 21
+        oxidoreductase: 20
+        protease: 7
+        gpcr: 5
+        isomerase: 5
+        growth_factor: 4
+        chaperone: 2
+        cytokine: 2
+        ion_channel: 2
+        lyase: 2
+        ligase: 1
+      n_non_null: 808
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 464
+      out_of_vocab: []
+      never_emitted: []
+      top: transferase
+      saturation: null
+      saturation_na: 'arity=array: top/total is a token share, not a package share'
+      n_emissions: 464
+      n_empty_array: 41
+    protein_features_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - multi_domain
+      - no_curated_domain
+      - single_domain
+      observed:
+        multi_domain: 201
+        single_domain: 156
+        no_curated_domain: 107
+      n_non_null: 464
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 464
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: multi_domain
+      saturation: 0.4332
+  protein-surface-evidence:
+    surface_confirmation_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - confirmed
+      - confirmed_high
+      - data_unavailable
+      - not_surface
+      observed:
+        not_surface: 397
+        confirmed_high: 99
+        confirmed: 5
+      n_non_null: 501
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 501
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: not_surface
+      saturation: 0.7924
+  reactome-pathway-membership:
+    pathway_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - partial
+      - sparse
+      - well_annotated
+      observed:
+        well_annotated: 315
+        partial: 126
+        sparse: 37
+      n_non_null: 478
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 478
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: well_annotated
+      saturation: 0.659
+  recommended-models:
+    correspondence_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - poorly_modeled
+      - well_modeled_in_lineage
+      - well_modeled_off_lineage
+      observed:
+        well_modeled_in_lineage: 268
+        well_modeled_off_lineage: 107
+        poorly_modeled: 33
+      n_non_null: 408
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 408
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: well_modeled_in_lineage
+      saturation: 0.6569
+  resistance-emergence-signature:
+    resistance_emergence_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - context_resistance_signal
+      - data_unavailable
+      - no_anchor_screen
+      - no_resistance_signal
+      - resistance_signal
+      - strong_resistance_signal
+      observed:
+        no_anchor_screen: 485
+        strong_resistance_signal: 9
+        resistance_signal: 8
+      n_non_null: 502
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 502
+      out_of_vocab: []
+      never_emitted:
+      - context_resistance_signal
+      - data_unavailable
+      - no_resistance_signal
+      top: no_anchor_screen
+      saturation: 0.9661
+    resistance_emergence_class_prefloor:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - context_resistance_signal
+      - data_unavailable
+      - no_anchor_screen
+      - no_resistance_signal
+      - resistance_signal
+      - strong_resistance_signal
+      observed:
+        no_anchor_screen: 485
+        strong_resistance_signal: 9
+        resistance_signal: 8
+      n_non_null: 502
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 502
+      out_of_vocab: []
+      never_emitted:
+      - context_resistance_signal
+      - data_unavailable
+      - no_resistance_signal
+      top: no_anchor_screen
+      saturation: 0.9661
+    tahoe_adaptation_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - induced_resistance_programs
+      - no_induced_programs
+      - not_in_tahoe
+      observed:
+        not_in_tahoe: 485
+        induced_resistance_programs: 17
+      n_non_null: 502
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 502
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      - no_induced_programs
+      top: not_in_tahoe
+      saturation: 0.9661
+  rna-protein-concordance-tumor:
+    rna_as_biomarker:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - adequate_proxy
+      - data_unavailable
+      - insufficient_paired_tumors
+      - partial_proxy
+      - poor_proxy
+      observed:
+        data_unavailable: 293
+        poor_proxy: 86
+        partial_proxy: 79
+        adequate_proxy: 30
+        insufficient_paired_tumors: 16
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted: []
+      top: data_unavailable
+      saturation: 0.5813
+  sc-normal-celltype-expression:
+    sc_normal_abundance_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - high_abundance
+      - low_abundance
+      - moderate_abundance
+      observed:
+        high_abundance: 336
+        moderate_abundance: 138
+        low_abundance: 30
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: high_abundance
+      saturation: 0.6667
+    sc_normal_essential_veto_grade:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - accessible_high_severity
+      - accessible_low_confidence
+      - accessible_moderate_severity
+      - accessible_ungraded
+      - bbb_protected
+      - data_unavailable
+      - not_applicable
+      - origin_tissue
+      observed:
+        accessible_high_severity: 330
+        accessible_moderate_severity: 86
+        accessible_low_confidence: 35
+        not_applicable: 26
+        bbb_protected: 23
+        origin_tissue: 4
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - accessible_ungraded
+      - data_unavailable
+      top: accessible_high_severity
+      saturation: 0.6548
+    sc_normal_expression_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - HIGH_LIABILITY
+      - LOW_LIABILITY
+      - MODERATE_LIABILITY
+      - NOT_EXPRESSED
+      - data_unavailable
+      observed:
+        HIGH_LIABILITY: 475
+        MODERATE_LIABILITY: 27
+        LOW_LIABILITY: 2
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - NOT_EXPRESSED
+      - data_unavailable
+      top: HIGH_LIABILITY
+      saturation: 0.9425
+    sc_normal_safety_essential_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - critical_organ_liability
+      - data_unavailable
+      - none
+      - origin_tissue_liability
+      observed:
+        critical_organ_liability: 474
+        none: 26
+        origin_tissue_liability: 4
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: critical_organ_liability
+      saturation: 0.9405
+  sc-surface-normal-safety:
+    sc_surface_normal_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - high_surface_on_normal_immune
+      - low_surface_on_normal_immune
+      - moderate_surface_on_normal_immune
+      - not_surface_detected_normal_immune
+      observed:
+        high_surface_on_normal_immune: 15
+        not_surface_detected_normal_immune: 9
+        low_surface_on_normal_immune: 5
+        moderate_surface_on_normal_immune: 3
+      n_non_null: 32
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 32
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: high_surface_on_normal_immune
+      saturation: 0.4688
+  sc-surface-rna-protein-concordance:
+    rna_as_biomarker:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - adequate_proxy
+      - data_unavailable
+      - indeterminate
+      - partial_proxy
+      - poor_proxy
+      observed:
+        data_unavailable: 470
+        adequate_proxy: 16
+        poor_proxy: 11
+        partial_proxy: 4
+      n_non_null: 501
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 501
+      out_of_vocab: []
+      never_emitted:
+      - indeterminate
+      top: data_unavailable
+      saturation: 0.9381
+  shed-ectodomain-liability:
+    measured_shed_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - media_shed_high
+      - media_shed_low
+      - not_on_secreted_panel
+      observed:
+        not_on_secreted_panel: 458
+        media_shed_low: 29
+        media_shed_high: 17
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: not_on_secreted_panel
+      saturation: 0.9087
+    shed_evidence_tier:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - clinical
+      - none
+      - secretome_proxy
+      - uniprot_feature
+      observed:
+        none: 455
+        secretome_proxy: 42
+        clinical: 7
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - uniprot_feature
+      top: none
+      saturation: 0.9028
+    shed_liability_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - clinically_shed
+      - data_unavailable
+      - indeterminate
+      - not_shed_membrane_retained
+      - secretome_proxy_shed
+      observed:
+        not_shed_membrane_retained: 436
+        secretome_proxy_shed: 42
+        indeterminate: 19
+        clinically_shed: 7
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: not_shed_membrane_retained
+      saturation: 0.8651
+  shet-lof-intolerance:
+    shet_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - high_intolerance
+      - indeterminate
+      - moderate_intolerance
+      - tolerant
+      observed:
+        high_intolerance: 224
+        moderate_intolerance: 204
+        tolerant: 74
+      n_non_null: 502
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 502
+      out_of_vocab: []
+      never_emitted:
+      - indeterminate
+      top: high_intolerance
+      saturation: 0.4462
+  signaling-network-mechanism:
+    has_pd_marker:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - 'false'
+      - 'true'
+      observed:
+        'true': 397
+        'false': 91
+      n_non_null: 488
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 488
+      out_of_vocab: []
+      never_emitted: []
+      top: 'true'
+      saturation: 0.8135
+      emitted_types:
+        bool: 488
+    moa_classes_present:
+      grain: scalar
+      arity: array
+      status: observed
+      declared:
+      - molecular_glue_disruptor
+      - unmapped
+      - upstream_dub_modulation
+      - upstream_gap_modulation
+      - upstream_gef_modulation
+      - upstream_hat_modulation
+      - upstream_hdac_modulation
+      - upstream_inhibitor
+      - upstream_kinase_modulation
+      - upstream_methyltransferase_modulation
+      - upstream_ppase_modulation
+      - upstream_protease_modulation
+      - upstream_stimulator
+      - upstream_transcriptional_activator
+      - upstream_transcriptional_modulation
+      - upstream_transcriptional_repressor
+      - upstream_ubl_modulation
+      observed:
+        upstream_transcriptional_activator: 448
+        molecular_glue_disruptor: 330
+        upstream_kinase_modulation: 325
+        upstream_transcriptional_repressor: 299
+        upstream_transcriptional_modulation: 208
+        upstream_ubl_modulation: 187
+        upstream_ppase_modulation: 175
+        unmapped: 147
+        upstream_stimulator: 114
+        upstream_inhibitor: 87
+        upstream_dub_modulation: 41
+        upstream_gap_modulation: 20
+        upstream_protease_modulation: 20
+        upstream_gef_modulation: 19
+        upstream_hat_modulation: 15
+        upstream_hdac_modulation: 5
+        upstream_methyltransferase_modulation: 3
+      n_non_null: 2443
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 488
+      out_of_vocab: []
+      never_emitted: []
+      top: upstream_transcriptional_activator
+      saturation: null
+      saturation_na: 'arity=array: top/total is a token share, not a package share'
+      n_emissions: 488
+      n_empty_array: 13
+    network_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - partial
+      - sparse
+      - well_characterized
+      observed:
+        well_characterized: 299
+        partial: 183
+        sparse: 6
+      n_non_null: 488
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 488
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: well_characterized
+      saturation: 0.6127
+    pd_marker_classes_present:
+      grain: scalar
+      arity: array
+      status: observed
+      declared:
+      - downstream_activation_readout
+      - downstream_pd_cleavage
+      - downstream_pd_dephospho
+      - downstream_pd_gap
+      - downstream_pd_gef
+      - downstream_pd_kinase
+      - downstream_pd_marker
+      - downstream_pd_methylation
+      - downstream_pd_ubiquitin
+      - downstream_repression_readout
+      - downstream_transcriptional_activation_readout
+      - downstream_transcriptional_repression_readout
+      - transcriptional_pd_marker
+      - unmapped
+      observed:
+        downstream_pd_marker: 245
+        transcriptional_pd_marker: 158
+        downstream_pd_kinase: 148
+        downstream_activation_readout: 124
+        downstream_transcriptional_activation_readout: 102
+        downstream_repression_readout: 90
+        downstream_transcriptional_repression_readout: 85
+        unmapped: 64
+        downstream_pd_ubiquitin: 24
+        downstream_pd_dephospho: 10
+        downstream_pd_gap: 4
+        downstream_pd_cleavage: 3
+        downstream_pd_methylation: 3
+        downstream_pd_gef: 1
+      n_non_null: 1061
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 488
+      out_of_vocab: []
+      never_emitted: []
+      top: downstream_pd_marker
+      saturation: null
+      saturation_na: 'arity=array: top/total is a token share, not a package share'
+      n_emissions: 488
+      n_empty_array: 90
+  spatial-region-rna-expression:
+    spatial_rna_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - tme_enriched_rna
+      - tumour_enriched_rna
+      - tumour_present_no_compartment_preference
+      - underpowered
+      observed:
+        tumour_present_no_compartment_preference: 121
+        tumour_enriched_rna: 47
+        tme_enriched_rna: 12
+      n_non_null: 180
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 180
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      - underpowered
+      top: tumour_present_no_compartment_preference
+      saturation: 0.6722
+  spatial-surface-protein-abundance:
+    spatial_protein_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - tme_enriched_protein
+      - tumour_enriched_protein
+      - tumour_present_no_compartment_preference
+      - underpowered
+      observed:
+        tumour_present_no_compartment_preference: 13
+        tumour_enriched_protein: 1
+      n_non_null: 14
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 14
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      - tme_enriched_protein
+      - underpowered
+      top: tumour_present_no_compartment_preference
+      saturation: 0.9286
+  spatial-tumor-normal-colocalization:
+    spatial_coloc_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - endothelial_niche_colocalized
+      - immune_excluded
+      - immune_niche_colocalized
+      - no_spatial_preference
+      - normal_epithelium_adjacent
+      - other_niche_colocalized
+      - stromal_niche_colocalized
+      - underpowered
+      observed:
+        no_spatial_preference: 79
+        immune_excluded: 41
+        endothelial_niche_colocalized: 9
+        stromal_niche_colocalized: 7
+        immune_niche_colocalized: 6
+        underpowered: 1
+      n_non_null: 143
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 143
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      - normal_epithelium_adjacent
+      - other_niche_colocalized
+      top: no_spatial_preference
+      saturation: 0.5524
+  splice-exon-skip-landscape:
+    driver_direction:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - activating
+      - loss_of_function
+      observed:
+        activating: 1
+      n_non_null: 1
+      n_null: 503
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - loss_of_function
+      top: activating
+      saturation: 1.0
+    splice_exon_skip_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - no_registered_event
+      - recurrent_splice_driver
+      - splice_event_off_indication
+      observed:
+        no_registered_event: 503
+        recurrent_splice_driver: 1
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - splice_event_off_indication
+      top: no_registered_event
+      saturation: 0.998
+  stemness-context:
+    stemness_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - stem_high
+      - stem_intermediate
+      - stem_low
+      observed:
+        stem_intermediate: 169
+        stem_low: 159
+        stem_high: 45
+      n_non_null: 373
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 373
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: stem_intermediate
+      saturation: 0.4531
+  structure-features-static:
+    alphafold_confidence_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - high
+      - low
+      - moderate
+      - unavailable
+      observed:
+        moderate: 275
+        low: 127
+        high: 88
+        unavailable: 14
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted: []
+      top: moderate
+      saturation: 0.5456
+    hotspot_pocket_adjacency_call:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - adjacent
+      - distant
+      - no_hotspots_annotated
+      - no_structure
+      observed:
+        no_hotspots_annotated: 402
+        adjacent: 77
+        no_structure: 14
+        distant: 11
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted: []
+      top: no_hotspots_annotated
+      saturation: 0.7976
+    mutation_hotspot_in_druggable_pocket:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - 'false'
+      - 'true'
+      observed:
+        'false': 427
+        'true': 77
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted: []
+      top: 'false'
+      saturation: 0.8472
+      emitted_types:
+        bool: 504
+    pdb_coverage_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - af_only
+      - none
+      - partial
+      - strong
+      observed:
+        strong: 402
+        partial: 74
+        af_only: 23
+        none: 5
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted: []
+      top: strong
+      saturation: 0.7976
+    structural_ligandability_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - annotation_ligandable
+      - disordered_low
+      - experimental_ligandable
+      - insufficient_evidence
+      - no_ligandability_signal
+      - predicted_ligandable
+      observed:
+        experimental_ligandable: 364
+        predicted_ligandable: 124
+        no_ligandability_signal: 11
+        disordered_low: 3
+        insufficient_evidence: 2
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - annotation_ligandable
+      top: experimental_ligandable
+      saturation: 0.7222
+  subtype-survival-association:
+    subtype_survival_association_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - insufficient_survival_data
+      - no_subtype_survival_association
+      - subtype_stratifies_survival
+      observed:
+        subtype_stratifies_survival: 85
+        no_subtype_survival_association: 43
+        insufficient_survival_data: 39
+      n_non_null: 167
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 167
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: subtype_stratifies_survival
+      saturation: 0.509
+  surface-abundance-density:
+    density_floor_verdict:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - above_adc_high_payload_floor
+      - above_tce_floor_below_adc
+      - below_tce_floor
+      - unmeasured
+      observed:
+        unmeasured: 472
+        above_adc_high_payload_floor: 25
+        below_tce_floor: 5
+        above_tce_floor_below_adc: 2
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted: []
+      top: unmeasured
+      saturation: 0.9365
+    hpa_ihc_intensity_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - high
+      - low
+      - medium
+      - not_detected
+      - unmeasured
+      observed:
+        medium: 261
+        low: 140
+        unmeasured: 96
+        high: 7
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - not_detected
+      top: medium
+      saturation: 0.5179
+    surface_density_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - high
+      - low
+      - moderate
+      - not_surface_density_whole_cell_estimate
+      - unmeasured
+      - very_low
+      observed:
+        not_surface_density_whole_cell_estimate: 294
+        unmeasured: 95
+        high: 60
+        moderate: 50
+        low: 4
+        very_low: 1
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted: []
+      top: not_surface_density_whole_cell_estimate
+      saturation: 0.5833
+  surface-bulk-pair-selectivity:
+    best_and_call_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - no_selective_pair
+      - not_selective
+      - selective_and_pair
+      - selective_but_broad_tissue_liability
+      observed:
+        selective_but_broad_tissue_liability: 19
+        selective_and_pair: 18
+        no_selective_pair: 8
+        not_selective: 1
+      n_non_null: 46
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 46
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: selective_but_broad_tissue_liability
+      saturation: 0.413
+  surface-colocalization-avidity:
+    samecell_avidity_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - avidity_unconfirmed
+      - data_unavailable
+      - same_cell_coordinated
+      - same_cell_independent
+      - same_cell_mutually_exclusive
+      observed:
+        same_cell_coordinated: 9
+        same_cell_independent: 8
+      n_non_null: 17
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 17
+      out_of_vocab: []
+      never_emitted:
+      - avidity_unconfirmed
+      - data_unavailable
+      - same_cell_mutually_exclusive
+      top: same_cell_coordinated
+      saturation: 0.5294
+    window_verdict:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - insufficient_tumor_engagement
+      - no_window
+      - selectivity_unproven
+      - window_marginal
+      - window_open
+      observed:
+        no_window: 10
+        insufficient_tumor_engagement: 7
+      n_non_null: 17
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 17
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      - selectivity_unproven
+      - window_marginal
+      - window_open
+      top: no_window
+      saturation: 0.5882
+  surface-topology-and-ptm:
+    ecd_engineerability_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - large_ecd
+      - minimal_ecd
+      - moderate_ecd
+      - no_extracellular_domain
+      observed:
+        no_extracellular_domain: 374
+        large_ecd: 98
+        moderate_ecd: 24
+        minimal_ecd: 3
+      n_non_null: 499
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 499
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: no_extracellular_domain
+      saturation: 0.7495
+    endocytosis_motif_types:
+      grain: scalar
+      arity: array
+      status: always_empty_array
+      declared:
+      - Dileucine
+      - NPXY
+      - YXXphi
+      observed: {}
+      n_non_null: 0
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 499
+      out_of_vocab: []
+      never_emitted:
+      - Dileucine
+      - NPXY
+      - YXXphi
+      top: null
+      saturation: null
+      saturation_na: 'arity=array: top/total is a token share, not a package share'
+      n_emissions: 499
+      n_empty_array: 499
+    isoform_selective_warning:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - 'false'
+      - 'true'
+      observed:
+        'false': 499
+      n_non_null: 499
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 499
+      out_of_vocab: []
+      never_emitted:
+      - 'true'
+      top: 'false'
+      saturation: 1.0
+      emitted_types:
+        bool: 499
+    topology_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - beta_barrel
+      - data_unavailable
+      - gpi_anchored
+      - multi_pass
+      - no_transmembrane
+      - single_pass_type_1
+      - single_pass_type_2
+      - single_pass_type_other
+      observed:
+        no_transmembrane: 374
+        single_pass_type_1: 100
+        multi_pass: 16
+        single_pass_type_2: 9
+      n_non_null: 499
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 499
+      out_of_vocab: []
+      never_emitted:
+      - beta_barrel
+      - data_unavailable
+      - gpi_anchored
+      - single_pass_type_other
+      top: no_transmembrane
+      saturation: 0.7495
+  surfaceome-cohort-ranking:
+    cohort_rank_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - below_25_percent
+      - data_unavailable
+      - not_in_surfaceome
+      - top_1_percent
+      - top_25
+      - top_5
+      observed:
+        below_25_percent: 38
+        top_25: 14
+        top_1_percent: 8
+        top_5: 5
+      n_non_null: 65
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 65
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      - not_in_surfaceome
+      top: below_25_percent
+      saturation: 0.5846
+    rna_protein_concordance:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - agreement
+      - disagreement
+      - no_protein
+      - protein_only
+      - rna_only
+      observed:
+        no_protein: 34
+        rna_only: 24
+        agreement: 6
+        disagreement: 1
+      n_non_null: 65
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 65
+      out_of_vocab: []
+      never_emitted:
+      - protein_only
+      top: no_protein
+      saturation: 0.5231
+  surfaceome-family-classification:
+    family_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - adhesion
+      - cd_molecule
+      - data_unavailable
+      - enzyme_surface
+      - gpcr
+      - growth_factor_receptor
+      - immune_receptor
+      - kinase_surface
+      - not_surface
+      - other_surface
+      - transporter
+      observed:
+        not_surface: 322
+        kinase_surface: 85
+        other_surface: 37
+        cd_molecule: 32
+        transporter: 14
+        enzyme_surface: 9
+        adhesion: 3
+        gpcr: 1
+      n_non_null: 503
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 503
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      - growth_factor_receptor
+      - immune_receptor
+      top: not_surface
+      saturation: 0.6402
+    surface_protein_family:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - Adhesion
+      - CD_molecule
+      - Enzyme
+      - GPCR
+      - Growth_factor
+      - Immune_receptor
+      - Kinase
+      - Not_surface
+      - Other
+      - Transporter
+      observed:
+        Kinase: 175
+        Enzyme: 107
+        Not_surface: 103
+        Other: 48
+        CD_molecule: 33
+        Transporter: 33
+        Adhesion: 3
+        GPCR: 1
+      n_non_null: 503
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 503
+      out_of_vocab: []
+      never_emitted:
+      - Growth_factor
+      - Immune_receptor
+      top: Kinase
+      saturation: 0.3479
+  synthetic-lethal-partners:
+    best_evidence_tier:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - computational
+      - experimental
+      - other
+      observed:
+        experimental: 353
+        computational: 86
+        other: 2
+      n_non_null: 441
+      n_null: 61
+      n_absent: 0
+      n_packages_with_card: 502
+      out_of_vocab: []
+      never_emitted: []
+      top: experimental
+      saturation: 0.8005
+    sl_partner_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - has_computational_sl_partner
+      - has_experimental_sl_partner
+      - no_curated_sl_partner
+      observed:
+        has_experimental_sl_partner: 353
+        has_computational_sl_partner: 88
+        no_curated_sl_partner: 61
+      n_non_null: 502
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 502
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: has_experimental_sl_partner
+      saturation: 0.7032
+  tahoe-drug-perturbation:
+    tahoe_perturbation_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - bidirectionally_perturbed
+      - data_unavailable
+      - drug_induced
+      - drug_suppressed
+      - not_measured
+      - weakly_perturbed
+      observed:
+        bidirectionally_perturbed: 249
+        drug_suppressed: 137
+        drug_induced: 64
+        weakly_perturbed: 54
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      - not_measured
+      top: bidirectionally_perturbed
+      saturation: 0.494
+  target-clonality:
+    clonality_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - insufficient
+      - mixed_clonality
+      - predominantly_clonal
+      - predominantly_subclonal
+      observed:
+        insufficient: 45
+        predominantly_clonal: 16
+        mixed_clonality: 12
+      n_non_null: 73
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 73
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      - predominantly_subclonal
+      top: insufficient
+      saturation: 0.6164
+  target-development-level:
+    tdl_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - Tbio
+      - Tchem
+      - Tclin
+      - Tdark
+      - data_unavailable
+      observed:
+        Tclin: 178
+        Tbio: 161
+        Tchem: 161
+      n_non_null: 500
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 500
+      out_of_vocab: []
+      never_emitted:
+      - Tdark
+      - data_unavailable
+      top: Tclin
+      saturation: 0.356
+  target-genotype-matched-model:
+    genotype_matched_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - matched_deep
+      - matched_sparse
+      - none
+      observed:
+        none: 197
+        matched_sparse: 117
+        matched_deep: 23
+      n_non_null: 337
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 337
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: none
+      saturation: 0.5846
+  target-model-availability:
+    model_availability_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - deep_model_coverage
+      - moderate_model_coverage
+      - sparse_model_coverage
+      observed:
+        deep_model_coverage: 168
+        moderate_model_coverage: 126
+        sparse_model_coverage: 45
+      n_non_null: 339
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 339
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: deep_model_coverage
+      saturation: 0.4956
+  target-pdx-drug-response:
+    pdx_drug_response_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - pdx_no_objective_response
+      - pdx_objective_responders
+      - pdx_response_unavailable
+      observed:
+        pdx_objective_responders: 67
+        pdx_no_objective_response: 2
+      n_non_null: 69
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 69
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      - pdx_response_unavailable
+      top: pdx_objective_responders
+      saturation: 0.971
+  target-safety-prioritisation:
+    genetic_constraint_band:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - favorable
+      - intermediate
+      - not_scored
+      - unfavorable
+      observed:
+        unfavorable: 348
+        intermediate: 119
+        favorable: 19
+        not_scored: 18
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted: []
+      top: unfavorable
+      saturation: 0.6905
+    has_safety_event_band:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - favorable
+      - intermediate
+      - not_scored
+      - unfavorable
+      observed:
+        not_scored: 329
+        unfavorable: 175
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - favorable
+      - intermediate
+      top: not_scored
+      saturation: 0.6528
+    mouse_ko_score_band:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - favorable
+      - intermediate
+      - not_scored
+      - unfavorable
+      observed:
+        unfavorable: 389
+        intermediate: 82
+        not_scored: 33
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - favorable
+      top: unfavorable
+      saturation: 0.7718
+    prioritisation_status:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - not_in_prioritisation_table
+      - scored
+      observed:
+        scored: 504
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      - not_in_prioritisation_table
+      top: scored
+      saturation: 1.0
+  tcga-til-fraction-saltz:
+    til_fraction_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - til_high
+      - til_intermediate
+      - til_low
+      observed:
+        til_high: 143
+        til_intermediate: 48
+        til_low: 48
+      n_non_null: 239
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 239
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: til_high
+      saturation: 0.5983
+  tumor-elevation-breadth:
+    breadth_layer_concordance:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - concordant
+      - concordant_not_elevated
+      - discordant
+      - protein_only
+      - rna_only
+      - single_layer
+      observed:
+        discordant: 238
+        concordant: 207
+        rna_only: 28
+        concordant_not_elevated: 24
+        single_layer: 6
+        protein_only: 1
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted: []
+      top: discordant
+      saturation: 0.4722
+    rna_tumor_elevation_breadth_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - broadly_tumor_elevated
+      - data_unavailable
+      - multi_tumor_elevated
+      - not_tumor_elevated
+      - single_tumor_elevated
+      observed:
+        multi_tumor_elevated: 295
+        single_tumor_elevated: 76
+        not_tumor_elevated: 72
+        broadly_tumor_elevated: 58
+        data_unavailable: 3
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted: []
+      top: multi_tumor_elevated
+      saturation: 0.5853
+    tumor_elevation_breadth_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - broadly_tumor_elevated
+      - data_unavailable
+      - multi_tumor_elevated
+      - not_tumor_elevated
+      - single_tumor_elevated
+      observed:
+        not_tumor_elevated: 220
+        single_tumor_elevated: 123
+        multi_tumor_elevated: 104
+        data_unavailable: 32
+        broadly_tumor_elevated: 25
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted: []
+      top: not_tumor_elevated
+      saturation: 0.4365
+  tumor-protein-abundance-cptac:
+    allgene_percentile_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - bottom_decile
+      - data_unavailable
+      - mid
+      - top_1pct
+      - top_decile
+      observed:
+        mid: 153
+        top_decile: 15
+        bottom_decile: 5
+        top_1pct: 5
+      n_non_null: 178
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 178
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: mid
+      saturation: 0.8596
+    protein_effect_standardized_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - large
+      - medium
+      - negligible
+      - small
+      observed:
+        large: 83
+        small: 48
+        negligible: 28
+        medium: 19
+      n_non_null: 178
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 178
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: large
+      saturation: 0.4663
+    protein_effect_standardized_method:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - moderated_se_exact
+      - pvalue_zscore_approx
+      observed:
+        moderated_se_exact: 178
+      n_non_null: 178
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 178
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      - pvalue_zscore_approx
+      top: moderated_se_exact
+      saturation: 1.0
+    protein_expression_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - modest_down
+      - modest_up
+      - not_significant
+      - small_effect
+      - strong_down
+      - strong_up
+      observed:
+        small_effect: 88
+        not_significant: 56
+        modest_up: 23
+        modest_down: 9
+        strong_down: 2
+      n_non_null: 178
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 178
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      - strong_up
+      top: small_effect
+      saturation: 0.4944
+    stat_test_used:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - msstatstmt_limma_ebayes_moderated
+      - skipped_low_n
+      observed:
+        msstatstmt_limma_ebayes_moderated: 178
+      n_non_null: 178
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 178
+      out_of_vocab: []
+      never_emitted:
+      - skipped_low_n
+      top: msstatstmt_limma_ebayes_moderated
+      saturation: 1.0
+  tumor-protein-distribution-by-subtype:
+    subtype_axis_quality:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - empty
+      - exploratory
+      - powered
+      - unavailable
+      - underpowered
+      - unevaluable
+      observed:
+        unavailable: 459
+        exploratory: 24
+        empty: 19
+        underpowered: 2
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - powered
+      - unevaluable
+      top: unavailable
+      saturation: 0.9107
+    subtype_stratification_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - pan_subtype_uniform
+      - subtype_axis_unavailable
+      - subtype_depleted
+      - subtype_enriched
+      - subtype_variable
+      observed:
+        pan_subtype_uniform: 44
+        subtype_enriched: 1
+      n_non_null: 45
+      n_null: 459
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - subtype_axis_unavailable
+      - subtype_depleted
+      - subtype_variable
+      top: pan_subtype_uniform
+      saturation: 0.9778
+  tumor-rna-distribution:
+    allgene_percentile_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - bottom_decile
+      - data_unavailable
+      - mid
+      - top_1pct
+      - top_decile
+      observed:
+        mid: 203
+        top_decile: 137
+        data_unavailable: 72
+        top_1pct: 28
+      n_non_null: 440
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 440
+      out_of_vocab: []
+      never_emitted:
+      - bottom_decile
+      top: mid
+      saturation: 0.4614
+    control_position_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - above_all_positives
+      - above_negatives_below_positives
+      - below_negatives
+      - data_unavailable
+      - within_positives
+      observed:
+        within_positives: 162
+        above_negatives_below_positives: 145
+        data_unavailable: 72
+        above_all_positives: 59
+        below_negatives: 2
+      n_non_null: 440
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 440
+      out_of_vocab: []
+      never_emitted: []
+      top: within_positives
+      saturation: 0.3682
+    distribution_pattern:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - bimodal
+      - continuous
+      - long_tail
+      observed:
+        continuous: 399
+        long_tail: 7
+        bimodal: 2
+      n_non_null: 408
+      n_null: 32
+      n_absent: 0
+      n_packages_with_card: 440
+      out_of_vocab: []
+      never_emitted: []
+      top: continuous
+      saturation: 0.9779
+    splicing_dysregulation_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - highly_variable
+      - stable
+      - tumor_shifted
+      observed:
+        stable: 177
+        data_unavailable: 132
+        highly_variable: 95
+        tumor_shifted: 36
+      n_non_null: 440
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 440
+      out_of_vocab: []
+      never_emitted: []
+      top: stable
+      saturation: 0.4023
+    tumor_expression_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - broadly_detected
+      - broadly_high
+      - broadly_low
+      - broadly_moderate
+      - data_unavailable
+      - subset_high
+      observed:
+        broadly_detected: 156
+        broadly_moderate: 120
+        broadly_high: 105
+        data_unavailable: 32
+        broadly_low: 25
+        subset_high: 2
+      n_non_null: 440
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 440
+      out_of_vocab: []
+      never_emitted: []
+      top: broadly_detected
+      saturation: 0.3545
+  tumor-rna-distribution-by-subtype:
+    subtype_axis_quality:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - empty
+      - exploratory
+      - powered
+      - unavailable
+      - underpowered
+      - unevaluable
+      observed:
+        powered: 265
+        unavailable: 199
+        exploratory: 40
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted:
+      - empty
+      - underpowered
+      - unevaluable
+      top: powered
+      saturation: 0.5258
+    subtype_effect_size_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - large
+      - moderate
+      - negligible
+      observed:
+        data_unavailable: 376
+        negligible: 50
+        moderate: 42
+        large: 36
+      n_non_null: 504
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted: []
+      top: data_unavailable
+      saturation: 0.746
+  tumor-rna-vs-adjacent:
+    allgene_percentile_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - bottom_decile
+      - data_unavailable
+      - mid
+      - top_1pct
+      - top_decile
+      observed:
+        mid: 39
+        top_decile: 3
+        bottom_decile: 1
+        top_1pct: 1
+      n_non_null: 44
+      n_null: 0
+      n_absent: 391
+      n_packages_with_card: 435
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: mid
+      saturation: 0.8864
+    expression_call_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - modest_downregulation
+      - modest_upregulation
+      - not_informative
+      - strong_downregulation
+      - strong_upregulation
+      observed:
+        not_informative: 194
+        strong_upregulation: 55
+        modest_upregulation: 47
+        modest_downregulation: 32
+        strong_downregulation: 10
+      n_non_null: 338
+      n_null: 0
+      n_absent: 97
+      n_packages_with_card: 435
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: not_informative
+      saturation: 0.574
+  tumor-scrna-celltype-expression:
+    ambient_contamination_risk:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - low
+      - possible
+      observed:
+        low: 298
+        data_unavailable: 2
+      n_non_null: 300
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 300
+      out_of_vocab: []
+      never_emitted:
+      - possible
+      top: low
+      saturation: 0.9933
+    caf_vs_malignant_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - caf_dominant
+      - caf_low
+      - data_unavailable
+      - malignant_dominant
+      - shared_caf_malignant
+      observed:
+        caf_low: 235
+        shared_caf_malignant: 44
+        caf_dominant: 15
+        malignant_dominant: 5
+        data_unavailable: 1
+      n_non_null: 300
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 300
+      out_of_vocab: []
+      never_emitted: []
+      top: caf_low
+      saturation: 0.7833
+    entity_purity:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - entity_specific
+      - multi_entity_pooled
+      - unspecified
+      observed:
+        entity_specific: 222
+        multi_entity_pooled: 78
+      n_non_null: 300
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 300
+      out_of_vocab: []
+      never_emitted:
+      - unspecified
+      top: entity_specific
+      saturation: 0.74
+    inter_donor_consistency_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - consistent
+      - data_unavailable
+      - underpowered
+      - variable
+      observed:
+        variable: 287
+        consistent: 12
+        underpowered: 1
+      n_non_null: 300
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 300
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: variable
+      saturation: 0.9567
+    malignant_annotation_method:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - curated
+      - infercnv
+      - phenotype_proxy
+      - unspecified
+      observed:
+        curated: 132
+        infercnv: 116
+        phenotype_proxy: 39
+        unspecified: 13
+      n_non_null: 300
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 300
+      out_of_vocab: []
+      never_emitted: []
+      top: curated
+      saturation: 0.44
+    malignant_expresser_bimodality_class:
+      grain: scalar
+      arity: none
+      status: field_absent
+      declared:
+      - bimodal
+      - data_unavailable
+      - underpowered
+      - unimodal
+      observed: {}
+      n_non_null: 0
+      n_null: 0
+      n_absent: 300
+      n_packages_with_card: 300
+      out_of_vocab: []
+      never_emitted:
+      - bimodal
+      - data_unavailable
+      - underpowered
+      - unimodal
+      top: null
+      saturation: null
+      saturation_na: 'arity=none: top/total is a token share, not a package share'
+      n_emissions: 0
+      n_empty_array: 0
+    sc_expression_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - broadly_low
+      - data_unavailable
+      - malignant_broadly_detected
+      - malignant_subset_detected
+      - microenvironment_dominant
+      observed:
+        malignant_subset_detected: 145
+        broadly_low: 103
+        malignant_broadly_detected: 43
+        microenvironment_dominant: 7
+        data_unavailable: 2
+      n_non_null: 300
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 300
+      out_of_vocab: []
+      never_emitted: []
+      top: malignant_subset_detected
+      saturation: 0.4833
+    stromal_confound_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - inconclusive_low_confidence
+      - malignant_intrinsic
+      - not_stromal_confounded
+      - stromal_confounded
+      observed:
+        malignant_intrinsic: 188
+        not_stromal_confounded: 104
+        inconclusive_low_confidence: 4
+        data_unavailable: 2
+        stromal_confounded: 2
+      n_non_null: 300
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 300
+      out_of_vocab: []
+      never_emitted: []
+      top: malignant_intrinsic
+      saturation: 0.6267
+    tce_antigen_escape_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - coverage_high_donor_underpowered
+      - data_unavailable
+      - escape_risk_high
+      - escape_risk_low
+      - escape_risk_moderate
+      - escape_risk_patient_variable
+      observed:
+        escape_risk_high: 257
+        escape_risk_patient_variable: 31
+        escape_risk_low: 11
+        escape_risk_moderate: 1
+      n_non_null: 300
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 300
+      out_of_vocab: []
+      never_emitted:
+      - coverage_high_donor_underpowered
+      - data_unavailable
+      top: escape_risk_high
+      saturation: 0.8567
+    tce_homogeneity_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - heterogeneous
+      - homogeneous
+      - moderately_homogeneous
+      observed:
+        heterogeneous: 195
+        moderately_homogeneous: 62
+        homogeneous: 43
+      n_non_null: 300
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 300
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: heterogeneous
+      saturation: 0.65
+    within_tumor_coverage_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - high
+      - low
+      - partial
+      observed:
+        low: 257
+        partial: 26
+        high: 17
+      n_non_null: 300
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 300
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: low
+      saturation: 0.8567
+  tumor-splice-dysregulation:
+    splicing_dysregulation_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - highly_variable
+      - stable
+      - tumor_shifted
+      observed:
+        stable: 179
+        highly_variable: 95
+        tumor_shifted: 37
+      n_non_null: 311
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 311
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: stable
+      saturation: 0.5756
+  tumor-vs-normal-percentile-crossing:
+    selectivity_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - enriched_subset
+      - minimally_enriched
+      - not_enriched
+      - strongly_tumor_enriched
+      observed:
+        strongly_tumor_enriched: 94
+        not_enriched: 81
+        minimally_enriched: 77
+        enriched_subset: 76
+      n_non_null: 328
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 328
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: strongly_tumor_enriched
+      saturation: 0.2866
+  tumor-vs-normal-protein-abundance-tphp:
+    cohort_pick_basis:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - indication_mapped
+      - pan_cancer_max_abs_log2fc_detection_complete
+      - pan_cancer_max_abs_log2fc_no_detection_complete_row
+      observed:
+        indication_mapped: 141
+      n_non_null: 141
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 141
+      out_of_vocab: []
+      never_emitted:
+      - pan_cancer_max_abs_log2fc_detection_complete
+      - pan_cancer_max_abs_log2fc_no_detection_complete_row
+      top: indication_mapped
+      saturation: 1.0
+    normal_arm_source:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - body_atlas_same_organism_part
+      observed:
+        body_atlas_same_organism_part: 141
+      n_non_null: 141
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 141
+      out_of_vocab: []
+      never_emitted: []
+      top: body_atlas_same_organism_part
+      saturation: 1.0
+    protein_expression_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - modest_down
+      - modest_up
+      - strong_down
+      - strong_up
+      - unchanged
+      observed:
+        unchanged: 105
+        strong_down: 14
+        modest_down: 12
+        strong_up: 7
+        modest_up: 3
+      n_non_null: 141
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 141
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: unchanged
+      saturation: 0.7447
+    stat_test_used:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - welch_unpaired_tumor_vs_body_atlas_normal_same_organism_part
+      observed:
+        welch_unpaired_tumor_vs_body_atlas_normal_same_organism_part: 141
+      n_non_null: 141
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 141
+      out_of_vocab: []
+      never_emitted: []
+      top: welch_unpaired_tumor_vs_body_atlas_normal_same_organism_part
+      saturation: 1.0
+  tumor-vs-normal-selectivity:
+    comparator_concordance:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - concordant
+      - discordant
+      - single_comparator
+      observed:
+        single_comparator: 231
+        concordant: 149
+        discordant: 28
+      n_non_null: 408
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 408
+      out_of_vocab: []
+      never_emitted: []
+      top: single_comparator
+      saturation: 0.5662
+    dominant_direction:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - down
+      - none
+      - up
+      observed:
+        up: 261
+        down: 126
+        none: 21
+      n_non_null: 408
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 408
+      out_of_vocab: []
+      never_emitted: []
+      top: up
+      saturation: 0.6397
+    selectivity_allgene_percentile_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - bottom_decile
+      - data_unavailable
+      - mid
+      - top_1pct
+      - top_decile
+      observed:
+        mid: 243
+        data_unavailable: 69
+        top_decile: 60
+        bottom_decile: 25
+        top_1pct: 11
+      n_non_null: 408
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 408
+      out_of_vocab: []
+      never_emitted: []
+      top: mid
+      saturation: 0.5956
+    selectivity_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - discordant_across_comparators
+      - field_effect_tumor_selective
+      - modest_tumor_selective
+      - not_informative
+      - not_selective
+      - selective_but_broadly_normal
+      - selective_but_stromal_confound
+      - selective_with_normal_liability
+      - strong_tumor_selective
+      observed:
+        not_informative: 146
+        modest_tumor_selective: 81
+        strong_tumor_selective: 70
+        not_selective: 69
+        discordant_across_comparators: 25
+        field_effect_tumor_selective: 17
+      n_non_null: 408
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 408
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      - selective_but_broadly_normal
+      - selective_but_stromal_confound
+      - selective_with_normal_liability
+      top: not_informative
+      saturation: 0.3578
+    selectivity_evidence_independence:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - adjacent_only
+      - none
+      - population_normal_only
+      - two_independent_comparators
+      observed:
+        two_independent_comparators: 299
+        population_normal_only: 69
+        adjacent_only: 40
+      n_non_null: 408
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 408
+      out_of_vocab: []
+      never_emitted:
+      - none
+      top: two_independent_comparators
+      saturation: 0.7328
+    selectivity_substrate_basis:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - cross_cohort_non_deseq2
+      - unknown_substrate
+      - within_pipeline_deseq2_counts
+      observed:
+        within_pipeline_deseq2_counts: 367
+        cross_cohort_non_deseq2: 40
+        unknown_substrate: 1
+      n_non_null: 408
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 408
+      out_of_vocab: []
+      never_emitted: []
+      top: within_pipeline_deseq2_counts
+      saturation: 0.8995
+  variant-effect-mave-mavedb:
+    mave_evidence_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - mave_assayed
+      - mave_unmapped_target
+      - mave_well_characterized
+      - not_assayed
+      observed:
+        not_assayed: 416
+        mave_unmapped_target: 49
+        mave_well_characterized: 33
+        mave_assayed: 3
+      n_non_null: 501
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 501
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: not_assayed
+      saturation: 0.8303
+  variant-level-interpretation:
+    civic_variant_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - benign
+      - data_unavailable
+      - likely_oncogenic
+      - oncogenic
+      - vus
+      observed:
+        likely_oncogenic: 277
+        oncogenic: 10
+      n_non_null: 287
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 287
+      out_of_vocab: []
+      never_emitted:
+      - benign
+      - data_unavailable
+      - vus
+      top: likely_oncogenic
+      saturation: 0.9652
+    resistance_class:
+      grain: orphan
+      arity: none
+      status: field_absent
+      declared:
+      - known_resistance
+      - no_resistance_annotation
+      - reduced_sensitivity
+      observed: {}
+      n_non_null: 0
+      n_null: 0
+      n_absent: 287
+      n_packages_with_card: 287
+      out_of_vocab: []
+      never_emitted:
+      - known_resistance
+      - no_resistance_annotation
+      - reduced_sensitivity
+      top: null
+      saturation: null
+      saturation_na: 'arity=none: top/total is a token share, not a package share'
+      n_emissions: 0
+      n_empty_array: 0

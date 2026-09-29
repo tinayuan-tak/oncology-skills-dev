@@ -1,0 +1,145 @@
+# domain_modality_targets.yaml
+#
+# Curated vocabulary of gene symbols whose DOMAIN-FUNCTION → MODALITY implication cannot be
+# inferred from protein class + domain architecture alone, because the therapeutically-relevant
+# function is CATALYTIC-INDEPENDENT (scaffolding / allosteric / protein-protein-interaction) or
+# otherwise makes the naive "enzyme → inhibitor-sufficient" heuristic WRONG.
+#
+# Roadmap #3 (protein-DOMAIN relevance for modality/druggability, 2026-08-06). Motivating case:
+# RIPK1 is a kinase (protein_class=kinase → the heuristic says inhibitor_sufficient), but a large
+# part of its pathological signalling is KINASE-INDEPENDENT SCAFFOLDING (the RHIM/death domain
+# assembling complex-II / necrosome). For those functions a catalytic-site inhibitor is
+# insufficient and a DEGRADER (removal of the whole protein, scaffold included) is mechanistically
+# required. The gene-level protein_class cannot encode this; it is curated biology.
+#
+# Consumed by analysis-methods/methods/domain_modality_relevance: a curated entry OVERRIDES the
+# class-driven heuristic (curated `preferred_mechanism` becomes the modality_implication_class,
+# and mechanism_context is surfaced verbatim). Additive / verdict-inert — informs modality
+# reasoning + LLM synthesis; fires no resolver rung.
+#
+# preferred_mechanism vocabulary (must match the method / card):
+#   removal_required_scaffolding  — catalytic inhibition is INSUFFICIENT; the pathogenic function
+#                                    is scaffolding/non-catalytic → degrader or disruptor needed.
+#   removal_favored               — inhibition partial; removal (degrader) engages more of the biology.
+#   inhibitor_sufficient          — catalytic-site inhibition addresses the therapeutic function.
+#   context_dependent             — depends on the specific pathway/indication; do not pre-commit.
+#
+# Curation discipline: only entries with a documented catalytic-independent / scaffolding function
+# (primary literature), NOT research-grade speculation. Grows manually; coverage = curated only.
+
+entries:
+
+  RIPK1:
+    protein_class: kinase
+    functional_domains:
+      - Protein kinase (N-terminal; catalytic — the kinase-inhibitor target)
+      - RHIM (RIP homotypic interaction motif — scaffolding; necrosome assembly)
+      - Death domain (C-terminal — complex-I/II recruitment; scaffolding)
+    preferred_mechanism: removal_required_scaffolding
+    mechanism_context: >
+      RIPK1's kinase activity drives RIPK3/MLKL necroptosis, but a major arm of its
+      signalling (pro-survival NF-kB scaffolding in complex-I; death-complex assembly via
+      RHIM + death domain) is KINASE-INDEPENDENT. A catalytic-site inhibitor (e.g. GSK'772-
+      class) blocks the kinase arm only; a DEGRADER removes the scaffold too. Modality choice
+      is therefore mechanism-defining, not interchangeable — the canonical inhibitor-vs-degrader
+      domain case.
+    primary_source_doi: 10.1016/j.molcel.2017.05.003
+    primary_source_citation: >
+      Weinlich R, Green DR. The two faces of receptor interacting protein kinase-1. Mol Cell 2017.
+
+  EGFR:
+    protein_class: kinase
+    functional_domains:
+      - Protein kinase (catalytic — the TKI target)
+      - Extracellular / dimerization (ligand-independent kinase-independent signalling)
+    preferred_mechanism: context_dependent
+    mechanism_context: >
+      EGFR has documented KINASE-INDEPENDENT pro-survival functions (glucose transporter
+      stabilization, autophagy modulation) beyond its catalytic activity, so full removal
+      (degrader / antibody-mediated downregulation) can differ from TKI inhibition in some
+      contexts. But the dominant oncogenic driver in EGFR-mutant NSCLC IS the kinase, where
+      TKIs are validated — hence context_dependent, not removal_required.
+    primary_source_doi: 10.1038/onc.2013.497
+    primary_source_citation: >
+      Weihua Z et al. Survival of cancer cells is maintained by EGFR independent of its kinase
+      activity. Cancer Cell 2008 (kinase-independent EGFR function).
+
+  STAT3:
+    protein_class: transcription_factor
+    functional_domains:
+      - SH2 domain (phospho-tyrosine binding; dimerization)
+      - DNA-binding domain
+      - Transactivation domain
+    preferred_mechanism: removal_favored
+    mechanism_context: >
+      STAT3 is a transcription factor with no catalytic pocket; small-molecule INHIBITION has
+      historically failed (SH2/dimerization disruptors have poor drug-like properties). Its
+      oncogenic function is scaffolding/transcriptional, making it a prototypical DEGRADER /
+      molecular-glue target rather than a catalytic-inhibitor target.
+    primary_source_doi: 10.1038/nrd.2018.29
+    primary_source_citation: >
+      (STAT3 as an 'undruggable' TF; degrader rationale.) Reviews of TF-targeting modalities.
+
+  BRD4:
+    protein_class: chromatin_regulator
+    functional_domains:
+      - Bromodomain 1 (acetyl-lysine reader — the BET-inhibitor target)
+      - Bromodomain 2 (acetyl-lysine reader)
+      - Extra-terminal domain (scaffolding; recruits P-TEFb / transcriptional machinery)
+    preferred_mechanism: removal_favored
+    mechanism_context: >
+      BET INHIBITORS occupy the bromodomain acetyl-lysine pocket, but BRD4's ET domain scaffolds
+      transcriptional co-activators independent of bromodomain reading. BRD4 DEGRADERS (dBET/ARV-
+      class) produce a deeper, more durable transcriptional collapse than bromodomain inhibition
+      alone — a documented inhibitor-vs-degrader divergence for a reader/scaffold protein.
+    primary_source_doi: 10.1126/science.aab1433
+    primary_source_citation: >
+      Winter GE et al. Phthalimide conjugation as a strategy for in vivo target protein
+      degradation (dBET1 / BRD4 degrader). Science 2015.
+
+  FAK:   # PTK2
+    protein_class: kinase
+    functional_domains:
+      - FERM domain (scaffolding; localization + protein interactions)
+      - Protein kinase (catalytic — the FAK-inhibitor target)
+      - FAT domain (focal-adhesion targeting; scaffolding)
+    preferred_mechanism: removal_favored
+    mechanism_context: >
+      FAK (PTK2) has substantial KINASE-INDEPENDENT scaffolding functions (FERM/FAT-mediated
+      adhesion signalling, nuclear roles in p53 turnover). Catalytic FAK inhibitors leave the
+      scaffold intact; degraders remove both — relevant where the scaffolding arm drives the
+      phenotype.
+    primary_source_doi: 10.1038/nrc3792
+    primary_source_citation: >
+      Sulzmaier FJ et al. FAK in cancer: mechanistic findings and clinical applications. Nat Rev
+      Cancer 2014 (kinase-independent FAK functions).
+
+  PTK2:  # alias of FAK — same biology (some annotations use PTK2)
+    protein_class: kinase
+    functional_domains:
+      - FERM domain (scaffolding)
+      - Protein kinase (catalytic)
+      - FAT domain (scaffolding)
+    preferred_mechanism: removal_favored
+    mechanism_context: >
+      PTK2 is FAK (see FAK entry) — significant kinase-independent scaffolding via FERM/FAT.
+      Degrader engages the scaffold arm a catalytic inhibitor spares.
+    primary_source_doi: 10.1038/nrc3792
+    primary_source_citation: >
+      Sulzmaier FJ et al. Nat Rev Cancer 2014.
+
+  JAK2:
+    protein_class: kinase
+    functional_domains:
+      - Protein kinase (JH1 — catalytic; the JAK-inhibitor target)
+      - Pseudokinase (JH2 — autoregulatory; V617F driver mutation site)
+      - FERM + SH2 (receptor scaffolding)
+    preferred_mechanism: context_dependent
+    mechanism_context: >
+      JAK2 is a validated catalytic-inhibitor target (ruxolitinib) in MPN, but type-I JAK
+      inhibitors do not clear the malignant clone and JAK2 has receptor-scaffolding roles; JAK2
+      degraders are being explored for deeper clonal suppression. Catalytic inhibition is
+      effective but not necessarily sufficient — context_dependent.
+    primary_source_doi: 10.1182/blood.2019004304
+    primary_source_citation: >
+      (JAK2 degrader rationale in MPN; incomplete clonal response to catalytic inhibition.)

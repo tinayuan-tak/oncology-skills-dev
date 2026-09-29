@@ -1,0 +1,28 @@
+{
+  "$comment": "PER-SKILL PINS (source) for combinatorial-dependency (AUX, non-fan-out standalone; SELF-CONTAINED verdict, no shared resolver). VARIANT = descriptive-scalar: role:descriptive (gateless) + polarity:not_scored + the combinatorial_dependency_verdict/call enum. Emitter patched to add build_skill_report. Enum = run.py::_RULE_VERDICT (1:1 with interpretation-rules/combinatorial-dependency.rules.yaml). Append-only within contract major version.",
+  "skill": "combinatorial-dependency",
+  "role_variant": "descriptive_scalar",
+  "$defs": {
+    "combinatorial_dependency_verdict_enum": {"type": "string", "enum": ["constitutive_combinatorial_dependency", "context_combinatorial_dependency", "suppressive_combinatorial_interaction", "no_combinatorial_dependency", "combinatorial_dependency_insufficient"]}
+  },
+  "pins": {
+    "properties": {
+      "skill": {"const": "combinatorial-dependency"},
+      "headline": {
+        "type": "object",
+        "required": ["combinatorial_dependency_verdict"],
+        "properties": {
+          "combinatorial_dependency_verdict": {"$ref": "#/$defs/combinatorial_dependency_verdict_enum"},
+          "skill_report": {
+            "type": ["object", "null"],
+            "properties": {
+              "call": {"oneOf": [{"$ref": "#/$defs/combinatorial_dependency_verdict_enum"}, {"type": "null"}]},
+              "role": {"const": "descriptive"},
+              "polarity": {"const": "not_scored"}
+            }
+          }
+        }
+      }
+    }
+  }
+}

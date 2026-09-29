@@ -1,0 +1,103 @@
+# Card — s_het DOMINANT-LoF INTOLERANCE (GeneBayes)
+#
+# The CONTINUOUS complement to gnomad-lof-constraint's binary pLI/LOEUF classes. s_het (Zeng et al.
+# 2024 Nature, GeneBayes) is the dominant-LoF selection coefficient — a deep-learning-priored,
+# continuous, better-calibrated measure of intolerance to heterozygous LoF that catches dosage-sensitive
+# SMALL genes binary constraint misses. Higher s_het = stronger dominant-LoF constraint = greater
+# on-target safety concern for a full-KO modality (degrader / RNA / full-inhibition SM).
+#
+# VERDICT-INERT (Phase 1): this card fires NO interpretation rule and is NOT in the safety resolver's
+# when_fired, so the safety verdict + its golden are byte-stable. It is a CONFIDENCE / corroboration
+# annotation on the gnomad-lof-constraint call (concordance or disagreement between the continuous s_het
+# and the binary constraint class). A verdict-bearing promotion (an shet-high-intolerance-safety-warning
+# rung adjacent to the gnomAD highly-constrained rung) is a deferred, backtest-gated follow-up.
+#
+# Mechanism-conditioning is FREE: the mutant-selective GoF downgrade lives in the per-modality safety
+# layer (modality_safety.py), not the resolver, so it already applies to any s_het-driven concern.
+#
+#   high_intolerance     → s_het >= 0.1  (Cassa 2017 / Zeng 2024 strong-constraint threshold; ~15% of genes)
+#   moderate_intolerance → 0.01 <= s_het < 0.1
+#   tolerant             → s_het < 0.01  (LoF tolerated; less safety concern)
+#   indeterminate        → gene absent from the s_het table
+
+card_id: shet-lof-intolerance
+version: 1.0.0
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
+question: "What is {target.symbol}'s continuous dominant-LoF selection coefficient (s_het, GeneBayes), and does it corroborate or sharpen the binary gnomAD constraint call for on-target safety?"
+
+tier: target   # scope-invariant: s_het is a property of the human gene, not of any tumor subgroup. Never stratifies.
+
+applies_when: []
+
+required_inputs:
+  - product_id: shet-selection-per-gene-v1
+
+methods:
+  - call: shet-selection-lookup
+    module: shet_selection
+    entrypoint: read_target_summary
+    args:
+      target: "{target.symbol}"
+
+outputs:
+  summary_fields:
+    - shet_class                                    # PRIMARY categorical (verdict-inert)
+    - shet_score                                    # float; GeneBayes posterior-mean s_het
+    - shet_lower_95                                 # float; 95% credible interval lower bound
+    - shet_upper_95                                 # float; 95% credible interval upper bound
+    - obs_lof_count                                 # float; observed LoF variant count (context)
+    - exp_lof_count                                 # float; expected LoF variant count (context)
+    - shet_context                                  # string; human-readable s_het summary (audit)
+    - method_version
+
+  summary_fields_vocabulary:
+    shet_class:
+      - high_intolerance                            # s_het >= 0.1 — strong dominant-LoF constraint; full-KO safety concern
+      - moderate_intolerance                        # 0.01 <= s_het < 0.1
+      - tolerant                                    # s_het < 0.01 — LoF tolerated; less safety concern
+      - indeterminate                               # gene absent from the s_het table
+
+  # The numeric -> class hop, declared. shet_class is binned from shet_score alone
+  # (shet_selection/cli.py: `"shet_class": classify_shet(shet), "shet_score": shet` — the
+  # classified value and the emitted field are the SAME number, so the edge is exact).
+  # tolerant is the fall-through and indeterminate is the gene-absent availability state;
+  # neither is cutpoint-reachable.
+  derivations:
+    shet_class:
+      derives_from: [shet_score]
+      cutpoints: [high_intolerance_shet, moderate_intolerance_shet]
+
+thresholds:
+  high_intolerance_shet: 0.1                        # Cassa 2017 / Zeng 2024 strong-constraint threshold
+  moderate_intolerance_shet: 0.01
+
+threshold_roles:
+  # Verified against the producer, not the threshold name: classify_shet() tests
+  # `shet >= HIGH_INTOLERANCE` then `shet >= MODERATE_INTOLERANCE`, so each threshold is the
+  # LOWER edge of the class it names. The 95% CI bounds (shet_lower_95/upper_95) are NOT cut —
+  # the class reads the posterior mean only.
+  high_intolerance_shet:
+    role: class_cutpoint
+    bins: shet_class
+    of: shet_score
+    boundary: high_intolerance
+    scale: shet
+  moderate_intolerance_shet:
+    role: class_cutpoint
+    bins: shet_class
+    of: shet_score
+    boundary: moderate_intolerance
+    scale: shet
+
+caveats:
+  - "VERDICT-INERT (Phase 1): fires no interpretation rule and drives no safety resolver rung, so the safety verdict is byte-stable. It is a continuous CORROBORATION of the binary gnomad-lof-constraint call (agreement/disagreement). A verdict-bearing s_het rung is a deferred, backtest-gated follow-up."
+  - "s_het (GeneBayes, Zeng et al. 2024) is a DOMINANT-LoF selection coefficient — intolerance to HETEROZYGOUS LoF. It is continuous and better-calibrated than binary pLI/LOEUF, catching dosage-sensitive small genes constraint misses. Higher = more intolerant. Read shet_score alongside the 95% CI (shet_lower_95/upper_95)."
+  - "A HIGH s_het is an on-target safety concern for a FULL-KO modality (degrader / RNA / full-inhibition SM); it is DOWNGRADED for a mutant-selective (alteration-role GoF) mechanism — that conditioning lives in the per-modality safety layer, not this card. CC-BY-4.0: cite Zeng et al. 2024 Nature."
+
+# DATA_TO_SKILL_CONTRACT — a DIRECT view of the shet_lof_selection measurement (continuous dominant-LoF
+# selection coefficient per gene). Dataset-kind (single GeneBayes source), NOT a derived comparison.
+measurement_type: shet_lof_selection
+modality_relevance: [small_molecule, degrader]
+entity_grains: [target]
+schema_version: 1

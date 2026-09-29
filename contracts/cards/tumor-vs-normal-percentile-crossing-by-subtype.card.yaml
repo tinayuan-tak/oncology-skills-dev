@@ -1,0 +1,168 @@
+# Card — TUMOR-VS-NORMAL PERCENTILE-CROSSING SELECTIVITY BY MOLECULAR SUBTYPE (per-sample RNA; TCGA vs GTEx)
+#
+# The target_subtype-grain SIBLING of tumor-vs-normal-percentile-crossing (Gate B / tumor-selectivity).
+# Same measurement_type (tumor_vs_normal_percentile_crossing), same per-sample recount3 substrate — but
+# computes the crossing metric (fraction of tumors above the indication-wide matched-normal Nth
+# percentile) WITHIN each molecular-subtype member-set, emitting a per-stratum panorama.
+#
+# WHY: a target may separate from normal ONLY in one molecular subtype — a patient-selection signal the
+# pooled crossing averages away (e.g. CEACAM5/COADREAD: strongly_tumor_enriched in CMS2/3/4 & CIMP-Low/Neg
+# but only enriched_subset in CMS1/MSI-H/CIMP-High). Standard grain-split convention: a POOLED
+# target_indication card (tumor-vs-normal-percentile-crossing) beside a SEPARATE tier:subtype card (this
+# one), exactly as tumor-rna-distribution splits into tumor-rna-distribution-by-subtype.
+#
+# The GRAIN-CHECK validator (_grain_and_tier_check) enforces that a card declaring per_subgroup_metrics
+# binds a per-sample stratified reader; tcga-gtex-expression-distribution
+# (build_selectivity_crossing_subtype_panorama) IS one — it projects the per-stratum crossing metrics the
+# subtype landscape reader already computes and classifies each with the SAME pooled vocabulary
+# (_classify_percentile_crossing), so the pooled and subtype grains never diverge.
+#
+# SELECTIVITY-side (Gate B / tumor-selectivity). DESCRIPTIVE / verdict-INERT: subtype is a --subtypes
+# patient-selection PANORAMA, never a veto — the tumor-selectivity spine stays keyed to the aggregate
+# tumor-vs-normal-selectivity card + the pooled crossing corroboration. COMPUTE-ALL-SPOTLIGHT-ONE.
+
+card_id: tumor-vs-normal-percentile-crossing-by-subtype
+version: 0.1.0
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
+question: "How does {target.symbol}'s tumor-vs-normal percentile-crossing selectivity vary across the molecular subtypes of {indication.label} — which subtypes separate cleanly from matched normal, and which do not?"
+
+tier: subtype
+
+subgroup_stratification:
+  eligible: true
+  status: live
+  axes: [molecular_subtype]
+  rationale: "Per-sample percentile-crossing selectivity can be subtype-specific (a target may clear the matched-normal p95 in only one subtype). Backed by tcga-gtex-expression-distribution (build_selectivity_crossing_subtype_panorama), which projects the per-stratum crossing metrics the subtype landscape reader recomputes within each stratum's member-set via the TCGA UUID↔barcode bridge — not an emit-time aggregate."
+
+applies_when:
+  # a landed tumor assignment shard is required — kept in lockstep with the pooled by-subtype sibling +
+  # INDICATION_TO_TUMOR_ASSIGNMENT_MANIFEST in the tcga_gtex_expression_distribution reader. An
+  # indication not listed → subtype_axis_available:false (honest).
+  - "context.indication in ['COADREAD', 'COAD', 'READ', 'HNSC', 'HNSCC', 'STAD', 'GC', 'NSCLC', 'LUAD', 'LUSC', 'ESCA', 'PAAD', 'PDAC', 'SCLC']"
+  - "indication.subgroup_catalog_available == true"
+
+required_inputs:
+  # PER-SAMPLE TUMOR + NORMAL substrates (recount3 axis).
+  - product_id: tcga-tumor-tpm-recount3-long-v1        # per-sample tumor TPM (the crossing substrate)
+  - product_id: gtex-tpm-recount3-long-v1              # matched-normal per-sample TPM (same recount3 axis)
+  # SCLC has no TCGA study; its per-sample tumor TPM comes from the George cohort harmonized onto the
+  # same recount3 gene axis + long-product schema (read.py:64-69, SCLC_LONG_KEY). Declared so a SCLC
+  # --subtypes run stamps its true substrate, not a TCGA id it never read.
+  - product_id: sclc-george-tpm-long-v1
+  # DROPPED (2026-09-18, F4): tcga-tumor-tpm-per-sample-v1 was superseded by
+  # tcga-tumor-tpm-recount3-long-v1 (the head, declared above). The reader touches per-sample-v1 only
+  # as the tcga_sample_study.parquet UUID<->barcode bridge — a COMPANION FILE under that product's
+  # derived dir, "NOT resolver-migrated" (read.py:75-78), not the product itself — so dropping the
+  # product_id loses no substrate provenance while clearing PRODUCT_ID_SUPERSEDED and stopping the
+  # superseded vintage from polluting provenance.input_manifest_ids / mis-pointing the is_stale flag.
+  # MOLECULAR-SUBTYPE ASSIGNMENT SHARDS — the reader resolves one per indication from two maps
+  # (tcga_gtex_expression_distribution/read.py: base INDICATION_TO_ASSIGNMENT_SHARD + the partial
+  # INDICATION_TO_TUMOR_MAF_MANIFEST). card_input_manifest_ids() is card-keyed + indication-agnostic
+  # (copies verbatim), so the card must enumerate EVERY resolvable shard or provenance is wrong for
+  # the indications it omits. 7 base shards (COADREAD/HNSC/STAD/NSCLC/ESCA/PAAD + SCLC's own) + the 4
+  # landed MAF/genomic-strata shards (HNSC/NSCLC/ESCA/PAAD; COADREAD/STAD have no -maf shard yet).
+  - product_id: tcga-subgroup-assignments-coadread-v1  # base: COADREAD/COAD/READ
+  - product_id: tcga-subgroup-assignments-hnsc-v1      # base: HNSC/HNSCC
+  - product_id: tcga-subgroup-assignments-stad-v1      # base: STAD/GC
+  - product_id: tcga-subgroup-assignments-nsclc-v1     # base: NSCLC/LUAD/LUSC (histology split)
+  - product_id: tcga-subgroup-assignments-esca-v1      # base: ESCA
+  - product_id: tcga-subgroup-assignments-paad-v1      # base: PAAD/PDAC
+  - product_id: sclc-subgroup-assignments-v1           # base: SCLC (NAPY argmax, non-TCGA)
+  - product_id: tcga-subgroup-assignments-hnsc-maf-v1  # MAF: HNSC/HNSCC genomic strata
+  - product_id: tcga-subgroup-assignments-nsclc-maf-v1 # MAF: NSCLC/LUAD/LUSC (KRAS_G12C)
+  - product_id: tcga-subgroup-assignments-esca-maf-v1  # MAF: ESCA genomic strata
+  - product_id: tcga-subgroup-assignments-paad-maf-v1  # MAF: PAAD/PDAC (TP53/KRAS strata)
+
+methods:
+  - call: tcga-gtex-expression-distribution
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - per_subgroup_metrics                      # the per-stratum crossing panorama (record schema below)
+    - subtype_axis_available                    # is a shard landed for this indication?
+    - n_subtypes_measured                       # strata clearing the n-floor with a matched-normal window
+    - n_subtypes_strongly_enriched              # strata reading strongly_tumor_enriched
+    - max_subtype_fraction_above_normal_p95     # the most-selective stratum's fraction (patient-selection ceiling)
+    - min_subtype_fraction_above_normal_p95     # the least-selective stratum's fraction
+    - crossing_varies_by_subtype                # bool — fraction range spans a class boundary (subtype IS a selection axis)
+    - assignment_manifest                       # provenance: the shard consumed
+    - matched_normal_tissue                     # true GTEx tissue-of-origin (null when none exists)
+    - normal_comparator_type                    # matched | proxy | none — HOW the window was computed
+  summary_fields_vocabulary:
+    # per-stratum class — the SAME per-sample percentile-crossing vocabulary as the pooled sibling
+    # (tumor-vs-normal-percentile-crossing), so pooled and subtype grains are directly comparable.
+    percentile_crossing_class:
+      - strongly_tumor_enriched                 # frac_p95 >= 0.5 AND overlap <= 0.4 (most tumors clear normal p95, clean separation)
+      - enriched_subset                         # frac_p95 >= 0.25 (a real tumor-high subset above normal p95)
+      - minimally_enriched                      # frac_p95 < 0.25 (few tumors exceed normal)
+      - not_enriched                            # frac_p95 < 0.05 (no separation)
+      - data_unavailable                        # underpowered stratum / no matched normal
+  summary_fields_record_schemas:
+    # a runtime null (an underpowered stratum's fraction/overlap) is permitted — the schema types the
+    # non-null case (matches the subgroup-stratified-dependency / by-subtype exemplar convention).
+    per_subgroup_metrics:
+      stratum_id: string
+      evidence_state: {enum: [measured, underpowered, absent], type: string}
+      n_tumor_samples: integer
+      percentile_crossing_class: {enum: [strongly_tumor_enriched, enriched_subset, minimally_enriched, not_enriched, data_unavailable], type: string}
+      fraction_tumor_above_normal_p95: number
+      fraction_tumor_above_normal_p99: number
+      distribution_overlap_tumor_normal: number
+
+thresholds:
+  subgroup_n_floor: 30                           # underpowered stratum → data_unavailable class, never a scoped call
+  # per-sample crossing class cutoffs — mirror _classify_percentile_crossing in the reader (declared
+  # here so they are reviewable; the reader is the single source of the classification).
+  strong_frac_p95: 0.5
+  strong_max_overlap: 0.4
+  enriched_subset_frac_p95: 0.25
+  not_enriched_frac_p95: 0.05
+  # fraction-range span (across measured strata) above which crossing is flagged subtype-specific.
+  crossing_varies_delta: 0.25
+
+caveats:
+  - "Landed tumor assignment shards: COADREAD, HNSC, STAD, NSCLC, ESCA, PAAD (+ SCLC). Other indications return subtype_axis_available:false (honest) until their shards land."
+  - "The matched-normal p95 is the INDICATION-WIDE GTEx tissue-of-origin percentile (GTEx normal has no tumor molecular subtype), applied to each tumor stratum — the per-subtype analogue of the pooled crossing. Null when the indication has no matched GTEx normal (honest gap), NOT zero."
+  - "A stratum below subgroup_n_floor (n<30) carries a data_unavailable class — never a scoped call on underpowered data."
+  - "The UUID→barcode→stratum bridge drops the ~8% of recount3 samples with no sidecar barcode or no stratum label; a <5% match rate raises the id-convention guard rather than masquerading as empty strata."
+  - "Subtype is patient-selection CONTEXT for selectivity, NOT a new veto — the aggregate tumor-vs-normal-selectivity card + the pooled crossing carry the selectivity read; this panorama enriches it."
+
+# Two orthogonal axes (Slice A1): measurement LAYER + biological SAMPLE. Same as the pooled sibling —
+# this card differs only in GRAIN (target_subtype), not measurement/sample_context.
+measurement: bulk_rna
+sample_context: tumor         # patient tumor per-sample (TCGA), stratified by molecular subtype
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of tumor_vs_normal_percentile_crossing at target_subtype grain
+# (LIVE per-sample slice; the pooled sibling is tumor-vs-normal-percentile-crossing at target_indication).
+measurement_type: tumor_vs_normal_percentile_crossing
+entity_grains: [target_subtype]
+schema_version: 1
+threshold_roles:
+  strong_frac_p95:
+    role: method_parameter
+    consumed_by: tcga-gtex-expression-distribution
+    note: 'The method applies frac_p95 >= 0.5 in _classify_percentile_crossing (tcga_gtex_expression_distribution/read.py:661/668), per stratum. Applied upstream, never by a card predicate.'
+  strong_max_overlap:
+    role: method_parameter
+    consumed_by: tcga-gtex-expression-distribution
+    note: 'The method applies overlap <= 0.4 alongside frac_p95 >= 0.5 in _classify_percentile_crossing (read.py:668). Applied upstream, never by a card predicate.'
+  enriched_subset_frac_p95:
+    role: method_parameter
+    consumed_by: tcga-gtex-expression-distribution
+    note: 'The method applies frac_p95 >= 0.25 in _classify_percentile_crossing (read.py:670). Applied upstream, never by a card predicate.'
+  not_enriched_frac_p95:
+    role: method_parameter
+    consumed_by: tcga-gtex-expression-distribution
+    note: 'The method applies frac_p95 < 0.05 in _classify_percentile_crossing (read.py:672). Applied upstream, never by a card predicate.'
+  crossing_varies_delta:
+    role: method_parameter
+    consumed_by: tcga-gtex-expression-distribution
+    note: 'The method flags crossing_varies_by_subtype when (max(fracs) - min(fracs)) >= 0.25 across strata in build_selectivity_crossing_subtype_panorama (tcga_gtex_expression_distribution/cli.py:219). Applied upstream, never by a card predicate.'
+  subgroup_n_floor:
+    role: method_parameter
+    consumed_by: tcga-gtex-expression-distribution
+    note: 'The method gates a stratum as powered when n >= 30 (methods/subgroup_common/panorama.py:44 SUBGROUP_N_FLOOR), applied in read.py:1048/1370. Applied upstream, never by a card predicate.'

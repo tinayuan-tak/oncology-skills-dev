@@ -1,0 +1,492 @@
+"""Known-target calibration harness (Phase 1).
+
+The framework's standing regression suite: runs the fixture set in
+`vocabularies/known_target_calibration_set.yaml` against checked-in decision
+SNAPSHOTS (captured from live DepMap-26q1 framework runs this session) and
+asserts per each entry's `assertion_type`. This codifies the ad-hoc known-target
+backtests as a runnable, deterministic suite — every future framework change is
+MEASURED against known targets, not argued.
+
+The three assertion types are the executable form of the Phase-0 reframes
+(docs/design/KNOWN_TARGET_FRAMEWORK_REFRAMES.md):
+  - must_not_veto           — NECESSITY: an approved target must not hit a gate-C veto.
+  - abstention_expected     — ABSTENTION: a data-blocked axis returns honest insufficient.
+  - known_gap_expected_fail — a currently-false-negatived ADVANCED target reads the
+                              documented gap verdict TODAY (flips when a fix lands).
+
+Deterministic by design: it reads snapshots, not live data (no Bedrock, no S3, CI-safe).
+REFRESH (opt-in, NOT run in CI): to re-capture snapshots against live data, run each
+sub-skill with `/opt/conda/bin/python` (py3.12 — the pixi py3.14 default breaks live
+reads and silently returns false-`insufficient`) and `AWS_PROFILE=cbg`, output under
+~/dev/framework-runs/portfolio-validation/, then re-extract the minimal snapshots.
+"""
+
+from __future__ import annotations
+
+import json
+import re
+from pathlib import Path
+
+import pytest
+import yaml
+
+REPO = Path(__file__).resolve().parents[2]
+FIXTURES = REPO / "vocabularies" / "known_target_calibration_set.yaml"
+SNAP_DIR = Path(__file__).resolve().parent / "snapshots"
+
+# Dependency verdicts the nomination gate converts to a VETO (nomination_verdict_gate.yaml).
+#
+# WIDENED 2026-09-18 (Stage 2b) with `not_dependent_in_indication`, the third veto arm. This one was
+# NOT found by running the suite — it stayed GREEN, because the token is unreachable until a producer
+# populates `indication_dependency_class` at Stage 5, so no snapshot can carry it. A green pin that
+# names 2 of 3 veto arms is the exact shape of a FALSE ABSENCE: at Stage 5 a positive control could
+# read a veto verdict and this suite would have reported PASS. Reachability is why it cannot fail
+# today, which is also why nothing but reading finds it.
+#
+# It is a HARDCODED MIRROR of vocabularies/nomination_verdict_gate.yaml `gates`, so it can drift.
+# test_veto_verdicts_mirror_matches_the_vocabulary below makes the drift fail instead of going quiet.
+VETO_VERDICTS = {"non_dependent", "not_dependent_in_indication", "pan_essential_killer"}
+
+GATE_VOCAB = REPO / "vocabularies" / "nomination_verdict_gate.yaml"
+
+
+def test_veto_verdicts_mirror_matches_the_vocabulary():
+    """VETO_VERDICTS is a hardcoded copy of the gate's dependency veto arms; assert it is not stale.
+
+    Without this, the mirror drifts SILENTLY IN THE FAIL-OPEN DIRECTION: a veto arm added to the
+    vocabulary and not here means `must_not_veto` stops noticing that arm, and the suite keeps
+    reporting PASS — the failure mode is a green calibration run, not a red one. Exactly what
+    happened to the `not_dependent_in_indication` arm between #812 and this commit.
+    """
+    gates = yaml.safe_load(GATE_VOCAB.read_text())["gates"]
+    vocab_vetoes = {g["verdict"] for g in gates if g["sub_skill"] == "dependency" and g["action"] == "veto"}
+    assert vocab_vetoes, "no dependency vetoes parsed — the assertion below would be vacuous"
+    assert VETO_VERDICTS == vocab_vetoes, (
+        f"VETO_VERDICTS {sorted(VETO_VERDICTS)} is stale against nomination_verdict_gate.yaml "
+        f"{sorted(vocab_vetoes)}. A missing arm makes every must_not_veto assertion blind to it."
+    )
+
+
+# The tumor-selectivity normal-breadth veto downgrade class.
+SELECTIVITY_VETO_VERDICT = "selective_but_broadly_normal"
+# Disposition tags for selectivity_cases entries (documentation taxonomy; asserted well-formed).
+_SELECTIVITY_DISPOSITIONS = {
+    "clean_positive",
+    "over_veto_false_negative",
+    "window_veto_cohort_confounded",
+    "discordant_flag",
+    "not_selective_control",
+    "true_negative_veto",
+    "selective_with_liability_correct",  # Phase S: sc-normal over-veto FIXED → named-organ liability
+}
+
+
+def _load_fixtures() -> dict:
+    return yaml.safe_load(FIXTURES.read_text())
+
+
+def _load_snapshot(name: str) -> dict:
+    p = SNAP_DIR / name
+    assert p.exists(), f"snapshot missing: {p} (fixture declares measured:true)"
+    return json.loads(p.read_text())
+
+
+def _all_entries(fixtures: dict):
+    """Yield (bucket, name, entry) across all fixture buckets."""
+    for bucket in ("positive_controls", "known_gap_watchlist", "abstention_cases", "selectivity_cases"):
+        for name, entry in (fixtures.get(bucket) or {}).items():
+            yield bucket, name, entry
+
+
+# ---------------------------------------------------------------------------
+# Fixture-set integrity (the config itself must stay well-formed)
+# ---------------------------------------------------------------------------
+
+
+def test_fixture_set_loads_and_versioned():
+    f = _load_fixtures()
+    assert f["version"] and f["depmap_release_pin"]
+    assert any(_all_entries(f)), "fixture set is empty"
+
+
+def test_every_entry_well_formed():
+    valid_types = {"must_not_veto", "abstention_expected", "known_gap_expected_fail", "selectivity_verdict_expected"}
+    for bucket, name, e in _all_entries(_load_fixtures()):
+        assert e.get("indication"), f"{name}: missing indication"
+        assert e.get("assertion_type") in valid_types, f"{name}: bad assertion_type {e.get('assertion_type')!r}"
+        assert "measured" in e, f"{name}: missing measured flag"
+        # a measured entry must name a snapshot that exists
+        if e.get("measured"):
+            assert e.get("snapshot"), f"{name}: measured:true but no snapshot named"
+            assert (SNAP_DIR / e["snapshot"]).exists(), f"{name}: snapshot file absent"
+
+
+def test_selectivity_cases_well_formed():
+    """The selectivity panel carries a documented disposition; the ones we get WRONG today
+    (over_veto_false_negative / discordant_flag) must name the intended post-fix verdict so a
+    future fix is a clean diff."""
+    for name, e in (_load_fixtures().get("selectivity_cases") or {}).items():
+        assert e.get("assertion_type") == "selectivity_verdict_expected", (
+            f"{name}: selectivity_cases entry must be selectivity_verdict_expected"
+        )
+        assert e.get("expected_selectivity_class"), f"{name}: missing expected_selectivity_class"
+        assert e.get("disposition") in _SELECTIVITY_DISPOSITIONS, f"{name}: bad disposition {e.get('disposition')!r}"
+        if e["disposition"] in {"over_veto_false_negative", "discordant_flag"}:
+            assert e.get("should_be"), f"{name}: {e['disposition']} must name `should_be` (the flip target)"
+        # true_negative_veto entries assert the veto SHOULD fire
+        if e["disposition"] == "true_negative_veto":
+            assert e["expected_selectivity_class"] == SELECTIVITY_VETO_VERDICT, (
+                f"{name}: a true_negative_veto must expect {SELECTIVITY_VETO_VERDICT!r}"
+            )
+
+
+# ---------------------------------------------------------------------------
+# The calibration assertions (parametrized over measured entries)
+# ---------------------------------------------------------------------------
+
+
+def _measured_entries():
+    out = []
+    for bucket, name, e in _all_entries(_load_fixtures()):
+        if e.get("measured"):
+            out.append(pytest.param(bucket, name, e, id=f"{name}-{e['indication']}"))
+    return out
+
+
+@pytest.mark.parametrize("bucket,name,entry", _measured_entries())
+def test_known_target_calibration(bucket, name, entry):
+    snap = _load_snapshot(entry["snapshot"])
+    headline = snap.get("headline") or {}
+    atype = entry["assertion_type"]
+
+    if atype == "must_not_veto":
+        # NECESSITY: an approved/validated target must NOT hit a gate-C veto verdict.
+        verdict = headline.get("dependency_verdict")
+        assert verdict is not None, f"{name}: no dependency_verdict in snapshot"
+        assert verdict not in VETO_VERDICTS, (
+            f"{name}: NECESSITY VIOLATION — approved target reads veto verdict {verdict!r} (osimertinib-guard failure)"
+        )
+        # also honor an explicit not-in list if provided
+        for bad in entry.get("expected_verdict_not_in", []):
+            assert verdict != bad, f"{name}: verdict {verdict!r} is in expected_verdict_not_in"
+
+    elif atype == "abstention_expected":
+        # ABSTENTION: the surface (sufficiency) gate must return honest insufficient,
+        # NOT a fabricated nomination. This is a PASS, not a coverage failure.
+        v = headline.get("surface_modality_verdict")
+        assert v == entry.get("expected_surface_modality_verdict", "insufficient"), (
+            f"{name}: ABSTENTION VIOLATION — surface verdict {v!r}, expected insufficient "
+            f"(a data-blocked axis must abstain, not fabricate a nomination)"
+        )
+        # fit_class must be null/None when abstaining
+        assert headline.get("fit_class") in (None, "null"), (
+            f"{name}: fit_class {headline.get('fit_class')!r} should be null when abstaining"
+        )
+
+    elif atype == "known_gap_expected_fail":
+        # KNOWN GAP: an ADVANCED program the framework currently false-negatives.
+        # The suite PASSES when it still reads the documented gap verdict — this is the
+        # regression anchor that Phase-2 (context-SL) will FLIP. When the fix lands,
+        # change assertion_type→must_not_veto and this becomes a violation-if-regressed.
+        verdict = headline.get("dependency_verdict")
+        exp = entry.get("expected_verdict_current")
+        assert verdict == exp, (
+            f"{name}: known-gap watch verdict changed: {verdict!r} != expected {exp!r}. "
+            f"If a fix (e.g. Phase-2 context-SL) landed, update the fixture "
+            f"(assertion_type→must_not_veto, expected_after_context_sl)."
+        )
+        drv = headline.get("driving_rule_id")
+        assert drv == entry.get("expected_driving_rule_current"), f"{name}: driving rule changed: {drv!r}"
+
+    elif atype == "selectivity_verdict_expected":
+        # SELECTIVITY gate: pin headline.selectivity_class to the CURRENT measured value (a
+        # regression anchor). over_veto_false_negative / discordant_flag entries pin a verdict
+        # the framework gets WRONG today; when a veto/robustness fix lands (plan Phase V/S/A5)
+        # this assertion flips — update expected_selectivity_class (→ the entry's `should_be`)
+        # and disposition→clean_positive. That flip IS the intended, reviewable regression signal.
+        sc = headline.get("selectivity_class")
+        assert sc is not None, f"{name}: no selectivity_class in snapshot"
+        exp = entry.get("expected_selectivity_class")
+        assert exp is not None, f"{name}: selectivity entry missing expected_selectivity_class"
+        assert sc == exp, (
+            f"{name}: selectivity_class drifted: {sc!r} != expected {exp!r}. If a veto/robustness "
+            f"fix landed, update expected_selectivity_class (over_veto/discordant entries flip to "
+            f"their `should_be` + disposition→clean_positive)."
+        )
+        exp_drv = entry.get("expected_driving_rule_current")
+        if exp_drv is not None:
+            drv = headline.get("driving_rule_id")
+            assert drv == exp_drv, f"{name}: driving_rule_id drifted: {drv!r} != {exp_drv!r}"
+
+
+# ---------------------------------------------------------------------------
+# Coverage report (informational — always passes; documents what's measured)
+# ---------------------------------------------------------------------------
+
+
+def test_calibration_coverage_report(capsys):
+    f = _load_fixtures()
+    measured = pending = 0
+    by_type: dict[str, int] = {}
+    for bucket, name, e in _all_entries(f):
+        by_type[e["assertion_type"]] = by_type.get(e["assertion_type"], 0) + 1
+        if e.get("measured"):
+            measured += 1
+        else:
+            pending += 1
+    with capsys.disabled():
+        print(f"\n[calibration] measured={measured} pending(reasoned-only)={pending} by_assertion_type={by_type}")
+    assert measured >= 1  # the suite is not empty of measured anchors
+
+
+# ---------------------------------------------------------------------------
+# biology_anchors — T4 field-grain directional biology (plan foamy-bird I.2)
+# ---------------------------------------------------------------------------
+# The buckets above pin the TOP-LINE class per snapshot. These promote the SAME
+# committed snapshots to FIELD grain: directional assertions on the SUPPORTING
+# fields that drive that class, grounded in known biology. A data fix that moves a
+# driving field reds the anchor even when the top-line class is unchanged.
+#
+# Teeth-vs-vacuity discipline (the emission-ledger lesson, feedback_green_for_the_wrong_reason):
+#   - a renamed/typo'd field must FAIL, never silently pass  -> field-present guard first
+#   - a numeric op against a null/None value must FAIL        -> numeric guard
+#   - the anchors re-read the snapshot                        -> test_biology_anchor_detects_mutation
+#   - no anchor asserts a field another bucket owns           -> test_biology_anchor_ownership_is_disjoint
+
+_BIOLOGY_OPS = {"equals", "in", "not_in", "gte", "lte", "gt", "lt", "matches"}
+_NUMERIC_OPS = {"gte", "lte", "gt", "lt"}
+
+
+def _biology_anchors() -> dict:
+    return _load_fixtures().get("biology_anchors") or {}
+
+
+def _eval_biology_assertion(headline: dict, a: dict) -> None:
+    """Evaluate one biology assertion against a snapshot headline; raise AssertionError on failure.
+
+    Anti-vacuity: the field must be PRESENT (a renamed/removed field reds, never skips), and a
+    numeric op needs an actual number (a None/null must red, not pass).
+    """
+    field, op = a["field"], a["op"]
+    expected = a.get("value")
+    assert field in headline, (
+        f"biology anchor references field {field!r} absent from snapshot headline "
+        f"(keys={sorted(headline)}); a renamed/removed field must red, not pass silently"
+    )
+    got = headline[field]
+    if op == "equals":
+        assert got == expected, f"{field}: {got!r} != expected {expected!r}"
+    elif op == "in":
+        assert got in expected, f"{field}: {got!r} not in {expected!r}"
+    elif op == "not_in":
+        assert got not in expected, f"{field}: {got!r} unexpectedly in {expected!r}"
+    elif op == "matches":
+        assert isinstance(got, str), f"{field}: matches needs a string, got {got!r}"
+        assert re.search(expected, got, re.IGNORECASE), f"{field}: {got!r} does not match /{expected}/i"
+    elif op in _NUMERIC_OPS:
+        assert isinstance(got, (int, float)) and not isinstance(got, bool), (
+            f"{field}: numeric op {op} needs a number, got {got!r} (a null/None must red, not skip)"
+        )
+        ok = {"gte": got >= expected, "lte": got <= expected, "gt": got > expected, "lt": got < expected}[op]
+        assert ok, f"{field}: {got!r} fails {op} {expected!r}"
+    else:  # pragma: no cover - guarded by test_biology_anchors_well_formed
+        raise AssertionError(f"unknown biology op {op!r}")
+
+
+def _biology_anchor_params():
+    out = []
+    for name, e in _biology_anchors().items():
+        for a in e.get("assertions") or []:
+            out.append(pytest.param(name, e, a, id=f"{name}-{a.get('field', '?')}"))
+    return out
+
+
+def _owned_fields_by_snapshot() -> dict:
+    """Fields the four assertion buckets ALREADY own per snapshot — biology anchors must avoid them."""
+    owned: dict[str, set] = {}
+    for _bucket, _name, e in _all_entries(_load_fixtures()):
+        snap = e.get("snapshot")
+        if not snap:
+            continue
+        at = e.get("assertion_type")
+        fields: set[str] = set()
+        if at == "selectivity_verdict_expected":
+            fields.add("selectivity_class")
+            if e.get("expected_driving_rule_current"):
+                fields.add("driving_rule_id")
+        elif at == "must_not_veto":
+            fields.add("dependency_verdict")
+        elif at == "known_gap_expected_fail":
+            fields |= {"dependency_verdict", "driving_rule_id"}
+        elif at == "abstention_expected":
+            fields |= {"surface_modality_verdict", "fit_class"}
+        owned.setdefault(snap, set()).update(fields)
+    return owned
+
+
+def test_biology_anchors_well_formed():
+    anchors = _biology_anchors()
+    assert anchors, "biology_anchors bucket missing or empty"
+    for name, e in anchors.items():
+        assert e.get("snapshot"), f"{name}: missing snapshot"
+        assert (SNAP_DIR / e["snapshot"]).exists(), f"{name}: snapshot file absent: {e['snapshot']}"
+        assert e.get("skill"), f"{name}: missing skill"
+        assert e.get("biology"), f"{name}: missing biology rationale"
+        aa = e.get("assertions")
+        assert aa, f"{name}: no assertions"
+        for a in aa:
+            assert a.get("field"), f"{name}: an assertion is missing `field`"
+            assert a.get("op") in _BIOLOGY_OPS, f"{name}: bad op {a.get('op')!r} on {a.get('field')}"
+            assert "value" in a, f"{name}: assertion on {a.get('field')} missing `value`"
+            assert a.get("because"), f"{name}: assertion on {a.get('field')} missing `because`"
+            if a["op"] in _NUMERIC_OPS:
+                assert isinstance(a["value"], (int, float)) and not isinstance(a["value"], bool), (
+                    f"{name}: numeric op {a['op']} on {a['field']} needs a numeric value, got {a['value']!r}"
+                )
+            if a["op"] in {"in", "not_in"}:
+                assert isinstance(a["value"], list), f"{name}: {a['op']} on {a['field']} needs a list value"
+
+
+def test_biology_anchors_nonvacuous():
+    """Floors: the bucket cannot silently shrink to nothing (the exact trap this plan removes)."""
+    anchors = _biology_anchors()
+    n_anchors = len(anchors)
+    n_assertions = sum(len(e.get("assertions") or []) for e in anchors.values())
+    assert n_anchors >= 8, f"biology anchor floor tripped: {n_anchors} < 8"
+    assert n_assertions >= 20, f"biology assertion floor tripped: {n_assertions} < 20"
+    skills = {e.get("skill") for e in anchors.values()}
+    assert len(skills) >= 2, f"biology anchors span only {skills} — expected >= 2 skills"
+    assert _biology_anchor_params(), "parametrize is empty — the per-assertion suite would be vacuous"
+
+
+def test_biology_anchor_ownership_is_disjoint():
+    """No biology anchor may assert a field another bucket already owns for the same snapshot —
+    duplicate ownership means a data fix has two places to update and one silently rots."""
+    owned = _owned_fields_by_snapshot()
+    for name, e in _biology_anchors().items():
+        snap = e["snapshot"]
+        for a in e.get("assertions") or []:
+            assert a["field"] not in owned.get(snap, set()), (
+                f"{name}: biology anchor asserts {a['field']!r} on {snap}, already owned by another "
+                f"bucket ({sorted(owned.get(snap, set()))}) — move the pin, don't duplicate it"
+            )
+
+
+@pytest.mark.parametrize("name,entry,assertion", _biology_anchor_params())
+def test_biology_anchor(name, entry, assertion):
+    """Field-grain directional biology assertion over a committed snapshot (regression anchor)."""
+    snap = _load_snapshot(entry["snapshot"])
+    headline = snap.get("headline") or {}
+    assert headline, f"{name}: snapshot {entry['snapshot']} has no headline"
+    _eval_biology_assertion(headline, assertion)
+
+
+# --- teeth: the guards must be observed refusing to pass (never vacuous) ---
+
+
+def test_biology_anchor_field_present_guard():
+    """A typo'd/renamed field must FAIL (the emission-ledger vacuity trap), in BOTH directions."""
+    with pytest.raises(AssertionError, match="absent from snapshot headline"):
+        _eval_biology_assertion({"real_field": "x"}, {"field": "typo_field", "op": "equals", "value": "x"})
+    # the dangerous direction: a not_in / matches on a MISSING field must not vacuously pass
+    with pytest.raises(AssertionError, match="absent"):
+        _eval_biology_assertion({}, {"field": "gone", "op": "not_in", "value": ["a"]})
+
+
+def test_biology_anchor_numeric_guard():
+    """A numeric op against a null/None value must red — an abstaining field must not sail past gte."""
+    with pytest.raises(AssertionError, match="needs a number"):
+        _eval_biology_assertion({"max_abs_log2fc": None}, {"field": "max_abs_log2fc", "op": "gte", "value": 3.0})
+
+
+def test_biology_anchor_detects_mutation():
+    """The anchors re-read the snapshot: a mutated value reds. Proves teeth, not a tautology."""
+    base = _load_snapshot("dll3_sclc.tumor-selectivity.json")["headline"]
+    h = dict(base)
+    h["axis_a_selectivity_class"] = "not_selective"
+    with pytest.raises(AssertionError):
+        _eval_biology_assertion(
+            h, {"field": "axis_a_selectivity_class", "op": "equals", "value": "strong_tumor_selective"}
+        )
+    h = dict(base)
+    h["sc_normal_max_detection_cell_type"] = "hepatocyte"
+    with pytest.raises(AssertionError):
+        _eval_biology_assertion(
+            h, {"field": "sc_normal_max_detection_cell_type", "op": "matches", "value": "neuron|forebrain|neural"}
+        )
+    h = dict(base)
+    h["max_abs_log2fc"] = 0.5
+    with pytest.raises(AssertionError):
+        _eval_biology_assertion(h, {"field": "max_abs_log2fc", "op": "gte", "value": 3.0})
+
+
+# ---------------------------------------------------------------------------
+# Reference-profile well-formedness (2026-07-19 deep-research fidelity assessment)
+# ---------------------------------------------------------------------------
+# The reference_profiles section is the committed ASSESSMENT ground truth (deciding
+# axis + coverage + agreement + severity per target). It is not a per-entry snapshot
+# assertion (those stay in the measured buckets above); these guards keep it from
+# silently rotting and pin the vocabularies so a fix-driven blind→captured flip is a
+# clean, reviewable diff.
+
+_COVERAGE_VOCAB = {"captured", "partial", "blind", "license_blocked", "out_of_scope"}
+# honest_conservative (2026-09-08): the framework CORRECTLY vetoes on data it CAN see (e.g. a pan-essential
+# gene is a poor de-novo nomination), but the clinical outcome differs due to an OUT-OF-SCOPE factor the
+# nomination data cannot represent (an in-vivo/pharmacology therapeutic window — PSMB5/bortezomib,
+# XPO1/selinexor). Distinct from silent_false_negative (a fixable framework miss) and honest_blind (the
+# framework can't see the axis at all): here the veto is defensible-by-design. See the PSMB5/XPO1 backtest
+# probe (2026-09-08) — DepMap shows NO MM dependency window, confirming it is not a genetic-dependency signal.
+_SEVERITY_VOCAB = {
+    "dangerous_false_positive",
+    "silent_false_negative",
+    "honest_blind",
+    "validated_lane",
+    "honest_conservative",
+}
+
+
+def _reference_profiles():
+    return _load_fixtures().get("reference_profiles") or {}
+
+
+def test_reference_profiles_present_and_well_formed():
+    rp = _reference_profiles()
+    assert rp, "reference_profiles section missing"
+    for name, e in rp.items():
+        assert e.get("deciding_axis"), f"{name}: missing deciding_axis"
+        assert e.get("deciding_axis_coverage") in _COVERAGE_VOCAB, (
+            f"{name}: bad deciding_axis_coverage {e.get('deciding_axis_coverage')!r}"
+        )
+        assert e.get("severity") in _SEVERITY_VOCAB, f"{name}: bad severity {e.get('severity')!r}"
+        assert e.get("agreement"), f"{name}: missing agreement"
+
+
+def test_reference_profile_severity_consistency():
+    """severity must be consistent with the agreement class — the assessment's core
+    taxonomy. A dangerous tier must be a false-positive; a validated-lane must agree."""
+    rp = _reference_profiles()
+    for name, e in rp.items():
+        sev, agr = e["severity"], e["agreement"]
+        if sev == "dangerous_false_positive":
+            assert agr == "framework_false_positive", f"{name}: dangerous tier but agreement={agr}"
+        if sev == "silent_false_negative":
+            assert agr == "framework_false_negative", f"{name}: silent tier but agreement={agr}"
+        if sev == "validated_lane":
+            assert agr.startswith("agree"), f"{name}: validated_lane but agreement={agr}"
+        if sev == "honest_conservative":
+            assert agr.startswith("framework_conservative"), (
+                f"{name}: honest_conservative tier but agreement={agr} (expected framework_conservative_*)"
+            )
+
+
+def test_reference_profile_coverage_report(capsys):
+    rp = _reference_profiles()
+    import collections
+
+    sev = collections.Counter(e["severity"] for e in rp.values())
+    cov = collections.Counter(e["deciding_axis_coverage"] for e in rp.values())
+    with capsys.disabled():
+        print(f"\n[reference-profiles] n={len(rp)} severity={dict(sev)} coverage={dict(cov)}")
+    # the headline fidelity fact: deciding-axis is blind/partial/oos for the majority
+    non_captured = sum(v for k, v in cov.items() if k != "captured")
+    assert non_captured > len(rp) // 2, "sanity: assessment headline is majority-not-captured"

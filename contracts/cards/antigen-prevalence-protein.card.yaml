@@ -1,0 +1,106 @@
+# Card — PROTEIN-LEVEL ANTIGEN PREVALENCE (v1)
+#
+# Closes a NAMED blind leg of the partial surface_modality sufficiency axis: the
+# antigen-prevalence card (antigen-prevalence.card.yaml) is RNA-derived, and its
+# OWN caveat states RNA is an UPPER BOUND and protein/IHC prevalence "is the gating
+# clinical question" — explicitly deferred (that card is placeholder_not_wired). No
+# card delivers PROTEIN-level antigen prevalence for patient selection.
+#
+# SAME CLAIM, NEW LAYER (concordance test, Rule 2): this is a PROTEIN-tier provider
+# of the antigen_expressing_prevalence measurement_type (fraction of tumors
+# expressing the antigen above a clinically-relevant threshold). RNA and protein
+# prevalence are reported SIDE-BY-SIDE, never averaged — their disagreement is
+# diagnostic (RNA is the upper bound; protein is the sharper patient-selection
+# read). The type gains multi_provider_policy: surface_discordance (see dependencies).
+
+card_id: antigen-prevalence-protein
+version: 1.0.0
+# interpretation (descriptive): emits no categorical class.
+interpretation: descriptive
+status: placeholder_not_wired   # no protein-prevalence-aggregator method / product yet; belongs in placeholder_cards
+question: "What fraction of {indication.label} tumors express {target.symbol} at the PROTEIN level above an ADC/TCE-relevant threshold (not the RNA upper bound)?"
+
+tier: indication   # indication-level prevalence; subtype-eligible once a per-sample protein reader ships
+
+# Protein-expressing fraction genuinely varies by molecular subgroup (filter 1 met),
+# but CPTAC per-cohort protein is a whole-cohort aggregate — no per-sample rows
+# survive to recount within a stratum member-set (filter 2 FAILS). Subtype-eligible-
+# in-principle, not yet stratifiable (mirrors antigen-prevalence).
+subgroup_stratification:
+  eligible: true
+  status: blocked_needs_per_sample_reader
+  axes: [msi_status]
+  rationale: "Protein-expressing fraction varies by subgroup but CPTAC per-cohort protein is a whole-cohort aggregate; needs a per-sample protein reader to recount per stratum."
+
+applies_when:
+  - "context.data_sources.cptac_available == true"
+  - "indication.tumor_sample_count >= THRESHOLD.min_samples_for_prevalence"
+
+required_inputs:
+  - product_id: cptac-protein-prevalence-per-cohort-v1   # CPTAC TMT thresholded per-sample protein presence, rolled to a prevalence fraction
+    indication: "{indication}"
+    release_pin: "{release_pin}"
+
+methods:
+  - call: protein-prevalence-aggregator
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+      release_pin: "{release_pin}"
+      clinical_relevance_zscore: "THRESHOLD.protein_clinical_relevance_z"
+      high_expression_zscore: "THRESHOLD.protein_high_expression_z"
+
+outputs:
+  summary_fields:
+    - fraction_protein_positive
+    - fraction_high_protein
+    - n_samples_protein
+    - protein_evidence_tier
+    - cutoff_used_semantics
+    - method_version
+  figure: protein_prevalence_curve_with_thresholds
+  plot_data: per_sample_protein_with_prevalence_thresholds
+
+interpretation_hints:
+  - if: "fraction_high_protein >= THRESHOLD.broad_population_threshold"
+    call: "broad patient population at high protein expression"
+    dominant: true
+  - if: "fraction_protein_positive >= THRESHOLD.targeted_population_threshold && fraction_high_protein < THRESHOLD.broad_population_threshold"
+    call: "targeted patient population (protein selection biomarker required)"
+  - if: "fraction_protein_positive < THRESHOLD.targeted_population_threshold"
+    call: "narrow patient population — protein-level patient selection critical"
+
+thresholds:
+  min_samples_for_prevalence: 50
+  protein_clinical_relevance_z: 0.0            # iter-1 conservative; cohort-relative CPTAC z above matched-normal median
+  protein_high_expression_z: 1.0               # iter-1 conservative; modality-tuned in iter-2
+  broad_population_threshold: 0.60
+  targeted_population_threshold: 0.20
+
+caveats:
+  - |
+    Protein-level prevalence is the GATING clinical read for a surface-antigen
+    program; RNA-derived prevalence (antigen-prevalence card) is an UPPER BOUND.
+    Where the two disagree, protein is the sharper patient-selection estimate —
+    the framework surfaces both under surface_discordance, never averaged.
+  - |
+    CPTAC TMT relative-abundance thresholding is NOT a clinical IHC assay. It
+    estimates the protein-positive fraction from mass-spec cohort intensities;
+    a deployable IHC/companion-diagnostic cutoff is a separate downstream question.
+  - |
+    MS coverage ASYMMETRY: a peptide below MS detection is not proof the protein
+    is absent (abundance x digestibility x ionization). A low fraction from sparse
+    MS coverage is a weak negative; n_samples_protein and protein_evidence_tier
+    qualify the read.
+  - |
+    Prevalence thresholds are iter-1 conservative defaults; modality-specific
+    calibration (different cutoffs for ADC high-payload vs TCE) is iter-2 work.
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — PROTEIN-tier view of the existing
+# `antigen_expressing_prevalence` claim (see dependencies: add protein provider +
+# multi_provider_policy: surface_discordance to the type).
+measurement_type: antigen_expressing_prevalence
+measurement: bulk_protein_ms
+sample_context: tumor
+entity_grains: [target_indication]
+schema_version: 1

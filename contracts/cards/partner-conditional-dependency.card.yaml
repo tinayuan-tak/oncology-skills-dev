@@ -1,0 +1,153 @@
+# Card C.pc — PARTNER-CONDITIONAL DEPENDENCY  (synthetic-lethality biomarker; target-only)
+#
+# The PARTNER-feature analog of mutation-stratified-dependency (own-mutation), copy-number-
+# stratified-dependency (own-CN), and fusion-stratified-dependency (own-fusion): does dependency on
+# {target} stratify by a PARTNER gene's DEFICIENCY status across the cell-line panel? Drives the
+# SYNTHETIC-LETHALITY biomarker hypothesis (partner-deficient cells more dependent ↔ partner-conditional
+# strategy) — the partner_conditional_sl family the pooled pan-cancer dependency scalar STRUCTURALLY
+# MISSES (a partner-conditional SL target is definitionally non-monoculture-essential → false non_dependent).
+#
+# NOT an own-alteration addiction: the stratifier is a DIFFERENT gene's loss. This is why it fires a
+# DISTINCT verdict (partner_conditional_dependent), never conflated with biomarker_stratified_dependency
+# (own-oncogene addiction) — mirrors the drug_response_biomarker separation (a different biology → a
+# different verdict slot, even though both rescue a pooled non_dependent).
+#
+# DECOUPLED FROM INDICATION (mirrors the mutation/CN/fusion siblings): evaluates the FULL DepMap panel;
+# per-indication partner-deficiency prevalence is a downstream synthesis question. One evidence package
+# per target serves all indications.
+#
+# Curated partner map (methods/depmap_partner_conditional_dependency/partner_map.yaml) names BOTH the
+# partner AND the deficiency type (heterogeneous): msi_signature (canonical MSI-H boolean from
+# OmicsInferredMolecularSubtypes.csv — the SAME call subgroup_assigner_directly_tagged uses) or
+# lof_mutation (partner damaging matrix). SynLethDB is the candidate-generation source for extending it.
+#
+# Demonstration cases (live-verified 26Q1):
+#   - WRN (partner MSI):     MSI-high cells more dependent → partner_conditional_moderately_dependent
+#                            (delta -0.41, p 8.8e-12, 91 MSI-high lines). THE ANCHOR (Chan/Behan 2019).
+#   - PARP1 (partner BRCA1): HONEST NEGATIVE → not_partner_stratified (delta -0.06). Mono-KO CRISPR
+#                            cannot see PARPi TRAPPING-based SL; framework reports the weak signal
+#                            faithfully rather than forcing a clinically-expected flip.
+#   - SMARCA2 (partner SMARCA4): not_partner_stratified (delta -0.12) — below MODERATE on LoF alone;
+#                            may need the paralog-buffering signal alongside (documented follow-up).
+#
+# Single-tier partner grouping (one partner-deficiency vector, like the CN card — no multi-tier BH):
+#   - PARTNER-DEFICIENT: the partner is MSI-high (signature) OR carries a damaging LoF (mutation)
+#   - NEUTRAL (comparator): everything NOT partner-deficient (broad — the faithful mirror of the
+#     mutation path's WT = "everything not mutant")
+#
+# Inputs (DepMap 26Q1):
+#   - CRISPRGeneEffect.csv (Chronos matrix; reused from the shared loader)
+#   - OmicsInferredMolecularSubtypes.csv (canonical MSI-H boolean — for msi_signature partners)
+#   - OmicsSomaticMutationsMatrixDamaging.csv (partner LoF — for lof_mutation partners)
+
+card_id: partner-conditional-dependency
+version: 1.0.0
+question: "Is dependency on {target.symbol} stratified by a PARTNER gene's deficiency status across the DepMap panel? (Synthetic-lethality biomarker hypothesis.)"
+
+applies_when:
+  - "target.depmap_screened == true"
+
+required_inputs:
+  - product_id: depmap-consortium-26q1
+    release_pin: "{release_pin}"
+
+methods:
+  - call: depmap-partner-conditional
+    module: depmap_partner_conditional_dependency
+    entrypoint: read_partner_conditional_dependency
+    args:
+      target: "{target.symbol}"
+      release_pin: "{release_pin}"
+
+outputs:
+  summary_fields:
+    # === Panel-wide context (target-only) ===
+    - n_cell_lines_evaluated                     # cells with BOTH Chronos AND partner-status coverage
+    # === Partner-deficiency stratification (synthetic-lethality signal) ===
+    - n_partner_deficient                        # cells where the partner is deficient
+    - n_neutral                                  # cells not partner-deficient (within evaluated set)
+    - median_chronos_partner_deficient
+    - median_chronos_neutral
+    - delta_chronos_deficient_vs_neutral         # deficient - neutral (negative = deficient more dependent)
+    - partner_stratification_mannwhitney_p
+    - partner_stratification_mannwhitney_q        # single test → q == p (no multi-tier BH)
+    - partner_stratification_mannwhitney_q_reverse
+    - partner_stratification_effect_size          # rank-biserial correlation
+    # === Partner provenance ===
+    - partner                                    # the partner gene / signature (e.g. MSI, BRCA1, SMARCA4)
+    - deficiency_type                            # msi_signature | lof_mutation
+    # === Categorical (Tier-2 vocabulary; drives interpretation-rules) ===
+    - partner_stratification_class
+
+  summary_fields_vocabulary:
+    partner_stratification_class:
+      - partner_conditional_strongly_dependent    # deficient median chronos significantly < neutral (delta <= -0.5); strong SL
+      - partner_conditional_moderately_dependent  # significant but smaller effect (delta <= -0.2). WRN×MSI live (-0.41)
+      - partner_neutral_strongly_dependent         # neutral cells more dependent (rare; second-pass reverse — verdict-inert)
+      - not_partner_stratified                     # no significant deficient-vs-neutral difference (PARP1×HRD honest negative)
+      - insufficient_partner_deficient_rate        # <min_partner_deficient_cells carry deficiency; test underpowered
+      - no_partner_mapped                          # target has no curated partner (abstains; NOT a negative)
+      - data_unavailable
+
+  figures:
+    - id: deficient_vs_neutral_strip
+      type: partner_conditional_strip
+      description: "Per-cell-line Chronos strip split into Partner-Deficient / Neutral. Reference lines at Chronos = -1.0 + 0. Annotated with the q-value + delta + partner name."
+      preferred_surfaces: [markdown, ppt, decision_memo]
+      primary: true
+  plot_data: per_cell_line_chronos_with_partner_status
+
+thresholds:
+  # Sample-size discipline — Mann-Whitney meaningless below these (mirror the mutation/CN siblings)
+  min_partner_deficient_cells: 5
+  min_neutral_cells: 30
+  # Significance + effect-size cutoffs (identical to the siblings)
+  stratification_alpha: 0.05                     # q
+  strong_effect_delta: -0.5                      # deficient median >= 0.5 lower than neutral = strong
+  moderate_effect_delta: -0.2                    # >= 0.2 lower = moderate. THE RESCUE-FIRING threshold.
+
+threshold_roles:
+  moderate_effect_delta:
+    role: method_parameter
+    consumed_by: depmap-partner-conditional
+  stratification_alpha:
+    role: method_parameter
+    consumed_by: depmap-partner-conditional
+  strong_effect_delta:
+    role: method_parameter
+    consumed_by: depmap-partner-conditional
+  # The two Mann-Whitney sample-size floors are applied by the method, not by a card predicate (the
+  # rare_partner_deficiency warning compares a DIFFERENT hardcoded literal, n_partner_deficient < 10).
+  # Verified consumed in depmap_partner_conditional_dependency/cli.py:51-52
+  # (MIN_PARTNER_DEFICIENT_CELLS=5 / MIN_NEUTRAL_CELLS=30), applied at :168-169.
+  min_partner_deficient_cells:
+    role: method_parameter
+    consumed_by: depmap-partner-conditional
+  min_neutral_cells:
+    role: method_parameter
+    consumed_by: depmap-partner-conditional
+warning_predicates:
+  - warning_id: rare_partner_deficiency
+    if: "n_partner_deficient < 10"
+    message: "Fewer than 10 partner-deficient cell lines; the synthetic-lethality estimate has wide CI. Interpret partner_stratification_class cautiously."
+  - warning_id: significant_but_small_effect
+    if: "partner_stratification_mannwhitney_q < 0.05 && delta_chronos_deficient_vs_neutral > -0.2"
+    message: "Deficient-vs-neutral difference is statistically significant but sub-threshold in effect size (delta > -0.2) — at panel n, small deltas reach significance; not classified as partner-conditional (significance != actionable effect). The PARP1×BRCA1 honest-negative shape (delta -0.06, p 0.008)."
+
+caveats:
+  - "Partner-deficiency = the partner is MSI-high (canonical OmicsInferredMolecularSubtypes.csv boolean) OR carries a damaging LoF mutation. The rescue-firing threshold is MODERATE (delta <= -0.2), NOT strong: context-conditional SL effect sizes in mono-KO CRISPR are structurally smaller than own-oncogene addiction (WRN×MSI, a celebrated real SL, is a -0.41 effect). A strong-only threshold would rescue nothing real."
+  - "Two directional passes: a FORWARD one-sided MW (deficient more dependent) drives the partner_conditional_*_dependent classes; a SECOND-PASS reverse MW makes partner_neutral_strongly_dependent reachable (verdict-inert). A partner is NEVER credited with a dependency it lacks (forward classes cannot fire on a reverse pattern)."
+  - "HONEST NEGATIVE by design: a clinically-known SL that is invisible in mono-KO CRISPR (PARP1×HRD — PARPi works by TRAPPING, not loss-of-function; PARP2 buffers) correctly reads not_partner_stratified. The card reports the measurable pooled-CRISPR signal, NOT the clinical mechanism; absence here is not evidence the target is a bad SL."
+  - "Curated partner map only — SynLethDB is the candidate-generation source, not a blind auto-join (SynLethDB does not name the alteration type the stratifier requires). A target with no curated partner returns no_partner_mapped (abstains), never a false negative."
+  - "Cell-line partner-conditional dependency is necessary but NOT sufficient for a clinical biomarker — needs orthogonal validation (isogenic partner-KO rescue, PDX, patient partner-status)."
+
+# DATA_TO_SKILL_CONTRACT Rule 1/4 — view of the DERIVED `partner_conditional_dependency` claim (is
+# dependency stratified by a partner gene's deficiency status?), derived_from
+# [partner_deficiency_status, crispr_lof_dependency]. The partner-feature analog of
+# mutation/cn/fusion-stratified-dependency; partner_deficiency_status is the per-line partner-deficiency
+# boolean input (MSI signature or partner LoF), crispr_lof_dependency the Chronos requirement.
+measurement_type: partner_conditional_dependency
+# Declaration-only routing key — synthetic-lethality biomarker → SM/degrader efficacy stratifier.
+modality_relevance: [small_molecule, degrader]
+entity_grains: [target]
+schema_version: 1

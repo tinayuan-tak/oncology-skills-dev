@@ -1,0 +1,77 @@
+# Card — ALTERATION CLINICAL ASSOCIATION (does target MUTATION status stratify survival? Q11-alteration)
+#
+# The alteration analog of expression-clinical-association (the genomic-feature-vs-survival gap): split
+# the indication's MC3-profiled TCGA patients by whether they carry a somatic {target} mutation vs
+# wild-type and log-rank overall survival (OS). A HYPOTHESIS-GENERATING prognostic association, NOT a
+# clinical claim:
+#   - alteration_mutated_worse_survival  → mutated patients have WORSE OS (candidate poor-prognosis
+#       alteration; supports a patient-selection biomarker).
+#   - alteration_mutated_better_survival → mutated patients have BETTER OS (a caution — the alteration
+#       may mark indolent disease).
+#   - no_survival_association             → mutation status does not stratify OS in this indication.
+#
+# ZERO new ingestion — reuses the MC3 per-sample MAF (cohort = MC3-profiled indication patients via
+# the product's `indication` column; altered = {target}-mutant; WT = cohort − altered) + PanCanAtlas
+# TCGA-CDR (Liu 2018) curated OS/OS.time, joined on the patient barcode.
+#
+# ROUTES INTO GATES (master-sequencing Part 3): Patient-population / clinical-precedent context + the
+# BIOMARKER FACET (prognostic stratification). Biology axis; no modality-gate facet. Verdict-INERT.
+
+card_id: alteration-clinical-association
+version: 1.0.0
+question: "Does {target.symbol} somatic-mutation status stratify overall survival in {indication.label} — is a {target.symbol} mutation a candidate prognostic marker (mutated worse or better OS)?"
+
+tier: indication
+
+applies_when:
+  # MC3 covers all TCGA; CDR is pan-TCGA. Same indication surface as expression-clinical-association.
+  - "context.indication in ['COADREAD', 'COAD', 'READ', 'LUAD', 'LUSC', 'NSCLC', 'BRCA', 'PAAD', 'PDAC', 'SKCM', 'STAD', 'GC', 'PRAD', 'OV', 'KIRC', 'HNSC', 'BLCA', 'LIHC', 'ESCA', 'UCEC']"
+
+required_inputs:
+  - product_id: tcga-mc3-per-sample-maf-v1        # per-patient somatic mutations (cohort + altered set)
+  - product_id: gdc-pancanatlas-clinical-2018     # TCGA-CDR (Liu 2018) curated survival endpoints
+
+methods:
+  - call: alteration-clinical-association
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - alteration_survival_association_class   # PRIMARY categorical (drives Tier-2 rules)
+    - logrank_p
+    - logrank_chi2
+    - n_patients                              # cohort patients with OS
+    - n_events                                # deaths
+    - n_mutated
+    - n_wildtype
+    - mutated_hazard_direction                # +1 worse, -1 better, 0 none
+    - mutated_frequency
+    - median_ostime_mutated_days
+    - median_ostime_wildtype_days
+    - endpoint                                # OS
+    - survival_source
+    - alteration_type                         # somatic_mutation
+  summary_fields_vocabulary:
+    alteration_survival_association_class: [alteration_mutated_worse_survival, alteration_mutated_better_survival, no_survival_association, insufficient_survival_data, data_unavailable]
+  figure: alteration_clinical_association_card
+
+thresholds:
+  min_events: 10             # below → insufficient_survival_data
+  min_per_arm: 15            # below → insufficient_survival_data (a rare mutation is honestly insufficient)
+  significance_alpha: 0.05   # log-rank p at/below → a significant association
+
+caveats:
+  - "HYPOTHESIS-GENERATING, NOT a clinical claim: a univariate mutation-status log-rank UNADJUSTED for stage/age/grade. Survival is stage-dominated; a single-gene mutation split rarely reaches significance and, when it does, may be confounded. Necessary-but-not-sufficient — needs a multivariable Cox model + orthogonal validation."
+  - "MUTATION status only (SNV/indel from MC3). CN-loss/amp and fusion arms are a follow-on — a target whose prognostic alteration is copy-number or a fusion will read no_survival_association here."
+  - "WT = an MC3-PROFILED indication patient with no {target} mutation (cohort denominator = the product's indication column). A patient not profiled by MC3 is absent from the cohort, not mis-called WT."
+  - "A rare mutation (few mutated patients) is reported as insufficient_survival_data, never a spurious claim (min_per_arm floor)."
+  - "OS only in this slice (CDR also carries PFI/DSS/DFI). median_ostime_*_days are raw medians for context, NOT Kaplan-Meier estimates."
+  - "alteration_mutated_better_survival is NOT a target killer — it flags that the prognostic/selection rationale differs; interpret alongside the dependency + genomic-driver evidence."
+
+# DATA_TO_SKILL_CONTRACT Rule 1/4 — view of the DERIVED `alteration_clinical_association` claim,
+# derived_from [patient_somatic_mutation_status, patient_survival_cdr].
+measurement_type: alteration_clinical_association
+entity_grains: [target_indication]
+schema_version: 1

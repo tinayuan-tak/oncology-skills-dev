@@ -1,0 +1,54 @@
+# tumor-splice-dysregulation — MOLECULAR-FORM (transcript form) card, split out of
+# tumor-rna-distribution (presence-coherence Phase 3b). "Is the target alternatively spliced /
+# splice-dysregulated in the patient tumour" is a transcript-FORM question distinct from the
+# "is it expressed / how much" presence-abundance claim of the parent card. Binds the already-separate
+# tcga-spliceseq-psi method (no new emitter). VERDICT-INERT.
+card_id: tumor-splice-dysregulation
+version: 1.0.0
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
+schema_version: 1
+
+question: "Is {target.symbol} alternatively spliced / splice-dysregulated in {indication} patient tumours (transcript FORM — which splice isoform — not expression level)?"
+
+tier: indication
+measurement: bulk_rna
+sample_context: tumor
+measurement_type: tumor_splice_dysregulation
+entity_grains:
+  - target_indication
+
+applies_when:
+  - "context.indication in ['COADREAD', 'COAD', 'READ', 'LUAD', 'LUSC', 'BRCA', 'PAAD', 'PDAC', 'SKCM', 'STAD', 'PRAD', 'OV', 'KIRC', 'GBM', 'LGG', 'HNSC', 'BLCA', 'LIHC', 'CESC', 'ESCA']"
+
+required_inputs:
+  - product_id: tcga-spliceseq-psi-per-gene-v1
+
+methods:
+  - call: tcga-spliceseq-psi
+    module: tcga_spliceseq_psi          # generic dispatcher (T11 routability)
+    entrypoint: spliceseq_summary_for_gene
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - splicing_dysregulation_class
+    - n_splice_events
+    - max_event_psi_std
+    - median_event_psi_std
+    - n_variable_events
+    - n_tumor_shifted_events
+    - dominant_event_splice_type
+    - splicing_context
+  summary_fields_vocabulary:
+    splicing_dysregulation_class:
+      - tumor_shifted
+      - highly_variable
+      - stable
+      - data_unavailable
+
+caveats:
+  - "PATIENT alternative-splicing (TCGA SpliceSeq PSI, per-event); a transcript-FORM signal, distinct from the presence-abundance level in tumor-rna-distribution."
+  - "VERDICT-INERT: describes which splice form / how variable, not whether the gene is present; fires no interpretation rule and moves no verdict."

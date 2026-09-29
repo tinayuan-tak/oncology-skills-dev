@@ -1,0 +1,93 @@
+# Card — human-genetics LoF-TOLERANCE via rare-variant burden
+#
+# A verdict-moving human-genetics safety card. Open Targets 26.06 rare-variant burden evidence
+# (evidence_gene_burden) → does population genetics show that LOSING this gene's function is
+# HARMFUL (a WT-loss safety signal for a full-KO modality) or PROTECTIVE (a drug-positive)?
+#
+# THE DIRECTION GUARDRAIL — burden evidence is uniformly LoF-on-target, so the discriminator is
+# directionOnTrait (risk vs protect), NOT directionOnTarget:
+#   lof_risk_phenotype  → LoF variants INCREASE disease risk. WT-loss is harmful. Fires the
+#                         full-KO safety warning (degrader / RNA / full-inhibition SM). The one
+#                         class that fires a hold-weight signal.
+#   protective          → LoF variants are PROTECTIVE. A drug-positive (loss is beneficial), NOT
+#                         a safety concern. Caveat only.
+#   direction_unresolved→ both risk AND protect significant (405 genes) → honest non-firing.
+#   no_burden_signal    → no significant burden rows. insufficient → gene absent / unresolvable.
+#
+# COMPOSES with the mutant-selective downgrade: an activating GoF driver drugged mutant-selectively
+# spares the WT protein the burden signal is about — that composition is in safety.resolver.yaml
+# (when_all_fired), NOT this card. This card is byte-stable: the warning below is card-level
+# context; its RULE is not yet resolver-referenced.
+
+card_id: gene-burden-safety
+version: 1.0.0
+question: "Does population rare-variant burden (Open Targets) show that loss of {target.symbol} function is harmful (a WT-loss safety signal) or protective?"
+
+tier: target   # scope-invariant: human-population genetics is a property of the gene, not any tumor subgroup. Never stratifies.
+
+applies_when: []
+
+required_inputs:
+  - product_id: opentargets-26-06
+
+methods:
+  - call: opentargets-gene-burden
+    args:
+      target: "{target.symbol}"
+
+outputs:
+  summary_fields:
+    - burden_safety_class                # PRIMARY categorical
+    - n_significant                       # int; burden rows passing the p-value gate
+    - n_total_rows                        # int; all burden rows for the gene
+    - min_pvalue                          # float; strongest burden association
+    - n_risk                              # int; significant rows with directionOnTrait=risk
+    - n_protect                           # int; significant rows with directionOnTrait=protect
+    - directions                          # list; distinct directionOnTrait values among significant rows
+    - top_disease                         # the trait driving the winning-direction call
+    - top_ancestry
+    - direction_on_target                 # 'LoF' (uniform in OT 26.06 — recorded for provenance)
+    - method_version
+
+  summary_fields_vocabulary:
+    burden_safety_class:
+      - lof_risk_phenotype
+      - protective
+      - direction_unresolved
+      - no_burden_signal
+      - insufficient
+
+  # NO figure: tables-only for now (would need a compose-dashboard emitter). A burden-Manhattan /
+  # direction panel is deferred with the other safety-axis figures.
+
+warning_predicates:
+  - warning_id: gene_burden_lof_risk_safety_concern
+    if: "burden_safety_class == 'lof_risk_phenotype'"
+    message: "{target.symbol}: LoF variants INCREASE disease risk (OT burden, p={min_pvalue}, {top_disease}) — loss of function is harmful at population scale, an on-target safety risk for full-KO modalities (degrader/RNA/full SM). Mutant-selective tx vs an activating driver spares WT, nullifying this."
+  - warning_id: gene_burden_protective_favorable
+    if: "burden_safety_class == 'protective'"
+    message: "{target.symbol} rare-variant burden shows LoF variants are PROTECTIVE against disease (Open Targets, top trait: {top_disease}). Loss of function is beneficial at population scale — a drug-POSITIVE human-genetics signal, not a safety concern."
+
+caveats:
+  - |
+    Burden evidence is uniformly LoF-on-target in OT 26.06, so the risk/protect DIRECTION comes from
+    directionOnTrait (whether LoF raises or lowers disease risk), not directionOnTarget. A
+    `direction_unresolved` call means the gene carries BOTH significant risk AND protective burden
+    associations across different traits (405 genes do) — the card declines a one-directional safety
+    call rather than fire a false hold.
+  - |
+    This is GERMLINE population genetics — a WT-loss-tolerance signal. It does NOT capture
+    tissue-specific or adult-vs-developmental requirements (cross-reference mouse-ko-phenotype
+    for the developmental-vs-adult distinction), and it is about the WILD-TYPE protein: a
+    mutant-selective therapy against an activating driver spares WT and largely nullifies this
+    concern (the resolver's mechanism-conditioning downgrade).
+  - |
+    Significance is gated at p < 1e-6 on the OT-composed p-value (mantissa × 10^exponent). `beta` is
+    frequently null in OT burden evidence, so effect DIRECTION rests on directionOnTrait, with beta
+    corroborating only where present.
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `human_genetic_safety` claim (population rare-variant
+# burden LoF-tolerance). Provider: opentargets-26-06 evidence_gene_burden (measured human genetics).
+measurement_type: human_genetic_safety
+entity_grains: [target]
+schema_version: 1

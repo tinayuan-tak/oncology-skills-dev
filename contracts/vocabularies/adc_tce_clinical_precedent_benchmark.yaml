@@ -1,0 +1,370 @@
+# adc_tce_clinical_precedent_benchmark.yaml
+#
+# Curated anchor set for validating the ADC/TCE letter-grade rubric
+# (modality_rubric.yaml). Per reviewer R3 (2026-07-08), rubric grades
+# should ship as `_validation_status: exploratory_not_benchmark_validated`
+# UNLESS the rubric achieves >= 80% AUROC on this anchor set. Otherwise
+# governance readers cannot trust letter grades in decision decks.
+#
+# Curation discipline:
+#   - ADC anchors: targets with FDA-approved ADC therapies OR Phase III
+#     precedent (positive control set).
+#   - TCE anchors: targets with FDA-approved bispecific T-cell engager
+#     therapies OR clinical-precedented Phase III (positive control set).
+#   - Negative controls: targets known to be systematically ADC-non-viable
+#     or TCE-non-viable at Phase II or earlier (negative control set).
+#     Kept minimal for iter-1; failure-mode targets are less publicly
+#     documented than success cases.
+#   - Every entry cites (a) FDA approval / EMA equivalent context, (b) the
+#     therapeutic (drug name), (c) the year of approval or clinical stage.
+#   - Iter-1 targets ~30 ADC positive + ~20 TCE positive + small negative
+#     set. Extending is cheap — bump version.
+#
+# Consumer: verification Test 5 (methods/tests/test_modality_rubric_benchmark.py)
+# runs the ADC/TCE rubric against these targets' surface-topology-and-ptm +
+# surfaceome-family outputs, compares grades to the `expected_class` field
+# below, and reports AUROC + Spearman rank correlation. Fail if AUROC < 0.80.
+
+version: 1.0.0
+snapshot_date: "2026-07-08"
+curator: ryan.abo@takeda.com
+
+# ---------------------------------------------------------------------------
+# ADC anchors (positive control set)
+# ---------------------------------------------------------------------------
+adc_positive_anchors:
+
+  ERBB2:
+    therapeutic: trastuzumab-DXd (Enhertu)
+    year_approved: 2019
+    indication_approved: HER2+ metastatic breast cancer
+    fda_context: BLA 761139
+    expected_class: A
+    isoform_note: "Full-length HER2; p95HER2-dominant tumors are the counter-example (see isoform_selective_targets.yaml)"
+
+  TROP2:
+    therapeutic: sacituzumab govitecan (Trodelvy)
+    year_approved: 2020
+    indication_approved: metastatic triple-negative breast cancer
+    fda_context: BLA 761115
+    expected_class: A
+
+  NECTIN4:
+    therapeutic: enfortumab vedotin (Padcev)
+    year_approved: 2019
+    indication_approved: locally advanced urothelial carcinoma
+    fda_context: BLA 761137
+    expected_class: A
+
+  FOLR1:
+    therapeutic: mirvetuximab soravtansine (Elahere)
+    year_approved: 2022
+    indication_approved: FRα-positive platinum-resistant ovarian cancer
+    fda_context: BLA 761310
+    expected_class: A
+
+  TNFRSF17:                                    # BCMA
+    therapeutic: belantamab mafodotin (Blenrep)
+    year_approved: 2020
+    indication_approved: relapsed/refractory multiple myeloma (later withdrawn 2022 in US; re-approved 2024)
+    expected_class: A
+
+  CD22:
+    therapeutic: inotuzumab ozogamicin (Besponsa)
+    year_approved: 2017
+    indication_approved: relapsed/refractory B-cell precursor ALL
+    expected_class: A
+
+  CD33:
+    therapeutic: gemtuzumab ozogamicin (Mylotarg)
+    year_approved: 2017        # re-approval after 2010 withdrawal
+    indication_approved: relapsed/refractory acute myeloid leukemia
+    expected_class: A
+
+  CD79B:
+    therapeutic: polatuzumab vedotin (Polivy)
+    year_approved: 2019
+    indication_approved: relapsed/refractory diffuse large B-cell lymphoma
+    expected_class: A
+
+  CEACAM5:
+    therapeutic: tusamitamab ravtansine (Sanofi SAR408701)
+    year_approved: Phase III as of 2025
+    indication_approved: non-squamous NSCLC (Phase III CARMEN-LC03)
+    expected_class: A
+
+  DLL3:
+    therapeutic: rovalpituzumab tesirine (SC16LD6.5, Rova-T) [terminated] + tarlatamab (bispecific)
+    year_approved: (Rova-T terminated 2018 Phase III; tarlatamab approved 2024 as TCE)
+    indication_approved: small cell lung cancer
+    expected_class: B
+    ambiguous_note: "DLL3 IS a validated tumor antigen, but as ADC failed (Rova-T PBD-linker toxicity); as TCE succeeded. Serves as ADC-B / TCE-A crossover marker."
+
+  LIV1:                                        # SLC39A6
+    therapeutic: ladiratuzumab vedotin (Seattle Genetics SGN-LIV1A)
+    year_approved: Phase II
+    indication_approved: metastatic breast cancer
+    expected_class: A
+
+  GPNMB:
+    therapeutic: glembatumumab vedotin (CDX-011)
+    year_approved: Phase II
+    indication_approved: metastatic triple-negative breast cancer (Phase II METRIC missed endpoint)
+    expected_class: B
+    ambiguous_note: "GPNMB IS a valid ADC target biologically; the clinical failure was heterogeneity of expression, not modality-fit."
+
+  MSLN:                                        # mesothelin
+    therapeutic: anetumab ravtansine + others (BMS-986148 Phase II)
+    year_approved: Phase II
+    indication_approved: mesothelioma
+    expected_class: A
+
+  PSMA:                                        # FOLH1
+    therapeutic: PSMA-targeted ADCs (Ambrx ARX517, Phase I-II)
+    year_approved: Phase I-II
+    indication_approved: metastatic castration-resistant prostate cancer
+    expected_class: A
+
+  MUC1:
+    therapeutic: multiple ADCs targeting MUC1-CE (KRAS-related epitope)
+    year_approved: Phase II
+    indication_approved: pancreatic + other epithelial
+    expected_class: B
+    ambiguous_note: "MUC1 has classical ADC problems: heterogeneity + cleaved shedding. Multiple approaches have failed; TCE approaches are current hope."
+
+  MET:
+    therapeutic: telisotuzumab vedotin (Teliso-V, AbbVie)
+    year_approved: Phase III
+    indication_approved: c-Met overexpressing NSCLC (Phase III LUMINOSITY)
+    expected_class: B
+    ambiguous_note: "MET single-pass topology is favorable; MET-ex14 exon-skipping is a distinct isoform-selective context (see isoform_selective_targets.yaml)."
+
+  CDH6:
+    therapeutic: raludotatug deruxtecan (R-DXd, Daiichi Sankyo)
+    year_approved: Phase I-II
+    indication_approved: ovarian cancer
+    expected_class: A
+
+  STEAP1:
+    therapeutic: vandortuzumab vedotin (DSTP3086S) + xaluritamig (bispecific)
+    year_approved: Phase I-II
+    indication_approved: metastatic castration-resistant prostate cancer
+    expected_class: A
+
+  EGFR:
+    therapeutic: depatuxizumab mafodotin (ABT-414)
+    year_approved: (terminated after Phase III INTELLANCE-1)
+    indication_approved: glioblastoma
+    expected_class: C
+    ambiguous_note: "EGFR ADC failed clinically due to normal-tissue toxicity + payload window issues. Biology-favorable target with modality-payload-context failure. EGFRvIII is a distinct isoform-selective context."
+
+  HER3:                                        # ERBB3
+    therapeutic: patritumab deruxtecan (HER3-DXd, Daiichi Sankyo)
+    year_approved: Phase III
+    indication_approved: EGFR-mutant NSCLC post-TKI (HERTHENA-Lung Phase III)
+    expected_class: A
+
+  ROR1:
+    therapeutic: zilovertamab vedotin (VLS-101, Merck) + tarextumab
+    year_approved: Phase II
+    indication_approved: mantle cell lymphoma + other hematologic
+    expected_class: A
+
+  TFRC:                                        # transferrin receptor
+    therapeutic: various (used more as delivery vehicle than direct target)
+    year_approved: Phase I as targeting vector
+    indication_approved: multiple
+    expected_class: B
+    ambiguous_note: "TFRC is a validated cell-surface high-abundance target but is a delivery vector more than a therapeutic target — normal-tissue biology makes therapeutic-window narrow."
+
+  CD19:
+    therapeutic: loncastuximab tesirine (Zynlonta)
+    year_approved: 2021
+    indication_approved: relapsed/refractory diffuse large B-cell lymphoma
+    expected_class: A
+    isoform_note: "CD19 as full-length; CD19-Δex2 is the acquired-resistance-post-CAR-T context (see isoform_selective_targets.yaml)"
+
+  IL3RA:                                       # CD123
+    therapeutic: tagraxofusp (Elzonris) — targeted immunotoxin technically
+    year_approved: 2018
+    indication_approved: blastic plasmacytoid dendritic cell neoplasm
+    expected_class: A
+
+  SLITRK6:
+    therapeutic: sirtratumab vedotin (ASG-15ME, Astellas)
+    year_approved: Phase I
+    indication_approved: bladder cancer
+    expected_class: A
+
+# ---------------------------------------------------------------------------
+# TCE anchors (positive control set)
+# ---------------------------------------------------------------------------
+tce_positive_anchors:
+
+  MS4A1:                                       # CD20
+    therapeutic: mosunetuzumab (Lunsumio), glofitamab (Columvi), epcoritamab (Epkinly)
+    year_approved: 2022 (mosunetuzumab), 2023 (glofitamab, epcoritamab)
+    indication_approved: relapsed/refractory follicular lymphoma + DLBCL
+    expected_class: A
+
+  CD19_TCE:                                    # blinatumomab context
+    therapeutic: blinatumomab (Blincyto)
+    year_approved: 2014
+    indication_approved: relapsed/refractory B-cell precursor ALL
+    expected_class: A
+    hgnc_symbol: CD19
+
+  TNFRSF17_TCE:                                # BCMA — teclistamab
+    therapeutic: teclistamab (Tecvayli), elranatamab (Elrexfio)
+    year_approved: 2022 (teclistamab), 2023 (elranatamab)
+    indication_approved: relapsed/refractory multiple myeloma
+    expected_class: A
+    hgnc_symbol: TNFRSF17
+
+  GPRC5D:
+    therapeutic: talquetamab (Talvey)
+    year_approved: 2023
+    indication_approved: relapsed/refractory multiple myeloma
+    expected_class: A
+
+  DLL3_TCE:                                    # tarlatamab
+    therapeutic: tarlatamab (Imdelltra)
+    year_approved: 2024
+    indication_approved: extensive-stage small cell lung cancer
+    expected_class: A
+    hgnc_symbol: DLL3
+
+  MUC17:
+    therapeutic: MUC17-CD3 bispecific (Amgen AMG 199)
+    year_approved: Phase I
+    indication_approved: gastric cancer
+    expected_class: A
+
+  CLDN18:                                      # CLDN18.2 isoform
+    therapeutic: zolbetuximab (approved MAb 2024), CLDN18.2xCD3 bispecifics (Phase II)
+    year_approved: 2024 (zolbetuximab), Phase II (bispecifics)
+    indication_approved: CLDN18.2+ gastric adenocarcinoma
+    expected_class: A
+    isoform_note: "CLDN18.2 is an isoform-selective TCE target (CLDN18.1 vs .2)"
+
+  FCRH5:                                       # cevostamab
+    therapeutic: cevostamab (BFCR4350A)
+    year_approved: Phase I-II
+    indication_approved: multiple myeloma
+    expected_class: A
+
+  EPCAM:
+    therapeutic: catumaxomab (removed 2017; conceptual precedent), MT110 (solitomab)
+    year_approved: (catumaxomab EU 2009-2017; solitomab Phase I)
+    indication_approved: malignant ascites (catumaxomab); Phase I solid tumors (solitomab)
+    expected_class: B
+    ambiguous_note: "EpCAM as TCE has failed clinically due to normal-epithelial toxicity — the classic 'target expressed on tumor + normal' problem."
+
+  PSMA_TCE:
+    therapeutic: pasotuxizumab (AMG 212), acapatamab (AMG 160), xaluritamig (AMG 509)
+    year_approved: Phase I-II
+    indication_approved: metastatic castration-resistant prostate cancer
+    expected_class: A
+    hgnc_symbol: FOLH1
+
+  CEA:                                         # CEACAM5-CD3
+    therapeutic: cibisatamab (CEA-CD3 TCB, RG7802)
+    year_approved: Phase I-II
+    indication_approved: CEA+ solid tumors
+    expected_class: A
+    hgnc_symbol: CEACAM5
+
+  MSLN_TCE:
+    therapeutic: BAY 2287411 (mesothelin-CD3 TCE)
+    year_approved: Phase I
+    indication_approved: mesothelioma / ovarian
+    expected_class: A
+    hgnc_symbol: MSLN
+
+  HER2_TCE:                                    # runimotamab
+    therapeutic: runimotamab (RG6194, HER2-CD3 TCE)
+    year_approved: Phase I
+    indication_approved: HER2+ solid tumors
+    expected_class: A
+    hgnc_symbol: ERBB2
+    ambiguous_note: "HER2 works as BOTH ADC (approved Enhertu) AND TCE (Phase I runimotamab). Grade-A both — the modality-ambiguous case."
+
+  SLC34A2:                                     # NaPi2b-CD3 conceptual
+    therapeutic: NaPi2b Phase I TCE bispecifics
+    year_approved: Phase I
+    indication_approved: ovarian + NSCLC
+    expected_class: B
+
+  EGFRvIII_TCE:                                # AMG 596
+    therapeutic: AMG 596 (EGFRvIII-CD3)
+    year_approved: Phase I (terminated 2020, insufficient efficacy)
+    indication_approved: glioblastoma
+    expected_class: C
+    hgnc_symbol: EGFR
+    ambiguous_note: "EGFRvIII is an isoform-selective target (see isoform_selective_targets.yaml); TCE approach faced the same delivery/blood-brain-barrier issues as ADC."
+
+  CD3EAP:                                      # CD3 obligate partner — NOT the direct target, but critical for TCE viability of any partner
+    therapeutic: (obligate T-cell engaging arm; not a tumor target)
+    year_approved: n/a
+    indication_approved: n/a
+    expected_class: A
+    note: "Included as reference — CD3 partner is invariant across all TCE modalities. Not a benchmark target for the rubric."
+
+  ROR1_TCE:                                    # Miltuximab bispecific
+    therapeutic: cirmtuzumab-derivative TCE (Phase I)
+    year_approved: Phase I
+    indication_approved: hematologic + solid
+    expected_class: A
+    hgnc_symbol: ROR1
+
+  CDH17:                                       # CDH17-CD3 TCE
+    therapeutic: PT-217 (CDH17-CD3 T-cell engager)
+    year_approved: Phase I
+    indication_approved: CDH17-expressing GI tumors
+    expected_class: A
+
+# ---------------------------------------------------------------------------
+# Negative anchors (targets known to be systematically modality-non-viable)
+# ---------------------------------------------------------------------------
+negative_anchors:
+
+  KRAS:
+    modality_context: ADC + TCE
+    reason: intracellular target — no surface accessibility regardless of biology
+    expected_adc_class: D
+    expected_tce_class: D
+
+  TP53:
+    modality_context: ADC + TCE
+    reason: intracellular target
+    expected_adc_class: D
+    expected_tce_class: D
+
+  ALB:                                         # albumin
+    modality_context: ADC + TCE
+    reason: highly-abundant serum protein — hits both would deplete circulating albumin catastrophically. Classical anti-target.
+    expected_adc_class: D
+    expected_tce_class: D
+
+  MYC:
+    modality_context: ADC + TCE
+    reason: intracellular transcription factor
+    expected_adc_class: D
+    expected_tce_class: D
+
+# ---------------------------------------------------------------------------
+# Verification contract (consumed by test_modality_rubric_benchmark.py)
+# ---------------------------------------------------------------------------
+verification:
+  minimum_auroc: 0.80
+  auroc_computation: >
+    For each of ADC and TCE grade separately, compute AUROC over the
+    positive anchors (expected_class in {A, B}) vs negative anchors
+    (expected_class == D). If < 0.80, ship rubric with
+    _validation_status='exploratory_not_benchmark_validated' in
+    provenance.yaml and suppress letter grades from governance decks.
+
+  spearman_check: >
+    Also compute Spearman rank correlation between the rubric score AND
+    the expected_class rank (A=4, B=3, C=2, D=1). Should be positive with
+    rho >= 0.60 for a well-calibrated rubric.

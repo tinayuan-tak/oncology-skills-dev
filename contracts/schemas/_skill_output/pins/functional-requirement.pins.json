@@ -1,0 +1,57 @@
+{
+  "$comment": "PER-SKILL PINS (source) for functional-requirement. VARIANT = gating-scalar: pins role:gating + the resolved dependency_verdict/call enum, no polarity const (dynamic gating polarity: pan_essential_killer emits a killer override). The dependency_verdict_by_scope map (pan_cancer/indication/subtype; subtype is --subtypes-gated) is left a typed-but-open object (dynamic scope keys), unlike tumor-presence's FIXED 8-bucket map. Enum = the resolved dependency_verdict = the shared dependency resolver's verdict set (resolvers/dependency.resolver.yaml); append-only within contract major version.",
+  "skill": "functional-requirement",
+  "role_variant": "gating_scalar",
+  "$defs": {
+    "dependency_verdict_enum": {
+      "type": "string",
+      "enum": [
+        "broadly_dependent",
+        "selective_dependent",
+        "lineage_selective",
+        "lineage_selective_in_indication",
+        "dependent_in_indication",
+        "concordant_dependent",
+        "chemical_genetic_confirmed_dependent",
+        "partner_conditional_dependent",
+        "pan_essential_killer",
+        "non_dependent",
+        "not_dependent_in_indication",
+        "non_dependent_paralog_buffered",
+        "discordant",
+        "insufficient",
+        "insufficient_underpowered",
+        "insufficient_underpowered_in_indication",
+        "insufficient_underpowered_pan_essential"
+      ]
+    }
+  },
+  "pins": {
+    "properties": {
+      "skill": {"const": "functional-requirement"},
+      "headline": {
+        "type": "object",
+        "required": ["dependency_verdict"],
+        "properties": {
+          "dependency_verdict": {"$ref": "#/$defs/dependency_verdict_enum"},
+          "dependency_verdict_by_scope": {
+            "description": "Per-scope sub-verdict map {pan_cancer, indication, subtype}; subtype is --subtypes-gated (may be absent). Dynamic scope keys → typed-open (not a fixed-bucket map).",
+            "type": ["object", "null"]
+          },
+          "skill_report": {
+            "type": ["object", "null"],
+            "properties": {
+              "call": {
+                "oneOf": [
+                  {"$ref": "#/$defs/dependency_verdict_enum"},
+                  {"type": "null"}
+                ]
+              },
+              "role": {"const": "gating"}
+            }
+          }
+        }
+      }
+    }
+  }
+}

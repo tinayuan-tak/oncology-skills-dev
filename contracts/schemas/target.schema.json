@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/oneTakeda/rnd-computational-biology-oncology-claude-oncology-skills/core-artifacts-schema/target.schema.json",
+  "title": "Core Artifact: Target",
+  "description": "Canonical, release-pinned identifier object for a drug-discovery target. Produced once by skills/resolve-target-id at orchestrator entry; consumed verbatim by every downstream dimension. v2.0 scope is gene-level (no isoform / transcript resolution; no orthology). Authoritative sources are HGNC (master vocabulary), Ensembl gene ID (genomic identity, versioned), UniProt canonical accession (protein identity, no isoform suffix), and NCBI Entrez (carried for tools that require it). MyGene.info is consulted as a tie-breaker only. The release_pins block names data-catalog manifest IDs so a Target object is fully reproducible: same input + same resolver_release -> byte-identical Target (modulo resolved_at).",
+  "type": "object",
+  "required": ["hgnc", "ensembl", "release_pins", "resolver_version", "resolved_at"],
+  "additionalProperties": false,
+  "properties": {
+    "hgnc": {
+      "type": "object",
+      "description": "HGNC is the master vocabulary. id is canonical (HGNC:NNNN); primary_symbol is the symbol-as-of resolution time (may differ from a deprecated input alias).",
+      "required": ["id", "primary_symbol"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^HGNC:[0-9]+$", "description": "HGNC accession, e.g. HGNC:11998 (TP53)." },
+        "primary_symbol": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+$", "description": "HGNC primary gene symbol as of release_pins.hgnc_release." },
+        "name": { "type": "string", "description": "HGNC approved name, e.g. 'tumor protein p53'." },
+        "locus_group": { "type": "string", "description": "HGNC locus group, e.g. 'protein-coding gene', 'pseudogene', 'non-coding RNA'." },
+        "chromosome": { "type": "string", "description": "Cytogenetic location, e.g. '17p13.1'." }
+      }
+    },
+    "ensembl": {
+      "type": "object",
+      "description": "Ensembl gene ID provides genomic identity. Always carry the version separately so consumers can detect annotation drift.",
+      "required": ["gene_id", "version"],
+      "additionalProperties": false,
+      "properties": {
+        "gene_id": { "type": "string", "pattern": "^ENSG[0-9]+$", "description": "Ensembl gene ID without version, e.g. ENSG00000141510." },
+        "version": { "type": "string", "pattern": "^[0-9]+$", "description": "Version suffix as a string (preserves leading zeros if any), e.g. '18'." },
+        "full": { "type": "string", "pattern": "^ENSG[0-9]+\\.[0-9]+$", "description": "Convenience: gene_id + '.' + version, e.g. ENSG00000141510.18." }
+      }
+    },
+    "uniprot": {
+      "type": "object",
+      "description": "UniProt canonical accession. v2.0 records canonical only; isoform-aware resolution is v2.1+. Optional because non-coding genes have no protein.",
+      "additionalProperties": false,
+      "properties": {
+        "canonical_accession": { "type": "string", "pattern": "^[OPQ][0-9][A-Z0-9]{3}[0-9]|[A-NR-Z][0-9]([A-Z][A-Z0-9]{2}[0-9]){1,2}$", "description": "UniProt accession (canonical only; no '-N' isoform suffix in v2.0)." },
+        "entry_name": { "type": "string", "description": "UniProt entry name, e.g. 'P53_HUMAN'." },
+        "reviewed": { "type": "boolean", "description": "true for Swiss-Prot (reviewed); false for TrEMBL (unreviewed). v2.0 prefers Swiss-Prot." }
+      }
+    },
+    "ncbi": {
+      "type": "object",
+      "description": "NCBI Entrez gene ID. Carried as secondary because some tools (DepMap historical exports, several pathway databases) key on it.",
+      "additionalProperties": false,
+      "properties": {
+        "entrez_id": { "type": "integer", "minimum": 1, "description": "NCBI Entrez gene ID, e.g. 7157 (TP53)." }
+      }
+    },
+    "aliases_at_resolution": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Symbols and previous symbols associated with this gene at resolution time. Preserved so downstream literature queries can expand to alias sets reproducibly without re-querying HGNC."
+    },
+    "deprecation_warning": {
+      "type": "object",
+      "description": "Set when the input symbol was a deprecated/withdrawn alias that HGNC forward-mapped to this gene. Consumers can treat as info; never blocks resolution.",
+      "additionalProperties": false,
+      "properties": {
+        "input_alias": { "type": "string", "description": "The alias the user supplied, e.g. 'BAF250A'." },
+        "resolved_to_primary": { "type": "string", "description": "The primary symbol the alias was forward-mapped to, e.g. 'ARID1A'." },
+        "note": { "type": "string", "description": "Free-text note from HGNC, e.g. 'BAF250A renamed to ARID1A in HGNC 2024-Q3.'" }
+      }
+    },
+    "release_pins": {
+      "type": "object",
+      "description": "Names data-catalog manifest IDs that pin every authoritative source consulted. This is the lineage link making the Target object fully reproducible.",
+      "required": ["resolver_release", "hgnc"],
+      "additionalProperties": false,
+      "properties": {
+        "resolver_release": { "type": "string", "pattern": "^resolver_v[0-9]+\\.[0-9]+\\.[0-9]+(-[A-Za-z0-9.]+)?$", "description": "Resolver release identifier, e.g. resolver_v1.0.0 or resolver_v0.1.0-alpha." },
+        "hgnc": { "type": "string", "description": "data-catalog manifest ID for the HGNC release used, e.g. 'hgnc-2026-Q2'." },
+        "ensembl": { "type": "string", "description": "data-catalog manifest ID for the Ensembl release, e.g. 'ensembl-release-113'." },
+        "uniprot": { "type": "string", "description": "data-catalog manifest ID for the UniProt release, e.g. 'uniprot-release-2026_01'." },
+        "ncbi_gene": { "type": "string", "description": "data-catalog manifest ID for the NCBI Gene snapshot, e.g. 'ncbi-gene-2026-06-16-snapshot'. Date-stamped because NCBI does not version." },
+        "mygene_metadata": { "type": "string", "description": "data-catalog manifest ID for the MyGene.info /v3/metadata snapshot used for tie-breaking, e.g. 'mygene-info-metadata-20260602'." }
+      }
+    },
+    "resolver_version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(-[A-Za-z0-9.]+)?$", "description": "Semantic version of the libs/target_id_resolver code that produced this Target. Distinct from resolver_release: code can be patched without changing the data pin set." },
+    "resolved_at": { "type": "string", "format": "date-time", "description": "UTC timestamp of resolution. Excluded from determinism check (every other field should be byte-identical for the same input + resolver_release)." },
+    "input": {
+      "type": "object",
+      "description": "The original input that triggered resolution. Useful for audit and round-trip verification.",
+      "additionalProperties": false,
+      "properties": {
+        "value": { "type": "string", "description": "Verbatim user input, e.g. 'TP53' or 'HGNC:11998' or 'ENSG00000141510' or 'P04637'." },
+        "interpreted_as": { "type": "string", "enum": ["hgnc_symbol", "hgnc_id", "ensembl_gene_id", "uniprot_accession", "entrez_id"], "description": "How the resolver classified the input." }
+      }
+    }
+  },
+  "$comment": "Target objects are produced by skills/resolve-target-id and propagated unchanged through every dimension in an orchestrator run. Determinism check: for a fixed (input.value, release_pins.resolver_release), every field except resolved_at MUST be byte-identical across runs. This is the property that makes dossier reproducibility tractable. v2.1+ extensions: isoform-aware resolution adds a 'uniprot.isoform' field; orthology adds a 'mouse' parallel block; complex/family targets are returned as a TargetGroup (list of Target objects) rather than a single Target."
+}

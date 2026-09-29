@@ -1,0 +1,109 @@
+# Card EG1 (iter-2) — LINEAGE RESTRICTION EVIDENCE
+#
+# Surfaces the lineage-restriction pattern as a distinct signal type. This card asks:
+# "across all adult human tissues, how many tissues express this target above a
+# clinical-relevance threshold?" — the tissue-BREADTH / therapeutic-window count that
+# drives biologics target SELECTION.
+#
+# NOT A DUPLICATE OF normal-tissue-liability (a prior design note flagged them as
+# "near-duplicate on the same HPA product → collapse"; that is STALE and wrong as of
+# 2026-07-20). The two are distinct axes on different molecular layers:
+#   - THIS card (lineage-restriction-evidence): measurement=bulk_rna. HPA RNA per-tissue
+#     TPM → COUNT of tissues above threshold. Answers "how narrow is the window?" — a
+#     target-SELECTION / discovery-driving signal (DLL3≈1 tissue, CLDN18.2≈2). PRIMARY in
+#     the adc/bite_tce/antibody modality modules. Product `hpa-normal-tissue-expression`
+#     has NOT landed → this card stays excluded_by_applies_when (dormant-by-design), it is
+#     not "orphaned/dead."
+#   - normal-tissue-liability (v2, WIRED): measurement=protein_ihc. HPA pathologist-scored
+#     IHC breadth CATEGORICAL + essential-tissue name-set → on-target-off-tumor SAFETY /
+#     liability (does the protein hit essential tissue). A killer/caution, not a selector.
+# Different product, different molecular layer (RNA vs protein), different question
+# (window-for-selection vs safety-liability). Both legitimately coexist; do not collapse.
+# (Also differs from tumor-vs-normal-selectivity, which measures one-tumor-vs-one-normal
+# contrast, not a pan-tissue breadth count.)
+#
+# Historical case studies that motivated this card:
+#   - DLL3 (Saunders 2015): expressed essentially only in SCLC + scattered fetal/neuro
+#     tissues. n_adult_tissues_above_threshold ≈ 1. Drove tarlatamab BiTE program.
+#   - CLDN18.2: thyroid + gastric mucosa + cancers. n_adult_tissues ≈ 2 (with isoform
+#     resolution). Drove zolbetuximab + ADC programs.
+#   - GUCY2C: intestinal mucosa + GI cancers. n_adult_tissues ≈ 1.
+#   - Compare to broad surface antigens like MUC1 (n_adult_tissues > 10) — same fold-change
+#     scoring but qualitatively different therapeutic window.
+#
+# The card emits "lineage_restricted_single_tissue" as a DOMINANT interpretation_call —
+# this is the EG4-aware signal that drives surface-modality fit assessment when the target
+# is restricted to one adult tissue.
+
+card_id: lineage-restriction-evidence
+version: 1.0.0
+# interpretation (descriptive): emits no categorical class.
+interpretation: descriptive
+status: dormant_pending_data   # applies_when-gated off (hpa_mirror_available) until the hpa-normal-tissue-expression product lands — dormant-by-design. Belongs in placeholder_cards, not required_cards.
+question: "Across adult human tissues, in how many tissues is {target.symbol} expressed at clinically relevant levels?"
+
+applies_when:
+  - "context.data_sources.hpa_mirror_available == true"
+
+required_inputs:
+  - product_id: hpa-normal-tissue-expression
+    release_pin: "{release_pin}"
+
+methods:
+  - call: hpa-tissue-restriction-aggregator
+    args:
+      target: "{target.symbol}"
+      release_pin: "{release_pin}"
+      tissue_threshold: "THRESHOLD.tissue_expression_threshold"
+
+outputs:
+  summary_fields:
+    - n_adult_tissues_above_threshold
+    - tissue_restriction_score
+    - top_expressing_tissues
+    - target_tissue_overlap_indications
+    - max_normal_tissue_expression
+    - secondary_tissue_max_expression
+  figure: tissue_restriction_bar_chart
+  plot_data: per_tissue_expression_long_format
+
+interpretation_hints:
+  - if: "n_adult_tissues_above_threshold <= 1"
+    call: "lineage-restricted: single tissue"
+    dominant: true                   # EG4: decisive surface-modality signal (DLL3, GUCY2C pattern)
+  - if: "n_adult_tissues_above_threshold <= 2"
+    call: "lineage-restricted: two tissues"
+    dominant: true                   # EG4: still dominant (CLDN18.2-class pattern)
+  - if: "n_adult_tissues_above_threshold >= 3 && n_adult_tissues_above_threshold <= 5"
+    call: "moderately tissue-restricted"
+  - if: "n_adult_tissues_above_threshold >= 6 && n_adult_tissues_above_threshold <= 10"
+    call: "broadly expressed: moderate therapeutic window"
+  - if: "n_adult_tissues_above_threshold >= 11"
+    call: "broadly expressed: narrow therapeutic window"
+  - if: "max_normal_tissue_expression < THRESHOLD.tissue_expression_threshold"
+    call: "not detectably expressed in any adult tissue"
+
+thresholds:
+  tissue_expression_threshold: 5.0           # TPM; iter-2 conservative default — calibration is open work
+  # Note: threshold is consensus-conservative; some tissue-restriction calls in published
+  # cases used different cutoffs. Iter-3 may add a per-modality tissue_expression_threshold
+  # tier (e.g., BiTE/TCE = 1.0 TPM strict; ADC = 5.0 TPM moderate).
+
+caveats:
+  - |
+    DISTINCT AXIS, not a duplicate of normal-tissue-liability. This card = RNA
+    tissue-BREADTH count (measurement: bulk_rna) → target-selection window;
+    normal-tissue-liability = protein-IHC breadth + essential-tissue flag
+    (measurement: protein_ihc) → on-target-off-tumor safety. Different product,
+    layer, and question — see header. A future card-reorg must NOT collapse them.
+  - "HPA mirror is iter-2 data-catalog work; card emits excluded_by_applies_when until HPA lands."
+  - "Tissue-restriction at the RNA level does not perfectly predict protein-level restriction. Some genes show RNA in many tissues but protein only in a subset (or vice versa)."
+  - "Isoform-specific restriction (CLDN18.2 vs CLDN18.1, AR-V7 vs AR full-length) is not captured at iter-2 gene-level granularity. Isoform resolution is iter-3+."
+  - "The dominant-signal interpretation calls (lineage-restricted: single/two tissues) drive synthesis fit_level scoring for surface modalities — see EG4 in master plan § Evidence-Gathering Patterns Not Yet Captured."
+
+measurement: bulk_rna
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `normal_tissue_rna_breadth` claim.
+measurement_type: normal_tissue_rna_breadth
+entity_grains: [target]
+schema_version: 1

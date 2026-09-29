@@ -1,0 +1,244 @@
+# on-target-safety-liability (Gate F/G) verdict resolver (gap #5, 2026-07-20).
+# Declarative transcription of skills/on-target-safety-liability/scripts/run.py::_verdict.
+# Germline gnomAD LoF-constraint signal (highly_constrained → hold in the nomination gate).
+gate: safety
+version: 2.4.0   # 2.4.0 (2026-09-28, skills #1794): PAN-ESSENTIAL FAIL-OPEN CLOSURE — two rungs:
+                 #   (a) pan_essential_broad_tox_concern (SAME verdict token, new driving_rule
+                 #   pan-essential-unanchored-broad-tox-safety-warning) for the NEW
+                 #   common_essential_unanchored class: a well-powered >=85% strongly-dependent
+                 #   fraction whose curated core-essential anchor was UNREACHABLE. Before this rung
+                 #   the class (then conflated into the safety-DARK common_essential_underpowered)
+                 #   fired nothing, so a transient anchor outage on a PLK1-class core-essential
+                 #   produced a CLEAN safety verdict — fail-open in the liability direction. The
+                 #   missing anchor removes the EXCULPATORY evidence (the T3 context-essential
+                 #   escape), not the liability, so the HOLD stands until a re-run resolves it.
+                 #   Placed directly below the curated pan-essential rung (priority 2).
+                 #   (b) NEW graded verdict broad_dependency_partial_tox_concern from
+                 #   broad-dependency-partial-tox-safety-warning: the 0.60-0.85 strongly-dependent
+                 #   band (broad_dependency_band == partial_broad_band) — a partial broad-tox
+                 #   liability that read CLEAN (and, worse, corroborated the TC#895 tolerant
+                 #   reassurance via pan-essential-safety-axis-measured-clear, which keys the whole
+                 #   broadly_dependent class). Graded, NOT the pan-essential HOLD: corpus-measured
+                 #   12/504 carriers (AURKA x4, GAPDH, ATP1A1, PRMT5, MTOR x2, ATR, MAT2A, RAD51),
+                 #   several managed clinical-stage targets — a full HOLD would over-fire; CLEAN is
+                 #   the fail-open. Placed below the human-genetics HOLD and ABOVE every tolerant
+                 #   co-condition rung (priority 6) so the measured partial liability always beats
+                 #   the tolerant reassurance (min-priority reduce makes the witness co-fire
+                 #   verdict-harmless for band carriers). Deliberately NOT in the nomination gate's
+                 #   kill_capable/gates blocks (a caution, not a hold); skills-side consumers must
+                 #   register it at pin time (_RECOGNIZED_GATING_VERDICTS routes an unseen safety
+                 #   verdict to a forced hold — fail-closed and loud until wired). Priorities 2..13
+                 #   renumbered (match_all_reduce → order-independent, TC#895 precedent).
+                 #   MINOR bump: one verdict token ADDED (broad_dependency_partial_tox_concern),
+                 #   none removed; verdict-affecting only in the fail-closed direction.
+                 # 2.3.0 (2026-09-28, skills #1793): ORGAN-COVERAGE EXTENSION — a second rung for
+                 #   normal_tissue_protein_safety_concern, fired by
+                 #   tphp-hpa-blind-vital-organ-protein-safety-warning: TPHP DIA-MS protein abundant
+                 #   (>= p75 floor) in >=1 vital organ HPA-IHC structurally cannot represent
+                 #   (nerve/blood/adrenal_gland/thyroid — HPA's closed 16-name vocabulary has no name
+                 #   for them; pituitary is covered by NEITHER protein panel and is surfaced as an
+                 #   explicit coverage caveat on the TPHP card). Before this rung the ONLY
+                 #   verdict-bearing protein arm was the HPA rung, so an endocrine/CNS/vascular
+                 #   on-target liability could not move the safety verdict (fail-open; TPHP was
+                 #   display-only). SAME verdict token, new driving_rule (provenance distinguishes the
+                 #   arms) — no vocabulary change, every downstream consumer of
+                 #   normal_tissue_protein_safety_concern (nomination gate hold, dispositions) already
+                 #   handles it. Placed directly below the HPA rung, ABOVE the P5 human-genetics HOLD
+                 #   and every soft rung (a measured dose-limiting-organ protein presence outranks
+                 #   gnomAD-soft/tolerant exactly as the HPA arm does); priorities 3..12 renumbered
+                 #   +1 to open the band (match_all_reduce → order-independent, TC#895 precedent).
+                 #   MINOR bump: no verdict tokens added/removed; verdict-affecting only in the
+                 #   fail-closed direction (adds HOLDs for HPA-blind-organ liabilities).
+                 # 2.2.0 (2026-09-25, TC#895): FAIL-OPEN CLOSURE — tolerant_reduced_safety_risk no longer
+                 #   fires on gnomAD constraint_class==tolerant ALONE. The bare `when_fired:
+                 #   tolerant-safety-supportive` rung (p4) emitted a "reduced safety risk" scalar even
+                 #   when EVERY non-constraint concern axis (DepMap pan-essential, HPA essential-tissue,
+                 #   gene-burden, ClinGen-dosage, mouse-KO, ClinVar) was DARK — indistinguishable from a
+                 #   gene whose concern axes were actively cleared ("inert by corpus != safe by
+                 #   contract", resolver-precedence audit Probe 4). It is now co-conditioned: tolerant is
+                 #   emitted only when >=1 non-constraint concern axis was INFORMATIVELY evaluated and
+                 #   came back non-concerning (a *-safety-axis-measured-clear witness fired) — else it
+                 #   falls through to moderately/data_unavailable/insufficient. driving_rule stays
+                 #   tolerant-safety-supportive (the gnomAD signal remains the provenance anchor; the
+                 #   witness is the corroboration gate), so a genuinely-corroborated tolerant verdict is
+                 #   byte-stable. MINOR bump: no verdict tokens added/removed; verdict-affecting only in
+                 #   the fall-open direction (an all-dark gnomAD-tolerant gene: 0/40 in corpus-20260914,
+                 #   so verdict-inert on the current corpus — a contract hardening). Priorities renumbered
+                 #   to open a band for the six co-condition rungs (match_all_reduce → order-independent).
+                 # 2.0.0 (2026-08-24): RETIRED the role-proxy mutant-selective downgrade (GROUP-0/0b guards +
+                 #   GROUP-1). The resolver no longer emits wt_constraint_mechanism_mismatch /
+                 #   wt_human_genetics_mechanism_mismatch — it emits the HONEST raw WT-loss concern; the
+                 #   modality-conditional downgrade moved to the per-modality safety verdict + tp_gates
+                 #   exists-safe-modality logic (VERDICT_REPRESENTATION.md Layer-2b/3). MAJOR bump: verdict
+                 #   vocabulary changed (2 tokens removed) → downstream mismatch-verdict consumers updated.
+                 # 1.5.0 (2026-08-21): DATA-UTILIZATION EXPANSION — 3 new legs wiring already-ingested signals:
+                 #   (a) pan_essential_broad_tox_concern (HOLD) from pan-essential-broad-tox-safety-warning
+                 #       (DepMap common_essential = broad normal-tissue tox), with a GROUP-0 amplification
+                 #       guard + a GROUP-1 mutant-selective downgrade (reuses wt_human_genetics_mechanism_mismatch);
+                 #   (b) clingen-recessive-only-safety-favorable → tolerant_reduced_safety_risk, placed ABOVE
+                 #       data_unavailable only (recessive-carrier health upgrades "unknown", never overrides a HOLD);
+                 #   (c) normal_tissue_protein_safety_concern (HOLD) from normal-tissue-protein-liability-safety-warning
+                 #       (HPA-IHC essential-tissue protein = on-target-off-tumor tox for full-KO SM/degrader).
+                 # 1.4.0 (2026-08-09): PRECEDENCE FIX — human_genetics_safety_concern (HOLD) hoisted ABOVE
+                 #   the SOFT gnomAD rungs (tolerant/moderately/data_unavailable), below highly_constrained.
+                 #   It was co-emission-dead: gnomAD emits indeterminate for absent genes → data_unavailable
+                 #   fired first → the P5 human-genetics HOLD never fired for its intended population.
+                 # 1.3.0 (2026-07-24): + ClinVar germline-pathogenic as a 4th corroborating leg in the
+                 #   human_genetics_safety_concern when_any_fired set + its mutant-selective downgrade.
+                 # 1.2.0 (2026-07-24): + P5 human-genetics leg (gene-burden / ClinGen-dosage / mouse-KO)
+                 #   as a combined concern rung BELOW the gnomAD chain (gnomAD path byte-identical),
+                 #   each mechanism-conditioned for GoF drivers like the gnomAD path.
+                 # 1.1.0 (2026-07-23): + mutant-selective mechanism-mismatch downgrade (when_all_fired)
+description: >
+  Germline/population + model safety precedence, mechanism-conditioned for GoF drivers. The gnomAD
+  LoF-constraint chain is the dominant leg (unchanged); the P5 human-genetics leg (rare-variant
+  burden, ClinGen dosage, mouse-KO) adds a combined concern that fires only when gnomAD is SILENT —
+  so the gnomAD resolution is byte-identical, and the new leg extends coverage rather than competing.
+resolve:
+  # ── ROLE-PROXY DOWNGRADE RETIRED (2026-08-24, VERDICT_REPRESENTATION.md Layer-2b/3).
+  #    The former GROUP-0/0b guards + GROUP-1 mutant-selective downgrades faked allele-selectivity
+  #    from GoF role and emitted a modality-AGNOSTIC scalar downgrade (wt_*_mechanism_mismatch).
+  #    Modality-conditionality now lives where the biology is: the per-modality safety verdict
+  #    (skills _skills_common/modality_safety.py, from modality.enum wt_engagement +
+  #    wt_loss_safety_conditioning.yaml), consumed by tp_gates 'exists-safe-modality' logic which
+  #    downgrades the raw concern below when an allele-selective agent is admissible. The resolver
+  #    now emits the HONEST raw concern for a WT-loss signal; the gate owns the modality decision.
+
+  # ── GROUP 2a: the DOMINANT gnomAD signal — a strongly LoF-constrained gene is the top raw concern.
+  - verdict: highly_constrained_safety_concern
+    when_fired: highly-constrained-safety-warning
+
+  # ── GROUP 2a+: measured broad-tox / essential-tissue HOLDs (data-utilization expansion 2026-08-21).
+  #    Both are strong MEASURED safety concerns (DepMap pan-essentiality; HPA-IHC essential-tissue
+  #    protein). Placed just below the dominant gnomAD signal and above the P5 human-genetics HOLD +
+  #    the soft gnomAD rungs. When one co-fires with a genuine downgrade context it is handled by the
+  #    GROUP-0/1 rungs above (pan-essential) or stands (normal-tissue: no allele-selective escape).
+    priority: 0
+  - verdict: pan_essential_broad_tox_concern
+    when_fired: pan-essential-broad-tox-safety-warning
+    priority: 1
+
+  # ── GROUP 2a+ (cont.): the UNANCHORED twin of the rung above (skills #1794). The curated
+  #    core-essential anchor was UNREACHABLE for a well-powered >=85% strongly-dependent fraction
+  #    (dependency_class common_essential_unanchored) — the pan-essential broad-tox call is
+  #    UNVERIFIED, not refuted. SAME verdict token: this rung extends WHICH EVIDENCE STATES can
+  #    raise the pan-essential HOLD (verified, or unverifiable-pending-anchor), not a new kind of
+  #    concern; driving_rule keeps the arms distinguishable in provenance. A re-run with anchor
+  #    access resolves the class to common_essential (rung above) or broadly_dependent (T3-cleared).
+  - verdict: pan_essential_broad_tox_concern
+    when_fired: pan-essential-unanchored-broad-tox-safety-warning
+    priority: 2
+  - verdict: normal_tissue_protein_safety_concern
+    when_fired: normal-tissue-protein-liability-safety-warning
+
+  # ── GROUP 2a+ (cont.): the ORGAN-COVERAGE twin of the rung above (skills #1793). TPHP DIA-MS
+  #    protein at/above the calibrated abundance floor in >=1 vital organ HPA-IHC structurally cannot
+  #    represent (nerve / blood / adrenal_gland / thyroid). SAME verdict token — this rung extends
+  #    which ORGANS can raise the measured normal-tissue protein HOLD, it does not add a new kind of
+  #    concern; driving_rule (the fired rule id) keeps the two arms distinguishable in provenance.
+  #    Sits directly below the HPA rung and ABOVE the P5 human-genetics HOLD + all soft rungs: a
+  #    measured dose-limiting-organ protein presence outranks gnomAD-soft exactly as the HPA arm does.
+  #    Also outranks (by min-priority reduction) the TC#895 tolerant co-condition rungs — so a gene
+  #    whose HPA read is `absent` (which fires the normal-tissue-essential-tissue-measured-clear
+  #    witness over HPA's 11 representable organs) but which is TPHP-abundant in an HPA-blind organ
+  #    resolves to the HOLD, not to tolerant_reduced_safety_risk.
+    priority: 3
+  - verdict: normal_tissue_protein_safety_concern
+    when_fired: tphp-hpa-blind-vital-organ-protein-safety-warning
+
+  # ── GROUP 3: the P5 human-genetics COMBINED concern (HOLD). PRECEDENCE FIX (2026-08-09, resolver-
+  #    precedence audit): this MUST precede the SOFT gnomAD rungs below (tolerant / moderately /
+  #    data_unavailable). PRIOR BUG: it sat BELOW the whole gnomAD chain on the belief that the chain
+  #    "goes silent" for a gnomAD-absent gene — but the gnomAD card is NEVER silent: an absent gene
+  #    emits constraint_class=indeterminate (a genuine "read-the-table, gene-absent" value, per
+  #    gnomad_constraint/read.py), firing constraint-data-unavailable-insufficient → data_unavailable
+  #    ABOVE this rung. So human_genetics_safety_concern was CO-EMISSION-DEAD for exactly its intended
+  #    population (gene absent-from / tolerant-in gnomAD but carrying a WT-loss human-genetics signal),
+  #    silently dropping the HOLD (nomination_verdict_gate.yaml action: hold). A real gene-burden /
+  #    ClinGen-dominant-loss / ClinVar-pathogenic / mouse-KO-lethal signal is a STRONGER safety concern
+  #    than gnomAD-tolerant/moderate/absent, so it now outranks the soft gnomAD rungs (but still sits
+  #    BELOW highly_constrained gnomAD — a strong constraint call dominates). The GROUP-1 mutant-
+  #    selective downgrades still precede it (top of file), unchanged. driving_rule attributes the
+  #    strongest-tier warning present (gene_burden measured > ClinGen > ClinVar > mouse=inferred).
+    priority: 4
+  - verdict: human_genetics_safety_concern
+    when_any_fired: [gene-burden-lof-safety-warning, clingen-dominant-loss-safety-warning, clinvar-germline-pathogenic-safety-warning, mouse-ko-lethal-safety-warning]
+    priority: 5
+
+  # ── GROUP 3b: GRADED partial broad-dependency liability (skills #1794). The 0.60-0.85
+  #    strongly-dependent band (broad_dependency_band == partial_broad_band, dependency_class
+  #    broadly_dependent) — "a broad-toxicity liability nearly as severe as a common-essential"
+  #    (finding #2, 2026-08-13) that previously resolved CLEAN here. NEW verdict token, a graded
+  #    CAUTION: deliberately weaker than the pan-essential/protein/human-genetics HOLDs above
+  #    (12/504 corpus carriers include managed clinical-stage targets — AURKA, MTOR, ATR, PRMT5 —
+  #    so a HOLD would over-fire) but STRONGER than every soft rung below: it outranks the six
+  #    TC#895 tolerant co-condition rungs — critically, pan-essential-safety-axis-measured-clear
+  #    fires on the WHOLE broadly_dependent class, so without this rung a band carrier's measured
+  #    partial liability actively CORROBORATED tolerant_reduced_safety_risk. Min-priority reduce
+  #    makes that witness co-fire verdict-harmless for band carriers. NOT in the nomination gate's
+  #    gates/kill_capable blocks (caution, not hold) — skills consumers register the token at pin
+  #    time (unseen safety verdicts fail CLOSED to a forced hold in tp_gates until then).
+  - verdict: broad_dependency_partial_tox_concern
+    when_fired: broad-dependency-partial-tox-safety-warning
+    priority: 6
+
+  # ── GROUP 2b: the SOFT gnomAD rungs — tolerant / moderately-constrained / indeterminate-or-unreadable.
+  #    These are weaker than a real human-genetics WT-loss signal (GROUP 3), so they resolve AFTER it.
+  #    A gene with NO human-genetics warning still lands here exactly as before (gnomAD rows unchanged).
+  #
+  # ── FAIL-OPEN CLOSURE (2026-09-25, TC#895): tolerant_reduced_safety_risk is CO-CONDITIONED. The bare
+  #    `when_fired: tolerant-safety-supportive` rung is GONE — gnomAD-tolerant ALONE no longer proves
+  #    "reduced safety risk" when every non-constraint concern axis is DARK. Instead ONE co-condition
+  #    rung per non-constraint concern axis (DepMap pan-essential, HPA essential-tissue, gene-burden,
+  #    ClinGen-dosage, mouse-KO, ClinVar) requires that axis to have been INFORMATIVELY evaluated and
+  #    come back non-concerning (its `*-safety-axis-measured-clear` witness fired) ALONGSIDE the tolerant
+  #    gnomAD signal. Any ONE cleared axis suffices (the rungs share the verdict; match_all_reduce
+  #    returns the min-priority match). `driving_rule` is pinned to tolerant-safety-supportive so a
+  #    genuinely-corroborated tolerant verdict is BYTE-IDENTICAL to the pre-2.2.0 behavior. If NO concern
+  #    axis was informatively cleared (all dark), NONE of these rungs match and — since a tolerant gene
+  #    fires neither moderately-constrained-safety-neutral nor constraint-data-unavailable-insufficient —
+  #    the resolver falls through to the `insufficient` default: an honest "cannot establish reduced
+  #    safety risk; concern axes unmeasured." Verdict-inert on corpus-20260914 (0/40 tolerant verdicts are
+  #    all-dark); this is a contract hardening. recessive-only (below) is itself a measured human-genetics
+  #    clear and keeps its own independent reassurance rung.
+  - verdict: tolerant_reduced_safety_risk
+    when_all_fired: [tolerant-safety-supportive, pan-essential-safety-axis-measured-clear]
+    driving_rule: tolerant-safety-supportive
+    priority: 7
+  - verdict: tolerant_reduced_safety_risk
+    when_all_fired: [tolerant-safety-supportive, normal-tissue-essential-tissue-measured-clear]
+    driving_rule: tolerant-safety-supportive
+    priority: 8
+  - verdict: tolerant_reduced_safety_risk
+    when_all_fired: [tolerant-safety-supportive, gene-burden-safety-axis-measured-clear]
+    driving_rule: tolerant-safety-supportive
+    priority: 9
+  - verdict: tolerant_reduced_safety_risk
+    when_all_fired: [tolerant-safety-supportive, clingen-dosage-safety-axis-measured-clear]
+    driving_rule: tolerant-safety-supportive
+    priority: 10
+  - verdict: tolerant_reduced_safety_risk
+    when_all_fired: [tolerant-safety-supportive, mouse-ko-safety-axis-measured-clear]
+    driving_rule: tolerant-safety-supportive
+    priority: 11
+  - verdict: tolerant_reduced_safety_risk
+    when_all_fired: [tolerant-safety-supportive, clinvar-germline-safety-axis-measured-clear]
+    driving_rule: tolerant-safety-supportive
+    priority: 12
+  - verdict: moderately_constrained_safety
+    when_fired: moderately-constrained-safety-neutral
+  # ClinGen recessive-only REASSURANCE (2026-08-21): carriers of a strictly-recessive disease gene are
+  # healthy → human-genetics evidence that reduction/full-KO is tolerated. Placed here — below every
+  # HOLD and below the tolerant/moderate gnomAD rungs, ABOVE data_unavailable — so it ONLY upgrades the
+  # "gnomAD-silent/unreadable" population from "unknown" to "reduced risk", and can never override a
+  # real constraint/burden/dominant-loss HOLD. Reuses tolerant_reduced_safety_risk (no new token). It is
+  # NOT co-conditioned by TC#895: recessive-only IS an informative human-genetics measured-clear.
+    priority: 13
+  - verdict: tolerant_reduced_safety_risk
+    when_fired: clingen-recessive-only-safety-favorable
+    priority: 14
+  - verdict: data_unavailable
+    when_fired: constraint-data-unavailable-insufficient
+    priority: 15
+default: insufficient
+evaluation: match_all_reduce

@@ -1,0 +1,50 @@
+# Card — CELL-LINE ISOFORM EXPRESSION (molecular-form: WHICH transcript carries expression)
+#
+# The MOLECULAR-FORM (isoform) facet promoted to a STANDALONE card (2026-08-19; card→skill
+# organizing-layer plan Part 6.3). Across the DepMap panel, how DOMINATED is the target's expression
+# by a SINGLE transcript? A single-isoform target is a cleaner modality/epitope target (an antibody/
+# ADC/oligo hits a defined transcript); an isoform-diverse target (VEGFA, ERBB2, BCL2L1) flags that
+# the functional/druggable isoform must be specified. ORTHOGONAL to expression-LEVEL (how MUCH) — this
+# says WHICH transcript. Reads depmap-isoform-expression-per-gene-v1 (MODEL arm).
+#
+# Conditioner axis `molecular_form` (target-contracts/vocabularies/target_profiling_axes.yaml).
+# VERDICT-INERT: display + LLM context; fires no interpretation rule; never moves any verdict.
+# ADDITIVE (byte-stable): the SAME facet is ALSO emitted as a sub-call inside cellline-rna-distribution
+# (kept for now; de-duping the parent sub-call is a deliberate follow-on).
+card_id: cellline-isoform-expression
+version: 0.1.0
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
+status: wired
+question: "Which transcript isoform carries {target.symbol}'s expression across cancer cell lines — single-isoform-dominant or isoform-diverse?"
+tier: target
+measurement_type: cellline_isoform_expression
+entity_grains:
+  - target
+applies_when:
+  - "context.data_sources.depmap_expression_available == true"
+required_inputs:
+  - product_id: depmap-isoform-expression-per-gene-v1
+methods:
+  - call: depmap-isoform-expression
+    module: depmap_isoform_expression          # generic dispatcher (T11 routability)
+    entrypoint: isoform_summary_for_gene
+    args:
+      target: "{target.symbol}"
+outputs:
+  summary_fields:
+    - isoform_expression_class                     # categorical (vocabulary below); verdict-inert
+    - dominant_isoform_fraction                    # cohort-median top-isoform TPM / gene-total TPM
+    - n_expressed_isoforms                         # cohort-median count of expressed isoforms per model
+    - dominant_isoform                             # modal top-isoform ENST across the panel
+    - n_models                             # cell lines expressing the gene (facet denominator)
+  summary_fields_vocabulary:
+    isoform_expression_class:
+      - single_isoform_dominant                    # cohort-median dominant-isoform fraction >= 0.80
+      - balanced                                   # 0.50-0.80 (dominant isoform + meaningful secondary transcripts)
+      - isoform_diverse                            # < 0.50 (no single isoform dominates — alternative splicing)
+      - data_unavailable
+caveats:
+  - "Verdict-inert molecular-form facet: flags single-transcript (modality/epitope simplicity) vs isoform-diverse (druggable isoform must be specified); it fires no interpretation rule and moves no verdict."
+  - "MODEL arm (DepMap cell lines). The patient-tumour complement is tumor-splice-dysregulation (TCGA SpliceSeq PSI); a cell-line dominant isoform need not match the patient-tumour isoform."
+schema_version: 1

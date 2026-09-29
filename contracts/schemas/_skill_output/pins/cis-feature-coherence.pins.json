@@ -1,0 +1,44 @@
+{
+  "$comment": "PER-SKILL PINS (source) for cis-feature-coherence. VARIANT = inert-scalar: role:inert + polarity:not_scored const + a verdict-SHAPED cis_coherence_verdict that is explicitly NOT a call (verdict_fn=_verdict resolves it, so skill_report.call carries the inert string). Enum = resolvers/cis_coherence.resolver.yaml (matches _CIS_COHERENCE_VERDICT_PHRASE; no run.py mints). Append-only within contract major version.",
+  "skill": "cis-feature-coherence",
+  "role_variant": "inert_scalar",
+  "$defs": {
+    "cis_coherence_verdict_enum": {
+      "type": "string",
+      "enum": [
+        "coherent_cis_driver",
+        "coherent_epigenetic_silencing",
+        "coherent_cis_loss_of_function",
+        "expressed_cis_coupled_inert",
+        "dependency_without_cis_dosage",
+        "cis_uncoupled_no_dependency",
+        "insufficient_cis_coherence"
+      ]
+    }
+  },
+  "pins": {
+    "properties": {
+      "skill": {"const": "cis-feature-coherence"},
+      "headline": {
+        "type": "object",
+        "required": ["cis_coherence_verdict"],
+        "properties": {
+          "cis_coherence_verdict": {"$ref": "#/$defs/cis_coherence_verdict_enum"},
+          "skill_report": {
+            "type": ["object", "null"],
+            "properties": {
+              "call": {
+                "oneOf": [
+                  {"$ref": "#/$defs/cis_coherence_verdict_enum"},
+                  {"type": "null"}
+                ]
+              },
+              "role": {"const": "inert"},
+              "polarity": {"const": "not_scored"}
+            }
+          }
+        }
+      }
+    }
+  }
+}

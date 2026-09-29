@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/oneTakeda/rnd-computational-biology-oncology-claude-oncology-skills/core-artifacts-schema/products/expression-rna-tumor-vs-adjacent.result.schema.json",
+  "title": "expression-rna-tumor-vs-adjacent — result payload schema",
+  "description": "Result payload that goes inside evidence.json's `result` field for the expression-rna-tumor-vs-adjacent product. One evidence.json per (gene, indication, subtype) tuple. Field names follow snake_case + semantic-prefix convention (tumor_vs_adjacent_*). Numeric fields stored at full precision; the rendered dossier rounds for display.",
+  "type": "object",
+  "required": [
+    "tumor_vs_adjacent_log2fc",
+    "tumor_vs_adjacent_lfc_se",
+    "tumor_vs_adjacent_pvalue",
+    "tumor_vs_adjacent_padj",
+    "tumor_vs_adjacent_basemean",
+    "n_tumor",
+    "n_normal",
+    "is_actionable",
+    "is_upregulated"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "tumor_vs_adjacent_log2fc": {
+      "type": "number",
+      "description": "DESeq2 log2 fold change, apeglm-shrunk. Positive = up in tumor."
+    },
+    "tumor_vs_adjacent_lfc_se": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Standard error of the shrunk log2 fold change."
+    },
+    "tumor_vs_adjacent_pvalue": {
+      "type": ["number", "null"],
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Wald-test p-value. Null when DESeq2 sets it to NA (independent filtering)."
+    },
+    "tumor_vs_adjacent_padj": {
+      "type": ["number", "null"],
+      "minimum": 0,
+      "maximum": 1,
+      "description": "BH-adjusted p-value (genome-wide, Tier 1). Null when filtered out."
+    },
+    "tumor_vs_adjacent_basemean": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Mean of normalized counts across all samples (DESeq2 baseMean)."
+    },
+    "n_tumor": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Number of primary-tumor samples in the comparison."
+    },
+    "n_normal": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Number of adjacent-normal samples in the comparison."
+    },
+    "is_significant": {
+      "type": "boolean",
+      "description": "padj < 0.05 (Tier 1). Computed for convenience; downstream dossiers re-derive from padj."
+    },
+    "is_actionable": {
+      "type": "boolean",
+      "description": "padj < 0.05 AND |log2fc| >= 1. The 'actionability' threshold from the COADREAD config."
+    },
+    "is_upregulated": {
+      "type": "boolean",
+      "description": "padj < 0.05 AND log2fc > 0. True only if both significantly differentially expressed AND up in tumor."
+    },
+    "tempus_summary": {
+      "type": "object",
+      "description": "OPTIONAL — Tempus RWD overlay when the indication has Tempus coverage (e.g., COADREAD). Pre-aggregated per-stratum summary statistics. provenance.catalog_refs MUST cite the tempus source-release manifest (e.g., tempus-crc-2026-03-17) when this block is present.",
+      "additionalProperties": true,
+      "properties": {
+        "cohort_definition": { "type": "string" },
+        "expression_unit": { "type": "string", "examples": ["log2(TPM+1)"] },
+        "overall": {
+          "type": "object",
+          "properties": {
+            "n_samples": { "type": "integer", "minimum": 0 },
+            "mean": { "type": "number" },
+            "median": { "type": "number" },
+            "sd": { "type": "number", "minimum": 0 },
+            "q25": { "type": "number" },
+            "q75": { "type": "number" },
+            "pct_detected": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Fraction of patients with detectable expression. RWD-specific signal — protein-coding genes typically >0.95; weakly expressed targets <0.5."
+            }
+          }
+        },
+        "by_lot_mss": {
+          "type": "object",
+          "description": "Stratified by line-of-therapy within MSS subset. Keys are LoT slugs (e.g., '1L-2L', '3L+'); values are summary objects matching `overall`."
+        },
+        "by_ras_mss": {
+          "type": "object",
+          "description": "Stratified by RAS mutation status within MSS subset."
+        },
+        "by_msi": {
+          "type": "object",
+          "description": "Stratified by microsatellite instability status (MSS vs MSI-H)."
+        },
+        "by_cpi": {
+          "type": "object",
+          "description": "Stratified by checkpoint-inhibitor exposure."
+        },
+        "by_cms": {
+          "type": "object",
+          "description": "Stratified by CRC Consensus Molecular Subtype (CMS1-4)."
+        },
+        "by_idas_group": {
+          "type": "object",
+          "description": "Stratified by Takeda iDAS strategic whitespace tuples (e.g., 'MSS_RASMut_3L+'). Preserves whitespace labels verbatim — do NOT flatten."
+        },
+        "multi_axis": {
+          "type": "object",
+          "description": "Three-way crossings: cms_lot_mss, cms_ras_mss, cms_msi.",
+          "additionalProperties": true
+        }
+      }
+    }
+  },
+  "$comment": "Anchored to the coadread-dge-df06320 derived artifact's 11-column Parquet shape. The mapping from Parquet columns to evidence.json result keys: gene_symbol -> the artifact's natural row key (sidecar joins on it); log2FoldChange -> tumor_vs_adjacent_log2fc; lfcSE -> tumor_vs_adjacent_lfc_se; pvalue -> tumor_vs_adjacent_pvalue; padj -> tumor_vs_adjacent_padj; baseMean -> tumor_vs_adjacent_basemean; n_tumor, n_normal carry through; is_significant/is_actionable/is_upregulated carry through. The render-target-dossier skill is responsible for converting one Parquet row to one result-payload object."
+}

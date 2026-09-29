@@ -1,0 +1,26 @@
+{
+  "skill": "functional-requirement",
+  "target": "KRAS",
+  "indication": "COADREAD",
+  "generated_at": "2026-07-18T19:04:01+00:00",
+  "headline": {
+    "dependency_verdict": "lineage_selective",
+    "driving_rule_id": "lineage-selective-supportive",
+    "crispr_call": "strongly_selective",
+    "rnai_call": null,
+    "concordance_call": "strongly_concordant_non_dependent",
+    "lineage_selectivity": null,
+    "paralog_buffering_class": "strong",
+    "strongest_paralog_symbol": "NRAS",
+    "cards_available": 5,
+    "cards_missing": []
+  },
+  "_crispr_provenance": {
+    "n_cell_lines_evaluated": 1538,
+    "median_chronos_panel": -0.45738519728183746,
+    "fraction_strongly_dependent": 0.17620286085825748,
+    "dependency_class": "strongly_selective",
+    "distribution_shape": "bimodal_selective"
+  },
+  "_snapshot_note": "Minimal live-captured decision snapshot for calibration harness. See known_target_calibration_set.yaml."
+}

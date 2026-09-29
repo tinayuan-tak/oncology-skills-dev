@@ -1,0 +1,62 @@
+# modality_axis_compatibility.yaml
+# Maps biology axes to plausible modalities. Used by compose-dashboard's modality
+# inference step: given a target's biology axis and an unspecified modality, the
+# framework enumerates the plausible-modalities list and applies all corresponding
+# modality_modules in turn — synthesis differentiates the reads per modality.
+#
+# When the user specifies a modality explicitly, this table is consulted to confirm
+# the modality is compatible with the target's axis. An incompatible combination
+# (e.g., small_molecule against a pure-extrinsic target) raises a structured error.
+
+version: 1.0.0
+
+axis_compatibility:
+  intracellular_intrinsic:
+    plausible_modalities_iter1b: [small_molecule, degrader]
+    default_inference_behavior: enumerate_all
+    deferred_modalities: [rna_therapeutic]
+    incompatible_modalities: [adc, bite_tce, antibody, cell_therapy, radiopharmaceutical, io_extrinsic]
+    incompatibility_note: |
+      Intracellular targets are not accessible to extracellular modalities. Antibody,
+      ADC, BiTE, cell therapy, and radiopharmaceutical all require surface accessibility.
+
+  surface_intrinsic:
+    plausible_modalities_iter1b: [adc, bite_tce, antibody]
+    default_inference_behavior: enumerate_all
+    deferred_modalities: [bispecific_non_tce, cell_therapy, radiopharmaceutical]
+    incompatible_modalities: [small_molecule, degrader, rna_therapeutic, io_extrinsic]
+    incompatibility_note: |
+      Surface antigens are extracellular; small-molecule/degrader/RNA-therapeutic
+      modalities target intracellular biology. IO-extrinsic targets the microenvironment
+      compartment, not the tumor cell surface specifically.
+
+  extrinsic:
+    plausible_modalities_iter1b: []                          # no active iter-1b modality
+    plausible_modalities_iter2: [antibody, io_extrinsic, bispecific_non_tce]
+    iter1b_status: deferred
+    default_inference_behavior: not_applicable_iter1b
+    iter1b_behavior: emit_extrinsic_axis_deferred_message
+
+  mixed:
+    plausible_modalities_iter1b: []
+    plausible_modalities_iter2: [antibody, io_extrinsic]
+    iter1b_status: deferred
+    default_inference_behavior: not_applicable_iter1b
+    iter1b_behavior: emit_mixed_axis_deferred_message
+
+  unknown:
+    plausible_modalities_iter1b: []
+    iter1b_behavior: emit_uncurated_axis_message
+
+# Inference rule (consumed by compose-dashboard at runtime):
+# 1. Look up context.target.biology_axis (from target_biology_axis_lookup.yaml or curated).
+# 2. If context.modality is specified:
+#      a. Confirm context.modality is in plausible_modalities_iter1b OR plausible_modalities_iter2.
+#      b. If not, raise structured error: "modality X incompatible with axis Y. Compatible: [...]."
+# 3. If context.modality is NOT specified:
+#      a. If default_inference_behavior == enumerate_all: load all plausible_modalities_iter1b modules.
+#      b. Synthesis enumerates modality fits across loaded modules (differentiated reads).
+#      c. Provenance records `inferred_modality_application: [...]` for audit.
+# 4. If axis is deferred (extrinsic, mixed) or unknown:
+#      a. Emit base evidence package with structured deferred/unknown reason.
+#      b. Do not load any modality modules.

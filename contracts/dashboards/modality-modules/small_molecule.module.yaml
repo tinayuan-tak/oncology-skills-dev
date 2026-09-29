@@ -1,0 +1,57 @@
+# small_molecule.module.yaml — modality module for small-molecule programs
+# Layers on top of intracellular-intrinsic-base.dashboard_spec. Adds emphasis on
+# druggability / dependency selectivity / pharmacology; does NOT add cards iter-1b
+# can't deliver (druggability data sources are iter-2+).
+
+modality_module: small_molecule
+version: 1.0.0
+extends_axes: [intracellular_intrinsic]
+
+# Iter-1b small_molecule adds no new cards on top of the intracellular_intrinsic base.
+# All emphasis lives in synthesis_emphasis + threshold_overlays.
+# Iter-2+ additions:
+#   - druggability-evidence (when DepMap proteomics or ChEMBL mirrored)
+#   - drug-sensitivity (when PRISM wired through)
+additional_cards: []
+
+threshold_overlays:
+  dependency-lineage-selectivity:
+    severity_threshold: strong                  # SM programs need strong dependency signal
+    note: "Small-molecule programs require dependency evidence — without it, there is no rationale for chemical-matter investment."
+
+tunable_threshold_categories:
+  - severity_threshold
+  - weighting
+  - note_field
+
+headline_decision_question: "Is this target functionally required and pharmacologically tractable in a defined cancer context?"
+
+modality_specific_caveats:
+  - "Druggability evidence is iter-2 scope; iter-1b cannot evaluate the chemistry-matter side directly. Synthesis flags this as a gap if synthesis_emphasis.primary_cards includes druggability."
+  - "Small-molecule selectivity in cell-line dependency does not guarantee in-vivo target engagement or therapeutic index."
+
+synthesis_emphasis:
+  primary_cards:
+    # Iter-2 Card 1 promoted to PRIMARY: pan-cancer-crispr-dependency-distribution carries
+    # the dominant-KILLER (pan-essential) and dominant-POSITIVE (selective) signals.
+    # When this card fires "pan-essential — not a viable therapeutic target", EG4
+    # rule rates small_molecule fit as not_viable regardless of other cards.
+    - pan-cancer-crispr-dependency-distribution
+    - dependency-lineage-selectivity
+    - mutation-stratified-dependency      # Reactivated 2026-06-30 — oncogene-addiction biomarker (BRAF-V600E, KRAS-G12C, EGFR-L858R)
+    - mutation-hotspot-frequency
+    - prism-compound-activity             # Card E6 — drug existence + activity IS a small-molecule differentiator (activated 2026-07-01)
+    - prism-crispr-concordance            # Card E7 — chemical-genetic target-engagement validation (activated 2026-07-02)
+  secondary_cards:
+    - tumor-rna-vs-adjacent
+    - expression-dependency-correlation   # Card 4 — biomarker stratification (supports, doesn't define fit)
+    - dependency-predictability           # Card E5 — multi-omics predictability model (activated 2026-07-01)
+    - normal-tissue-liability
+  modality_killer_conditions:
+    - card_id: dependency-lineage-selectivity
+      predicate_type: interpretation_call_equals
+      predicate_value: "not informative"
+      message: "Small-molecule not viable — dependency-lineage-selectivity returned not informative. Without dependency evidence there is no rationale for chemical-matter investment."
+
+iter1b_status: active
+schema_version: 1

@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/takeda-rnd/rnd-computational-biology-oncology-target-contracts/schemas/skills/cross-evidence-hypothesis.emit.schema.json",
+  "title": "cross-evidence-hypothesis emit",
+  "version": "1.0.0",
+  "$comment": "HAND-AUTHORED bespoke data-product contract for the cross-evidence-hypothesis AUX skill (LLM cross-skill synthesis; writes hypothesis.json; NOT a fan-out decision — no skill_decision envelope / run_health / headline). NOT generated, NO pin. Locks the STABLE top-level identity + the gated verdict OBJECT vocabulary (VERDICT_RANK, computed=min(proposed,ceiling)) + evidence-grade / modality / edge-type enums + provenance presence, and leaves the LLM-authored clause prose OPEN (additionalProperties:true) since it is inherently fluid and prompt-hash nondeterministic. Self-contained: no cross-file/network $ref. Append-only within contract major version.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["skill", "skill_version", "target", "verdict", "hypothesis", "provenance"],
+  "$defs": {
+    "verdict_rank": {
+      "description": "VERDICT_RANK, ordered least→most permissive (hypothesis_core.VERDICT_RANK).",
+      "type": "string",
+      "enum": ["declined", "needs_data", "advanceable_flagged", "conditional_on_biomarker", "advanceable_with_caveat", "advanceable"]
+    },
+    "modality_scope": {
+      "type": "string",
+      "enum": ["adc", "antibody", "bite_tce", "degrader", "modality_agnostic", "molecular_glue", "rna_therapeutic", "small_molecule"]
+    },
+    "edge_type": {"type": "string", "enum": ["conditions", "tensions_with", "corroborates", "contradicts"]},
+    "grade_overall": {"type": "string", "enum": ["strong", "moderate", "weak", "insufficient"]},
+    "grade_line": {"type": "string", "enum": ["strong", "moderate", "weak", "absent"]}
+  },
+  "properties": {
+    "skill": {"const": "cross-evidence-hypothesis"},
+    "skill_version": {"type": "string"},
+    "target": {"type": "string"},
+    "indication": {"type": ["string", "null"]},
+    "objective": {"type": ["string", "null"]},
+    "modality": {
+      "type": ["object", "null"],
+      "additionalProperties": true,
+      "properties": {"resolved": {"oneOf": [{"$ref": "#/$defs/modality_scope"}, {"type": "null"}]}}
+    },
+    "verdict": {
+      "description": "Gated verdict object: computed = min(proposed_by_agent, gate_ceiling) over VERDICT_RANK.",
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "proposed_by_agent": {"oneOf": [{"$ref": "#/$defs/verdict_rank"}, {"type": "null"}]},
+        "computed": {"oneOf": [{"$ref": "#/$defs/verdict_rank"}, {"type": "null"}]},
+        "gate_ceiling": {"oneOf": [{"$ref": "#/$defs/verdict_rank"}, {"type": "null"}]}
+      }
+    },
+    "hypothesis": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "evidence_grade": {
+          "type": ["object", "null"],
+          "additionalProperties": true,
+          "properties": {
+            "overall": {"oneOf": [{"$ref": "#/$defs/grade_overall"}, {"type": "null"}]},
+            "per_line": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": true,
+                "properties": {"dimension": {"type": "string"}, "strength": {"$ref": "#/$defs/grade_line"}}
+              }
+            }
+          }
+        },
+        "therapeutic_hypothesis": {
+          "type": ["object", "null"],
+          "additionalProperties": true,
+          "properties": {"modality": {"oneOf": [{"$ref": "#/$defs/modality_scope"}, {"type": "null"}]}}
+        }
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {"type": {"$ref": "#/$defs/edge_type"}}
+      }
+    },
+    "evidence_paths": {"type": "array"},
+    "defensibility": {"type": ["object", "null"]},
+    "uncertainty": {"type": ["object", "null"]},
+    "evidence_independence": {"type": ["object", "null"]},
+    "subtype_resolved": {"type": ["object", "string", "null"]},
+    "degraded_mode": {"type": ["object", "boolean", "string", "null"]},
+    "grounded_substrate": {"type": ["object", "null"]},
+    "quality": {"type": ["object", "null"]},
+    "panel_conviction": {"type": ["object", "null"]},
+    "provenance": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["generated_at"],
+      "properties": {
+        "skill": {"type": ["string", "null"]},
+        "skill_version": {"type": ["string", "null"]},
+        "prompt_template_hash": {"type": ["string", "null"]},
+        "model_id": {"type": ["string", "null"]},
+        "llm_mode": {"type": ["string", "null"]},
+        "generated_at": {"type": "string"}
+      }
+    }
+  }
+}

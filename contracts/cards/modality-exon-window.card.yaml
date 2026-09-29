@@ -1,0 +1,91 @@
+# Card — MODALITY EXON-WINDOW (per-exon tumor-vs-normal window + heterogeneity flag; v1, E5)
+#
+# The EXON-resolution companion of modality-therapeutic-window (enrichment E5, 2026-08-07). The
+# gene-level window scores tumor / max-essential-normal at GENE grain, averaging all exons. This
+# card asks what averaging hides: does the target's TUMOR-DOMINANT exon stand well above the gene's
+# other exons (within-gene heterogeneity) with a clean tumor-vs-essential-normal window? Reads
+# tcga-gtex-exon-tpm-quantiles-v1 (per-exon tumor + TCGA-adjacent-normal + GTEx-normal quantiles,
+# surfaceome-scoped) via the AM exon_window method.
+#
+# HONEST SCOPE (live-smoke-calibrated 2026-08-07): this is a HYPOTHESIS-GENERATING flag, NOT an
+# isoform-identity call. Per-exon COVERAGE quantiles (recount3 exon_sums) are blind to WHICH
+# TRANSCRIPT an exon belongs to, so this CANNOT confirm a specific isoform — e.g. it cannot resolve
+# CLDN18.2 from CLDN18.1 (the tumor-dominant CLDN18 exon is a shared/constitutive exon high in
+# stomach + lung). An exon_heterogeneity_flag means "worth a JUNCTION-level / isoform-resolved
+# follow-up", not "this is an isoform-restricted target". Isoform identity needs junction/PSI data.
+
+card_id: modality-exon-window
+version: 1.0.0
+question: "Does {target.symbol}'s tumor-dominant exon show within-gene heterogeneity + a clean tumor-vs-normal window, flagging a candidate for isoform-resolved (junction-level) follow-up?"
+
+tier: indication   # exon window is tumor-cohort-based (per-indication TCGA studies), like modality-therapeutic-window
+
+applies_when: []   # biologics-relevant; scoped downstream by the composed modality card
+
+required_inputs:
+  - product_id: tcga-gtex-exon-tpm-quantiles-v1   # per-exon tumor + normal quantiles (surfaceome-scoped)
+
+methods:
+  - call: exon-window
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - exon_window_class                             # PRIMARY categorical
+    - n_exons
+    - best_exon_id                                  # the tumor-dominant exon
+    - best_exon_tumor_tpm
+    - best_exon_max_essential_tpm
+    - best_exon_window_ratio                        # tumor / max-essential-normal for the tumor-dominant exon
+    - exon_heterogeneity_log2                       # tumor-dominant exon minus gene-median exon (>=0)
+    - median_exon_tumor_log2tpm
+    - modality_tier_threshold_tpm
+    - tumor_studies
+    - method_version
+
+  summary_fields_vocabulary:
+    exon_window_class:
+      - exon_heterogeneity_flag                     # dominant exon stands out + clean window — CANDIDATE for junction-level follow-up (NOT a confirmed isoform target)
+      - uniform_gene_window                         # expressed, exons uniform — the gene-level window already captures it
+      - essential_exon_liability                    # the tumor-dominant exon's own essential-normal expression clears the modality tier
+      - not_expressed_in_cohort                     # tumor-dominant exon < floor (cohort-honesty; NOT a clean/dirty call)
+      - not_in_product                              # gene absent from the surfaceome-scoped product — honest coverage gap, NOT a negative
+      - data_unavailable                            # product unreadable / indication unmapped
+
+# Thresholds applied METHOD-side (exon_window.classify constants: clean_window_ratio 4.0,
+# exon_heterogeneity_log2 2.0, tumor_expression_floor_tpm 1.0, modality tiers bite_tce 1.0 /
+# adc 5.0 / antibody 10.0) and encoded into exon_window_class — the card matches the resulting
+# categorical, so no card-level thresholds block (which would only duplicate + risk drift).
+
+warning_predicates:
+  - warning_id: exon_heterogeneity_followup_candidate
+    if: "exon_window_class == 'exon_heterogeneity_flag'"
+    message: "{target.symbol}'s tumor-dominant exon {best_exon_id} stands {exon_heterogeneity_log2} log2 above the gene-median exon with a {best_exon_window_ratio}x window — a HYPOTHESIS worth junction/isoform-resolved follow-up. NOT a confirmed isoform target: per-exon coverage cannot resolve isoform identity."
+  - warning_id: exon_essential_liability
+    if: "exon_window_class == 'essential_exon_liability'"
+    message: "{target.symbol}'s tumor-dominant exon is also expressed in an essential normal organ above the modality tier — even at exon resolution the window is not clean for this modality."
+
+caveats:
+  - |
+    HYPOTHESIS-GENERATING, not isoform-identity (load-bearing): per-exon COVERAGE quantiles
+    (recount3 exon_sums) are blind to which transcript an exon belongs to. An exon_heterogeneity_flag
+    flags a gene worth a JUNCTION-level / isoform-resolved follow-up — it does NOT confirm a specific
+    isoform (it cannot resolve CLDN18.2 from CLDN18.1). Isoform identity needs junction/PSI data.
+  - |
+    INCLUSION not SKIPPING: scores differential exon INCLUSION in tumor, NOT skipping/deletion
+    isoforms (MET-ex14, EGFRvIII — the ABSENCE of an exon, a signal this card cannot see).
+  - |
+    RNA, not protein. Exon-level TPM is a transcript-inclusion proxy; it does not prove the isoform
+    is translated or the epitope is displayed on the tumor cell surface.
+  - |
+    Surfaceome-scoped by design (~3,962 surface-protein genes). A non-surface / unscoped gene returns
+    not_in_product — an honest coverage gap, NEVER a determination of "no exon window". Cross-source
+    GTEx-vs-TCGA batch confound applies; the product's TCGA adjacent-normal is the within-cohort check.
+
+# DATA_TO_SKILL_CONTRACT — view of the derived `exon_window` claim.
+measurement_type: exon_window
+modality_relevance: [adc, bite_tce, antibody]
+entity_grains: [target_indication]
+schema_version: 1

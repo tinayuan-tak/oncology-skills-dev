@@ -1,0 +1,135 @@
+# Card — mouse-KO normal-physiology safety
+#
+# A verdict-moving safety card (INFERRED tier — mouse is a MODEL of human physiology, so it never fires a
+# measured-strength killer). MGI knockout phenotypes via Open Targets 26.06: does knocking out
+# {target.symbol} cause death or severe organ dysfunction, implying an essential function a full-KO
+# therapy might recapitulate?
+#
+# THE DEVELOPMENTAL GUARDRAIL — the reason this card exists as a distinct signal:
+#   lethal_ko            → ADULT/postnatal lethality. Death after weaning ⇒ adult-essential ⇒ the
+#                          real full-KO safety signal (opposing, but inferred-tier — a caution, not a
+#                          measured killer).
+#   developmental_only   → embryonic/prenatal/perinatal/neonatal/preweaning lethality ONLY. Reflects a
+#                          DEVELOPMENTAL role; adult tissue may tolerate loss (hedgehog/dev-TF pattern).
+#                          A CAVEAT, NOT a safety hold — this is the guardrail that stops every
+#                          embryonic-lethal gene (KRAS, MYC, BRCA1 …) from false-flagging adult tox.
+#   severe_organ_phenotype → survives to adulthood but with major organ-system dysfunction (MGI
+#                          cardiovascular/nervous/hematopoietic/… class). A softer adult concern.
+#   mild_phenotype       → KO viable, only minor phenotypes. no_phenotype → KO tolerated / not modeled.
+#   insufficient         → unresolvable symbol.
+
+card_id: mouse-ko-phenotype
+version: 1.1.0    # 1.1.0 (2026-08-21): + IMPC-DIRECT corroboration (impc-ko-phenotype-per-gene-v1,
+                 # impc_mouse_ko_phenotype method). VERDICT-INERT additive fields (impc_ko_phenotype_class /
+                 # impc_viability_class / impc_top_level_systems) — the primary ko_phenotype_class + its
+                 # warning_predicate stay keyed to OT-packaged MGI (byte-stable verdict). IMPC clears the
+                 # framework-health orphan + adds a systematic preweaning-viability + organ-system read.
+question: "Does mouse knockout of {target.symbol} cause ADULT lethality or severe organ dysfunction (a normal-physiology safety signal), as distinct from purely developmental lethality?"
+
+# Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a
+# non-verdict-driving field on this card; declare the rule-keyed primary + salient categoricals.
+# VERDICT-INERT projection (see capsule contract migration).
+capsule:
+  primary_class: ko_phenotype_class
+  categorical_fields:
+    - ko_phenotype_class
+    - impc_ko_phenotype_class
+    - evidence_tier
+
+tier: target   # scope-invariant: mouse-KO phenotype is a property of the gene. Never stratifies.
+
+applies_when: []
+
+required_inputs:
+  - product_id: opentargets-26-06
+  - product_id: impc-ko-phenotype-per-gene-v1   # IMPC-direct corroboration (verdict-inert additive fields)
+
+methods:
+  - call: opentargets-mouse-ko-phenotype
+    args:
+      target: "{target.symbol}"
+  - call: impc-mouse-ko-phenotype               # IMPC-direct corroboration; merged under impc_* keys.
+    args:                                        # VERDICT-INERT — no warning_predicate keys on impc_*.
+      target: "{target.symbol}"
+
+outputs:
+  summary_fields:
+    - ko_phenotype_class                  # PRIMARY categorical
+    - n_rows                              # int; total MGI phenotype rows for the gene
+    - n_lethal                            # int; lethal-labelled rows
+    - n_adult_lethal                      # int; adult/postnatal lethal rows (drive lethal_ko)
+    - n_developmental_lethal              # int; embryonic/preweaning lethal rows
+    - lethal_stages                       # list; distinct stages {adult, developmental, unspecified}
+    - top_lethal_label                    # the label driving the class
+    - organ_classes                       # list; severe adult-organ MGI classes present
+    - evidence_tier                       # 'inferred' (mouse is a model — never a measured killer)
+    - method_version
+    # ── IMPC-DIRECT corroboration (verdict-inert additive; v1.1.0) — same taxonomy re-derived from
+    #    IMPC release-24.0 via the SHARED classifier. IMPC is a PREWEANING-viability + organ-system
+    #    instrument (lethal_preweaning → developmental_only guardrail); adult-lethal literature stays
+    #    on the OT-MGI primary. Coverage is PARTIAL (IMPC ~9k genes) → impc_ko_phenotype_class
+    #    no_phenotype for un-phenotyped genes (KRAS/BRAF/VHL). NO warning_predicate keys on these.
+    - impc_ko_phenotype_class             # IMPC-direct ko_phenotype_class (shared taxonomy); corroboration only
+    - impc_viability_class                # IMPC preweaning viability: lethal_preweaning|subviable|viable|unknown|unmeasured
+    - impc_top_level_systems              # '|'-joined IMPC top-level MP organ systems
+    - impc_orthology_confidence           # Ensembl mouse-ortholog confidence [0 low, 1 high] for the IMPC row
+
+  summary_fields_vocabulary:
+    ko_phenotype_class:
+      - lethal_ko
+      - severe_organ_phenotype
+      - developmental_only
+      - mild_phenotype
+      - no_phenotype
+      - insufficient
+    # impc_ko_phenotype_class shares the ko_phenotype_class taxonomy (shared classifier) — but IMPC's
+    # preweaning viability screen maps lethal to developmental_only (never lethal_ko), so in practice
+    # it emits developmental_only / severe_organ_phenotype / mild_phenotype / no_phenotype.
+    impc_ko_phenotype_class:
+      - lethal_ko
+      - severe_organ_phenotype
+      - developmental_only
+      - mild_phenotype
+      - no_phenotype
+      - insufficient
+    impc_viability_class:
+      - lethal_preweaning        # IMPC homozygous preweaning-lethal (developmental)
+      - subviable                # reduced-penetrance preweaning lethality
+      - viable                   # KO survives to weaning
+      - unknown                  # gene phenotyped by IMPC but viability call indeterminate (distinct from unmeasured = not phenotyped)
+      - unmeasured               # gene not phenotyped by IMPC (coverage gap)
+
+  # NO figure: tables-only (deferred with the other safety-axis figures).
+
+warning_predicates:
+  - warning_id: mouse_ko_lethal_safety_concern
+    if: "ko_phenotype_class == 'lethal_ko'"
+    message: "{target.symbol}: mouse ADULT/postnatal knockout is lethal ({top_lethal_label}) — an adult-essential-function signal (inferred, mouse model), an on-target safety caution for full-KO modalities. Mouse KO is a MODEL not a human measurement; mutant-selective tx vs an activating driver spares WT."
+  - warning_id: mouse_ko_developmental_only_caveat
+    if: "ko_phenotype_class == 'developmental_only'"
+    message: "{target.symbol}: mouse knockout is lethal only at developmental stages ({top_lethal_label}), NOT postnatally. This reflects an EMBRYONIC role and does NOT establish adult on-target toxicity — many developmentally-essential genes are dispensable in adult tissue. Context, not a safety hold."
+
+caveats:
+  - |
+    Mouse KO is a MODEL of human physiology (evidence_tier: inferred) — it informs but never fires a
+    measured-strength safety killer. The developmental-vs-adult distinction is load-bearing: a gene
+    essential for embryogenesis (embryonic/preweaning lethal) may be fully dispensable in adult
+    tissue, so developmental_only is a caveat, not a hold. Only adult/postnatal lethality
+    (lethal_ko) is treated as an adult-essentiality safety signal, and even then as an inferred-tier
+    caution.
+  - |
+    Bare "lethality" with no developmental stage is conservatively classed developmental_only (not an
+    adult killer). A mutant-selective therapy against an activating driver spares the WT copy, further
+    nullifying an adult-essentiality concern (resolver mechanism-conditioning downgrade).
+  - |
+    IMPC-direct fields (impc_*) are VERDICT-INERT corroboration from IMPC release-24.0 via the shared
+    classifier. IMPC is a PREWEANING-viability + organ-system instrument: its lethal call is
+    developmental (never lethal_ko), and coverage is PARTIAL (~9k genes) so impc_ko_phenotype_class is
+    no_phenotype for un-phenotyped genes (KRAS/BRAF/VHL). The primary ko_phenotype_class + its warning
+    stay on OT-packaged MGI; impc_* corroborate/refine, never drive the verdict.
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `mouse_ko_phenotype_safety` claim (mouse-KO normal-
+# physiology, developmental-guardrailed). Provider: opentargets-26-06 mouse_phenotype (INFERRED — model).
+measurement_type: mouse_ko_phenotype_safety
+entity_grains: [target]
+schema_version: 1

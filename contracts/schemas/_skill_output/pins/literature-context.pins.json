@@ -1,0 +1,23 @@
+{
+  "$comment": "PER-SKILL PINS (source) for literature-context (the 15th target-profile fan-out member, added #1065). VARIANT = gateless-descriptive: verdict_fn=None → skill_report.call NULL; role:descriptive + polarity:not_scored const. TOKENLESS/GATELESS cited-literature read (one card cited-literature-evidence composing OT europePMC + PubTator3) — no verdict token, no resolver. The display field cited_evidence_status {ok,insufficient,no_evidence} is NOT a verdict and is left schema-open. Append-only within contract major version.",
+  "skill": "literature-context",
+  "role_variant": "gateless_descriptive",
+  "pins": {
+    "properties": {
+      "skill": {"const": "literature-context"},
+      "headline": {
+        "type": "object",
+        "properties": {
+          "skill_report": {
+            "type": ["object", "null"],
+            "properties": {
+              "call": {"type": "null"},
+              "role": {"const": "descriptive"},
+              "polarity": {"const": "not_scored"}
+            }
+          }
+        }
+      }
+    }
+  }
+}

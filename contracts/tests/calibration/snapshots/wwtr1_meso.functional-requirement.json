@@ -1,0 +1,17 @@
+{
+  "skill": "functional-requirement",
+  "target": "WWTR1",
+  "indication": "MESO",
+  "generated_at": "2026-09-07",
+  "headline": {
+    "dependency_verdict": "non_dependent_paralog_buffered",
+    "driving_rule_id": "strong-paralog-buffering-degrader-preferred",
+    "crispr_call": "non_dependent",
+    "rnai_call": "non_dependent",
+    "concordance_call": "moderately_concordant_non_dependent",
+    "lineage_selectivity": "no_lineage_enrichment",
+    "cards_available": 13,
+    "cards_missing": ["prism-crispr-concordance", "recommended-models"]
+  },
+  "_snapshot_note": "Captured live 2026-09-07 (depmap-26q1, cbg, py3.12). Pooled crispr/rnai non_dependent; rescued from the hard non_dependent veto to non_dependent_paralog_buffered (degrader-preferred) by paralog-buffering (YAP1 buffers WWTR1/TAZ). The NF2-conditional partner-conditional lane (analysis-methods #584, partner_conditional_moderately_dependent, delta -0.251/q 4.4e-4/n=36 NF2-LoF) fires and CORROBORATES. Positive control: must_not_veto (non-veto; note the buffered class is softer than a clean dependency)."
+}

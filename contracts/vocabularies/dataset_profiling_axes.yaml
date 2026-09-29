@@ -1,0 +1,282 @@
+# dataset_profiling_axes.yaml — the PRODUCT-GRAIN axis registry (v1.0.0)
+# ============================================================================
+# WHAT THIS IS: the product-grain sibling of vocabularies/target_profiling_axes.yaml.
+# That file decomposes "should we nominate target X in indication Y?" into questions keyed
+# on (target x indication). This file decomposes a DIFFERENT objective — "is the EVIDENCE
+# itself fit for the claim it is meant to support?" — into axes keyed on `product_id`.
+# It is the same grammar rotated 90 degrees onto the dataset grain.
+#
+# WHY IT EXISTS (and why it is NOT a measurement_type):
+#   A card's identity is (measurement_type x entity_grain), and measurement_types.yaml is
+#   explicitly a registry of "the per-target-entity CLAIMS the framework can measure"; its
+#   header excludes "a different product class ... kept out of the per-target skills". A
+#   fitness claim is about a PRODUCT, not about a gene in an indication, so it cannot be a
+#   measurement_type without breaking that registry's own identity rule. It gets its own
+#   registry instead. See docs/design/DATASET_FITNESS_AXIS.md.
+#
+# ONE MEMBER TODAY. `axes` holds exactly one axis (dataset_fitness). The plural container is
+# deliberate but NOT speculative: it is the rotation's home, so a later product-grain axis
+# (freshness, provenance completeness) extends this file rather than inventing a third
+# grammar. Anything added here inherits the placement + never-gates rules below.
+#
+# ---------------------------------------------------------------------------------------
+# PLACEMENT — why the resolution does NOT live in resolvers/ (structural, not stylistic)
+# ---------------------------------------------------------------------------------------
+# validators/validate_resolvers.py globs `resolvers/*.resolver.yaml` and requires every
+# `when_fired` token to be a rule_id declared in `interpretation-rules/*.rules.yaml`; those
+# rules match on (card_id, field, equals/in), and a card requires a measurement_type from
+# the per-target registry. So a product-grain resolver placed in resolvers/ could only pass
+# validation by first authoring a product-grain CARD — the category error above.
+#
+# The consequence is a FEATURE, not a workaround: because the fitness resolution lives
+# outside resolvers/, the nomination machinery (rule -> resolver -> nomination_verdict_gate)
+# cannot reach it. `never_gates: true` is therefore enforced by REACHABILITY, not by
+# convention — there is no wiring for a fitness class to leak into an overall_recommendation
+# even by mistake. A resolution artifact for a product-grain axis MUST stay out of resolvers/.
+# ============================================================================
+
+registry_id: dataset_profiling_axes
+version: 1.0.0
+keyed_by: product_id            # cf. target_profiling_axes: (target x indication)
+parallel_to: vocabularies/target_profiling_axes.yaml
+description: |
+  Product-grain profiling axes. Each axis answers a question about a data product's own
+  fitness to serve as evidence, reads named signals off the product's dataset-profile
+  sidecar, and emits a controlled class. Every axis here is a reporting DIMENSION: it
+  describes a product so a consumer can caveat or narrow its use, and never forces or
+  vetoes a target-profiling recommendation. Unmeasured is NULL, never zero.
+
+# ---------------------------------------------------------------------------------------
+# STANDING VOCAB — how well an axis can actually be evidenced today. Mirrors
+# target_profiling_axes.coverage_vocab so the two registries report standing the same way.
+# ---------------------------------------------------------------------------------------
+standing_vocab:
+  measured:      "the signals this axis reads are emitted for the product; a class is derivable."
+  partial:       "some signals emitted; the class is derivable but from a thinner read."
+  not_measured:  "no signals emitted for this product (unprofiled, or the object was too large). The axis abstains — its DEFAULT class, not a low score."
+
+# ---------------------------------------------------------------------------------------
+# SIGNAL VOCAB — the `quality.measured` block emitted by the data-catalog dataset-profile
+# producer (schema: data-catalog schema/dataset-profile.schema.json; producer:
+# scripts/profile_dataset.py::_measured_quality). These are GENERAL cross-omics signals,
+# not DGE-specific: any effect/significance table emits them.
+#
+# `readable_directionally` is one load-bearing field: a signal is directionally readable only
+# if a HIGHER value means "better evidence" holding everything else fixed (missingness is the
+# sign-flipped case — LOWER better — but still monotone WITHIN a fixed shape).
+#
+# `shape_confounded` is the OTHER, and it is the one a resolver must obey: TRUE means the
+# signal's LEVEL is set by the product's comparator/arm SHAPE (how many effect columns exist,
+# how they were serialized), not by its data quality — so it is NOT comparable across products
+# of different shape and must never hold the `primary` role. Every value-level pooled signal
+# here is shape_confounded; only `sampling` (a read-completeness fact about the PROBE) is not.
+# comparator_status carries the shape read deliberately and correctly, and lives in
+# shape_signals, not here. Each shape_confounded signal carries the measurement that established
+# it — MEASURED ON THE PANEL, not argued.
+# ---------------------------------------------------------------------------------------
+signal_vocab:
+  - id: rows_measured
+    dtype: integer
+    emitted_by: "quality.measured.rows_measured"
+    readable_directionally: false
+    shape_confounded: true
+    direction_note: |
+      Row count is a SIZE, not a quality. A fused multi-arm product and a pan-cancer fusion
+      both carry large row counts for structural reasons (arms x genes, cohorts x genes),
+      while a single-contrast product is small because it asks one question well. Usable only
+      as a FLOOR ("too thin to interpret"), never as a ranking.
+    null_semantics: "absent => the payload was not read; abstain."
+
+  - id: sampling
+    dtype: enum
+    values: [full, bounded_sample, skipped_too_large, ""]
+    emitted_by: "quality.measured.sampling"
+    readable_directionally: true
+    shape_confounded: false
+    direction_note: |
+      An ordered read-completeness fact about the PROBE, not about the data: full > bounded_sample
+      > skipped_too_large. `skipped_too_large` is the honest abstention path — it must resolve to
+      the not_measured class, NOT to unfit (the object was never read, so nothing is known). The
+      only value-level signal that is NOT shape-confounded: read completeness does not depend on
+      how many comparator arms the product carries.
+    null_semantics: "empty string or absent => read completeness unknown; abstain."
+
+  - id: primary_value_missingness
+    dtype: fraction
+    emitted_by: "quality.measured.primary_value_missingness"
+    readable_directionally: true          # LOWER better, monotone WITHIN a fixed column set
+    shape_confounded: true                # ... but its cross-product LEVEL is a serialization artifact
+    direction_note: |
+      NaN fraction pooled over the discovered effect column(s). Within a FIXED column set, lower
+      is a genuine quality read (a missing effect value is a row the product cannot speak to).
+      But CROSS-PRODUCT it is shape-confounded and NON-MONOTONE — see the measurement below: a
+      collapsed arm can produce EITHER 0.0 (its column dropped from the schema, leaving one clean
+      column) OR ~0.67 (its column retained as all-NaN), for the SAME degradation. So it is a
+      FLOOR only (a high value within a shape demotes; a low value must NOT promote, because 0.0
+      is exactly what comparator collapse manufactures). Never rank products on it.
+    null_semantics: "absent => no effect column discoverable; abstain."
+    measurement:
+      roster: "data-catalog characterization/dossiers/tcga-dge-family.json joined to quality.measured (34 profiled)"
+      structural_invariant: |
+        Every product reporting EXACTLY 0.0 missingness is a single-effect-column product (8/8 on
+        the roster): 6 are degraded_to_gtex_only (adjacent column dropped) and 2 are single-arm by
+        design. No both_comparators product reaches 0.0 (n=21, min 0.0026, median 0.0213, max
+        0.0478). So among multi-arm products, LOW missingness is achieved by collapsing to one
+        column — 6 of the best 8 by low missingness are degraded products.
+      non_monotone: |
+        The SAME degradation lands at OPPOSITE extremes depending only on serialization: acc
+        (degraded_to_gtex_only, dead adjacent column DROPPED from schema) => 0.0, the best on the
+        roster; sclc (degraded_to_gtex_only, dead columns RETAINED as all-NaN) => 0.6667, the
+        worst. The signal's level tracks how the drop was serialized, not data quality.
+      consequence: |
+        Floor only. High missingness within a fixed shape may demote (sclc is genuinely broken);
+        low missingness must never promote. Do not use as a cross-product ranking axis.
+
+  - id: dynamic_range
+    dtype: float
+    emitted_by: "quality.measured.dynamic_range"
+    readable_directionally: false
+    shape_confounded: true
+    direction_note: |
+      Median |log2 fold-change| over the effect column(s). Higher means larger typical effects,
+      which is NOT the same as better evidence: a cross-study, cross-platform comparator inflates
+      effect magnitude along with significance, so the same pooling confound that disqualifies
+      significant_fraction applies here. Usable as a FLOOR (a near-zero median means no
+      interpretable signal at all), never as a ranking.
+    null_semantics: "absent => no finite effect values; abstain."
+    measurement:
+      roster: "data-catalog characterization/dossiers/tcga-dge-family.json joined to quality.measured (33 with a live arm)"
+      between_group: |
+        Degraded (single-comparator) products median 0.8861 vs both_comparators median 0.6491 vs
+        cohort_not_declared 0.6210. The unpaired cross-study GTEx comparator inflates fold-change
+        magnitude, so the degraded pool scores HIGHER, not lower.
+      structural_invariant: |
+        5 of the top 8 by dynamic_range are degraded products (degraded are only 8/33 of the
+        roster). Same direction as significant_fraction: larger magnitude rewards losing the
+        paired arm. Floor only.
+      consequence: "Near-zero median => no interpretable signal (unfit floor). Never a ranking."
+
+  - id: significant_fraction
+    dtype: fraction
+    emitted_by: "quality.measured.significant_fraction"
+    readable_directionally: false
+    shape_confounded: true
+    inverted_on_first_roster: true
+    direction_note: |
+      MEASURED INVERSION — the naive read ("more significant genes = better product") ranks the
+      BROKEN products best. Do not read this signal directionally in any resolver.
+    measurement:
+      roster: "data-catalog characterization/dossiers/tcga-dge-family.json (36 TCGA DGE products)"
+      structural_invariant: |
+        The producer pools padj across EVERY live arm of the payload, so the emitted scalar is a
+        mixture BRACKETED by its own arms' per-arm fractions — verified min(arms) <= emitted <=
+        max(arms) in 33/33 products with a live arm, no exceptions. Its LEVEL is therefore set by
+        which arms are in the pool, i.e. by the product's comparator SHAPE. This bracketing is
+        what makes the signal non-directional; it holds independently of any biological account
+        of why one arm scores higher.
+      paired_within_dataset: |
+        Strong test, same parquet / same genes / same DESeq2 run, dead arms excluded: the
+        tumor-vs-GTEx arm (log2fc_C) exceeds the tumor-vs-paired-adjacent arm (log2fc_A) in
+        24/24 products; median delta +0.2474, mean +0.2920; max +0.8218 (paad, 0.0223 -> 0.8441),
+        min +0.0182 (kirc). The unpaired cross-study GTEx comparator calls far more genes.
+      between_group: |
+        Products silently degraded to ONE comparator (n=8) median 0.8628; products with both
+        comparators (n=21) median 0.6292; arms not declared (n=4) median 0.7057. 7 of the top 8
+        by significant_fraction are single-comparator degraded products: they lost their adjacent
+        arm, so the pool reduces to the high-scoring GTEx arm alone and nothing dilutes it.
+      consequence: |
+        Ranking on this signal REWARDS losing a comparator. It is interpretable only WITHIN a
+        fixed comparator shape (as a per-arm value), never as a cross-product quality scalar.
+        Fix the metric's axis, not the threshold.
+    null_semantics: "absent => no significance column pairable with an effect column; abstain."
+
+# ---------------------------------------------------------------------------------------
+# AXES
+# ---------------------------------------------------------------------------------------
+axes:
+  - id: dataset_fitness
+    question: "How fit is product P to serve as evidence for the claim it is meant to support?"
+    emits: dataset_fitness_class                      # vocabularies/dataset_fitness_class.enum.yaml
+    keyed_by: product_id
+    axis_role: dimension
+    never_gates: true                                 # enforced by reachability — see PLACEMENT
+    reports_into: []                                  # NOT a member of any target_profiling_axes question
+    reports_into_note: |
+      Deliberately empty. Fitness conditions how a consumer RENDERS a product's evidence
+      (caveat strip, scope narrowing, unfit stub) and never contributes to a target-profiling
+      sub-verdict. An `unfit` product is FLAGGED, not silenced: the target-profiling verdict
+      that read it stands, with the fitness caveat surfaced beside it.
+    default_class: not_measured
+    standing: measured                                # first roster is value-profiled end to end
+    resolution_artifact: vocabularies/dataset_fitness_resolution.yaml   # LATER PR — thresholds live there, NOT in resolvers/
+    signal_roles:
+      # `primary` signals set the class. `floor_only` may demote to unfit but never promote.
+      # `context_only` is reported beside the class and never moves it.
+      # INVARIANT: no shape_confounded signal may be `primary` (panel: they rank collapsed
+      # products best). So the ONLY value-level primary is sampling; the class is otherwise set
+      # by the SHAPE signals below. See test_no_shape_confounded_signal_holds_primary.
+      - signal: sampling
+        role: primary
+        use: "gates measured-vs-abstain: skipped_too_large => not_measured. The one non-shape-confounded value signal."
+      - signal: primary_value_missingness
+        role: floor_only
+        use: |
+          high missingness WITHIN a shape demotes (sclc 0.6667 is genuinely broken); a low value
+          never promotes — 0.0 is what comparator collapse manufactures (see measurement). Floor only.
+      - signal: rows_measured
+        role: floor_only
+        use: "below an interpretability floor => unfit; never promotes."
+      - signal: dynamic_range
+        role: floor_only
+        use: "near-zero median effect => no interpretable signal => unfit; never promotes."
+      - signal: significant_fraction
+        role: context_only
+        use: |
+          REPORTED, NEVER RANKED. Carried so a consumer can see it, and so its per-arm values
+          remain available for a within-shape read. No class boundary may be a threshold on it.
+    shape_signals:
+      # NOT part of quality.measured — derived from the product's DECLARED cohort metadata.
+      # The inversion measurement above is what promotes these over the value-level signals:
+      # comparator composition is the real fitness read for a multi-arm product.
+      - signal: comparator_status
+        emitted_by: "data-catalog characterization dossier: manifest_pass.comparator_status"
+        dtype: enum
+        values: [both_comparators, degraded_to_gtex_only, degraded_to_adjacent_only, cohort_not_declared]
+        first_roster_counts: {both_comparators: 21, degraded_to_gtex_only: 7, degraded_to_adjacent_only: 1, cohort_not_declared: 7}
+        role: primary
+        use: |
+          The silent-degradation read, and the axis's PRIMARY signal. A fused product naming a
+          paired comparison whose comparator set has collapsed to one answers a NARROWER question
+          than its name implies => partially_fit. Prefer this pre-derived classification over
+          re-deriving from `effective_comparator_arms`: the dossier already computes it.
+          `cohort_not_declared` is an ABSTENTION, not a failure — the manifest does not declare
+          cohort sizes, so degradation is undecidable => not_measured on this signal, never unfit.
+      - signal: arm_below_floor
+        emitted_by: "data-catalog characterization dossier: manifest_pass.arm_below_floor"
+        dtype: "list of arm names"
+        role: primary
+        use: |
+          An arm present but below the product's own declared min_normals floor => caveat.
+          8 of 36 on the first roster. Distinct from a COLLAPSED arm: the arm ran, underpowered.
+
+# ---------------------------------------------------------------------------------------
+# OPEN — recorded so the resolution PR resolves it deliberately rather than by default.
+# ---------------------------------------------------------------------------------------
+open_questions:
+  - id: discordance_feeds_partially_fit
+    question: |
+      Should `partially_fit` be driven purely by arm COMPOSITION (mechanically clean: the arm
+      list collapsed, so the narrower read is a fact about the product), or should comparator
+      DISCORDANCE also feed it — i.e. the two arms both ran but disagree?
+    measured_today: |
+      The characterization dossier already emits `value_level.discordant_fraction` per product —
+      a float for 25 of 36 (range 0.0035 -> 0.2124 on the first roster), null for the rest. It
+      quantifies how much the arms actually conflict WHERE BOTH RAN, a within-shape comparison,
+      so unlike significant_fraction it is NOT exposed to the pooling confound above.
+      Verified universal: a product with a single LIVE effect column has UNDEFINED discordance
+      (nothing to disagree with), so the producer emits null — data-catalog #642 corrected an
+      earlier fabricated 0.0. But discordance is NOT a proxy for comparator_status — the two can
+      disagree. hnsc (degraded_to_adjacent_only) reports 0.0035, nonzero, because it lost its
+      GTEx comparator yet retains two adjacent-based effect columns: one COMPARATOR, two live
+      ARMS. A resolution that read discordance as "both comparators ran" would misclassify it.
+    status: awaiting_decision

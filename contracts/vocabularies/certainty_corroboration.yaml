@@ -1,0 +1,86 @@
+# certainty_corroboration.yaml
+# Per-gate declaration of the VERDICT-DISJOINT corroboration source cards that feed the
+# certainty_by_axis `corroboration` signal (docs/design/CERTAINTY_MODEL.md §2).
+#
+# THE DISJOINTNESS RULE (load-bearing, §2): a corroboration card MUST fire NO verdict-driving rung for
+# that gate — otherwise certainty double-counts the verdict (one signal counted as both `strength` and
+# `certainty`). validators/validate_certainty_disjointness.py asserts, per gate,
+#   corroboration_cards ∩ verdict_precedence_cards = ∅
+# where verdict_precedence_cards = the card_ids behind every rule_id the gate's resolver ladders over.
+# This is CERTAINTY_MODEL §3 "required validator #1", which was documented but never implemented (R3).
+#
+# Every axis that emits a certainty_by_axis `corroboration` (not merely coverage + unknown_mass) MUST
+# register its verdict-disjoint source card(s) here. An axis with no verdict-disjoint corroboration
+# registers nothing (it emits coverage + unknown_mass only; corroboration reads `unmeasured` — never a
+# fabricated tier). Keys are the target-profile SUB-SKILL shorts == resolver `gate:` names.
+#
+# NOTE (follow-on): the Python certainty extractors (e.g. functional-requirement's _dependency_confidence)
+# should CONSUME this manifest so it is authoritative rather than parallel. Until then this is the declared
+# contract the validator enforces; a corroboration card added in Python WITHOUT registering here escapes
+# the check, so reviewers must keep the two in sync. Today only `dependency` opts into certainty
+# corroboration (CERTAINTY_MODEL: certainty_by_axis wired to the reference axis first).
+
+enum_id: certainty_corroboration
+version: 1.0.0
+
+corroboration_by_gate:
+  dependency:
+    - cross-consortium-dependency   # Broad Achilles <-> Sanger Project Score independent replication.
+                                    # Verdict-INERT (fires no dependency.resolver rung). CRISPR<->RNAi
+                                    # concordance — which RESOLVES the dependency verdict — is deliberately
+                                    # NOT a certainty corroboration source here (CERTAINTY_MODEL §2).
+  selectivity:
+    - tumor-protein-abundance-cptac  # CPTAC TMT-MS PROTEIN tumor-vs-normal — an INDEPENDENT assay
+                                     # (protein vs RNA) on INDEPENDENT cohorts (CPTAC vs recount3 TCGA/GTEx).
+                                     # Verdict-INERT for selectivity: fires no selectivity.resolver rung AND
+                                     # no normal-breadth veto clamp; consumed via the derived
+                                     # rna_protein_tvn_concordance read. NOT tumor-vs-normal-percentile-crossing
+                                     # (that re-stats the SAME recount3 RNA the verdict uses = pseudo-replication).
+  genomic_alteration:
+    - variant-level-interpretation   # CIViC per-variant oncogenicity (civic_variant_class). An INDEPENDENT
+                                     # CURATED source confirming the DRIVER claim — orthogonal to the gene-level
+                                     # role (OncoKB×IntOGen), recurrence, and dependency rungs that drive the
+                                     # verdict. Verdict-INERT: fires NO genomic_alteration.resolver rung (0 refs,
+                                     # verified). oncogenic->high, likely_oncogenic->medium, vus/benign->low,
+                                     # data_unavailable->unmeasured. NOT mutation-hotspot-frequency (MC3<->GENIE
+                                     # cross-source recurrence) — that DRIVES recurrent_snv_driver (violation).
+  surface_modality:
+    - protein-surface-evidence       # CSPA wet-lab cell-surface mass-spec (Bausch-Fluck 2015) — an
+                                     # INDEPENDENT surfaceome line confirming surface RESIDENCY, orthogonal to
+                                     # adc-tce-modality-fit's topology+family fit_class. Verdict-INERT: its
+                                     # rules (protein-surface-confirmed-supportive / protein-not-surface-opposing)
+                                     # fire NO surface_modality.resolver rung (0 refs, verified). class map:
+                                     # confirmed_high / confirmed(>=3 lines)->high; confirmed(1-2)->medium;
+                                     # not_surface(measured-negative)->low; data_unavailable->unmeasured.
+
+  tumor_presence:
+    - rna-protein-concordance-tumor  # paired-tumor RNA<->protein agreement (rna_as_biomarker). Verdict-
+                                     # INERT for presence: fires NO presence ladder rung (its rules serve
+                                     # the surface/tractability gates). A within-entity cross-MODALITY
+                                     # corroboration (weaker than dependency's independent-replication;
+                                     # adequate_proxy->high, partial->medium, poor->low, else unmeasured).
+# ── verdict_precedence_augment (2026-08-24, validator-hardening follow-up) ────────────────────────
+# Cards that drive a gate's verdict OUTSIDE its resolver `resolve:` ladder, which the disjointness
+# validator's resolver-scan cannot see. Two uses, both unioned into verdict_precedence_cards:
+#   (a) PYTHON-APPLIED vetoes — selectivity's normal-breadth veto (apply_normal_breadth_veto in
+#       _skills_common/selectivity_veto.py) downgrades to selective_but_broadly_normal using
+#       modality-therapeutic-window + sc-normal-celltype-expression, but those rungs live in Python,
+#       not selectivity.resolver.yaml → the scan misses them → a corroborator naming them would
+#       FALSELY pass. Declaring them here closes that blind spot.
+#   (b) NO-RESOLVER (inline-verdict, path-B) skills — a gate whose verdict is computed in-skill with
+#       NO resolvers/<gate>.resolver.yaml (e.g. tumor_presence) declares its FULL verdict-precedence
+#       card set here; the validator uses it in lieu of a resolver scan (instead of erroring).
+verdict_precedence_augment:
+  selectivity:
+    - modality-therapeutic-window     # (a) Python normal-breadth veto (therapeutic-window + full-normal arms)
+    - sc-normal-celltype-expression   # (a) Python normal-breadth veto (sc-normal critical-organ arm)
+    - normal-tissue-protein-abundance-tphp   # (a) Python normal-breadth veto (broad-abundant normal-PROTEIN arm)
+    - tumor-scrna-celltype-expression        # (a) Python INT-axis stromal-confound veto (v1.17.0)
+  tumor_presence:                   # (b) NO-RESOLVER inline-verdict skill — its FULL verdict-precedence
+    - cellline-rna-distribution     #     (the 7 verdict-bearing presence cards; the ladder is in-skill,
+    - tumor-rna-vs-adjacent         #     _VERDICT_RANK collapse, not a resolvers/*.yaml).
+    - tumor-rna-distribution
+    - tumor-protein-abundance-cptac
+    - cellline-protein-abundance
+    - tumor-elevation-breadth
+    - tumor-scrna-celltype-expression

@@ -1,0 +1,164 @@
+# intracellular-intrinsic-base.dashboard_spec — iter-1b BASE dashboard for intracellular intrinsic targets
+#
+# This is the BASE layer of the (axis × modality) compositional model. Cards here are the
+# axis-defined evidence requirements for ANY target whose biology_axis is intracellular_intrinsic
+# (small-molecule and degrader territory). Modality modules (small_molecule, degrader) layer
+# additional cards + threshold overlays on top.
+#
+# Reads: modality_axis_compatibility.yaml.intracellular_intrinsic.plausible_modalities_iter1b
+#        for the agnostic case (modality unspecified) — synthesis enumerates fits across both.
+
+dashboard_id: intracellular-intrinsic-base
+version: 1.0.0
+
+applies_to:
+  modalities: [small_molecule, degrader]                # iter-1b active modalities for this axis
+  scopes: [cancer_type, cancer_subtype]
+
+required_context:
+  target: "HGNC symbol resolved to canonical Target object; biology_axis must be intracellular_intrinsic (from target_biology_axis_lookup.yaml)"
+  indication: "OncoTree code"
+  subgroup_spec: "list of subgroup_ids | \"all\" | null"
+  data_mode: "Reference to data_mode.enum.yaml"
+  release_pin: "Catalog manifest_id for pinned mode; null for latest_approved"
+  modality: "Optional. If specified, must be in [small_molecule, degrader] (intracellular_intrinsic compatible). If unspecified, framework enumerates plausible modalities and synthesis differentiates reads per modality."
+
+required_cards:
+  - card_id: target-identity-summary
+    version: ">=1.0.0,<2"
+  - card_id: clinical-precedent           # WIRED 2026-08-21 (AACT) — graduated from placeholder_cards.
+    version: ">=1.1.0,<2"                 # degrades to insufficient/no_known_agent (always produces).
+  - card_id: tumor-rna-vs-adjacent
+    version: ">=1.0.0,<4"        # widened: Card refactored to v2.0.0 (pure-data) 2026-07-01
+  - card_id: tumor-vs-normal-selectivity
+    version: ">=3.0.0,<4"        # Card E-tvN-Sel v3: four-cell sensitivity (recount3, A/B/C/D + sensitivity.parquet), activated 2026-07-06
+  # Iter-2 Card 1: pan-cancer-crispr-dependency-distribution — the foundational dependency view.
+  # Pan-essential targets are DOMINANT KILLER for small_molecule/degrader; selective targets
+  # are DOMINANT POSITIVE (therapeutic-window candidates). EG4 dominant-signal-plus-confirmation
+  # scoring activates this card's calls.
+  - card_id: pan-cancer-crispr-dependency-distribution
+    version: ">=1.0.0,<4"        # widened: Card refactored to v3.0.0 (CRISPR-only, RNAi split out) 2026-06-30
+  - card_id: pan-cancer-rnai-dependency-distribution
+    version: ">=1.0.0,<2"        # Card E1b — RNAi DEMETER2 sibling, new 2026-06-30
+  - card_id: crispr-rnai-dependency-concordance
+    version: ">=1.0.0,<2"        # Card E1c — derived concordance, partition-preserving union, 2026-06-30
+  - card_id: cellline-rna-distribution
+    version: ">=1.0.0,<2"        # Card E3a — pan-cancer cell-line TPM distribution, 2026-06-30
+  - card_id: dependency-lineage-selectivity
+    version: ">=1.0.0,<4"        # widened: Card refactored to v3.0.0 (pure-data, target-only) 2026-06-30
+  - card_id: mutation-stratified-dependency
+    version: ">=1.0.0,<2"        # Reactivated 2026-06-30 — mut-vs-dep IS a canonical target-eval question
+                                  # (biomarker-stratified drug development pattern: KRAS-G12C, BRAF-V600E, EGFR-L858R)
+  - card_id: copy-number-distribution
+    version: ">=1.0.0,<2"        # Card E3.b — WES+WGS gene-level CN, new 2026-06-30
+  - card_id: mutation-type-counts
+    version: ">=1.0.0,<2"        # Card E4 — cell-line cohort, MAF-based variant-class counts, new 2026-06-30
+  - card_id: expression-dependency-correlation
+    version: ">=1.0.0,<4"        # widened: Card refactored to v2.0.0 (pure-data) 2026-06-30
+  - card_id: dependency-predictability
+    version: ">=1.0.0,<4"        # Card E5 — multi-omics predictability model, activated 2026-07-01
+  - card_id: prism-compound-activity
+    version: ">=1.0.0,<4"        # widened: Card E6 refactored to v3.0.0 (Log2AUC metric) 2026-07-01
+  - card_id: prism-crispr-concordance
+    version: ">=1.0.0,<2"        # Card E7 — chemical-genetic-genetic triangulated concordance (activated 2026-07-02)
+  - card_id: mutation-hotspot-frequency
+    version: ">=1.0.0,<2"
+  - card_id: normal-tissue-liability
+    version: ">=1.0.0,<2"
+  # tumor-presence expansion cards (2026-08-04): the skill grew 2->10 cards across the
+  # expression-extraction plan but they were never added to this composition spec, so they never
+  # fired in an emitted package (framework-health card_consumed_but_no_spec). Added here as required —
+  # each degrades gracefully to data_unavailable when its substrate is absent (same posture as
+  # normal-tissue-liability above), so they never error a package. All target/indication-grain
+  # (subgroup-independent); the subtype-grain sibling is optional below (needs a subgroup scope).
+  - card_id: tumor-protein-abundance-cptac
+    version: ">=1.0.0,<2"        # tumor protein abundance (CPTAC per-cohort)
+  - card_id: cellline-protein-abundance
+    version: ">=1.0.0,<2"        # cell-line protein (Gygi TMT MS) — RNA/protein discordance partner
+  - card_id: tumor-elevation-breadth
+    version: ">=1.0.0,<2"        # pan-cancer K-of-N tumor-elevation (target-grain; rescues target-only queries)
+  - card_id: tumor-rna-distribution
+    version: ">=1.0.0,<2"        # per-sample tumor RNA distribution + matched-normal window
+  - card_id: cellline-rna-protein-concordance
+    version: ">=1.0.0,<2"        # is RNA an adequate protein proxy (cell-line arm)
+  - card_id: expression-purity-confound
+    version: ">=1.0.0,<2"        # is the tumor signal tumor-intrinsic or stromal (facet; verdict-inert)
+  - card_id: phospho-pathway-activity
+    version: ">=1.0.0,<2"        # CPTAC phospho pathway-activity (facet; verdict-inert)
+  - card_id: tumor-scrna-celltype-expression
+    version: ">=0.1.0,<1"        # single-cell per-compartment tumor presence (sc_rna/tumor; verdict-bearing via _SC_RNA_RANK).
+                                 # No spec-level when: the card self-gates via applies_when (indication in COADREAD/NSCLC
+                                 # shards) → excludes gracefully elsewhere. Added 2026-08-05 to close the consumed-but-no-spec
+                                 # gap (tumor-presence pulled it but no spec did, so it could never fire).
+
+optional_cards:
+  - card_id: tumor-rna-distribution-by-subtype
+    version: ">=1.0.0,<2"
+    when: "subgroup_spec != null"   # per-molecular-subtype presence panorama; needs a subgroup scope + a landed shard
+  - card_id: subgroup-stratified-expression
+    version: ">=1.0.0,<2"
+    when: "subgroup_spec != null"
+  - card_id: rwd-stratified-expression
+    version: ">=1.0.0,<2"
+    when: "indication in [\"COADREAD\"]"
+  # Expression→survival prognostic association (Q11, 2026-08-09 wiring). Was composed into the
+  # differentiation-landscape SKILL but absent from EVERY dashboard_spec — so it never fired in an
+  # emitted evidence package (framework_health "never fired" flag). VERDICT-INERT render facet: a
+  # univariate median-split log-rank prognostic hypothesis (stage-UNADJUSTED — multivariable Cox is a
+  # documented follow-up), self-gated to the TCGA-CDR-backed indications. Adds the classic clinical-
+  # biomarker prognostic axis to the emitted package.
+  - card_id: expression-clinical-association
+    version: ">=1.0.0,<2"
+    when: "indication in [\"COADREAD\", \"COAD\", \"READ\", \"LUAD\", \"LUSC\", \"NSCLC\", \"BRCA\", \"PAAD\", \"PDAC\", \"SKCM\", \"STAD\", \"GC\", \"PRAD\", \"OV\", \"KIRC\", \"HNSC\", \"BLCA\", \"LIHC\", \"ESCA\", \"UCEC\"]"
+  # Subgroup-panorama LIVE cards (2026-07-16) — descriptive per-subgroup enumeration
+  # of {target}'s mutation frequency + CRISPR dependency across the resolved molecular
+  # subgroups. Composed only when a subgroup scope is requested. Backed by per-sample
+  # panorama builders (gdc-somatic-hotspot / depmap-chronos); grain-check gated.
+  - card_id: subgroup-stratified-mutation-frequency
+    version: ">=1.0.0,<2"
+    when: "subgroup_spec != null"
+  - card_id: subgroup-stratified-dependency
+    version: ">=1.0.0,<2"
+    when: "subgroup_spec != null"
+
+# (placeholder_cards emptied 2026-08-21: clinical-precedent graduated to required_cards, WIRED to AACT.)
+
+# Modality modules that may load on top of this base. Resolved at compose-dashboard runtime:
+#   - if context.modality is specified, load only the matching module
+#   - if context.modality is unspecified, load ALL listed modules (agnostic enumeration)
+optional_modality_modules:
+  small_molecule: target-contracts/dashboards/modality-modules/small_molecule.module.yaml
+  degrader: target-contracts/dashboards/modality-modules/degrader.module.yaml
+
+synthesis_prompts:
+  - section: headline
+    instruction: |
+      If context.modality is specified, frame the headline using that modality_module's
+      headline_decision_question (loaded from the module). If context.modality is unspecified,
+      enumerate the modality fits: for each loaded module, apply its synthesis_emphasis rules
+      and emit a "{modality}: {fit_level}" line. Surface the strongest-fit modality first.
+      If three or more cards return "not informative" or are excluded_by_applies_when, emit
+      "Insufficient evidence" as the framework's refuse-to-answer signal.
+  - section: caveats_summary
+    instruction: |
+      Surface caveats common to multiple cards. Always include any modality-module's
+      modality_specific_caveats. Flag any card with validation_state: passed_with_warnings;
+      name the specific warning_ids that fired.
+  - section: modality_fit_assessment
+    instruction: |
+      Per-modality fit assessment table. For each loaded modality_module, emit:
+      - modality name
+      - fit level (strong / moderate / weak / not_viable)
+      - rationale citing specific cards
+      - modality_killer_conditions hit (if any)
+
+outputs:
+  evidence_package: "ep-{target}-{indication}-{release_pin}-{data_mode}-intracellular.json"
+  renderings:
+    - markdown
+  destination: "data-products/{target}/{indication}/{package_id}/"
+
+refresh_policy:
+  default: on_demand
+
+schema_version: 1

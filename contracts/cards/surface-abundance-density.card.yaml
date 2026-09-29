@@ -1,0 +1,174 @@
+# Card Phase-F — SURFACE ABUNDANCE DENSITY (v1)
+#
+# REVIEWER-ADDED card (2026-07-08). Content-reviewer flagged that TCE
+# viability requires > 1,000 copies-per-cell surface expression (Slaga et al
+# 2018 Sci Transl Med) — a threshold that neither RNA nor CPTAC bulk
+# intensity directly measures. This card derives an estimated copies-per-cell
+# class from CPTAC protein tumor intensity anchored against HPA IHC
+# staining intensity for the tumor tissue-of-origin.
+#
+# Interpretation surface (surface_density_class is PRIMARY):
+#   `high`       → > 10,000 copies/cell — TCE-viable, high-payload ADC
+#   `moderate`   → 1,000-10,000 copies/cell — TCE-viable, standard ADC
+#   `low`        → 100-1,000 copies/cell — TCE-marginal, low-payload ADC only
+#   `very_low`   → < 100 copies/cell — TCE-non-viable
+#   `unmeasured` → no CPTAC coverage OR no HPA IHC anchor
+
+card_id: surface-abundance-density
+version: 1.0.0
+question: "What is the estimated surface copies-per-cell of {target.symbol} in {indication.label} tumors, and is it above the TCE viability threshold?"
+
+# Evidence-capsule projection contract. The alphabetical-first *_class heuristic mis-picks
+# `absolute_density_class` — the field the card's own docstring declares verdict-INERT — as the headline
+# class. The verdict-driving primary is `surface_density_class` (rules key on it: surface-intrinsic.rules
+# .yaml:475/490/503/519/539). Declare it + the salient density/viability categoricals a numeric selector
+# drops. VERDICT-INERT projection.
+capsule:
+  primary_class: surface_density_class
+  categorical_fields:
+    - surface_density_class
+    - density_floor_verdict
+    - hpa_ihc_intensity_class
+    - is_tce_viable
+    - is_adc_high_payload_viable
+    - absolute_density_class
+
+applies_when:
+  - "context.data_sources.cptac_available == true"
+  - "context.data_sources.hpa_available == true"
+
+required_inputs:
+  - product_id: cptac-protein-tumor-vs-normal-per-cohort-v1
+    indication: "{indication}"
+
+derived_from:
+  - card_id: surfaceome-family-classification
+  - card_id: tumor-protein-abundance-cptac
+  - card_id: surface-topology-and-ptm
+
+methods:
+  - call: surface-abundance-density
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - surface_density_class                          # PRIMARY categorical
+    - estimated_copies_per_cell_median               # float; anchored estimate
+    - estimated_copies_per_cell_lower                # float; conservative lower bound
+    - estimated_copies_per_cell_upper                # float; optimistic upper bound
+    - hpa_ihc_anchor_used                            # string; which HPA tissue IHC provided the anchor
+    - hpa_ihc_intensity_class                        # 'high' | 'medium' | 'low' | 'not_detected' | 'unmeasured'
+    - is_tce_viable                                  # bool — surface_density_class in {high, moderate}
+    - is_adc_high_payload_viable                     # bool — surface_density_class == 'high'
+    # --- INC-4 Tier-1 ABSOLUTE anchor (2026-08-08) — the calibrated grade-A/B copies/cell from the
+    #     curated corpus, DISTINCT from the grade-D estimate above. Narrow coverage, high precision.
+    #     A verdict-INERT facet the tumor-selectivity skill reads; feeds NO resolver rung. ---
+    - absolute_density_class                         # 'high'|'moderate'|'low'|'very_low'|'no_absolute_measurement'
+    - absolute_copies_per_cell                       # float; calibrated best value (copies/cell), or null
+    - absolute_density_grade                         # 'A'|'A-'|'B'|'B-'|'E' — corpus evidence grade (E = un-anchored)
+    - absolute_measurement_semantics                 # ABC | molecule_count | monovalent_epitope | dSTORM | PE_equivalent
+    - absolute_n_measurements                        # int; admissible corpus rows for this target
+    # --- B1 (2026-09-02) ADDITIVE absolute-abundance PROXY — genome-wide ProCan cell-line proteomics
+    #     all-gene percentile. A MEASURED absolute signal (unlike the tumor-vs-normal ratio) that fills
+    #     the grade-E `no_absolute_measurement` gap for non-corpus antigens + surfaces corpus-vs-cellline
+    #     discordance. Explicitly a CELL-LINE proxy (not tumor copies-per-cell); VERDICT-INERT (no
+    #     resolver rung reads it — promotion to deciding-axis capture is a deliberate second pass). ---
+    - absolute_abundance_proxy_class                 # 'high'|'moderate'|'low'|'very_low'|'data_unavailable' (ProCan all-gene pct)
+    - absolute_abundance_proxy_percentile            # float; ProCan cell-line all-gene abundance percentile, or null
+    - absolute_abundance_proxy_source                # provenance: procan-cellline-protein-abundance-per-protein-v1
+    - absolute_abundance_proxy_note                  # cell-line-proxy disclaimer (not tumor copies-per-cell; additive)
+    - density_floor_verdict                          # standing vs the cited modality floors (see vocab)
+    - method_version
+
+  summary_fields_scalar_types:
+    is_tce_viable: boolean               # flag, not a categorical string
+    is_adc_high_payload_viable: boolean  # flag, not a categorical string
+
+  summary_fields_vocabulary:
+    surface_density_class:
+      - high
+      - moderate
+      - low
+      - very_low
+      - unmeasured
+      - not_surface_density_whole_cell_estimate   # admissibility=unsupported: a whole-cell abundance estimate that is NOT a valid surface density (distinct from unmeasured = no estimate at all); TCE/ADC flags forced False
+    hpa_ihc_intensity_class:
+      - high
+      - medium
+      - low
+      - not_detected
+      - unmeasured
+    density_floor_verdict:                           # from the MEASURED Tier-1 absolute value ONLY (grade A/B).
+      - above_adc_high_payload_floor                 # >= 10,000 copies/cell (ADC high-payload viable)
+      - above_tce_floor_below_adc                    # 1,000-10,000 (soluble-TCE viable, sub-ADC-high-payload)
+      - below_tce_floor                              # < 1,000 — a MODALITY caveat, NOT a target killer
+                                                     #   (CD19 = 110/cell yet a validated CAR-T/TCE antigen;
+                                                     #   high-avidity binders work below the soluble-TCE floor)
+      - unmeasured                                   # no calibrated Tier-1 value (grade E) → abstain; absence
+                                                     #   is NOT low density (the honest-negative discipline)
+
+  figure: surface_density_estimation_with_uncertainty_band
+
+thresholds:
+  tce_viability_copies_per_cell: 1000              # Slaga 2018 Sci Transl Med
+  adc_high_payload_copies_per_cell: 10000
+
+warning_predicates:
+  - warning_id: no_ihc_anchor
+    if: "hpa_ihc_intensity_class == 'unmeasured'"
+    message: "No HPA IHC anchor available for {target.symbol} in the {indication.label} tumor tissue-of-origin. Copies-per-cell estimate is unconstrained; surface_density_class is 'unmeasured'."
+  - warning_id: below_tce_threshold
+    if: "estimated_copies_per_cell_upper < 1000"
+    message: "Estimated copies-per-cell upper bound is below the TCE viability threshold (1,000/cell, Slaga 2018). TCE modality is likely non-viable regardless of other biology signals."
+  - warning_id: wide_uncertainty_band
+    if: "estimated_copies_per_cell_upper > 10 * estimated_copies_per_cell_lower"
+    message: "Copies-per-cell uncertainty band spans > 10x. Cross-anchor with additional evidence (flow cytometry counts, IHC quantitation) before treating surface_density_class as governance-fit."
+
+caveats:
+  - |
+    surface_density_class is an ESTIMATE derived from CPTAC bulk protein
+    intensity anchored against HPA IHC intensity for the tumor tissue-of-
+    origin. It is NOT a direct measurement of surface copies-per-cell.
+    Governance-grade copies-per-cell requires flow cytometry (QIFIKIT-
+    calibrated) or absolute IHC quantitation — this card provides an
+    audit-defensible first-pass estimate.
+  - |
+    Slaga et al 2018 (Sci Transl Med) established > 1,000 copies-per-cell
+    as the TCE viability threshold. Below this, T-cell synapse formation
+    and downstream cytolytic activity are compromised. This card's
+    is_tce_viable flag operationalizes that literature threshold.
+  - |
+    HPA IHC intensity is scored qualitatively (high / medium / low /
+    not_detected). The anchor-to-copies-per-cell conversion uses published
+    calibration curves for the specific HPA antibody clone (when available)
+    or a class-average calibration otherwise. Uncertainty is emitted in
+    estimated_copies_per_cell_upper / _lower.
+  - |
+    Cross-reference isoform_selective_targets vocabulary: for targets with
+    clinically-dominant alt isoforms (p95HER2 in gastric, etc.), gene-level
+    surface_density_class is systematically wrong — the isoform-specific
+    ectodomain may be absent from the dominant tumor-expressed isoform.
+    surface-topology-and-ptm card fires the isoform warning; consumers of
+    this card should honor it.
+
+measurement: bulk_protein_ms
+
+# DATA_TO_SKILL_CONTRACT Rule 1/4 — view of the DERIVED `surface_density` claim (estimated surface
+# copies-per-cell vs the TCE-viability threshold), derived_from [tumor_protein_abundance,
+# surfaceome_family, surface_topology]. The card's derived_from block above declares the card-level
+# upstream reads; the measurement_type names the type→type DAG node.
+measurement_type: surface_density
+# P4 (2026-07-24): declaration-only routing key — copies-per-cell vs TCE-viability threshold → density killer/supportive on ADC/TCE. Matching rule pre-exists in interpretation-rules/surface-intrinsic.rules.yaml.
+modality_relevance: [adc, bite_tce]
+entity_grains: [target_indication]
+schema_version: 1
+threshold_roles:
+  tce_viability_copies_per_cell:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the surface_density reference frame over `absolute_copies_per_cell` (copies_per_cell), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'
+  adc_high_payload_copies_per_cell:
+    role: method_parameter
+    consumed_by: surface-abundance-density
+    note: 'The method gates the ADC high-payload-viable band on copies/cell > 10000 in surface_antigen_density_ladder/read.py:468 (_classify). Applied upstream, never by a card predicate.'

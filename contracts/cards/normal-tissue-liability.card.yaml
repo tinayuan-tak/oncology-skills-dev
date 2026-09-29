@@ -1,0 +1,191 @@
+# Card — NORMAL TISSUE LIABILITY  (HPA IHC-derived)
+#
+# The load-bearing on-target-off-tumor SAFETY card for ADC, BiTE/TCE, and antibody
+# modalities. BiTE/TCE in particular is killed by ANY normal-tissue expression on
+# essential tissue (no payload buffer, no binding-consequence gating).
+#
+# The HPA master TSV (hpa-v25-1) is landed + already consumed by 8 other cards.
+# This card reads its IHC-DERIVED protein-tissue fields:
+#   - `Protein tissue distribution`  (Not detected | Detected in single | some |
+#     many | all) — pathologist-scored IHC BREADTH across normal tissues. 96%
+#     coverage. Primary normal-tissue-footprint signal.
+#   - `Protein tissue specific Intensity` (named tissues + intensity, e.g.
+#     "intestine: 2.3e5;lymphoid tissue: ...") — ~51% coverage (the tissue-
+#     enriched/enhanced subset), parsed to flag ESSENTIAL-tissue expression.
+#
+# SUBSTRATE NOTE: this is CATEGORICAL IHC breadth + named-tissue intensities, NOT a
+# per-tissue TPM matrix. v1 was specced against a hypothetical per-tissue-TPM product
+# (`hpa-normal-tissue-expression`) that never landed; v2 is reconciled to what
+# actually landed. Thresholds are on the IHC breadth categorical + an essential-
+# tissue name set, NOT TPM.
+
+card_id: normal-tissue-liability
+version: 2.1.0   # 2.1.0 (skills #1793): + essential_tissue_vocab_scope warning predicate — an
+                 # `absent` (measured-clear) read now DISCLOSES that it spans HPA's 16 nameable
+                 # groups only (no thyroid/adrenal/pituitary/nerve/blood); the TPHP HPA-blind view
+                 # is the verdict-bearing arm for those organs. Additive; no field/vocab change.
+question: "How broad is {target.symbol}'s normal-tissue protein footprint (HPA IHC), and does it hit essential tissues — the on-target-off-tumor liability for biologics?"
+
+tier: target   # normal-tissue protein footprint is a property of the gene, not a tumor subgroup. Never stratifies.
+
+applies_when:
+  - "context.data_sources.hpa_mirror_available == true"
+
+required_inputs:
+  - product_id: hpa-v25-1
+
+methods:
+  - call: hpa-normal-tissue-liability
+    module: hpa_normal_tissue_liability
+    entrypoint: read_target_summary
+    args:
+      target: "{target.symbol}"
+
+outputs:
+  summary_fields:
+    - normal_tissue_breadth_class                 # PRIMARY categorical (from Protein tissue distribution)
+    - essential_tissue_flag                       # present | unknown | absent — scalar the essential-tissue rule matches (list→scalar at emit time)
+    - hpa_tissue_distribution                     # raw HPA value (Detected in all/many/some/single | Not detected)
+    - hpa_tissue_specificity                      # raw HPA value (Tissue enriched/enhanced/Group enriched/Low/Not detected)
+    - n_essential_tissues_with_expression         # count of essential tissues in the specific-intensity list
+    - essential_tissues_flagged                   # list of essential tissue names hit
+    - n_specific_tissues                          # total named tissues in the intensity field
+    - specific_tissues                            # list of {tissue, intensity} parsed from the intensity field
+    - safety_tissue_flags                         # coarse flags: essential_tissue, essential_from_broad_detection, gi_tract, broad
+    - method_version
+
+  summary_fields_vocabulary:
+    normal_tissue_breadth_class:
+      - broad_normal_expression                   # Detected in all / many — high on-target-off-tumor risk
+      - moderate_normal_expression                # Detected in some
+      - restricted_normal_expression              # Detected in single — favorable window
+      - not_detected_in_normal                    # Not detected — neoantigen-like, lowest liability
+      - data_unavailable                          # gene absent from HPA / no IHC call
+    essential_tissue_flag:
+      - present                                   # essential organ ENRICHED, OR "Detected in all" (all tissues incl. essentials expressed) — fires the essential-bite TCE killer
+      - unknown                                   # no distribution call (gene absent from HPA), OR "Detected in many" with no essential enrichment — a data gap, NOT reassurance (2026-08-24)
+      - absent                                    # MEASURED narrow distribution, essentials genuinely not expressed — a true measured-negative
+    safety_tissue_flags:                          # array-element enum (coarse safety flags; cli.py compute_summary)
+      - essential_tissue                          # >=1 curated essential organ shows specific-intensity expression (the strict-modality killer)
+      - essential_from_broad_detection            # essential flag set via genome-wide "Detected in all" (no specific-tissue list to enumerate)
+      - gi_tract                                  # a GI organ (intestine / stomach) is hit — modality-dependent read
+      - broad                                     # normal_tissue_breadth_class == broad_normal_expression
+
+  figure: normal_tissue_expression_heatmap
+  plot_data: per_tissue_intensity_long_format
+
+# Modality-tiered severity PRESERVED from v1 (the design was right): the SAME normal-
+# tissue footprint is a harder liability for BiTE/TCE (no buffer) than ADC (payload
+# bystander tolerance) than antibody (binding-consequence-dependent). The tier selects
+# WHICH breadth class trips a modality caution; resolved at compose time by the
+# modality module (default: strict / conservative).
+thresholds:
+  essential_tissue_severity_tier: strict          # strict (BiTE/TCE/cell) | moderate (ADC) | pathway_dependent (antibody)
+  broad_liability_class_strict: moderate_normal_expression    # BiTE: even "some" tissues is a concern
+  broad_liability_class_moderate: broad_normal_expression     # ADC: only "all/many" trips it
+  broad_liability_class_pathway_dependent: broad_normal_expression
+  essential_tissue_count_killer_threshold: 1      # >=1 essential tissue → strict-modality killer
+
+# None of the thresholds above is referenced by an in-card predicate: the modality-tiered cutoffs are
+# applied at compose time by the modality module (skill-side reader), and the essential-count killer is
+# applied inside the method when it derives essential_tissue_flag. Declaring the roles keeps
+# THRESHOLD_UNUSED from asking to delete numbers the method / reader need (2026-09-25, TC#884 F9).
+threshold_roles:
+  essential_tissue_severity_tier:
+    role: reader_gate
+    note: "Applied at compose time by the modality module, not by an in-card predicate: selects which broad-liability class trips a modality caution (strict=BiTE/TCE/cell, moderate=ADC, pathway_dependent=antibody). The card emits the breadth class the module gates on; THRESHOLD_UNUSED here is a false positive."
+  broad_liability_class_strict:
+    role: reader_gate
+    note: "Compose-time modality-module cutpoint (strict / BiTE-TCE tier): the normal_tissue_breadth_class at/above which a strict-tolerance modality caution trips (even moderate_normal_expression). Applied by the reader over the emitted breadth class, not by an in-card predicate."
+  broad_liability_class_moderate:
+    role: reader_gate
+    note: "Compose-time modality-module cutpoint (moderate / ADC tier): the normal_tissue_breadth_class at/above which an ADC caution trips (broad_normal_expression only). Applied by the reader over the emitted breadth class, not by an in-card predicate."
+  broad_liability_class_pathway_dependent:
+    role: reader_gate
+    note: "Compose-time modality-module cutpoint (pathway_dependent / antibody tier): the normal_tissue_breadth_class at/above which an antibody caution trips (broad_normal_expression). Applied by the reader over the emitted breadth class, not by an in-card predicate."
+  essential_tissue_count_killer_threshold:
+    role: method_parameter
+    consumed_by: hpa-normal-tissue-liability
+    note: "The method sets essential_tissue_flag='present' once >=1 curated essential tissue shows specific-intensity expression (the strict-modality killer count); the in-card essential_tissue_expression predicate mirrors the same >=1 cut on n_essential_tissues_with_expression."
+
+warning_predicates:
+  - warning_id: essential_tissue_expression
+    if: "n_essential_tissues_with_expression >= 1"
+    # UNDER-COVERAGE NOTE (TC#884 F9): essential_tissue_flag can also become 'present' via a genome-wide
+    # `Detected in all` when n_essential_tissues_with_expression == 0 (empty enrichment list), which this
+    # COUNT predicate does not trip. That state is NOT uncovered — the authoritative nomination rule
+    # `normal-tissue-protein-liability-safety-warning` reads essential_tissue_flag directly. Kept as a
+    # count predicate (not re-keyed to the flag) to leave the emitted warning set byte-stable.
+    message: "{target.symbol} shows IHC protein expression in essential tissue ({essential_tissues_flagged}) — strict-tolerance modalities (BiTE/TCE, cell therapy) likely not viable without a mitigation strategy."
+  - warning_id: broad_normal_footprint
+    if: "normal_tissue_breadth_class == 'broad_normal_expression'"
+    message: "{target.symbol} protein is detected broadly across normal tissues (HPA IHC 'Detected in all/many') — on-target-off-tumor liability for biologics; window depends on the tumor-vs-normal differential."
+  - warning_id: normal_tissue_data_unavailable
+    if: "normal_tissue_breadth_class == 'data_unavailable'"
+    message: "{target.symbol} has no HPA IHC tissue-distribution call — normal-tissue liability UNKNOWN (coverage gap), not low. Do not read absence as a favorable window."
+  - warning_id: essential_tissue_vocab_scope
+    if: "essential_tissue_flag == 'absent'"
+    # ORGAN-COVERAGE DISCLOSURE (skills #1793). `absent` is a genuine measured-negative — but only
+    # over the organs HPA's closed 16-name grouped-intensity vocabulary can NAME. It structurally
+    # cannot see thyroid / adrenal gland / pituitary / peripheral nerve / blood, so a clean read here
+    # must not be extended to those organs (the prior silent-absence fail-open: an endocrine-organ
+    # liability read as "essentials clear"). The organs are covered instead by the TPHP DIA-MS
+    # HPA-blind view (normal-tissue-protein-abundance-tphp.tphp_hpa_blind_vital_organ_liability_class,
+    # verdict-bearing), except pituitary, which NO protein panel covers. The organ list here mirrors
+    # HPA_UNREPRESENTABLE_VITAL_ORGANS (analysis-methods essential_organs.py), pinned by value there —
+    # if that set shrinks (an AM#744-style promotion), update this prose.
+    message: "{target.symbol} essential-tissue 'absent' is measured over HPA's 16 nameable groups ONLY — thyroid, adrenal gland, pituitary, nerve and blood are invisible here. Consult the TPHP HPA-blind vital-organ view for those organs; pituitary is covered by NO protein panel."
+
+caveats:
+  - |
+    HPA `Protein tissue distribution` is pathologist-scored IHC BREADTH (in how many
+    normal tissue types the protein is detected), NOT a quantitative per-tissue level.
+    "Detected in all/many" = broad footprint = on-target-off-tumor liability;
+    "Detected in single" / "Not detected" = favorable window. Dominant biologics
+    safety axis (TROP2 / HER2 / CD44v6-class normal-tissue tox).
+  - |
+    Essential-tissue flags are parsed from `Protein tissue specific Intensity` (the
+    named-tissue list, ~51% coverage — the tissue-enriched/enhanced subset). A gene
+    with `broad_normal_expression` may have an EMPTY specific-tissue list (it's
+    everywhere, so nothing is "specific") — absence of an essential-tissue flag on a
+    broad gene is NOT reassurance; the breadth class already carries the liability.
+  - |
+    IHC antibody staining has antibody-dependent reliability; HPA reliability scores
+    should be consulted for controversial single-tissue calls. Complementary to
+    protein-surface-evidence (surface accessibility) and the RNA normal-tissue signal.
+  - |
+    Essential vs non-essential tissue classification is curated. The HPA IHC essential set
+    (essential_organs.py HPA_CROSSWALK): heart muscle, cerebral cortex, kidney, liver, lung,
+    pancreas, bone marrow, blood vessel (endothelium), intestine (GI epithelium),
+    skeletal muscle. Blood vessel was added deliberately (an endothelial-restricted TCE antigen
+    escaped the killer); skeletal muscle per analysis-methods #744. Controversial
+    cases (specific neuronal subpopulations) may warrant manual review.
+  - |
+    Substrate reconciliation (v2.0.0): v1 was specced against a per-tissue
+    TPM product that never landed; v2 reads the landed HPA IHC categorical fields.
+    TPM thresholds removed in favor of IHC-breadth categorical logic.
+  - |
+    DISTINCT AXIS, not a duplicate of lineage-restriction-evidence. This
+    card = protein-IHC breadth + essential-tissue flag (measurement: protein_ihc, product
+    hpa-v25-1) → on-target-off-tumor SAFETY. LRE = RNA per-tissue TPM breadth count
+    (measurement: bulk_rna) → target-SELECTION window (DLL3/CLDN18.2). Different product,
+    layer, question → keep both; do not collapse.
+  - |
+    PROVENANCE + LICENSE (TC#880): HPA (product hpa-v25-1, declared in required_inputs) is
+    distributed under CC BY-SA 4.0 — share-alike + attribution, relevant to any redistribution of
+    derived tissue calls. Noted in prose because card.schema.json admits no top-level license key.
+
+measurement: protein_ihc
+# sample_context: the HPA IHC footprint is measured on NORMAL tissue — the
+# on-target-off-tumor safety comparator. Declaring it lets tumor-presence bucket this card into its
+# (protein_ihc, normal) ALL_CONTEXTS slot (the last hardcoded data_unavailable) as a labeled
+# comparator. Orthogonal to tier:target (the gene-grain of the property) — measurement's biological
+# sample is normal, mirroring sample_context on the expression cards.
+sample_context: normal
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `normal_tissue_protein_breadth` claim.
+measurement_type: normal_tissue_protein_breadth
+# declaration-only routing key — on-target-off-tumor breadth → BiTE/TCE-killer on essential tissue; discriminating surface-fit. Matching rule pre-exists in interpretation-rules/surface-intrinsic.rules.yaml.
+modality_relevance: [adc, bite_tce, antibody]
+entity_grains: [target]
+schema_version: 1

@@ -1,0 +1,98 @@
+# Card — SPATIAL TUMOUR–NORMAL CO-LOCALIZATION (in-situ neighbourhood)
+#
+# For {target} on malignant cells, which cell types spatially NEIGHBOUR the target-positive malignant
+# cells in situ? Reads the imaging single-cell spatial co-localization product
+# (spatial-coloc-tumor-{indication}-v1; CosMx/Xenium/MERFISH) via the spatial_colocalization method,
+# which builds a per-sample cell adjacency graph and reports the neighbour cell-type composition of a
+# target's malignant cells relative to the malignant baseline.
+#
+# WHY THIS CARD EXISTS: dissociated scRNA (tumor-scrna-celltype-expression) says WHETHER a target is on
+# malignant cells but DISCARDS tissue architecture. This card adds the axis dissociated data cannot:
+# is target-high tumour immune-hot, IMMUNE-EXCLUDED (a TCE liability — no effector T cells adjacent),
+# or ADJACENT TO NORMAL EPITHELIUM (bystander-tox geometry for an ADC/TCE)?
+#
+# DECISION-RELEVANT CLASSES:
+#   immune_excluded            — target-positive malignant cells DEPLETED of immune neighbours; a TCE
+#                                liability (bispecific T-cell engagers need T cells in the neighbourhood).
+#   normal_epithelium_adjacent — target-positive tumour spatially abuts normal epithelium; bystander risk.
+#   immune_niche_colocalized   — target-positive tumour sits in an immune-rich niche (TCE-favourable context).
+
+card_id: spatial-tumor-normal-colocalization
+version: 0.1.0
+question: "For {target.symbol} in {indication.label}, which cell types spatially neighbour the target-positive malignant cells in situ — is the target-high tumour immune-colocalized, immune-excluded, or adjacent to normal epithelium (bystander risk)?"
+
+tier: indication   # the spatial co-localization product is per-indication (malignant compartment)
+
+applies_when:
+  # indications with a landed spatial co-localization product (INDICATION_TO_SPATIAL_COLOC in the method).
+  - "context.indication in ['COADREAD', 'COAD', 'READ', 'STAD', 'PAAD', 'HNSC', 'NSCLC', 'LUAD', 'LUSC']"
+
+required_inputs:
+  - product_id: spatial-coloc-tumor-crc-coadread-v1           # COADREAD — CosMx CRC atlas (GSE303070); imaging single-cell neighbourhood
+  - product_id: spatial-coloc-tumor-stad-v1                   # STAD — CosMx gastric atlas (GSE308624); net-new indication (Phase 2)
+  - product_id: spatial-coloc-tumor-paad-v1                   # PAAD — Xenium PDAC atlas (GSE280634); GI facet (Phase 4)
+  - product_id: spatial-coloc-tumor-hnsc-v1                   # HNSC — Xenium (GSE300147); INFERRED compartments (mode C, lower confidence)
+  - product_id: spatial-coloc-tumor-nsclc-v1                  # NSCLC (adeno+squamous) — Xenium-5K (GSE311609); INFERRED (mode C); fills the lung/thoracic gap
+  # Depth cohorts the method reads under its tier_dominant multi-cohort policy (measured read first;
+  # inferred consulted only when measured is empty; tiers NEVER pooled). Declared for provenance
+  # completeness — the method's INDICATION_TO_SPATIAL_COLOC already consumes these:
+  - product_id: spatial-coloc-tumor-crc-gse280318-v1          # COADREAD depth — Visium HD 8µm, author decon (GSE280318); MEASURED
+  - product_id: spatial-coloc-tumor-crc-gse335552-v1          # COADREAD depth — Xenium CRC liver-mets (GSE335552); INFERRED (met-site)
+  - product_id: spatial-coloc-tumor-paad-gse313662-v1         # PAAD depth — Xenium PDAC 5K, 6 donors (GSE313662); INFERRED
+  - product_id: spatial-coloc-tumor-paad-gse310352-v1         # PAAD depth — CosMx PDAC, 7 slides (GSE310352); INFERRED
+  - product_id: spatial-coloc-tumor-nsclc-gse319755-v1        # NSCLC depth — Xenium multi-region (GSE319755); INFERRED
+
+methods:
+  - call: spatial-tumor-normal-colocalization
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - spatial_coloc_class             # PRIMARY — the target's malignant-cell neighbourhood pattern
+    - top_enriched_compartment        # most spatially-enriched neighbour compartment
+    - top_enriched_value              # its cross-donor median enrichment_vs_random
+    - immune_adjacency_fraction       # fraction of a target+ malignant cell's neighbours that are immune
+    - stromal_adjacency_fraction
+    - normal_epithelium_adjacency_fraction
+    - target_pos_fraction_median      # cross-donor median fraction of malignant cells positive for the target
+    - n_donors
+    - n_datasets
+  summary_fields_vocabulary:
+    # `underpowered` (2026-09-18, F5): declared ahead of PR F, which adds an n_donors/n_datasets power
+    # floor to classify_spatial_coloc so a class computed off too few donors/datasets emits
+    # `underpowered` — the "we could barely look" band, DISTINCT from data_unavailable ("we could not
+    # look"). This card is a COADREAD pilot (n_datasets = 1 today), so the floor gates on n_donors. No
+    # emitter yet; forward declaration so the PR F classifier fix needs no card change.
+    spatial_coloc_class: [immune_niche_colocalized, stromal_niche_colocalized, endothelial_niche_colocalized, normal_epithelium_adjacent, immune_excluded, no_spatial_preference, other_niche_colocalized, underpowered, data_unavailable]
+
+thresholds:
+  coordinated_min: 1.15   # per-compartment neighbourhood enrichment >= => niche_colocalized (method-applied)
+  segregated_max: 0.85    # immune enrichment <= => immune_excluded (method-applied)
+
+caveats:
+  - "In-situ SPATIAL neighbourhood (imaging single-cell; CosMx CRC atlas GSE303070) — the tissue-architecture axis dissociated scRNA is blind to. Detection-based (count>0), normalization-invariant. Reported as a modality-context lens, not a monospecific presence signal."
+  - "spatial_coloc_class is a MALIGNANT-cell-anchored neighbourhood readout: immune_excluded = target+ tumour depleted of immune neighbours (TCE liability); normal_epithelium_adjacent = target+ tumour abuts normal epithelium (bystander risk); immune/stromal/endothelial_niche_colocalized = enriched (>= 1.15x baseline) for that compartment."
+  - "Cross-donor median over tumour samples' malignant cells (donor = replicate). Enrichment is vs the sample's malignant-cell neighbourhood baseline; a target on ~all malignant cells (e.g. EPCAM) trends to baseline (no_spatial_preference) unless a compartment is over-represented."
+  - "COADREAD pilot only (GSE303070). Panel-bounded: a target not on the CosMx panel returns data_unavailable (not measured), never a fabricated negative. Neighbour cell types are the atlas's Manual_toplevel_pred categories."
+
+measurement: spatial_transcriptomics
+sample_context: tumor          # malignant cells, in-situ imaging spatial
+
+# DATA_TO_SKILL_CONTRACT — spatial_colocalization (in-situ neighbourhood of malignant cells).
+measurement_type: spatial_colocalization
+# modality-context lens. Declaration lands WITH its spatial rules (this branch) — never declare a lens
+# without a rule that carries it.
+modality_relevance: [adc, bite_tce, antibody]
+entity_grains: [target_indication]
+schema_version: 1
+threshold_roles:
+  coordinated_min:
+    role: method_parameter
+    consumed_by: spatial-tumor-normal-colocalization
+    note: 'The method calls a *_niche_colocalized class when the top compartment enrichment >= 1.15x baseline in spatial_colocalization/stats.py:72 (_COORDINATED_MIN), applied at classify_spatial_coloc L276. Applied upstream, never by a card predicate.'
+  segregated_max:
+    role: method_parameter
+    consumed_by: spatial-tumor-normal-colocalization
+    note: 'The method calls immune_excluded when immune-neighbour enrichment <= 0.85x baseline in spatial_colocalization/stats.py:73 (_SEGREGATED_MAX), applied at classify_spatial_coloc L278. Applied upstream, never by a card predicate.'

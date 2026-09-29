@@ -1,0 +1,60 @@
+# Card — sc NORMAL SURFACE-PROTEIN SAFETY (CITE-seq; single-cell off-tumor floor)
+#
+# Is {target}'s SURFACE protein displayed on NORMAL cell types at single-cell resolution — a
+# TCE/ADC/mAb on-target/off-tumor hazard? The PROTEIN, single-cell sibling of sc-normal-celltype-
+# expression (RNA) and the surface analogue of normal-tissue-liability (bulk HPA-IHC). Reads
+# sc-cite-surface-normal-immune-v1 via the sc-surface-normal-safety method.
+#
+# WHY IT MATTERS: surface protein decouples from both RNA and total protein. A CD antigen displayed
+# on resting T cells or a hematopoietic subset is a bulk-invisible killing hazard for a T-cell engager
+# (cf. CD19-TCE cytopenias — CD19+ progenitors are GTEx-invisible). This is the protein-level,
+# cell-type-resolved off-tumor floor for the immune compartment.
+#
+# SCOPE (v1): immune / peripheral (Hao 2021 PBMC). HuBMAP solid-tissue CITE-seq (kidney/heart/spleen/
+# thymus/lymph-node — the safety-essential organs) is the follow-on shard. Indication-independent
+# (a per-target normal-tissue property) → tier: target.
+
+card_id: sc-surface-normal-safety
+version: 0.1.0
+question: "Is {target.symbol}'s SURFACE protein displayed on normal immune cell types (single-cell CITE-seq) — an on-target/off-tumor hazard for a biologic — and how broadly?"
+
+tier: target   # normal-tissue surface footprint is a per-target property, indication-independent
+
+applies_when:
+  - "true"   # pan-target; graceful data_unavailable when the target is not in the CITE-seq surface panel
+
+required_inputs:
+  - product_id: sc-cite-surface-normal-immune-v1        # Hao 2021 PBMC (peripheral immune)
+  - product_id: sc-cite-surface-normal-bonemarrow-v1    # NeurIPS 2021 BMMC (hematopoietic-progenitor compartment); reader unions both shards, class = PEAK across all cell types
+
+methods:
+  - call: sc-surface-normal-safety
+    args:
+      target: "{target.symbol}"
+
+outputs:
+  summary_fields:
+    - sc_surface_normal_class            # PRIMARY — surface-liability ladder on peak mean-CLR
+    - max_surface_cell_type              # the normal immune cell type with the highest surface display
+    - max_mean_clr                       # peak cross-donor mean CLR-ADT (display level)
+    - n_celltypes_surface_displaying     # breadth: normal immune cell types with mean-CLR >= 1.0
+    - compartment_scope                  # per-row: 'immune_pbmc' (Hao PBMC) or 'bone_marrow' (NeurIPS BMMC)
+  summary_fields_vocabulary:
+    sc_surface_normal_class: [high_surface_on_normal_immune, moderate_surface_on_normal_immune, low_surface_on_normal_immune, not_surface_detected_normal_immune, data_unavailable]
+
+caveats:
+  - "PROTEIN, single-cell sibling of sc-normal-celltype-expression (RNA) + normal-tissue-liability (bulk IHC). Report SIDE-BY-SIDE — surface protein decouples from both RNA and total protein; this is the surface-specific off-tumor floor."
+  - "Class keys on PEAK cross-cell-type mean-CLR, NOT positive fraction: ADT ambient/spillover makes a per-cell CLR>0 count fire on ~every lineage (over-call); the mean-CLR level separates true display (CD8A ~4.4 on T) from spillover (~ -1 on B)."
+  - "high_surface_on_normal_immune is a SAFETY caution (broad/high normal-immune surface display = on-target/off-tumor risk for a TCE/ADC), NOT a target killer; not_surface_detected_normal_immune is FAVORABLE (e.g. BCMA reads not-detected on normal immune)."
+  - "v1 = peripheral immune (Hao 2021 PBMC) + bone marrow (NeurIPS 2021 BMMC), unioned; class = PEAK across all cell types (either compartment is an off-tumor floor). Solid-tissue (HuBMAP) safety-essential organs are the follow-on shard. A target ABSENT from every panel returns data_unavailable — not surface-profiled, never a safety pass."
+
+measurement: sc_protein
+sample_context: normal          # Hao 2021 PBMC — normal donor immune cells (surface ADT)
+
+# DATA_TO_SKILL_CONTRACT — sc_normal_surface_protein (single-cell normal SURFACE safety).
+measurement_type: sc_normal_surface_protein
+# safety lens (off-tumor floor). Declaration lands WITH its surface safety rules
+# (feat/sc-surface-normal-safety-rule) — never declare a lens without a rule that carries it.
+modality_relevance: [adc, bite_tce, antibody]
+entity_grains: [target]
+schema_version: 1

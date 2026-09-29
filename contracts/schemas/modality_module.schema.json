@@ -1,0 +1,156 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/takeda-rnd/rnd-computational-biology-oncology-target-contracts/schemas/modality_module.schema.json",
+  "title": "Modality Module",
+  "description": "Schema for modality-specific refinement modules. A modality_module layers on top of a biology-axis base dashboard_spec, declaring (1) additional cards required for the modality, (2) threshold overlays on shared base cards, (3) a headline decision question, (4) modality-specific caveats. Lives at target-contracts/dashboards/modality-modules/{modality}.module.yaml. See plan § Target Dashboard Architecture (A3) and the new § Dashboard / Interpretation / Inference Layers section.",
+  "type": "object",
+  "required": [
+    "modality_module",
+    "version",
+    "extends_axes",
+    "headline_decision_question",
+    "schema_version"
+  ],
+  "unevaluatedProperties": false,
+  "properties": {
+    "modality_module": {
+      "type": "string",
+      "description": "Modality identifier; must match a `value` in modality.enum.yaml.",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?$"
+    },
+    "extends_axes": {
+      "type": "array",
+      "description": "Biology axes this module is compatible with (e.g., [surface_intrinsic] for ADC). Compose-dashboard refuses to load this module against a target whose axis is not in this list.",
+      "items": {
+        "type": "string",
+        "enum": ["intracellular_intrinsic", "surface_intrinsic", "extrinsic", "mixed"]
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "additional_cards": {
+      "type": "array",
+      "description": "Cards this modality requires ON TOP OF the base dashboard's required_cards. May reference cards that are data-blocked at iter-1b — modality_module entries are aspirational where data is pending.",
+      "items": {
+        "type": "object",
+        "required": ["card_id", "version"],
+        "unevaluatedProperties": false,
+        "properties": {
+          "card_id": {"type": "string", "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$"},
+          "version": {"type": "string", "minLength": 1},
+          "data_status": {
+            "type": "string",
+            "enum": ["available", "data_blocked", "method_pending"],
+            "description": "iter-1b operational status. data_blocked = catalog manifest pending; method_pending = method implementation pending."
+          },
+          "data_status_note": {"type": "string"}
+        }
+      },
+      "maxItems": 10
+    },
+    "threshold_overlays": {
+      "type": "object",
+      "description": "Per-base-card threshold tuning. Keys are card_ids from the base dashboard; values are threshold-name → new-value mappings. Only certain fields are tunable — see `tunable_threshold_categories` constraint below.",
+      "additionalProperties": {
+        "type": "object",
+        "description": "For card_id <key>, override these named thresholds. Threshold names must match the card_spec's thresholds: block keys.",
+        "additionalProperties": {
+          "type": ["number", "string", "boolean"]
+        }
+      }
+    },
+    "tunable_threshold_categories": {
+      "type": "array",
+      "description": "Whitelist of threshold categories this modality module is allowed to tune. NEVER includes statistical_significance or applies_when_predicate — those are not modality-tunable, only severity/weighting/note fields are.",
+      "items": {
+        "type": "string",
+        "enum": ["severity_threshold", "weighting", "note_field", "interpretation_call_alias"]
+      }
+    },
+    "headline_decision_question": {
+      "type": "string",
+      "description": "The single-sentence question this modality is fundamentally asking. Surfaced in synthesis as the headline framing.",
+      "minLength": 20,
+      "maxLength": 300
+    },
+    "modality_specific_caveats": {
+      "type": "array",
+      "description": "Caveats surfaced in every rendered package when this modality module is loaded. Distinct from per-card caveats — these are MODALITY-level concerns, not card-level limitations.",
+      "items": {
+        "type": "string",
+        "minLength": 10,
+        "maxLength": 500
+      }
+    },
+    "synthesis_emphasis": {
+      "type": "object",
+      "description": "Synthesis layer directives specific to this modality. Controls which cards weight heaviest in the headline call.",
+      "unevaluatedProperties": false,
+      "properties": {
+        "primary_cards": {
+          "type": "array",
+          "items": {"type": "string", "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$"},
+          "description": "Card_ids whose interpretation_calls drive the modality headline call."
+        },
+        "secondary_cards": {
+          "type": "array",
+          "items": {"type": "string", "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$"}
+        },
+        "modality_killer_conditions": {
+          "type": "array",
+          "description": "Structured predicates that, if any one fires, downgrade the modality fit to 'not_viable' in phase-3 synthesis. Replaced free-prose strings (iter-1a) with structured `{card_id, predicate_type, predicate_value, message}` triples post-adversarial-review (iter-1b C1 fix). Phase-3's _check_killer_conditions evaluates each entry deterministically.",
+          "items": {
+            "type": "object",
+            "required": ["card_id", "predicate_type", "message"],
+            "unevaluatedProperties": false,
+            "properties": {
+              "card_id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$",
+                "description": "Card whose output triggers this killer condition."
+              },
+              "predicate_type": {
+                "type": "string",
+                "enum": [
+                  "interpretation_call_equals",
+                  "interpretation_call_in",
+                  "excluded_by_applies_when",
+                  "warning_id_fires",
+                  "warning_id_in",
+                  "validation_state_equals"
+                ],
+                "description": "What kind of check phase-3 performs against the card's output."
+              },
+              "predicate_value": {
+                "description": "Value the predicate checks against. Type depends on predicate_type: string for *_equals, array of strings for *_in, boolean for excluded_by_applies_when, string for warning_id_fires.",
+                "oneOf": [
+                  {"type": "string"},
+                  {"type": "array", "items": {"type": "string"}},
+                  {"type": "boolean"}
+                ]
+              },
+              "message": {
+                "type": "string",
+                "description": "Human-readable explanation surfaced in synthesis output when this condition fires.",
+                "minLength": 20,
+                "maxLength": 500
+              }
+            }
+          }
+        }
+      }
+    },
+    "iter1b_status": {
+      "type": "string",
+      "enum": ["active", "deferred", "out_of_scope"]
+    },
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    }
+  }
+}

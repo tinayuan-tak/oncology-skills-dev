@@ -1,0 +1,119 @@
+# Card — SURFACEOME FAMILY CLASSIFICATION (v1)
+#
+# Fuses SURFY 2018 (ML surface residency) +
+# HPA v25.1 (protein_class + subcellular_main_location) + UniProt Enzyme
+# Nomenclature + IUPHAR/BPS receptor families into one per-UniProt-AC
+# surface-protein family categorical. Reviewer flagged that SURFY alone
+# misses ~15% of clinically-validated ADC targets; 4-source fusion closes
+# that gap.
+#
+# Interpretation surface (family_class is the PRIMARY rules-firing categorical):
+#   `kinase_surface`  → SURFY-positive AND HPA-Plasma-membrane AND
+#                       family == 'Kinase' (RTK-class ADC-friendly)
+#   `enzyme_surface`  → surface-confirmed enzyme
+#   `transporter`     → SLC / ABC / ion channels
+#   `cd_molecule`     → CD markers (canonical TCE targets)
+#   `adhesion`        → cadherins, integrins, IgSF adhesion
+#   `gpcr`            → G-protein-coupled receptor
+#   `growth_factor_receptor` → growth-factor/cytokine receptors (non-RTK)
+#   `immune_receptor` → TCR/BCR/NK/complement/Fc
+#   `other_surface`   → surface-confirmed but not fitting the above
+#   `not_surface`     → SURFY/HPA disagree; treated as non-surface
+#   `data_unavailable`
+
+card_id: surfaceome-family-classification
+version: 1.0.0
+question: "Is {target.symbol} a surface protein, and what family does it belong to (for modality-fit reasoning)?"
+
+tier: target   # scope-invariant: surface-protein family membership is a property of the protein, not of any tumor subgroup. Never stratifies.
+
+applies_when: []
+
+required_inputs:
+  - product_id: surfaceome-family-classification-per-uniprot-v1
+
+methods:
+  - call: surfaceome-family-fusion
+    module: surfaceome_family_fusion
+    entrypoint: read_target_summary
+    args:
+      target_uniprot_ac: "{target.uniprot_canonical}"
+
+outputs:
+  summary_fields:
+    - family_class                              # PRIMARY categorical
+    - surface_protein_family                    # human-readable family label
+    - is_surface_protein                        # bool — SURFY OR HPA-Plasma-membrane confirmation
+    - surfaceome_confidence_score               # float 0-1 — source-agreement fraction
+    - source_surfy_positive                     # bool
+    - source_hpa_plasma_membrane                # bool
+    - source_uniprot_ec_number                  # string; empty if not an enzyme
+    - source_iuphar_family                      # string
+    - fusion_provenance                         # list<string> — which sources contributed
+    - hpa_protein_class_verbatim                # string — HPA v25.1 protein_class as-emitted
+
+  summary_fields_vocabulary:
+    family_class:
+      - kinase_surface
+      - enzyme_surface
+      - transporter
+      - cd_molecule
+      - adhesion
+      - gpcr
+      - growth_factor_receptor
+      - immune_receptor
+      - other_surface
+      - not_surface
+      - data_unavailable
+    surface_protein_family:
+      - Kinase
+      - Enzyme
+      - Transporter
+      - CD_molecule
+      - Adhesion
+      - GPCR
+      - Growth_factor
+      - Immune_receptor
+      - Other
+      - Not_surface
+
+  figure: family_taxonomy_pie_with_source_provenance
+
+thresholds:
+  high_confidence_surface_score: 0.75          # confidence threshold for tier-1 modality nomination
+
+warning_predicates:
+  - warning_id: source_disagreement_surface_status
+    if: "source_surfy_positive != source_hpa_plasma_membrane"
+    message: "SURFY and HPA disagree on {target.symbol} surface status. surfaceome_confidence_score is reduced. Investigate via HPA IHC images + literature before treating as ADC/TCE-eligible."
+  - warning_id: low_confidence_family_call
+    if: "surfaceome_confidence_score < 0.5"
+    message: "Family classification confidence < 0.5 — fewer than half of upstream sources agreed. family_class may be unreliable for downstream ADC/TCE rubric consumption."
+
+caveats:
+  - |
+    surfaceome_confidence_score is a source-agreement fraction, NOT a
+    probabilistic posterior. Use as a tie-breaker for ranking, not a
+    probability of surface residency.
+  - |
+    SURFY 2018 misses ~15% of clinically-validated ADC targets by our audit;
+    the fusion with HPA v25.1 + UniProt EC + IUPHAR is designed to close
+    this gap. Governance readers should still cross-reference HPA IHC
+    intensity for critical modality decisions.
+  - |
+    Family taxonomy is oncology-drug-discovery-oriented. Olfactory, taste,
+    and other sensory receptor families fall into 'Other' — not because
+    they are non-surface, but because they are not typically pursued as
+    tumor-selectivity targets.
+  - |
+    HPA v25.1 protein_class taxonomy is source-of-truth for kinase / enzyme /
+    transporter / CD-molecule / GPCR assignments. Where HPA is silent,
+    UniProt EC number + IUPHAR receptor class provide fallback family calls.
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `surfaceome_family` claim (is the target a surface
+# protein + which family, for modality-fit). tier: target above already marks it scope-invariant.
+measurement_type: surfaceome_family
+# declaration-only routing key — surface family/residency = surface-modality gating; not-surface killer. Matching rule pre-exists in interpretation-rules/surface-intrinsic.rules.yaml.
+modality_relevance: [adc, bite_tce, antibody]
+entity_grains: [target]
+schema_version: 1

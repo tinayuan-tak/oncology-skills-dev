@@ -1,0 +1,140 @@
+# Card Phase-F (target-scan hook) — SURFACEOME COHORT RANKING (v1)
+#
+# Per-indication whole-surfaceome effect-size ranking. Given an indication,
+# ranks all SURFY-high-confidence surface proteins by tumor-vs-normal
+# effect size, filtered to cells_supporting >= 3 from the 4-cell DESeq2
+# sensitivity products. Emits per-(indication, gene) percentile-context
+# lookup for target-profile percentile joins.
+#
+# Reviewer-driven design (2026-07-08): the dashboard's iDAS ranking uses
+# single-limma vs cohort-bulk; ours composes from the 4-cell sensitivity
+# DEG so effect sizes are directly comparable to per-target profile
+# outputs, AND cells_supporting-filtered to kill false positives.
+
+card_id: surfaceome-cohort-ranking
+version: 1.0.0
+# 2026-08-17 (cards review, S2): declared dormant because its product had no manifest / S3 object.
+# REVIVED 2026-08-20: `surfaceome-cohort-ranking-per-indication-v1` LANDED 2026-08-18 (manifest #442,
+# live md5-pinned S3, 36,150 rows / 29 indications) — the reader now returns REAL data, so the card is
+# composable again. Status returned to live (no explicit status field = wired).
+question: "Where does {target.symbol} rank among all surface proteins in {indication.label} by tumor-vs-normal effect size, and does the RNA signal agree with the CPTAC protein signal?"
+
+applies_when:
+  - "context.data_sources.sensitivity_v1_available == true"
+
+required_inputs:
+  - product_id: surfaceome-cohort-ranking-per-indication-v1
+    indication: "{indication}"
+
+methods:
+  - call: surfaceome-cohort-ranking
+    module: surfaceome_cohort_ranking
+    entrypoint: read_target_summary
+    args:
+      indication: "{indication}"
+      target: "{target.symbol}"
+
+outputs:
+  summary_fields:
+    - cohort_rank_class                             # PRIMARY categorical
+    - tissue_rank                                   # int; 1 = best
+    - n_total_ranked                                # int; total surface proteins ranked in this indication
+    - tissue_percentile_rna                         # float 0-100
+    - tissue_percentile_protein                     # float 0-100 or NaN
+    - rna_protein_concordance                       # categorical
+    - ranking_score                                 # float; -log10q × log2FC weighted mean
+    - cells_supporting                              # int; 3 or 4
+    - max_abs_log2fc                                # float
+    - surface_protein_family                        # from surfaceome-family-classification
+    - is_in_surfaceome                              # bool
+    - method_version
+
+  summary_fields_vocabulary:
+    cohort_rank_class:                              # tokens EMITTED by derive.py::_cohort_rank_class (verified against the shipped product)
+      - top_1_percent
+      - top_5                                        # derive.py emits top_5 (not top_5_percent); verdict-inert (rules key only top_1_percent + below_25_percent)
+      - top_25                                       # derive.py emits top_25 (not top_25_percent)
+      - below_25_percent
+      - not_in_surfaceome
+      - data_unavailable
+    rna_protein_concordance:
+      - agreement                                   # both RNA + protein up
+      - protein_only                                # protein up; RNA weak/absent
+      - rna_only                                    # RNA up; protein weak/absent
+      - disagreement                                # opposite directions
+      - no_protein                                  # CPTAC does not cover this tissue
+
+  figure: cohort_ranking_waterfall_with_target_highlight
+
+  # The numeric -> class hop, declared. cohort_rank_class is binned from
+  # tissue_percentile_rna ALONE (derive.py:190
+  # `df["cohort_rank_class"] = df["tissue_percentile_rna"].map(_cohort_rank_class)`) --
+  # NOT from tissue_percentile_protein and NOT from ranking_score, both of which the card
+  # also emits. The two residual class values are not cutpoint-reachable: below_25_percent
+  # is the fall-through and not_in_surfaceome / data_unavailable are availability states.
+  derivations:
+    cohort_rank_class:
+      derives_from: [tissue_percentile_rna]
+      cutpoints: [top_1_percentile, top_5_percentile, top_25_percentile]
+
+thresholds:
+  top_1_percentile: 99.0
+  top_5_percentile: 95.0
+  top_25_percentile: 75.0
+
+threshold_roles:
+  # Verified against the producer, not against the threshold name: derive.py::_cohort_rank_class
+  # tests `percentile >= 99.0 / >= 95.0 / >= 75.0` in that order, so each threshold is the
+  # LOWER edge of the class it names.
+  top_1_percentile:
+    role: class_cutpoint
+    bins: cohort_rank_class
+    of: tissue_percentile_rna
+    boundary: top_1_percent
+    scale: percentile
+  top_5_percentile:
+    role: class_cutpoint
+    bins: cohort_rank_class
+    of: tissue_percentile_rna
+    boundary: top_5                                  # derive.py emits top_5, not top_5_percent
+    scale: percentile
+  top_25_percentile:
+    role: class_cutpoint
+    bins: cohort_rank_class
+    of: tissue_percentile_rna
+    boundary: top_25                                 # derive.py emits top_25, not top_25_percent
+    scale: percentile
+
+warning_predicates:
+  - warning_id: rna_protein_disagreement
+    if: "rna_protein_concordance == 'disagreement'"
+    message: "{target.symbol} shows OPPOSITE directions in RNA vs CPTAC protein tumor-vs-normal. Do not cite RNA-based selectivity claims without protein context — for ADC/TCE decisions, protein-level evidence is authoritative."
+  - warning_id: protein_only_agreement
+    if: "rna_protein_concordance == 'protein_only' && tissue_percentile_protein > 90"
+    message: "{target.symbol} ranks in the top 10% of surface proteins in {indication.label} by CPTAC protein signal but is weak / silent by RNA. This is the ADC-favorable pattern — post-transcriptional regulation may elevate surface density beyond RNA prediction."
+  - warning_id: low_cells_supporting
+    if: "cells_supporting < 4"
+    message: "{target.symbol}'s tumor-vs-normal call is supported by only {cells_supporting}/4 comparator cells. The rank is provisional — a strict-4-cells filter would exclude this target."
+
+caveats:
+  - |
+    Rankings are cells_supporting-filtered (>= 3). Surface proteins with
+    tumor-vs-normal significance in < 3 of the 4 DESeq2 comparator/batch
+    combinations are excluded from the ranking. This kills the top-of-list
+    false positives seen in single-limma-run rankings.
+  - |
+    tissue_percentile_protein is NaN when the indication has no CPTAC
+    cohort (e.g. BLCA, SKCM, KIRC, STAD, ESCA, LIHC, CESC, PRAD, CHOL,
+    ACC). Consumers treat rna_protein_concordance='no_protein' as
+    data-unavailable, not a negative signal.
+  - |
+    This is a TARGET-SCAN hook — a percentile-context lookup product,
+    NOT a full target-ID mode. Full target-ID (druggable-genome universe,
+    modality-calibrated ranking, portfolio priors) requires an
+    architectural pass beyond this card's scope.
+  - |
+    Cross-indication ranking patterns (a target's rank across multiple
+    indications) are arguably more informative for portfolio decisions.
+    Iter-2 backlog: cross-indication rank summary derived product.
+
+schema_version: 1

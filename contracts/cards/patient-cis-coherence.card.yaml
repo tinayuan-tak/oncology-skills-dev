@@ -1,0 +1,102 @@
+# Card — PATIENT CIS-COHERENCE (TCGA)  (pure-data, target×indication, VERDICT-INERT)
+#
+# The PATIENT-tumour corroboration of the cell-line cis-coherence arms. Answers, in TCGA tumours for
+# {target} in {indication}, the SAME two cis questions the cell-line cards answer in DepMap lines:
+#   - does the target's own copy-number track its own expression (amplification cis-dosage)?
+#   - do promoter-methylated patients express the target LOWER (epigenetic silencing)?
+#
+# The join across expression / CN / methylation is at the 3-segment TCGA CASE barcode — the
+# cross-product joinability that tcga-sample-id-crosswalk-v1 (#450, R4) established. Reuses the SAME
+# compute_cis_dosage kernel as the cell-line arm, so patient and cell-line cis-dosage classes are
+# directly comparable.
+#
+# VERDICT-INERT BY DESIGN: this card CORROBORATES the cell-line cis_coherence verdict (does the CCLE
+# call replicate in patient tumours?), it does NOT drive it. It is consumed by cis-feature-coherence as
+# a confidence/patient-agreement facet — NO interpretation rule fires it into the cis_coherence resolver
+# (the cell-line arms own the verdict; cross-grain agreement is a confidence signal, not a second vote).
+#
+# Cohort caveat: joins only bridge patients with a recount3 RNA-seq aliquot (~95% of methylation cases,
+# ~98% of MC3 cases resolve); the rest are honest data gaps (no expression to join). n_cases_* surface
+# the attrition. Small per-indication methylated/amplified subsets → insufficient bins (min 5).
+#
+# Inputs (case-joinable via the crosswalk; NO new ingest):
+#   - tcga tumour expression (recount3 TPM, per gdc_file_id → case)  — tumor_expression_distribution
+#   - tcga per-sample GISTIC copy-number (per gene, per case)        — copy_number_alteration
+#   - tcga-sesame HM450 promoter methylation (per gene, per case)    — promoter_methylation
+#   - tcga-sample-id-crosswalk-v1                                    — the case-barcode bridge
+
+card_id: patient-cis-coherence
+version: 1.0.0
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
+question: "In TCGA {indication} tumours, does {target.symbol}'s own copy-number track its own expression (amplification cis-dosage) and do promoter-methylated patients express it lower (silencing) — i.e. does the cell-line cis-coherence call replicate in patients?"
+
+applies_when:
+  - "target.depmap_expression_measured == true"     # HGNC target with expression coverage; TCGA-side coverage is surfaced via n_cases_*
+
+required_inputs:
+  - product_id: tcga-sample-id-crosswalk-v1
+    release_pin: "{release_pin}"
+  - product_id: tcga-sesame-promoter-methylation-v1
+    release_pin: "{release_pin}"
+  - product_id: tcga-patient-cn-per-sample-v1
+    release_pin: "{release_pin}"
+
+methods:
+  - call: tcga-patient-cis-coherence
+    module: tcga_cis_coherence_patient
+    entrypoint: read_patient_cis_coherence   # the dispatcher wrapper (per module __init__ convention): handles indication=None, pops the internal _cis_dosage_full provenance dict, stamps method_version. compute_patient_cis_coherence is the bare compute (leaks _cis_dosage_full, no method_version).
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - evidence_scope                                 # patient_indication
+    # === Amplification cis-dosage leg (patient CN → own expression) ===
+    - patient_cis_dosage_class
+    - cn_expr_spearman_r
+    - cn_expr_spearman_p
+    - delta_log2tpm_amplified_vs_neutral
+    - n_amplified
+    - n_patients_cn_expr
+    # === Epigenetic-silencing leg (promoter-methylated vs unmethylated expression) ===
+    - patient_methylation_silencing_class
+    - delta_log2tpm_methylated_vs_unmethylated        # methylated - unmethylated; <= -1.0 log2 = silencing
+    - n_methylated
+    - n_unmethylated
+    - mean_log2tpm_methylated
+    - mean_log2tpm_unmethylated
+    # === Join-coverage provenance (honest attrition) ===
+    - n_cases_expression
+    - n_cases_copy_number
+    - n_cases_methylation
+
+  summary_fields_vocabulary:
+    patient_cis_dosage_class:
+      - cn_dosage_coupled_strong
+      - cn_dosage_coupled_moderate
+      - cn_dosage_uncoupled
+      - cn_invariant_panel
+      - data_unavailable
+    patient_methylation_silencing_class:
+      - epigenetic_silencing                         # methylated cases express >= 1 log2 unit LOWER (silencing)
+      - no_silencing_signal                          # measured, no silencing separation
+      - insufficient_methylation_data                # < 5 methylated OR < 5 unmethylated cases
+    evidence_scope: [patient_indication]
+
+caveats:
+  - "VERDICT-INERT: corroborates the cell-line cis_coherence verdict (patient replication), never drives it. No cis_coherence resolver rung consumes this card; the cell-line arms own the verdict."
+  - "Patient cis-dosage reuses compute_cis_dosage (same kernel as the cell-line arm) on per-case GISTIC CN vs recount3 TPM; the amplified edge is GISTIC +1 (any gain), coarser than the cell-line focal-amp cut — patient and cell-line classes are comparable in DIRECTION, not in exact thresholds."
+  - "Silencing leg: methylated-vs-unmethylated case expression contrast (>= 5 each), silencing when methylated express >= 1 log2 unit lower. Distinct from the cell-line subset-MW; both feed the same cross-grain-agreement question."
+  - "Join is at the 3-segment CASE barcode via tcga-sample-id-crosswalk-v1; only patients with a recount3 RNA-seq aliquot are bridged (n_cases_* surface the attrition). A patient with >1 aliquot is collapsed to Primary Tumor before the case-grain join."
+  - "Cell-line and patient disagreement is INFORMATIVE, not an error: culture vs tumour-microenvironment, purity, and cohort composition differ. The skill surfaces agreement as a confidence lift."
+
+# DATA_TO_SKILL_CONTRACT Rule 1/4 — view of the DERIVED `patient_cis_coherence` claim (does the target's
+# own CN/methylation explain its own expression in patient tumours?), derived_from [copy_number_alteration,
+# tumor_expression_distribution, promoter_methylation], joined via the sample-id crosswalk. The patient
+# cross-grain corroboration of cis_dosage_coupling + methylation_silencing_coupling.
+measurement_type: patient_cis_coherence
+modality_relevance: [small_molecule, degrader]
+entity_grains: [target_indication]
+schema_version: 1

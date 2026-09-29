@@ -1,0 +1,141 @@
+# Card — FUSION / REARRANGEMENT LANDSCAPE
+#
+# The fusion/structural-variant axis of the genomic-alteration-profile skill (SNV + CN + fusion).
+# Backed by the tcga-fusion-consensus-v1 derived product
+# (pan-TCGA 3-caller consensus — TumorFusions/Hu 2018 PRADA, Gao 2018, cBioPortal PanCancer Atlas
+# 2018 SV) via methods/tcga_fusion_consensus.read_target_summary.
+#
+# SOURCE-SUBSTITUTION NOTE: the v0.1.0 placeholder pointed at genie-structural-variants (DNA SV,
+# never catalogued). The live source is instead the 3 LANDED open TCGA callers — predominantly RNA
+# transcript-fusions (TumorFusions/Gao, PRADA/STAR-family) unioned with cBioPortal DNA SV. This is
+# the better fit for the card's actual question ("recurrently involved in gene fusions") and is
+# license-clean/open. caller_count in the product encodes cross-caller agreement.
+
+card_id: fusion-rearrangement-landscape
+version: 1.6.0   # 1.6.0 (2026-09-23): + `underpowered` fusion_class value (PR-C2 genomic n-honesty vertical) — a coverage
+                 # GAP (classifier looked but < 20 SV-covered samples cleared the recurrence power floor), distinct from
+                 # data_unavailable (could-not-look). Consumed by the new fusion-underpowered-insufficient rule so it reads
+                 # insufficient, never a driver and never passenger-via-fall-through. Emitted by fclass below its power
+                 # floor in PR-C3; inert until then.
+                 # 1.5.0 (2026-09-12): fusion_recurrence_confidence PROMOTED verdict-inert → VERDICT-BEARING. It now gates the
+                 # genomic resolver's TOP fusion rung via fusion-recurrence-high-partner-context: only high_recurrent_partner
+                 # (same partner >=3 samples) pre-empts top-1% patient SNV recurrence; a moderate_promiscuous call falls to a
+                 # DEMOTED bare-fusion rung below the SNV-recurrence rungs (still rescues a fusion-only target from passenger).
+                 # Measured on the STK11/LUAD panel case: 3/632 samples (0.47%), ZERO recurrent partners, at a deleted TSG locus,
+                 # was outranking STK11's top-1% SNV recurrence and reading recurrent_fusion_driver. #983's amplicon demotion
+                 # covers only the AMPLIFIED subset of moderate_promiscuous; this covers the non-amplified remainder.
+                 # 1.4.0 (2026-09-04, #983): + promiscuous_amplicon_fusion fusion_class (skill-layer copy-number-gated demotion of a moderate_promiscuous fusion at a recurrently focally-amplified locus — an amplicon passenger SV, not a competent fusion driver). # 1.3.0: includes fusion_recurrence_confidence (verdict-inert tier), modality_relevance, GENIE-SV breadth fields (genie_sv_*)
+question: "Is {target.symbol} recurrently involved in gene fusions or structural rearrangements in {indication.label}?"
+
+# Evidence-capsule projection contract. Only ONE field matched the anchor hints
+# (`genie_sv_recurrence_percentile`), so the capsule surfaced the SV-recurrence side and never the
+# fusion frequency or carrier count the class is actually read from. VERDICT-INERT projection.
+capsule:
+  primary_class: fusion_class
+  categorical_fields:
+    - fusion_class
+    - fusion_recurrence_confidence
+    - genie_sv_recurrence_class
+  numeric_anchors:
+    - fusion_frequency
+    - n_samples_with_fusion
+    - genie_sv_frequency
+    - genie_sv_recurrence_percentile
+    - n_sv_samples
+
+
+applies_when: []   # LIVE: the reader returns data_unavailable gracefully when the product/target is absent
+
+required_inputs:
+  - product_id: tcga-fusion-consensus-v1
+  - product_id: genie-public-v19-0                  # ADDITIVE breadth sibling (genie_sv_* fields, computed live from raw GENIE 19.0 SV); reader degrades gracefully
+
+methods:
+  - call: tcga-fusion-consensus
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - n_samples_with_fusion
+    - fusion_frequency
+    - recurrent_partners
+    - fusion_class                                  # PRIMARY categorical driving rules
+    - fusion_recurrence_confidence                  # VERDICT-BEARING tier (since 1.5.0) — GATES the resolver's TOP fusion rung (see vocabulary + caveat)
+    # ---- GENIE-SV breadth (pan-cohort, panel-coverage-correct) — ADDITIVE display, verdict-inert ----
+    # The higher-N complement to the TCGA-consensus facts above (271k panel tumors vs 33 TCGA tissues).
+    # None of these drive a resolver rung; genie_sv_recurrence_class is a DISPLAY comparator only.
+    - genie_sv_recurrence_class                     # breadth-ranked recurrence class (NOT a verdict driver)
+    - genie_sv_recurrence_percentile                # percentile of genie_sv_frequency among SV-covered genes in-indication
+    - genie_sv_frequency                            # n_sv_samples / n_sv_covered — SV-coverage-correct
+    - n_sv_samples                                  # distinct GENIE samples with the target at either breakend
+    - n_sv_covered                                  # SV-profiled cohort samples whose panel covers the target (honest denominator)
+    - genie_sv_recurrent_partners                   # recurrent SV partner genes (EML4 for ALK, etc.); event-tokens excluded
+  summary_fields_vocabulary:
+    fusion_class:
+      - recurrent_fusion_driver                     # a recurrent partner (>=3 samples) OR the target recurs >=3 samples
+      - promiscuous_amplicon_fusion                 # SKILL-LAYER DEMOTION (#983): a moderate_promiscuous recurrent_fusion_driver whose locus is ALSO recurrently focally AMPLIFIED (copy-number-distribution.patient_focal_cn_class == recurrent_focal_amplification) — an amplicon passenger SV (ERBB2/STAD, MDM2/SARC), NOT a competent fusion driver. Narrative-only: fires NO driver rung (see caveat). Emitted by the genomic_alteration card preprocessor, not the underlying product reader.
+      - sporadic_fusion                             # fusions present but non-recurrent (1-2 samples)
+      - no_recurrent_fusion                         # assayed in the indication, no recurrent fusion signal (measured-negative)
+      - data_unavailable                            # product/target absent — NOT a measured negative
+      - underpowered                                # classifier LOOKED but too few SV-covered samples cleared the recurrence power floor (< 20 SV-covered) — a coverage GAP (looked-but-too-thin), NOT a measured-negative. Reads as unmeasured/insufficient, never a driver and never passenger-via-fall-through (PR-C2). Emitted by fclass below its power floor (PR-C3).
+    fusion_recurrence_confidence:                   # VERDICT-BEARING tier for a recurrent_fusion_driver call (1.5.0).
+                                                    # NULLABLE: the reader emits None (field absent) when it is NOT a
+                                                    # recurrent_fusion_driver call (sporadic / no_recurrent / data_unavailable);
+                                                    # only the non-null tiers are enumerated below.
+      - high_recurrent_partner                      # the SAME partner recurs >=3 samples (EML4-ALK, TMPRSS2-ERG) — 100% precise on the validation panel
+      - moderate_promiscuous                        # target recurs >=3 samples, no single recurrent partner — a MIXED bucket (see caveat)
+    genie_sv_recurrence_class:                      # DISPLAY-only breadth comparator (does NOT drive rules)
+      - top_1pct                                    # SV frequency in the top 1% of SV-covered genes in-indication
+      - top_decile                                  # top 10%
+      - mid                                         # between the deciles
+      - bottom_decile                               # bottom 10%
+      - data_unavailable                            # coverage-gap (target on no SV panel) OR too-thin (< 20 SV-covered samples)
+  figures:
+    - id: fusion_partner_bar
+      type: ranked_bar
+      description: "Recurrent fusion partners for the target, ranked by sample count."
+      preferred_surfaces: [markdown, ppt]
+  plot_data: per_sample_fusion_calls
+
+caveats:
+  - "Consensus of 3 TCGA callers (TumorFusions/Hu 2018 PRADA, Gao 2018, cBioPortal PanCancer Atlas 2018 SV), UNIONED not intersected — caller_count in the product encodes agreement; the reader's min_callers arg (1=union default / 2=majority) lets a consumer require consensus."
+  - "RNA transcript-fusion (TumorFusions/Gao) + DNA SV (cBioPortal) are combined; a consumer needing one modality should filter by caller. Gao 2018 publishes no frame predictions."
+  - "Driver-fusion counts are SMALL per tissue (e.g. ~5 ALK in LUAD) — a RECURRENCE/landscape signal, not a per-patient diagnostic. fusion_frequency is n_samples_with_fusion / assayed samples in the indication tissue (sample_coverage), or None when the coverage denominator is unavailable — never a rate over an unknown cohort."
+  - "The TCGA-consensus facts are DEEP but tissue-limited (33 TCGA types). The genie_sv_* fields are the pan-cohort BREADTH complement (GENIE 19.0, 271k panel tumors, genie-public-v19-0) — e.g. TCGA sees ~5 ALK-fusion LUAD samples while GENIE sees 774 ALK-SV NSCLC samples (top_1pct, EML4 dominant). GENIE SV frequency is panel-coverage-correct (n_sv_samples / SV-profiled-and-covering samples), NOT a raw-cohort rate. These are DISPLAY comparators — they do NOT drive the fusion verdict."
+  - "no_recurrent_fusion (assayed-negative) is DISTINCT from data_unavailable (product/target absent) — do not read the latter as evidence of absence. genie_sv_recurrence_class=data_unavailable additionally covers a coverage-gap (target on no SV panel) or too-thin coverage (< 20 SV-covered samples), never a fabricated 0%."
+  - "fusion_recurrence_confidence tiers a recurrent_fusion_driver call. high_recurrent_partner is precise; moderate_promiscuous (target recurs, no recurrent partner) is a MIXED bucket — genuine kinase fusions (ROS1/NTRK1) AND amplicon passenger SVs (ERBB2/STAD) both fall here. #983: the genomic_alteration preprocessor demotes fusion_class to promiscuous_amplicon_fusion when moderate_promiscuous co-occurs with patient_focal_cn_class==recurrent_focal_amplification, sparing not-amplified kinase fusions."
+
+# Gating cutoffs applied by the reader (methods/tcga_fusion_consensus), promoted from prose (the
+# fusion_class / fusion_recurrence_confidence vocabulary comments + the coverage caveat) to named,
+# single-sourced thresholds so the numeric bar behind a recurrent_fusion_driver / high_recurrent_partner
+# call and the too-thin-coverage cut are declared rather than magic numbers. Both are applied UPSTREAM by
+# the method — over the raw per-partner sample counts (recurrence bar) and the SV-covered denominator
+# (coverage floor), NOT re-binnable from a single emitted summary_field — hence threshold_roles.role:
+# method_parameter, not class_cutpoint. Banding is UNCHANGED; this only exposes the same cuts declaratively.
+thresholds:
+  recurrent_partner_min_samples: 3   # same partner recurs in >=3 samples -> high_recurrent_partner
+                                     # (recurrent_fusion_driver: a partner OR the target recurs >=3)
+  sv_coverage_min_samples: 20        # < 20 SV-covered samples -> genie_sv_recurrence_class=data_unavailable
+                                     # (too-thin coverage; never a fabricated 0%)
+threshold_roles:
+  # method_parameter (not predicate-referenced): applied by methods/tcga_fusion_consensus, so
+  # THRESHOLD_UNUSED would be a false positive on a reader-applied cut rather than an interpretation cutoff.
+  recurrent_partner_min_samples:
+    role: method_parameter
+    consumed_by: tcga-fusion-consensus
+    scale: sample_count
+  sv_coverage_min_samples:
+    role: method_parameter
+    consumed_by: tcga-fusion-consensus
+    scale: sample_count
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `fusion_rearrangement` claim, derived_from
+# [tcga-fusion-consensus-v1]. Routes to the genomic gate (genomic-alteration-profile fusion axis).
+measurement_type: fusion_rearrangement
+# modality_relevance: routing key for downstream modality-fit gates (all-modality — a recurrent
+# fusion/rearrangement informs small-molecule, degrader, and biologics routing)
+modality_relevance: [small_molecule, degrader, adc, bite_tce, antibody]
+entity_grains: [target_indication]
+schema_version: 1

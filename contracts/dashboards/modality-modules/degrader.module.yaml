@@ -1,0 +1,57 @@
+# degrader.module.yaml — modality module for targeted protein degraders (PROTAC, molecular glue)
+# Layers on top of intracellular-intrinsic-base.dashboard_spec. Adds emphasis on intracellular
+# protein presence + ligandable surface; iter-2+ adds dedicated ligandability / degradability cards.
+
+modality_module: degrader
+version: 1.0.0
+extends_axes: [intracellular_intrinsic]
+
+# Iter-1b ships with no degrader-specific additional cards beyond the intracellular base.
+# Iter-2+ additions when data sources land:
+#   - ligandability (chemical-probe + ChEMBL evidence)
+#   - intracellular-protein-evidence (DepMap proteomics or external proteomics catalog)
+#   - degradation-feasibility (E3-ligase expression + literature)
+additional_cards: []
+
+threshold_overlays:
+  tumor-rna-vs-adjacent:
+    severity_threshold: protein_required        # degrader needs PROTEIN present, RNA insufficient — flag in synthesis
+    note: "Degrader requires confirmed intracellular protein expression. RNA evidence alone is insufficient; iter-2 protein cards will close this gap."
+
+tunable_threshold_categories:
+  - severity_threshold
+  - weighting
+  - note_field
+
+headline_decision_question: "Is this protein expressed, ligandable, and degradable in the indication's tumor cells?"
+
+modality_specific_caveats:
+  - "Degrader programs require intracellular protein presence — iter-1b uses RNA expression as a proxy; protein-level confirmation is iter-2 scope and is the key gating evidence not yet covered."
+  - "Ligandability and degradation feasibility are iter-2+ cards. iter-1b synthesis flags these as 'pending' rather than claiming degrader feasibility."
+
+synthesis_emphasis:
+  primary_cards:
+    # Iter-2 Card 1 promoted to PRIMARY: pan-essentiality is even more critical for
+    # degrader programs because degrading a pan-essential target kills normal cells
+    # without selectivity. Dominant-KILLER signal stops the program early.
+    - pan-cancer-crispr-dependency-distribution
+    - dependency-lineage-selectivity
+    - mutation-stratified-dependency      # Reactivated 2026-06-30 — oncogene-addiction biomarker
+    - tumor-rna-vs-adjacent
+  secondary_cards:
+    - mutation-hotspot-frequency
+    - expression-dependency-correlation   # Card 4 — biomarker stratification supports degrader case
+    - dependency-predictability           # Card E5 — multi-omics predictability (activated 2026-07-01)
+    - normal-tissue-liability
+  modality_killer_conditions:
+    - card_id: tumor-rna-vs-adjacent
+      predicate_type: interpretation_call_equals
+      predicate_value: "not informative"
+      message: "Degrader not viable — no demonstrable expression. Degrader requires confirmed intracellular protein presence; RNA-level evidence is the iter-1b proxy."
+    - card_id: dependency-lineage-selectivity
+      predicate_type: interpretation_call_equals
+      predicate_value: "not informative"
+      message: "Degrader rationale weakened — no dependency signal. Degrader investment requires functional dependency in addition to protein presence."
+
+iter1b_status: active
+schema_version: 1

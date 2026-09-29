@@ -1,0 +1,113 @@
+# Card — sc NORMAL SURFACE-PROTEIN SAFETY, SOLID SAFETY-ESSENTIAL ORGANS (CITE-seq)
+#
+# Is {target}'s SURFACE protein displayed on normal SOLID-tissue safety-essential cell types
+# (kidney / heart / spleen / thymus / lymph-node) at single-cell resolution — the biologics-deciding
+# off-tumor floor BEYOND the immune/PBMC compartment? The solid-organ sibling of
+# sc-surface-normal-safety (immune/PBMC, Hao 2021) and the SURFACE analogue of
+# sc-normal-celltype-expression (RNA, organ-aware veto) + normal-tissue-liability (bulk HPA-IHC total
+# protein). Reads the solid-tissue normal CITE-seq surface atlas (HuBMAP / Tabula Sapiens-surface).
+#
+# WHY IT MATTERS: surface-displayed protein decouples from BOTH RNA and total protein. A target that
+# is RNA-quiet or IHC-cytoplasmic but surface-positive on a cardiomyocyte, renal tubular cell, or
+# thymic/lymph-node stromal cell is a bulk-invisible TCE/ADC killing hazard (HER2-CAR-lung /
+# MAGE-A3-cardiac / CEA-colitis failure mode). This is the protein-level, cell-type-resolved off-tumor
+# floor for the exact SOLID organs whose on-target toxicity is modality-limiting — the thin,
+# biologics-deciding edge the immune-only v1 explicitly leaves open (its named HuBMAP follow-on shard).
+#
+# SCOPE: SOLID safety-essential organs (always-on for every target, indication-independent). The
+# immune/peripheral compartment stays owned by sc-surface-normal-safety (compartment_scope=immune_pbmc);
+# bone marrow by that card's marrow shard. Report all three side-by-side — never averaged.
+
+card_id: sc-surface-normal-safety-solid
+version: 0.1.0
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
+question: "Is {target.symbol}'s SURFACE protein displayed on normal SOLID-tissue safety-essential cell types (kidney/heart/spleen/thymus/lymph-node) at single-cell CITE-seq resolution — the biologics-deciding on-target/off-tumor floor beyond the immune compartment?"
+
+tier: target   # normal-tissue SURFACE footprint is a per-target property, indication-independent. Never stratifies.
+
+applies_when:
+  - "true"   # pan-target; safety-essential organs queried for EVERY target. Graceful data_unavailable when the target is absent from the solid-tissue CITE-seq surface panel.
+
+required_inputs:
+  - product_id: sc-cite-surface-normal-solid-v1
+
+methods:
+  - call: sc-surface-normal-safety-solid
+    args:
+      target: "{target.symbol}"
+
+outputs:
+  summary_fields:
+    - sc_surface_normal_solid_class          # PRIMARY — surface-liability ladder on peak cross-donor mean-CLR across solid safety-essential organs
+    - sc_surface_safety_essential_class       # ORGAN-AWARE surface veto instrument (surface analogue of sc-normal-celltype-expression's sc_normal_safety_essential_class)
+    - max_surface_cell_type                   # the normal solid-organ cell type with the highest surface display
+    - max_surface_tissue                      # the solid safety-essential organ carrying that peak display
+    - max_mean_clr                            # peak cross-donor mean CLR-ADT (surface display level)
+    - n_celltypes_surface_displaying          # breadth: normal solid-organ cell types with mean-CLR >= 1.0
+    - safety_essential_surface_flags          # {tissue.cell_type: mean_clr} for safety-essential cell types surface-displaying above the floor
+    - compartment_scope                       # 'solid_tissue' (fixed for this card)
+    - tissues_queried                         # list of solid safety-essential organ shards used
+    - method_version
+  summary_fields_vocabulary:
+    sc_surface_normal_solid_class:
+      - high_surface_on_normal_solid
+      - moderate_surface_on_normal_solid
+      - low_surface_on_normal_solid
+      - not_surface_detected_normal_solid
+      - data_unavailable
+    sc_surface_safety_essential_class:
+      - critical_organ_surface_liability   # surface display on a NON-origin critical solid organ (heart/kidney/spleen/thymus/lymph-node) — the hard-caution class for a biologic
+      - origin_tissue_surface_liability    # surface display ONLY in the tumor's tissue-of-origin — therapeutic-window-arbitrated, not a hard veto
+      - none                               # no safety-essential surface display above the mean-CLR floor
+      - data_unavailable                   # no solid-tissue surface shard covering the target, or insufficient donor coverage
+
+thresholds:
+  high_surface_mean_clr: 2.0
+  moderate_surface_mean_clr: 1.0
+  breadth_display_mean_clr: 1.0
+  min_reliable_donors: 5
+
+warning_predicates:
+  - warning_id: sc_surface_critical_organ_liability
+    if: "sc_surface_safety_essential_class == 'critical_organ_surface_liability'"
+    message: "{target.symbol} SURFACE protein on a NON-origin critical solid organ cell type ({max_surface_tissue}: {max_surface_cell_type}, mean-CLR {max_mean_clr}) — a bulk-invisible on-target/off-tumor hazard for a TCE/ADC/mAb. Safety caution, arbitrated by modality + therapeutic window."
+  - warning_id: sc_surface_solid_broad_display
+    if: "n_celltypes_surface_displaying >= 5"
+    message: "{target.symbol} surface protein is displayed on {n_celltypes_surface_displaying} distinct normal solid-organ cell types (mean-CLR >= 1.0) — broad normal-tissue SURFACE footprint. Narrow the therapeutic window before an unmasked biologic."
+  - warning_id: sc_surface_solid_data_unavailable
+    if: "sc_surface_normal_solid_class == 'data_unavailable'"
+    message: "{target.symbol} solid-tissue normal SURFACE assessment unavailable (target absent from the CITE-seq surface panel, or insufficient donor coverage). The solid-organ surface floor is UNKNOWN, not low — do NOT read absence as a favorable window."
+
+interpretation_hints:
+  - if: "sc_surface_safety_essential_class == 'critical_organ_surface_liability'"
+    call: "critical-organ surface liability: on-target off-tumor hazard"
+    dominant: true
+  - if: "sc_surface_normal_solid_class == 'high_surface_on_normal_solid'"
+    call: "broad/high normal solid-organ surface display"
+  - if: "sc_surface_normal_solid_class == 'not_surface_detected_normal_solid'"
+    call: "favorable: no solid-organ surface display detected"
+  - if: "sc_surface_normal_solid_class == 'data_unavailable'"
+    call: "not informative: not surface-profiled on solid tissue"
+
+caveats:
+  - "PROTEIN, single-cell, SOLID-organ sibling of sc-surface-normal-safety (immune/PBMC) and the SURFACE analogue of sc-normal-celltype-expression (RNA) + normal-tissue-liability (bulk HPA-IHC total protein). Report all four SIDE-BY-SIDE — surface protein decouples from both RNA and total protein; this is the solid-organ surface-specific off-tumor floor."
+  - "Class keys on PEAK cross-donor mean-CLR, NOT positive fraction: ADT ambient/spillover makes a per-cell CLR>0 count fire on ~every lineage (over-call); the mean-CLR level separates true surface display from spillover. Same discipline as the immune sibling."
+  - "high_surface_on_normal_solid / critical_organ_surface_liability is a SAFETY CAUTION (biologics on-target/off-tumor risk), NOT a target killer — its severity is arbitrated by modality + therapeutic window (modality-therapeutic-window) and the safety resolver. not_surface_detected_normal_solid is FAVORABLE."
+  - "origin_tissue_surface_liability (surface display confined to the tumor's tissue-of-origin) is therapeutic-window-arbitrated, NOT a hard veto — a validated on-tissue ADC target must survive it. Only NON-origin critical-organ surface display fires the hard caution."
+  - "A target ABSENT from the solid-tissue CITE-seq surface panel returns data_unavailable — not surface-profiled on solid organs, NEVER a safety pass. Coverage grows as additional HuBMAP / Tabula Sapiens-surface organ shards land."
+  - "CITE-seq surface panels are ANTIBODY-PANEL-LIMITED: a target is only assessable if an ADT probe was in the panel. Panel absence is a coverage gap (data_unavailable), distinct from measured non-display. min_reliable_donors=5 per tissue x cell type."
+
+measurement: sc_protein
+sample_context: normal          # normal-donor solid-organ cells (surface ADT / CITE-seq)
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the existing sc_normal_surface_protein claim (single-cell
+# normal SURFACE safety), SCOPE-EXTENDED to the solid safety-essential compartment. No new type: the
+# solid-tissue shard joins as an additional provider of sc_normal_surface_protein (mirrors how the
+# bone-marrow shard extended the immune v1). compartment_scope=solid_tissue distinguishes it from the
+# immune-PBMC sibling so the two are never conflated in the per-modality sub-verdict view.
+measurement_type: sc_normal_surface_protein
+modality_relevance: [adc, bite_tce, antibody]
+entity_grains: [target]
+status: placeholder_not_wired
+schema_version: 1

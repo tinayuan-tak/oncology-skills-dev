@@ -1,0 +1,148 @@
+# Card E1c — CRISPR-RNAi DEPENDENCY CONCORDANCE  (derived, partition-preserving)
+#
+# Derived card: reads CRISPR Chronos + RNAi DEMETER2 score columns for the target
+# and emits a per-cell-line concordance partition + overall concordance class.
+#
+# Partition-preserving union (locked 2026-06-30):
+#   - Every cell line measured in EITHER assay is reported in its accurate provenance bucket.
+#   - "Tested in only one assay" is NEVER imputed; it's its own bucket category.
+#   - The card surfaces n_in_both, n_crispr_only, n_rnai_only explicitly so the reader
+#     sees the coverage partition.
+#
+# DepMap-portal mirror: this card replicates the cross-assay-comparison view that
+# DepMap's "Perturbation effect" target page renders when both CRISPR + RNAi panels
+# are present for a gene. It does NOT introduce a new threshold — it consumes the
+# dependency_class labels the two upstream cards already produced.
+#
+# Concordance semantics:
+#   "dependent" in CRISPR  := Chronos ≤ -0.5 (CRISPR moderate-or-strong)
+#   "dependent" in RNAi    := DEMETER2 ≤ -0.25 (RNAi moderate-or-strong)
+# These thresholds match DepMap's "dependency present" call convention for each assay.
+
+card_id: crispr-rnai-dependency-concordance
+version: 1.0.0
+question: "For {target.symbol}, how do CRISPR (Chronos) and RNAi (DEMETER2) LOF dependency calls agree across the DepMap cell-line panels?"
+
+applies_when:
+  - "context.data_sources.depmap_chronos_available == true"
+  - "context.data_sources.depmap_rnai_available == true"
+
+required_inputs:
+  - product_id: depmap-consortium-26q1
+    release_pin: "{release_pin}"
+  - product_id: depmap-consortium-26q1-rnai
+    release_pin: "{release_pin}"
+
+# Derived-card declaration: this card depends on the two upstream cards' OUTPUTS,
+# not directly on raw data. The reachability validator will check both upstream cards
+# emit the fields this card reads.
+derived_from:
+  - card_id: pan-cancer-crispr-dependency-distribution
+  - card_id: pan-cancer-rnai-dependency-distribution
+
+methods:
+  - call: depmap-crispr-rnai-concordance
+    module: depmap_crispr_rnai_concordance
+    entrypoint: read_crispr_rnai_concordance
+    args:
+      target: "{target.symbol}"
+      release_pin: "{release_pin}"
+      crispr_dependent_threshold: "THRESHOLD.crispr_dependent_threshold"
+      rnai_dependent_threshold: "THRESHOLD.rnai_dependent_threshold"
+
+outputs:
+  summary_fields:
+    # === Partition counts (denominator surfacing) ===
+    - n_in_both                                  # cell lines measured in BOTH CRISPR and RNAi
+    - n_crispr_only                              # measured in CRISPR only
+    - n_rnai_only                                # measured in RNAi only
+    - n_total                                    # union total
+    # === In-both partition (true cross-assay concordance) ===
+    - n_agree_dependent                          # both assays call dependent
+    - n_agree_non_dependent                      # both assays call non-dependent
+    - n_disagree_crispr_dependent                # CRISPR dependent, RNAi non-dependent
+    - n_disagree_rnai_dependent                  # RNAi dependent, CRISPR non-dependent
+    - fraction_agree                             # (n_agree_dependent + n_agree_non_dependent) / n_in_both
+    - fraction_dependent_in_both                 # n_agree_dependent / n_in_both
+    # === Single-assay subsets (provenance surfacing, NOT imputed) ===
+    - n_crispr_only_dependent
+    - n_crispr_only_non_dependent
+    - n_rnai_only_dependent
+    - n_rnai_only_non_dependent
+    # === Overall categorical (drives Tier-2 rules) ===
+    - concordance_class
+    # === Per-line table (for plot_data + downstream queries) ===
+    - per_line_concordance                       # list of {model_id, ccle_name, lineage, concordance_label}
+
+  summary_fields_vocabulary:
+    concordance_class:
+      - strongly_concordant_dependent            # ≥85% agreement, majority dependent
+      - strongly_concordant_non_dependent        # ≥85% agreement, majority non-dependent
+      - moderately_concordant_dependent          # 0.70-0.85 agreement (middle band), majority dependent — honest label for the ambiguous zone (was mislabeled strongly_* pre-2026-08-08); fires the SAME dependent rung (verdict-inert)
+      - moderately_concordant_non_dependent      # 0.70-0.85 agreement (middle band), majority non-dependent
+      - discordant                               # ≥30% of overlap disagrees
+      - partially_assayed                        # not enough overlap to assess (< 30 lines)
+      - data_unavailable
+
+  figures:
+    - id: concordance_overlay_density
+      type: overlay_kde_with_rug
+      description: "Overlaid 1D KDEs of CRISPR (Chronos, blue) and RNAi (DEMETER2, orange) score distributions on a shared z-score-standardized x-axis (per-assay mean/std normalization). Per-assay rug ticks above the densities show every measured cell line; dotted verticals mark each assay's dependent threshold in z-score space. Replaces the older 2D scatter as primary because the 1D overlay reads agreement/discordance at-a-glance."
+      preferred_surfaces: [markdown, ppt, decision_memo]
+      primary: true
+    - id: concordance_partition_bar
+      type: stacked_bar
+      description: "Stacked bar showing partition counts: n_agree_dep, n_agree_nondep, n_disagree_*, n_crispr_only_*, n_rnai_only_*. Makes coverage gaps explicit."
+      preferred_surfaces: [markdown, ppt]
+    - id: concordance_scatter
+      type: scatter_with_quadrants
+      description: "Scatter of CRISPR Chronos (x) vs RNAi DEMETER2 (y) for in-both cell lines with dependency-call quadrant lines. Secondary; only points measured in BOTH appear."
+      preferred_surfaces: [markdown, ppt]
+  plot_data: per_cell_line_concordance_with_lineage_and_provenance
+
+thresholds:
+  # Dependent-call thresholds (must match upstream cards' threshold conventions)
+  crispr_dependent_threshold: -0.5               # Chronos ≤ -0.5 (moderate-or-strong)
+  rnai_dependent_threshold: -0.25                # DEMETER2 ≤ -0.25 (moderate-or-strong)
+  # Concordance-class derivation thresholds
+  min_overlap_for_call: 30                       # < 30 lines in both → partially_assayed
+  strongly_concordant_fraction_threshold: 0.85   # ≥85% agree in BOTH → strongly_concordant
+  discordant_fraction_threshold: 0.30            # ≥30% disagree → discordant
+
+threshold_roles:
+  crispr_dependent_threshold:
+    role: method_parameter
+    consumed_by: depmap-crispr-rnai-concordance
+  rnai_dependent_threshold:
+    role: method_parameter
+    consumed_by: depmap-crispr-rnai-concordance
+  strongly_concordant_fraction_threshold:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the crispr_rnai_concordance reference frame over `fraction_agree` (fraction), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'
+  # discordant_fraction_threshold is applied by the method, not by a card predicate (min_overlap_for_call
+  # IS predicate-referenced by low_overlap below, so it is deliberately absent here). Verified consumed in
+  # depmap_crispr_rnai_concordance/cli.py:117 (discordant_fraction: float = 0.30), applied at :193
+  # (elif (1.0 - fraction_agree) >= discordant_fraction -> concordance_class = 'discordant').
+  discordant_fraction_threshold:
+    role: method_parameter
+    consumed_by: depmap-crispr-rnai-concordance
+warning_predicates:
+  - warning_id: low_overlap
+    if: "n_in_both < THRESHOLD.min_overlap_for_call"
+    message: "Cell-line overlap between CRISPR and RNAi panels is small (< 30); concordance call may be unreliable. Read per-assay cards directly."
+  - warning_id: significant_discordance
+    if: "concordance_class == 'discordant'"
+    message: "CRISPR and RNAi disagree substantially. Treat single-assay dependency claims with caution; consider partial-knockdown vs knockout-saturation explanations."
+
+caveats:
+  - "Concordance is computed ONLY on cell lines measured in BOTH assays. Single-assay lines are reported in their provenance buckets (n_crispr_only_*, n_rnai_only_*) but never imputed."
+  - "Dependent-call thresholds (Chronos ≤ -0.5, DEMETER2 ≤ -0.25) are 'moderate-or-strong' rather than 'strong-only' — chosen to match DepMap portal's cross-assay comparison view."
+  - "Discordance can reflect biology (partial RNAi knockdown vs complete CRISPR knockout reveal different dependency thresholds) — not necessarily error."
+  - "Concordance class is descriptive — therapeutic interpretation lives in target-contracts/interpretation-rules/."
+
+# DATA_TO_SKILL_CONTRACT Rule 1/4 — view of the DERIVED `crispr_rnai_concordance` claim (do the two
+# orthogonal LOF assays agree?), derived_from [crispr_lof_dependency, rnai_lof_dependency]. The
+# comparison IS the claim — the canonical type→type DAG edge (appendix case 1).
+measurement_type: crispr_rnai_concordance
+entity_grains: [target]
+schema_version: 1

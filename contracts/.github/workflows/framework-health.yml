@@ -1,0 +1,66 @@
+name: framework-health
+
+# The repo's first repo-local CI workflow. Scoped deliberately to the
+# framework_health subpackage: runs its unit tests and the CI-safe --self-check
+# on the committed dashboard artifact.
+#
+# WHY --self-check (not --check): the full dashboard probes FOUR sibling repos
+# (skills / analysis-methods / data-products / data-catalog). A checkout-only
+# runner cannot reach them, so a full recompute would degrade and falsely report
+# STALE. --self-check validates the committed artifact's internal integrity alone
+# (schema, enum conformance, per-card verdict re-derivation, tally consistency) —
+# the invariants verifiable from this repo. Full cross-repo staleness stays a
+# local/manual guard (`--check` with siblings present).
+#
+# SCOPE NOTE — RETRACTED, and the follow-up it asked for has moved. It read: "this
+# intentionally does NOT yet run the whole repo test suite ...
+# test_measurement_types_vocab.py::test_real_vocabulary_is_clean fails on main
+# (pre-existing fusion measurement_type DAG gap) ... broadening THIS job to `pytest`
+# repo-wide should happen once that is resolved."
+#
+# Both halves are false now:
+#   * The premise: that test PASSES on trunk (14/14, no skips) — and it never ran in
+#     CI at all, so its state was never what gated anything.
+#   * The remedy: this job must NEVER host the repo-wide suite, because its
+#     `pull_request:` trigger is PATH-FILTERED to validators/framework_health/** and
+#     health/**. A repo-wide suite here would silently not run on a card-only or
+#     resolver-only PR — a green that means "not attempted". The suite belongs in
+#     contracts-validate, whose `pull_request:` has NO paths filter for exactly this
+#     reason (see its own header: a path-filtered REQUIRED check sits
+#     "Expected — waiting" forever and deadlocks the PR).
+#
+# This job stays deliberately narrow: the framework_health unit tests plus the CI-safe
+# artifact self-check. Repo-wide coverage is contracts-validate's job.
+
+on:
+  pull_request:
+    paths:
+      - "validators/framework_health/**"
+      - "health/**"
+      - ".github/workflows/framework-health.yml"
+  push:
+    branches: [main]
+    paths:
+      - "validators/framework_health/**"
+      - "health/**"
+
+jobs:
+  framework-health:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip pytest pyyaml jsonschema
+
+      - name: Unit tests (framework_health)
+        run: python -m pytest validators/framework_health/tests/ -q
+
+      - name: Self-check committed dashboard
+        run: python validators/framework_health/build_framework_health.py --self-check

@@ -1,0 +1,2525 @@
+# Tier-2 signal-mapping rules for the surface-intrinsic biology axis.
+# Maps card-emitted descriptive labels → per-modality signals consumed by
+# Tier-3 synthesis. Applies to surface-targeting modalities: ADC, TCE
+# (T-cell engager), naked antibody, radiopharmaceutical.
+#
+# Reviewer-driven arch upgrade A2 discipline (2026-07-08): rules fire ONLY
+# against BIOLOGY-AGNOSTIC card fields (family_class, topology_class,
+# fit_class, surface_density_class, cohort_rank_class, hotspot_pocket_
+# adjacency_call). LENS-CONDITIONAL fields (adc_grade, tce_grade,
+# adc_score, tce_score) are NOT consumed by rules — those are emitted only
+# when the modality lens is invoked at runtime, and treated as absent by
+# the rules engine when the lens is not invoked.
+
+rules_id: surface-intrinsic
+version: 1.1.0   # 2026-08-25: + block O2 — IEDB experimentally-validated pMHC epitope evidence
+                # (pmhc-iedb-tcell-validated-tce-supportive / -presented-tce-supportive; bite_tce-only).
+                # VERDICT-BEARING via the surface_modality pmhc_tce_supported rung (fires only with
+                # neither-viable-killer — the pMHC-TCE route when the folded-surface ladder is dead).
+axis: surface_intrinsic
+schema_version: 1
+
+rationale: |
+  Surface-intrinsic targets (extracellular / plasma-membrane proteins) are
+  pursued via ADC, TCE, naked antibody, and radiopharmaceutical modalities.
+  Therapeutic viability requires (a) confirmed surface residency +
+  favorable family class, (b) adequate epitope-accessibility per topology,
+  (c) sufficient tumor-vs-normal selectivity in the cohort context, and
+  (d) modality-appropriate turnover (high for ADC payload delivery, low
+  for TCE surface stability). This rules file encodes those modality-
+  specific requirements as signal mappings over descriptive evidence
+  labels — biology-first, lens-agnostic.
+
+rules:
+
+  # ============================================================================
+  # F1 — Surface-topology-and-ptm card
+  # ============================================================================
+
+  - rule_id: no-transmembrane-adc-killer
+    when:
+      card_id: surface-topology-and-ptm
+      field: topology_class
+      equals: no_transmembrane
+    signals:
+      adc: killer
+      bite_tce: killer
+      antibody: killer
+    killer_message: |
+      No transmembrane segment predicted. Target is either secreted (soluble)
+      or intracellular; neither is accessible for antibody-based modalities.
+    rationale: |
+      TMbed reports zero TM helices AND no signal peptide → likely cytosolic
+      protein. Requires cross-check with UniProt subcellular annotations before
+      hard-killing, but the categorical is unambiguous at Tier-2 signal-mapping.
+
+  - rule_id: single-pass-type1-adc-supportive
+    when:
+      card_id: surface-topology-and-ptm
+      field: topology_class
+      equals: single_pass_type_1
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    dominant: true
+    rationale: |
+      Single-pass type-I topology (N-term signal peptide + 1 TM + ECD-outside)
+      is the ADC-canonical topology. Trastuzumab-DXd, sacituzumab-govitecan,
+      enfortumab-vedotin, mirvetuximab-soravtansine — all target single-pass
+      type-I proteins. Best biology-first signal for surface-modality viability.
+
+  - rule_id: single-pass-type2-adc-supportive
+    when:
+      card_id: surface-topology-and-ptm
+      field: topology_class
+      equals: single_pass_type_2
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    dominant: true
+    rationale: |
+      Single-pass type-II topology (no signal peptide + 1 TM + ECD-outside).
+      Less common in ADC-approved targets but favorable — the C-terminal
+      extracellular domain is still antibody-accessible.
+
+  - rule_id: multi-pass-tce-concern
+    when:
+      card_id: surface-topology-and-ptm
+      field: topology_class
+      equals: multi_pass
+    signals:
+      adc: neutral
+      bite_tce: neutral
+      antibody: neutral
+    rationale: |
+      Multi-pass TM proteins (>= 2 TM helices) have limited extracellular
+      residue area for antibody engagement. Not a hard-kill — some multi-pass
+      surface proteins (e.g. CLDN18.2) work as TCE targets when the epitope-
+      specific antibody has sufficient affinity. But signal is neutral, not
+      supportive.
+
+  - rule_id: gpi-anchored-adc-concern
+    when:
+      card_id: surface-topology-and-ptm
+      field: topology_class
+      equals: gpi_anchored
+    signals:
+      adc: neutral
+      bite_tce: supportive
+      antibody: supportive
+    rationale: |
+      GPI-anchored proteins lack a canonical intracellular tail — endocytosis
+      motifs (YXXphi, NPXY, Dileucine) do not apply. ADC internalization may
+      require raft-mediated / caveolar pathways rather than clathrin-mediated.
+      Neutral for ADC, supportive for TCE (surface stability is often high).
+
+  - rule_id: isoform-selective-warning-modality-suppression
+    when:
+      card_id: surface-topology-and-ptm
+      field: isoform_selective_warning
+      equals: 'true'
+    signals:
+      adc: opposing
+      bite_tce: opposing
+      antibody: opposing
+    dominant: true
+    rationale: |
+      Target has a curated clinically-dominant alt isoform in the
+      isoform_selective_targets.yaml vocabulary. Gene-level topology / PTM /
+      ECD reasoning is systematically wrong. Fires a WARNING signal (not
+      killer) because the target may still be pursuable via isoform-specific
+      antibody; but the composed adc-tce-modality-fit card will suppress
+      lens-conditional letter grades regardless of biology-first signal.
+      Governance readers must use isoform-resolved measurement, not gene-
+      level rubric grades.
+
+  # ============================================================================
+  # F1b — ECD-engineerability (biologics-augment Phase 3.1, 2026-08-06)
+  # ============================================================================
+  # Makes the extracellular-domain SIZE a first-class biologics-substrate signal, keyed on the
+  # DERIVED `ecd_engineerability_class` (surface-topology-and-ptm card; from extracellular_residue_
+  # count + topology_class). Mirrors biologics-target-discovery's TopologyECDProvider: "is the
+  # exposed surface large enough to engineer a binder against?" — and, crucially, treats a LARGE ECD
+  # as a TCE-FAVORABLE substrate positive, not only an ADC epitope-accessibility gate (the card's
+  # prior framing). ADDITIVE signal-only: no resolver rung (surface_modality resolves off
+  # adc-tce-modality-fit.fit_class) → the verdict is byte-stable; these enrich the surface signal set.
+  # Complementary to topology_class rules (which key on TM count/orientation) — ECD SIZE is orthogonal
+  # to pass-count: a single-pass protein can still have a tiny (minimal) or ample (large) ectodomain.
+
+  - rule_id: ecd-large-biologics-supportive
+    when:
+      card_id: surface-topology-and-ptm
+      field: ecd_engineerability_class
+      equals: large_ecd
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    modality_importance:
+      adc: important
+      bite_tce: important
+      antibody: important
+    rationale: |
+      Large extracellular domain (>= 200 AA, extracellular-facing) — ample epitope area for
+      antibody engagement AND a strong bispecific-binder substrate. Supportive across all
+      antibody-based modalities. This is the ECD-SIZE argument, orthogonal to TM pass-count: a
+      large exposed ectodomain is the raw material a biologic is engineered against (the
+      TopologyECDProvider "engineerable surface" signal). Important importance for ADC/TCE.
+
+  - rule_id: ecd-moderate-biologics-supportive
+    when:
+      card_id: surface-topology-and-ptm
+      field: ecd_engineerability_class
+      equals: moderate_ecd
+    signals:
+      adc: neutral
+      bite_tce: supportive
+      antibody: supportive
+    rationale: |
+      Moderate extracellular domain (30-199 AA, extracellular-facing) — engineerable: there is a
+      real ectodomain to raise a binder against (TCE / antibody supportive). Neutral (not
+      supportive) for ADC, whose epitope-accessibility floor is higher (the card's
+      min_ecd_length_adc_favorable = 200) — a moderate ECD is bindable but the ADC epitope area is
+      constrained. Not a hard-kill; an affinity-tuned antibody can still work.
+
+  - rule_id: ecd-minimal-biologics-opposing
+    when:
+      card_id: surface-topology-and-ptm
+      field: ecd_engineerability_class
+      equals: minimal_ecd
+    signals:
+      adc: opposing
+      bite_tce: opposing
+      antibody: opposing
+    modality_importance:
+      adc: secondary
+      bite_tce: secondary
+      antibody: secondary
+    rationale: |
+      Minimal extracellular domain (< 30 AA, extracellular-facing) — too small to reliably
+      engineer a binder against, even though the protein IS surface-anchored. Opposing (NOT killer)
+      for all antibody modalities: the target has a membrane anchor but effectively no bindable
+      ectodomain (the classic multi-pass small-loop case, e.g. tiny GPCR/transporter loops).
+      Secondary importance — a real negative, but epitope-accessibility can occasionally be
+      rescued by a conformational / loop-specific binder, so it de-prioritizes rather than vetoes.
+
+  - rule_id: ecd-none-biologics-opposing
+    when:
+      card_id: surface-topology-and-ptm
+      field: ecd_engineerability_class
+      equals: no_extracellular_domain
+    signals:
+      adc: opposing
+      bite_tce: opposing
+      antibody: opposing
+    modality_importance:
+      adc: important
+      bite_tce: important
+      antibody: important
+    rationale: |
+      No accessible extracellular domain — either no transmembrane segment (secreted /
+      intracellular) or the longest domain faces the cytoplasm. There is no extracellular target
+      for an antibody-based biologic to engage. Opposing at important importance (the topology_class
+      no-transmembrane KILLER already hard-vetoes the 0-TM case; this ECD-orientation rule catches
+      the inside-facing-ECD variant that topology_class alone may not, and stays `opposing` to avoid
+      double-killing). data_unavailable emits NO rule (coverage gap, abstain — surfaced, not scored).
+
+  # ============================================================================
+  # F2 — Surfaceome-family-classification card
+  # ============================================================================
+
+  - rule_id: not-surface-adc-killer
+    when:
+      card_id: surfaceome-family-classification
+      field: family_class
+      equals: not_surface
+    signals:
+      adc: killer
+      bite_tce: killer
+      antibody: killer
+    killer_message: |
+      SURFY / HPA agreed the target is NOT surface-resident. Antibody-based
+      modalities require surface accessibility.
+
+  - rule_id: cd-molecule-tce-supportive
+    when:
+      card_id: surfaceome-family-classification
+      field: family_class
+      equals: cd_molecule
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    dominant: true
+    rationale: |
+      CD markers are canonical TCE targets — CD3, CD19, CD20, CD22, CD33,
+      CD79b, CD123 all clinically-precedented. Family class alone confers
+      supportive signal.
+
+  - rule_id: kinase-surface-adc-supportive
+    when:
+      card_id: surfaceome-family-classification
+      field: family_class
+      equals: kinase_surface
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    rationale: |
+      Receptor tyrosine kinases (HER2, HER3, MET, EGFR, ROR1, etc.) are
+      well-precedented ADC targets. Family class + surface confirmation is
+      an ADC-friendly baseline.
+
+  - rule_id: gpcr-adc-concern
+    when:
+      card_id: surfaceome-family-classification
+      field: family_class
+      equals: gpcr
+    signals:
+      adc: neutral
+      bite_tce: neutral
+      antibody: neutral
+    rationale: |
+      GPCRs have historically been challenging antibody-based targets due to
+      short extracellular loops and multi-pass topology. Neutral signal —
+      not disqualifying but not supportive.
+
+  # ============================================================================
+  # F3 — Structure-features-static card (surface-axis SIGNAL ONLY)
+  # ============================================================================
+  # structure-features-static is tier:target and consumed on BOTH axes. Its
+  # small-molecule FORWARD-ligandability signal (hotspot-in-druggable-pocket,
+  # pocket-adjacency, low-confidence, no-coverage) lives on the INTRACELLULAR axis
+  # (intracellular-intrinsic.rules.yaml, the `…-e8` block) — that is where the SM
+  # modality is scored. The surface axis only ever scores adc/bite_tce/antibody
+  # (surface-intrinsic-base enumerates [adc, bite_tce, antibody]; no small_molecule
+  # module loads), so an SM-scoped rule here emits a signal NOTHING consumes.
+  # The former `hotspot-in-druggable-pocket-sm-supportive` (small_molecule:supportive,
+  # dominant) was exactly that: a dead SM signal on the surface axis, byte-identical
+  # to the live `hotspot-in-druggable-pocket-sm-supportive-e8` intracellular twin.
+  # REMOVED 2026-07-20 (E card-hygiene sweep) so this card's SM ligandability has a
+  # single home (intracellular/E1). The one legitimately-surface signal — a topology
+  # neutral for the biologics modalities when structure is absent — is KEPT below.
+  - rule_id: no-structure-coverage-neutral
+    when:
+      card_id: structure-features-static
+      field: hotspot_pocket_adjacency_call
+      equals: no_structure
+    signals:
+      small_molecule: neutral
+      adc: neutral
+      bite_tce: neutral
+    rationale: |
+      Neither PDB nor AlphaFold has usable structural coverage. Cannot make
+      structure-based druggability call; treat as data-unavailable in
+      synthesis.
+
+  # ============================================================================
+  # F4 — Surfaceome-cohort-ranking card
+  # ============================================================================
+
+  - rule_id: top-1-percent-cohort-rank-supportive
+    when:
+      card_id: surfaceome-cohort-ranking
+      field: cohort_rank_class
+      equals: top_1_percent
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    dominant: true
+    rationale: |
+      Target is in the top 1% of surface proteins in the indication by
+      tumor-vs-normal effect size (cells_supporting-filtered). Strongest
+      cohort-context signal available.
+
+  - rule_id: rna-protein-disagreement-warning
+    when:
+      card_id: surfaceome-cohort-ranking
+      field: rna_protein_concordance
+      equals: disagreement
+    signals:
+      adc: opposing
+      bite_tce: opposing
+    rationale: |
+      RNA vs CPTAC protein signals point in opposite directions. For ADC/TCE
+      decisions where protein-level evidence is authoritative, this discordance
+      is a red flag — investigate before treating either signal as truth.
+
+  - rule_id: below-25-percent-cohort-rank-neutral
+    when:
+      card_id: surfaceome-cohort-ranking
+      field: cohort_rank_class
+      equals: below_25_percent
+    signals:
+      adc: neutral
+      bite_tce: neutral
+      antibody: neutral
+    rationale: |
+      Target is not in the top quartile of surface proteins in this
+      indication — the ADC/TCE-favorable cohort-context signal is absent.
+      Not a killer (target may still work if biology + tractability align),
+      but not supportive.
+
+  # ============================================================================
+  # F5 — Adc-tce-modality-fit composed card
+  # ============================================================================
+  # NOTE: rules fire on the BIOLOGY-AGNOSTIC fit_class categorical only.
+  # Letter grades (adc_grade, tce_grade) are lens-conditional and NOT
+  # consumed here — the rules engine treats them as absent when the modality
+  # lens is not invoked.
+
+  - rule_id: adc-preferred-supportive
+    when:
+      card_id: adc-tce-modality-fit
+      field: fit_class
+      equals: ADC_preferred
+    signals:
+      adc: supportive
+      bite_tce: neutral
+    dominant: true
+    rationale: |
+      Biology-agnostic fit class = ADC_preferred. Rubric weights favor ADC
+      over TCE based on topology + PTM + family features. Signal for the
+      ADC modality; TCE remains neutral.
+
+  - rule_id: tce-preferred-supportive
+    when:
+      card_id: adc-tce-modality-fit
+      field: fit_class
+      equals: TCE_preferred
+    signals:
+      adc: neutral
+      bite_tce: supportive
+    dominant: true
+
+  - rule_id: both-viable-supportive
+    when:
+      card_id: adc-tce-modality-fit
+      field: fit_class
+      equals: both_viable
+    signals:
+      adc: supportive
+      bite_tce: supportive
+    dominant: true
+    rationale: |
+      Both ADC and TCE viable per biology-agnostic assessment — governance-
+      grade multi-modality candidate. HER2 archetype.
+
+  - rule_id: neither-viable-killer
+    when:
+      card_id: adc-tce-modality-fit
+      field: fit_class
+      equals: neither_viable
+    signals:
+      adc: killer
+      bite_tce: killer
+    killer_message: |
+      Biology-agnostic assessment: neither ADC nor TCE viable. Cross-reference
+      the constituent surface-topology-and-ptm + surfaceome-family cards for
+      root-cause interpretation.
+
+  - rule_id: isoform-dependent-modality-suppression
+    when:
+      card_id: adc-tce-modality-fit
+      field: fit_class
+      equals: isoform_dependent_undefined
+    signals:
+      adc: opposing
+      bite_tce: opposing
+    dominant: true
+    rationale: |
+      Isoform-selective suppression fired — target has clinically-dominant
+      alt isoform. Gene-level letter grades are suppressed by the arch A3
+      guardrail; biology-first fit_class is undefined until isoform-resolved
+      measurement is provided.
+
+  - rule_id: modality-ambiguous-insufficient
+    when:
+      card_id: adc-tce-modality-fit
+      field: fit_class
+      equals: modality_ambiguous
+    signals:
+      adc: insufficient
+      bite_tce: insufficient
+    rationale: |
+      C2 fix (2026-07-20): `modality_ambiguous` (both A/B grades OR conflicting
+      surface biology) previously had NO rule — a target landing here fired nothing
+      and the surface-modality-fit skill fell through SILENTLY to `insufficient`, an
+      unhandled state masquerading as an honest gap. This makes the ambiguity an
+      EXPLICIT, provenance-carrying verdict: evidence is in-scope but does not resolve
+      a modality direction → `insufficient` for both biologic arms (NOT neutral, which
+      would imply no signal; NOT a killer, since the biology is present but mixed).
+      Governance readers should treat this as "surface biology is genuinely
+      inconclusive between ADC and TCE — needs disambiguating measurement", distinct
+      from neither_viable (a measured no) and data_unavailable (couldn't look).
+
+# ============================================================================
+# Phase F (surface abundance) — surface-abundance-density
+# Added 2026-07-14 (Pass 1 of legacy-cleanup): both surface_density_class and
+# hpa_ihc_intensity_class were emitted by the card but no rule keyed off
+# either, so surface-abundance evidence was decision-inert for ADC/TCE.
+# Threshold anchors from the card itself:
+#   tce_viability_copies_per_cell   = 1000    (Slaga 2018 Sci Transl Med)
+#   adc_high_payload_copies_per_cell = 10000
+# Note: today the card reads bulk-protein-MS as a proxy; when the HPA-IHC
+# card lands (per MODALITY_TAXONOMY.md), the IHC-specific hpa_ihc_intensity_class
+# rules below will fire against that data directly.
+# ============================================================================
+
+  - rule_id: surface-density-high-supportive
+    when:
+      card_id: surface-abundance-density
+      field: surface_density_class
+      equals: high
+    signals:
+      adc: supportive
+      bite_tce: supportive
+    dominant: true
+    rationale: |
+      Estimated surface density is high (>=10,000 copies/cell — the ADC
+      high-payload viability floor). Clears both the TCE lower bound
+      (~1,000) and the ADC high-payload bar. Dominant because surface
+      abundance is a hard viability constraint for both biologic modalities.
+
+  - rule_id: surface-density-moderate-supportive
+    when:
+      card_id: surface-abundance-density
+      field: surface_density_class
+      equals: moderate
+    signals:
+      adc: supportive
+      bite_tce: supportive
+    rationale: |
+      Moderate surface density (>=1,000 copies/cell — clears the TCE floor
+      but below the ADC high-payload bar). Supportive for both modalities;
+      ADC program may need a high-DAR / high-potency payload strategy.
+
+  - rule_id: surface-density-low-opposing
+    when:
+      card_id: surface-abundance-density
+      field: surface_density_class
+      equals: low
+    signals:
+      adc: opposing
+      bite_tce: opposing
+    rationale: |
+      Low surface density (below the 1,000 copies/cell TCE viability
+      threshold). Opposing signal for both biologic modalities — TCE
+      efficacy is jeopardized; ADC needs an ultra-potent payload strategy
+      or a bispecific-avidity mechanism. Not a hard killer (a strategy
+      response can still salvage the program), but governance readers
+      should require override justification.
+
+  # rule_id retains the historical `-killer` suffix for reference stability (rule_role_partition +
+  # cross-repo id pins), but its SEVERITY was demoted killer→opposing 2026-09-01 (surface-modality-fit
+  # assessment). Rationale: this rule fires on `surface_density_class`, the grade-D CPTAC×HPA order-of-
+  # magnitude ESTIMATE — NOT a bead-calibrated absolute count. The precise MEASURED signal
+  # (surface-density-below-tce-floor-measured-downgrade, below) is only OPPOSING → a DOWNGRADE, never a
+  # veto (the CD19 = ~110 copies/cell trap: a validated CAR-T/TCE antigen below the soluble-TCE floor).
+  # An ESTIMATE must not claim MORE certainty ("cannot be rescued", dominant killer) than the measured
+  # anchor it approximates. Demoted to opposing to remove that estimate-vs-measured asymmetry. Still an
+  # ADDITIVE display signal (no resolver rung keys on it; density does not feed fit_class) → verdict-inert.
+  - rule_id: surface-density-very-low-killer
+    when:
+      card_id: surface-abundance-density
+      field: surface_density_class
+      equals: very_low
+    signals:
+      adc: opposing
+      bite_tce: opposing
+    rationale: |
+      Very low ESTIMATED surface density (grade-D CPTAC×HPA estimate, well below the ~1,000 copies/cell
+      TCE viability floor and the ~10,000 copies/cell ADC high-payload bar). Strong OPPOSING signal for
+      both biologic modalities on abundance grounds — but NOT a hard killer: (a) it rests on an order-of-
+      magnitude estimate, not a bead-calibrated count, and (b) high-avidity binders / CAR-T geometry can
+      operate below the soluble-TCE floor (CD19 ~110 copies/cell). A MEASURED sub-floor density is
+      arbitrated by surface-density-below-tce-floor-measured-downgrade (also opposing). Governance
+      readers should require override justification.
+
+  - rule_id: surface-density-unmeasured-insufficient
+    when:
+      card_id: surface-abundance-density
+      field: surface_density_class
+      equals: unmeasured
+    signals:
+      adc: insufficient
+      bite_tce: insufficient
+    rationale: |
+      Surface density could not be estimated for this target (missing from
+      the bulk-protein cohort, or the surface-topology gate was not passed).
+      Coverage gap; not opposing evidence.
+
+  # MEASURED absolute-density floor (2026-08-09, modality-fit review — density-integrity fix).
+  # DISTINCT from surface-density-very-low-killer above (which fires on the grade-D CPTAC×HPA
+  # ESTIMATE, surface_density_class): THIS rule fires on density_floor_verdict, which the card sets
+  # ONLY from a MEASURED grade-A/B absolute copies-per-cell anchor (the bead-calibrated curated corpus;
+  # grade-gated at source → 'unmeasured' on grade E, never below_tce_floor). It is OPPOSING, NOT a
+  # killer — a MEASURED sub-soluble-TCE-floor density is a modality caveat, NOT a target killer: CD19
+  # is ~110 copies/cell yet a validated CAR-T/TCE antigen (high-avidity binders + the CAR-T geometry
+  # work below the soluble-TCE floor). The resolver turns this into a DOWNGRADE (surface_viable_density_
+  # caveated), never a veto. Complements the estimate-based killer above with a precise, cited signal.
+  - rule_id: surface-density-below-tce-floor-measured-downgrade
+    when:
+      card_id: surface-abundance-density
+      field: density_floor_verdict
+      equals: below_tce_floor
+    signals:
+      adc: opposing
+      bite_tce: opposing
+    rationale: |
+      MEASURED (grade A/B, bead-calibrated) absolute surface density sits below the ~1,000
+      copies/cell soluble-TCE viability floor (Slaga 2018). A modality-geometry caveat, NOT a
+      target killer — CD19 (~110 copies/cell) is a validated CAR-T/TCE antigen; high-avidity
+      binders and the CAR-T immunological synapse operate below the soluble-TCE floor. Opposing
+      (dosing/format-selection signal), never a veto. Fires only on a MEASURED value: an unmeasured
+      target's density_floor_verdict is 'unmeasured' and this rule does not fire (honest-negative).
+
+  # ---- hpa_ihc_intensity_class (independent categorical on the same card) ----
+  # These rules will fire only when HPA IHC data is joined to the card
+  # (per MODALITY_TAXONOMY.md, Slice Y candidate). Until then they lie
+  # dormant against `unmeasured`.
+
+  - rule_id: ihc-high-supportive
+    when:
+      card_id: surface-abundance-density
+      field: hpa_ihc_intensity_class
+      equals: high
+    signals:
+      adc: supportive
+      bite_tce: supportive
+    rationale: |
+      HPA IHC scores this target as HIGH intensity in the indication's
+      tissue-of-origin. Protein-level, spatial confirmation of surface
+      expression — the gold-standard modality-window signal biologic
+      programs anchor on (DLL3, HER2 canonical patterns).
+
+  - rule_id: ihc-medium-supportive
+    when:
+      card_id: surface-abundance-density
+      field: hpa_ihc_intensity_class
+      equals: medium
+    signals:
+      adc: supportive
+      bite_tce: neutral
+    rationale: |
+      HPA IHC scores this target as MEDIUM intensity. Sufficient for an
+      ADC program with reasonable payload potency; TCE efficacy is
+      abundance-sensitive at medium levels — proceed with caution.
+
+  - rule_id: ihc-low-opposing
+    when:
+      card_id: surface-abundance-density
+      field: hpa_ihc_intensity_class
+      equals: low
+    signals:
+      adc: opposing
+      bite_tce: opposing
+    rationale: |
+      HPA IHC scores this target as LOW intensity. Opposing signal for
+      both biologic modalities — low-intensity IHC is a common failure
+      pattern for TCE efficacy and ADC therapeutic index. Not a hard
+      killer; a governance override with a strong payload/avidity plan
+      can still proceed.
+
+  - rule_id: ihc-not-detected-killer
+    when:
+      card_id: surface-abundance-density
+      field: hpa_ihc_intensity_class
+      equals: not_detected
+    signals:
+      adc: killer
+      bite_tce: killer
+    dominant: true
+    killer_message: >
+      HPA IHC does not detect this target in the indication's tissue-of-origin.
+      Absence of protein-level surface staining is a hard killer for ADC and
+      TCE modalities — no surface substrate for either mechanism to engage.
+    rationale: |
+      HPA IHC does NOT detect this target in the indication's tissue-of-origin.
+      Absence of protein-level surface staining is a hard killer for both
+      ADC and TCE modalities. Dominant.
+
+  - rule_id: ihc-unmeasured-insufficient
+    when:
+      card_id: surface-abundance-density
+      field: hpa_ihc_intensity_class
+      equals: unmeasured
+    signals:
+      adc: insufficient
+      bite_tce: insufficient
+    rationale: |
+      HPA IHC data not joined to this card yet (pending HPA-IHC data-catalog
+      landing per MODALITY_TAXONOMY.md). Coverage gap; not opposing evidence.
+
+  # ============================================================================
+  # F3 — Shed-ectodomain-liability card (gate-F surface-window, 2026-07-19)
+  # ============================================================================
+  # A surface-present, correctly-targetable antigen whose ectodomain is shed as a
+  # soluble circulating decoy ("antigen sink") that neutralizes/sequesters an
+  # antibody/ADC/TCE before tumor delivery. `opposing`, NOT killer: approved and
+  # late-stage biologics exist against shed antigens (mirvetuximab/FOLR1 approved;
+  # MUC16/MSLN in advanced trials) — shedding de-prioritizes and drives epitope +
+  # dosing strategy, it does not categorically foreclose the modality.
+
+  - rule_id: shed-ectodomain-clinical-opposing
+    when:
+      card_id: shed-ectodomain-liability
+      field: shed_liability_class
+      equals: clinically_shed
+    signals:
+      adc: opposing
+      bite_tce: opposing
+      antibody: opposing
+    rationale: |
+      Target has a clinically-established shed ectodomain (an FDA-cleared /
+      widely-used serum tumor marker — CA125=MUC16, CA15-3=MUC1, SMRP=MSLN,
+      shed-HER2-ECD, CEA=CEACAM5). A circulating soluble decoy is a first-order
+      pharmacology liability for all antibody-based modalities: it binds drug in
+      the periphery before tumor delivery. Opposing (not killer) — require a
+      shed-resistant (membrane-proximal) epitope and model the antigen sink in
+      dose selection. DISTINCT from the isoform-loss mechanism (p95HER2/EGFRvIII
+      in isoform_selective_targets.yaml); a target may carry both.
+
+  - rule_id: shed-ectodomain-secretome-proxy-opposing
+    when:
+      card_id: shed-ectodomain-liability
+      field: shed_liability_class
+      equals: secretome_proxy_shed
+    signals:
+      adc: opposing
+      bite_tce: opposing
+      antibody: opposing
+    rationale: |
+      Target is not in the curated clinical shed-antigen vocabulary, but HPA
+      annotates it as secreted (proxy that a soluble form circulates and may act
+      as a partial antigen sink). Weaker than the clinical tier — confirm with
+      isoform-resolved / soluble-antigen measurement before an antibody/ADC/TCE
+      nomination. This is the tier that catches MUC13-class targets (secreted per
+      HPA, no established serum marker).
+
+  - rule_id: shed-ectodomain-indeterminate-insufficient
+    when:
+      card_id: shed-ectodomain-liability
+      field: shed_liability_class
+      equals: indeterminate
+    signals:
+      adc: insufficient
+      bite_tce: insufficient
+      antibody: insufficient
+    rationale: |
+      Shedding status could not be evidenced either way (gene absent from the
+      curated vocab and from HPA). COVERAGE GAP, NOT a trusted negative —
+      structured shedding sources systematically under-annotate shed receptors,
+      so absence of annotation must not be read as "not shed." Surfaced, not
+      scored against the modality.
+
+  # F3-measured (E3, 2026-08-07) — the MEASURED Olink conditioned-media facet.
+  # Fires on measured_shed_class (PARALLEL to shed_liability_class above; the card's
+  # annotation classes are UNCHANGED). Only the POSITIVE media_shed_high is verdict-
+  # relevant — a target empirically released into conditioned media across the DepMap
+  # panel is an antigen-sink liability corroborated by measurement, not just annotation.
+  # media_shed_low / not_on_secreted_panel / data_unavailable get NO rule: the panel is
+  # bounded + secretome-preselected, so a low/absent read is NON-informative (never a
+  # measured "not shed"). Opposing (not killer), same severity as the annotation tiers.
+  - rule_id: shed-ectodomain-measured-media-opposing
+    when:
+      card_id: shed-ectodomain-liability
+      field: measured_shed_class
+      equals: media_shed_high
+    signals:
+      adc: opposing
+      bite_tce: opposing
+      antibody: opposing
+    rationale: |
+      MEASURED antigen-sink signal: the target is empirically released into
+      conditioned media across the DepMap cell-line panel (Olink NPX at/above the
+      panel high bar, detected in multiple lines). Independent wet-lab corroboration
+      that a soluble form is shed/secreted — a first-order pharmacology liability for
+      all antibody-based modalities (drug bound in the periphery before tumor delivery).
+      A PARALLEL facet to the annotation-based shed_liability_class: it does not alter
+      that class, and only the positive media_shed_high fires (the Olink media panel is
+      bounded + secretome-preselected, so a low/off-panel read is non-informative, never
+      a measured "not shed"). Opposing (not killer) — drives epitope + antigen-sink
+      dosing strategy, does not foreclose the modality. In-vitro supernatant shedding
+      models, but does not prove, an in-vivo circulating-antigen sink.
+
+  # ============================================================================
+  # F4 — Normal-tissue-liability card (HPA IHC, WIRED 2026-07-20)
+  # ============================================================================
+  # The dominant biologics on-target-off-tumor SAFETY axis (previously data-blocked;
+  # HPA now landed). normal_tissue_breadth_class = IHC breadth across normal tissues.
+  # Modality-tiered severity: BiTE/TCE has NO buffer (any essential-tissue expression
+  # is disqualifying → killer); ADC has payload-bystander tolerance (→ opposing);
+  # antibody is binding-consequence-dependent (→ opposing). A NARROW normal footprint
+  # (restricted / not-detected) is a favorable window → supportive.
+
+  - rule_id: normal-tissue-essential-bite-killer
+    when:
+      card_id: normal-tissue-liability
+      field: essential_tissue_flag
+      equals: present
+    signals:
+      bite_tce: killer
+    dominant: true
+    killer_message: |
+      Target shows IHC protein expression in an ESSENTIAL normal tissue (CNS / heart /
+      liver / lung / kidney / bone marrow / pancreas). T-cell engagers have no payload
+      buffer and no binding-consequence gating — any essential-tissue expression is a
+      first-order on-target-off-tumor safety liability. Not viable for BiTE/TCE without
+      a mitigation strategy (conditional activation, dual-antigen gating).
+    rationale: |
+      The strict-modality (no-buffer) safety killer. TROP2/HER2-class normal-tissue tox.
+      ADC + antibody get an opposing (not killer) signal on the same evidence — they
+      have payload-bystander / binding-consequence tolerance the TCE lacks.
+
+  - rule_id: normal-tissue-essential-adc-antibody-opposing
+    when:
+      card_id: normal-tissue-liability
+      field: essential_tissue_flag
+      equals: present
+    signals:
+      adc: opposing
+      antibody: opposing
+    rationale: |
+      Essential-tissue expression is an on-target-off-tumor liability for ADC +
+      antibody too, but NOT a categorical killer: ADCs tolerate some normal-tissue
+      binding via payload/linker design + bystander effect; antibody consequence is
+      binding-context-dependent. Opposing → requires a therapeutic-window
+      justification (tumor-vs-normal differential), not an automatic veto.
+
+  - rule_id: normal-tissue-broad-opposing
+    when:
+      card_id: normal-tissue-liability
+      field: normal_tissue_breadth_class
+      equals: broad_normal_expression
+    signals:
+      adc: opposing
+      bite_tce: opposing
+      antibody: opposing
+    rationale: |
+      Protein detected broadly across normal tissues (HPA IHC 'Detected in all/many').
+      Broad normal footprint is an on-target-off-tumor liability for all biologic
+      modalities; the therapeutic window depends on the tumor-vs-normal differential
+      (tumor-selectivity card). Opposing, not killer — a strong tumor-vs-normal
+      overexpression can still open a window. (This fires even when the specific-tissue
+      list is empty — a broad gene has nothing 'tissue-specific', so breadth carries
+      the liability, not the essential-tissue flag.)
+
+  - rule_id: normal-tissue-restricted-supportive
+    when:
+      card_id: normal-tissue-liability
+      field: normal_tissue_breadth_class
+      equals: restricted_normal_expression
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    rationale: |
+      Protein detected in only a SINGLE normal tissue type (HPA IHC 'Detected in
+      single') — a favorable therapeutic window for biologics (narrow normal
+      footprint). Supportive; the single expressing tissue should still be checked
+      against the indication + essential-tissue flags (a single ESSENTIAL tissue still
+      fires the essential-tissue killer above — the two rules compose).
+
+  - rule_id: normal-tissue-not-detected-supportive
+    when:
+      card_id: normal-tissue-liability
+      field: normal_tissue_breadth_class
+      equals: not_detected_in_normal
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    dominant: true
+    rationale: |
+      Protein NOT detected in normal tissues by IHC — the most favorable biologics
+      safety profile (neoantigen-like / tumor-restricted, e.g. MLANA-class). Dominant
+      supportive: minimal on-target-off-tumor liability. (Confirm tumor expression via
+      the presence cards — 'not detected in normal' is a safety signal, not a presence
+      signal.)
+
+  - rule_id: normal-tissue-data-unavailable-insufficient
+    when:
+      card_id: normal-tissue-liability
+      field: normal_tissue_breadth_class
+      equals: data_unavailable
+    signals:
+      adc: insufficient
+      bite_tce: insufficient
+      antibody: insufficient
+    rationale: |
+      No HPA IHC tissue-distribution call for this target. COVERAGE GAP — normal-tissue
+      liability is UNKNOWN, NOT low. Must NOT be read as a favorable window (measured-
+      vs-null discipline: absence of a safety read is not a safety pass).
+
+  # ============================================================================
+  # GENOMIC → SURFACE MODALITY (P4 modality-vector emission; copy-number amplification) — 2026-07-23
+  # ============================================================================
+  # THE P4 fix: a genomic card (copy-number-distribution) previously had rules ONLY in the
+  # intracellular-intrinsic axis (small_molecule/degrader) → it was structurally INVISIBLE to the
+  # surface modality gate. These surface-axis rules give it its adc/bite_tce/antibody channel: a
+  # recurrent AMPLIFICATION is the antigen-density argument for biologics (more gene copies → more
+  # surface antigen → favorable ADC/TCE delivery). This is the "one card, two modality gates, divergent
+  # reads" of master-sequencing Example B: the SAME copy-number-distribution card reads adc-favorable
+  # here while its intracellular rules read the SM/degrader story.
+  #
+  # SIGNAL-ONLY (byte-stable): supportive/neutral only — NEVER killer (no killer_message, and a killer
+  # would be the signal most likely to be load-bearing). These rule_ids are NOT referenced by any
+  # resolver rung (surface_modality.resolver.yaml resolves solely off adc-tce-modality-fit.fit_class),
+  # so the modality-gate verdict spine is unchanged — verified via validate_resolvers + the SK golden.
+  - rule_id: cn-amplified-surface-antigen-supportive
+    when:
+      card_id: copy-number-distribution
+      field: copy_number_class
+      equals: recurrently_amplified
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    rationale: |
+      Recurrent focal+high amplification (>=20% of the panel) — copy-number gain typically elevates
+      surface antigen density, the delivery-address argument for antibody-based modalities (ADC payload
+      delivery, TCE/antibody engagement scale with antigen copies-per-cell). SUPPORTIVE for all three
+      surface lenses. NOT a standalone sufficiency call — surface LOCALIZATION (topology) + abundance
+      still gate viability; this is the genomic dosage input to that composite. Complements the SM/
+      degrader read the same card emits on the intracellular axis (P4 Example B divergence).
+
+  - rule_id: cn-deleted-surface-neutral
+    when:
+      card_id: copy-number-distribution
+      field: copy_number_class
+      equals: recurrently_deleted
+    signals:
+      adc: neutral
+      bite_tce: neutral
+      antibody: neutral
+    rationale: |
+      Recurrent deletion is NOT a surface-antigen-density argument (fewer copies ≠ more surface
+      protein), and is not itself a contra-indication for a biologic (a deleted gene may still be a
+      valid antigen in the retained-allele population). Neutral on the surface axis — deletion's
+      therapeutic story is intracellular / synthetic-lethality, not antigen delivery.
+
+  - rule_id: cn-neutral-surface-neutral
+    when:
+      card_id: copy-number-distribution
+      field: copy_number_class
+      equals: broadly_neutral
+    signals:
+      adc: neutral
+      bite_tce: neutral
+      antibody: neutral
+    rationale: |
+      Copy-number-neutral across the panel — no dosage argument either way for surface antigen
+      density. Neutral; the antigen-presence call rests on the protein/expression cards, not CN.
+
+  # ============================================================================
+  # CROSS-MODALITY INTERPRETATION MATRIX — surface reads of the genomic driver ROLE — 2026-07-23
+  # ============================================================================
+  # (modality-specific-interpretation plan, Bucket A.) The SAME alteration-role fact reads DIFFERENTLY
+  # per modality. The intracellular axis already carries its SM/degrader read (alteration-role-gof-
+  # driver-supportive / -lof-driver-neutral, resolver-wired). These add the SURFACE-axis reads that
+  # were MISSING — so an activating/LoF driver isn't silently mute on the biologics lenses. NEW
+  # rule_ids (modality-matrix-*) DISTINCT from the resolver-wired alteration-role-*/cn-* ids → NO
+  # resolver rung references them → verdict spine byte-stable (signal-only, feeds the modality gate).
+  # modality_importance encodes the spec's Critical/Important/Secondary weights per channel.
+  #
+  # SCOPE (3 LIVE alteration-classes only): activating-mutation + loss-of-function keyed here on
+  # alteration-role.functional_direction; AMPLIFICATION's surface read already exists
+  # (cn-amplified-surface-antigen-supportive, P4). The other matrix rows are deliberately NOT
+  # encoded as surface rules — for TWO different reasons:
+  #   SUBSTRATE NOW LANDED, encoding is a scoping decision (not a data block):
+  #   - FUSION: fusion-rearrangement-landscape is LIVE (tcga-fusion-consensus-v1, 3-caller TCGA
+  #     consensus). A fusion_class → surface-modality row is a future scope item, not blocked.
+  #   - PROMOTER METHYLATION: functional-gene-state is now full phase-2b (epigenetic states LIVE via
+  #     GDC-SeSAMe HM450 + CCLE RRBS). An epigenetic-silencing → surface row is a future scope item.
+  #   STILL GENUINELY ABSENT:
+  #   - RESISTANCE MUTATION: no card emits a resistance-substitution class yet.
+  #   - PARALOG del/silencing: paralog-buffering carries buffering, not a del/silencing class.
+  - rule_id: modality-matrix-activating-role-surface-neutral
+    when:
+      card_id: alteration-role
+      field: functional_direction
+      equals: activating
+    signals:
+      adc: neutral
+      bite_tce: neutral
+      antibody: neutral
+    modality_importance:
+      adc: secondary
+      bite_tce: secondary
+      antibody: secondary
+    rationale: |
+      Target is an ACTIVATING driver (GoF). This is the classic SM-inhibitor / degrader story (carried
+      on the intracellular axis) — but activation ALONE says nothing about SURFACE accessibility, which
+      is what the biologics lenses need. NEUTRAL for adc/bite_tce/antibody: an activating mutation in an
+      INTRACELLULAR driver is not a surface antigen (you cannot ADC/TCE-engage a cytoplasmic kinase's
+      activation). Secondary importance — the surface-viability call rests on topology/abundance, not
+      the driver direction; this rule prevents the GoF signal from being mistaken as a biologics plus.
+
+  - rule_id: modality-matrix-lof-role-surface-antigen-loss-opposing
+    when:
+      card_id: alteration-role
+      field: functional_direction
+      equals: loss_of_function
+    signals:
+      adc: opposing
+      bite_tce: opposing
+      antibody: opposing
+    modality_importance:
+      adc: important
+      bite_tce: important
+      antibody: important
+    rationale: |
+      Target is a LOSS-OF-FUNCTION driver (tumor suppressor). For antibody-based modalities this is a
+      CAUTION toward OPPOSING: LoF alterations frequently ELIMINATE the protein (nonsense/frameshift/
+      deletion) → antigen LOSS → the biologic has no target to bind (an antigen-loss resistance mode).
+      NOT a hard killer (some LoF is missense-retaining protein, and residual/wild-type-allele antigen
+      may persist), but the default surface read of an LoF driver is unfavorable. Important importance —
+      antigen presence is a Critical prerequisite for a biologic, and LoF directly threatens it.
+      Contrast the intracellular axis, where LoF routes to the synthetic-lethality / SM story.
+
+  # ============================================================================
+  # G — Protein-surface-evidence card (P4, 2026-07-24)
+  # Fixes the "declared-relevant-but-mute" state: the card declares
+  # modality_relevance [adc, bite_tce, antibody] but had NO surface-axis rule,
+  # so its surface_accessibility_call never reached the biologics gates. These
+  # two rules key off the biology-agnostic categorical (A2 discipline — NOT the
+  # lens-conditional grade/score fields).
+  # ============================================================================
+
+  # FIELD RECONCILED 2026-08-04: these rules keyed on `surface_accessibility_call`, which the LIVE
+  # CSPA provider (cspa_surface_confirmation) emits `surface_confirmation_class`
+  # {confirmed_high | confirmed | not_surface | data_unavailable} (VERIFIED live 2026-08-17:
+  # ERBB2/EGFR/MSLN -> confirmed_high). The POSITIVE rule previously keyed `equals:
+  # cell_surface_confirmed` — a doc token the reader never emits — so it was silently DEAD on live
+  # data (only the negative `not_surface` fired, biasing the surface narrative negative). Now keyed on
+  # the real emitted positives via `in: [confirmed_high, confirmed]`. The negative case is `not_surface`
+  # (CSPA measured-absence), NOT the old `intracellular_only` (a UniProt assertion CSPA does not produce).
+  - rule_id: protein-surface-confirmed-supportive
+    when:
+      card_id: protein-surface-evidence
+      field: surface_confirmation_class
+      in: [confirmed_high, confirmed]   # 2026-08-17 (S2): the reader emits confirmed_high/confirmed,
+                                         # NOT the old `cell_surface_confirmed` — this positive rule
+                                         # was DEAD on live data (only the negative fired). Live-verified.
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    modality_importance:
+      adc: important
+      bite_tce: important
+      antibody: important
+    rationale: |
+      Protein-level surface residency is CONFIRMED — CSPA (Cell Surface Protein Atlas, mass-spec
+      cell-surface capture) measured the target on the extracellular surface. Surface accessibility is
+      the critical prerequisite for every antibody-based modality, so a positive protein-level
+      confirmation is directly supportive across adc/bite_tce/antibody. Important importance — this is
+      measured protein evidence (not an RNA proxy), the strongest presence signal the surface gate can
+      receive.
+
+  - rule_id: protein-not-surface-opposing
+    when:
+      card_id: protein-surface-evidence
+      field: surface_confirmation_class
+      equals: not_surface
+    signals:
+      adc: opposing
+      bite_tce: opposing
+      antibody: opposing
+    modality_importance:
+      adc: secondary
+      bite_tce: secondary
+      antibody: secondary
+    rationale: |
+      The target was NOT detected on the surface in CSPA (a measured-negative from one atlas). Unlike
+      a UniProt-confirmed intracellular-only localization (a hard killer), a CSPA measured-absence is
+      weaker evidence — the atlas covers the cell lines assayed, not every context, and masking /
+      low-abundance surface pools can evade capture. So this is OPPOSING (a real negative that argues
+      against surface modalities) rather than a KILLER veto, at moderate (not important) importance.
+      A corroborating intracellular-only localization call would strengthen it to a killer.
+
+  # 2026-09-04 Phase-6 (VERDICT-MOVING): the surface annotation-INFLATION gate. fit_class is composed from
+  # surfaceome-FAMILY membership + sequence-PREDICTED topology ONLY — it never consumes CSPA/HPA-IF measured
+  # surface protein, density, or measured internalization. So a positive fit_class can rest on family/RNA/
+  # topology annotation with the protein/spatial evidence UNCONFIRMING it (LGR5 = GPCR-family TCE_preferred,
+  # CSPA not_surface, no clinical biologic). The surface_modality card preprocessor derives the cross-card
+  # surface_confirmation_state; this rule fires ONLY the annotation_only class (positive fit + NO confirmed
+  # protein + NO clinical precedent). It feeds the surface_annotation_only_unconfirmed resolver rung, which
+  # DEMOTES a clean-looking positive to a NON-NOMINATING caveat verdict — BUT only when no higher-priority
+  # safety/escape/shed/density liability outranks it (those are the more fundamental call). The
+  # clinically_precedented / confirmed_protein classes DO NOT fire this rule (DLL3/CEACAM5/ERBB2/MSLN spared —
+  # the CSPA false-negative trap the naive clamp fell into). Analog of tractability's annotation_only_indirect.
+  - rule_id: surface-annotation-only-unconfirmed-opposing
+    when:
+      card_id: adc-tce-modality-fit
+      field: surface_confirmation_state
+      equals: annotation_only
+    signals:
+      adc: opposing
+      bite_tce: opposing
+      antibody: opposing
+    modality_importance:
+      adc: secondary
+      bite_tce: secondary
+      antibody: secondary
+    rationale: |
+      The positive surface-modality call (fit_class ADC_preferred / TCE_preferred / both_viable) rests on
+      surfaceome-FAMILY membership + sequence-PREDICTED topology ALONE — there is NO confirmed cell-surface
+      protein (CSPA/HPA-IF) and NO clinically-validated biologic (ADC/TCE/CAR/mAb) precedent for the target.
+      fit_class does not consume measured surface protein, so a family/RNA-annotated target can read
+      ADC/TCE-favorable while the protein/spatial evidence does not confirm it (the surface annotation-
+      INFLATION trap). This OPPOSES all antibody-based modalities at secondary importance — a looks-surface-
+      accessible-but-UNCONFIRMED flag, not a killer. A CSPA/HPA-IF confirmation OR a clinical-biologic
+      precedent removes it (surface_confirmation_state becomes confirmed_protein / clinically_precedented).
+
+  # ============================================================================
+  # H — Protein-presence-cptac card (P4 Tier-2, 2026-07-24)
+  # The SM/degrader axis already reads protein_expression_class (intracellular
+  # rules). For biologics, tumor protein ABUNDANCE is the antigen-presence
+  # prerequisite: an ADC/TCE needs the protein physically present on tumor cells.
+  # ============================================================================
+
+  - rule_id: protein-abundance-strong-up-surface-supportive
+    when:
+      card_id: tumor-protein-abundance-cptac
+      field: protein_expression_class
+      equals: strong_up
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    modality_importance:
+      adc: important
+      bite_tce: important
+      antibody: important
+    rationale: |
+      Strong tumor-vs-normal protein differential (CPTAC, q<0.05, effect>=1.5). Measured protein
+      ABUNDANCE is the antigen-presence prerequisite for every biologic — a strong up-call is direct
+      supportive evidence the antigen is physically present on tumor cells to be bound. Important
+      importance: protein presence is Critical for ADC/TCE and this is the measured-protein arm.
+
+  # NOTE (2026-08-20, tumor-presence review G2a): the former `protein-absent-surface-killer` rule was
+  # removed — the ADC/TCE/antibody analogue of the intracellular protein-not-detected killer. It keyed on
+  # tumor-protein-abundance-cptac.protein_expression_class == not_detected, but cptac_protein_deg never
+  # emits not_detected (a protein missing from the CPTAC MS resolves to data_unavailable — the honest MNAR
+  # coverage-gap default). Whole-proteome TMT cannot assert per-gene ABSENCE, so this was a dead rung; the
+  # not_detected card vocab value was removed with it. Surface-modality antigen-absence, when needed, must
+  # come from a surface-specific measurement (topology / surface-abundance-density), not this whole-cell
+  # tumor-vs-normal contrast card.
+
+  # ============================================================================
+  # I — RNA-protein-concordance-tumor card (P4 Tier-2, 2026-07-24)
+  # rna_as_biomarker says whether tumor RNA is a trustworthy proxy for protein.
+  # For biologics this is a proxy-CAUTION: an ADC/TCE targets the PROTEIN antigen,
+  # so a poor RNA-protein proxy means RNA-based abundance cannot stand in for the
+  # antigen-presence argument — protein must be measured.
+  # ============================================================================
+
+  - rule_id: rna-poor-proxy-surface-warning
+    when:
+      card_id: rna-protein-concordance-tumor
+      field: rna_as_biomarker
+      equals: poor_proxy
+    signals:
+      adc: opposing
+      bite_tce: opposing
+      antibody: opposing
+    modality_importance:
+      adc: important
+      bite_tce: important
+      antibody: important
+    rationale: |
+      Tumor RNA is a POOR proxy for protein for this target. Biologics target the protein antigen, so
+      an RNA-based presence/abundance argument cannot be trusted — protein must be measured directly
+      (CPTAC/IHC) before an ADC/TCE antigen-presence claim. Warning (governance), not a killer: it flags
+      that the RNA evidence is inadequate for the surface decision, not that the target is unviable.
+
+  - rule_id: rna-adequate-proxy-surface-supportive
+    when:
+      card_id: rna-protein-concordance-tumor
+      field: rna_as_biomarker
+      equals: adequate_proxy
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    modality_importance:
+      adc: secondary
+      bite_tce: secondary
+      antibody: secondary
+    rationale: |
+      Tumor RNA tracks protein well for this target — RNA-based abundance/prevalence evidence is a
+      trustworthy surrogate for the antigen-presence argument. Secondary importance: it licenses the
+      RNA evidence to support the surface call, but measured protein remains the preferred anchor.
+
+  # ============================================================================
+  # I' — sc-surface RNA-protein-concordance card (single-cell SURFACE arm)
+  # The single-cell surface sibling of Block I. rna_as_biomarker here is measured against the
+  # SURFACE antigen (CITE-seq ADT) across cell types — the exact quantity a biologic must reach,
+  # and the layer where RNA↔protein decoupling is WORST (trafficking/shedding/internalization).
+  # Same routing as Block I (adc/bite_tce/antibody), keyed on the sc-surface card_id (the tumor
+  # rule above will NOT fire for this card_id). Reported side-by-side with the tumor arm.
+  # ============================================================================
+
+  - rule_id: sc-surface-rna-poor-proxy-warning
+    when:
+      card_id: sc-surface-rna-protein-concordance
+      field: rna_as_biomarker
+      equals: poor_proxy
+    signals:
+      adc: opposing
+      bite_tce: opposing
+      antibody: opposing
+    modality_importance:
+      adc: important
+      bite_tce: important
+      antibody: important
+    rationale: |
+      Single-cell RNA is a POOR proxy for this target's SURFACE protein (ADT): the cell types with high
+      RNA are not the cell types with high surface antigen — the decoupling (trafficking, shedding,
+      internalization) that surface proteomics exposes and total-protein/bulk concordance misses. A
+      biologic (ADC/TCE/mAb) engages the surface antigen, so an scRNA-based surface-presence argument
+      cannot be trusted — surface protein must be measured directly (CITE-seq/flow/IHC) before the
+      antigen-presence claim. Warning (governance), not a killer: the RNA evidence is inadequate for the
+      surface decision, not the target unviable.
+
+  - rule_id: sc-surface-rna-adequate-proxy-supportive
+    when:
+      card_id: sc-surface-rna-protein-concordance
+      field: rna_as_biomarker
+      equals: adequate_proxy
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    modality_importance:
+      adc: secondary
+      bite_tce: secondary
+      antibody: secondary
+    rationale: |
+      Single-cell RNA tracks the SURFACE antigen well for this target across cell types — scRNA-based
+      abundance/prevalence evidence is a trustworthy surrogate for the surface antigen-presence argument.
+      Secondary importance: it licenses the RNA evidence to support the surface call, but measured
+      surface protein remains the preferred anchor.
+
+  # ============================================================================
+  # I'' — Surface same-cell co-localization / AVIDITY card (bispecific AND-gate)
+  # samecell_avidity_class = whether the target co-expresses with a candidate partner on the SAME
+  # malignant cells. For an AND-gate bispecific (TCE / dual ADC / bispecific mAb) this is the
+  # avidity requirement bulk co-expression cannot establish. Routing is bispecific-modality:
+  # coordinated → a viable dual-targeting partner exists (supportive); mutually_exclusive → avidity
+  # FAILS despite bulk co-expression (opposing, the decision-relevant negative). independent /
+  # avidity_unconfirmed carry no signal (both antigens present but not same-cell coordinated).
+  # ============================================================================
+
+  - rule_id: samecell-coordinated-avidity-supportive
+    when:
+      card_id: surface-colocalization-avidity
+      field: samecell_avidity_class
+      equals: same_cell_coordinated
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    modality_importance:
+      adc: secondary
+      bite_tce: important
+      antibody: secondary
+    rationale: |
+      The target co-expresses with a candidate partner antigen on the SAME malignant cells (same-cell
+      enrichment >= independence) — an AND-gate bispecific / dual-targeting agent has a viable partner,
+      the avidity requirement bulk pair co-expression cannot establish. Most important for bite_tce
+      (bispecific T-cell engagers depend on dual same-cell engagement); secondary for dual/biparatopic
+      ADC + bispecific mAb. Not a monospecific-target signal.
+
+  - rule_id: samecell-mutually-exclusive-avidity-opposing
+    when:
+      card_id: surface-colocalization-avidity
+      field: samecell_avidity_class
+      equals: same_cell_mutually_exclusive
+    signals:
+      adc: opposing
+      bite_tce: opposing
+      antibody: opposing
+    modality_importance:
+      adc: secondary
+      bite_tce: important
+      antibody: secondary
+    rationale: |
+      The target's best candidate partner is MUTUALLY EXCLUSIVE at single-cell resolution — the two
+      antigens are rarely on the same malignant cell (enrichment <= independence) despite bulk
+      co-expression. An AND-gate bispecific's avidity FAILS: it cannot engage both antigens on one cell.
+      The decision-relevant NEGATIVE that the bulk pair-scan misses. Opposing for the bispecific
+      modalities (important for bite_tce); does not veto a monospecific approach to the target.
+
+  # ----------------------------------------------------------------------------
+  # window_verdict = the SELECTIVITY WINDOW: tumor same-cell engagement AND normal-tissue
+  # selectivity, combined. The safety complement to samecell_avidity_class (which is tumor-only):
+  # it reads the pan-tissue normal same-cell cube sc-samecell-coexpr-normal-v1 and asks whether
+  # any well-powered normal cell type co-expresses BOTH antigens on the same cell. COMPLEMENTARY,
+  # not a replacement — samecell_avidity_class carries "is there a tumor partner"; window_verdict
+  # adds "and is it selective vs normal". no_window is the safety negative neither bulk nor
+  # tumor-only avidity can express.
+  # ----------------------------------------------------------------------------
+
+  - rule_id: selectivity-window-open-supportive
+    when:
+      card_id: surface-colocalization-avidity
+      field: window_verdict
+      equals: window_open
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    modality_importance:
+      adc: secondary
+      bite_tce: important
+      antibody: secondary
+    rationale: |
+      The best AND-gate partner co-expresses with the target on the SAME malignant cells (tumor
+      coordinated, both-fraction >= TAU) AND no well-powered normal cell type co-expresses both on
+      the same cell (normal selectivity_clean over the >=3-donor/>=10-cell support floor). The
+      avidity AND-gate has a partner that is both engageable in tumor and selective against normal —
+      the full window a tumor-intrinsic bispecific needs. Most important for bite_tce; the normal
+      side is an RNA-level lower bound on risk, so a clean window is necessary, not sufficient.
+
+  - rule_id: selectivity-window-normal-liability-opposing
+    when:
+      card_id: surface-colocalization-avidity
+      field: window_verdict
+      equals: no_window
+    signals:
+      adc: opposing
+      bite_tce: opposing
+      antibody: opposing
+    modality_importance:
+      adc: secondary
+      bite_tce: important
+      antibody: secondary
+    rationale: |
+      The best tumor AND-gate partner FAILS the normal selectivity gate: a well-powered normal cell
+      type co-expresses BOTH antigens on the same cell (normal_liability_locus names the driving
+      tissue / cell_type). An avidity bispecific tuned to co-engage both antigens will also engage
+      that normal cell — the on-target/off-tumor safety negative that bulk pair-scans and tumor-only
+      same-cell avidity both miss. Opposing for the bispecific modalities (important for bite_tce);
+      does not veto a monospecific approach to the target.
+
+  - rule_id: selectivity-window-unproven-insufficient
+    when:
+      card_id: surface-colocalization-avidity
+      field: window_verdict
+      equals: selectivity_unproven
+    signals:
+      adc: insufficient
+      bite_tce: insufficient
+      antibody: insufficient
+    modality_importance:
+      adc: secondary
+      bite_tce: important
+      antibody: secondary
+    rationale: |
+      Tumor engagement is coordinated, but NO normal (tissue, cell_type) group clears the support
+      floor (>=3 donors & >=10 cells) for the pair — the normal selectivity gate is under-powered,
+      not clean. Absence of a measurable normal liability under thin coverage is NOT evidence of
+      safety, so this is a coverage gap (insufficient), never a fabricated pass. Resolve by adding
+      normal-atlas coverage for the driving tissue rather than reading it as selectivity.
+
+  # ============================================================================
+  # I'''' — BULK tumor-vs-normal AND-gate pair-selectivity (bispecific NECESSITY signal, 2026-08-24)
+  # ============================================================================
+  # Keyed on best_and_call_class (surface-bulk-pair-selectivity card): the rule-matchable companion to
+  # the free-text best_and_call. This card was the ONE biologics card with no rules — its bispecific
+  # AND-gate necessity signal reached only the LLM narrative (druggability audit). These rules give it
+  # a STRUCTURED, auditable signal. NECESSITY not sufficiency: bulk co-expression in a SAMPLE is
+  # necessary but not sufficient for same-CELL avidity (that is surface-colocalization-avidity) — so the
+  # supportive signal is a bispecific CANDIDATE-GENERATION cue, secondary importance, NOT a monospecific
+  # positive. ADDITIVE signal-only: in NO resolver rung → surface_modality verdict BYTE-STABLE; enriches
+  # the bispecific signal set + confidence. no_selective_pair / data_unavailable fire NO rule (abstain).
+  # ============================================================================
+
+  - rule_id: bulk-pair-and-selective-supportive
+    when:
+      card_id: surface-bulk-pair-selectivity
+      field: best_and_call_class
+      equals: selective_and_pair
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    modality_importance:
+      bite_tce: secondary
+      adc: secondary
+      antibody: secondary
+    rationale: |
+      A clinical-seed AND-gate partner makes the target tumor-selective at the BULK tumor-vs-normal
+      grain AND stays clean on non-essential normal (best_and_call_class=selective_and_pair). A
+      candidate-generation NECESSITY cue for a logic-gated bispecific (dual-ADC / AND-gate TCE) —
+      secondary importance because same-cell avidity (surface-colocalization-avidity) is the SUFFICIENCY
+      confirmation this bulk-sample signal cannot provide. Additive; does not move the modality verdict.
+
+  - rule_id: bulk-pair-and-broad-tissue-liability-opposing
+    when:
+      card_id: surface-bulk-pair-selectivity
+      field: best_and_call_class
+      equals: selective_but_broad_tissue_liability
+    signals:
+      adc: opposing
+      bite_tce: opposing
+      antibody: opposing
+    modality_importance:
+      bite_tce: secondary
+      adc: secondary
+      antibody: secondary
+    rationale: |
+      The best AND-gate pair is selective vs ESSENTIAL normal but fires broadly in NON-essential normal
+      tissue (Theme-1 broad-tissue liability). Opposing (secondary) — a broad normal footprint erodes the
+      logic-gate's therapeutic window even when essential organs are spared. Additive; verdict-inert.
+
+  - rule_id: bulk-pair-and-not-selective-opposing
+    when:
+      card_id: surface-bulk-pair-selectivity
+      field: best_and_call_class
+      equals: not_selective
+    signals:
+      adc: opposing
+      bite_tce: opposing
+      antibody: opposing
+    modality_importance:
+      bite_tce: secondary
+      adc: secondary
+      antibody: secondary
+    rationale: |
+      The best available AND-gate pair also co-fires in an ESSENTIAL normal tissue — the logic gate does
+      not open a tumor-selective window. Opposing (secondary). Additive; verdict-inert. (no_selective_pair
+      = co-expression too rare in tumor, and data_unavailable, fire NO rule — coverage gaps, not negatives.)
+
+  # ============================================================================
+  # I''' — sc NORMAL SURFACE-PROTEIN safety card (single-cell off-tumor floor)
+  # sc_surface_normal_class = whether the target's SURFACE protein is displayed on normal immune cell
+  # types (CITE-seq). The surface off-tumor floor bulk GTEx/HPA misses: a CD antigen on resting T cells
+  # / hematopoietic subsets is a TCE/ADC killing hazard. high → opposing (safety caution);
+  # not_detected → supportive (favorable — antigen absent from normal immune surface, e.g. BCMA).
+  # moderate/low carry no signal (present but not a clear off-tumor floor).
+  # ============================================================================
+
+  - rule_id: sc-surface-high-normal-immune-safety-opposing
+    when:
+      card_id: sc-surface-normal-safety
+      field: sc_surface_normal_class
+      equals: high_surface_on_normal_immune
+    signals:
+      adc: opposing
+      bite_tce: opposing
+      antibody: opposing
+    modality_importance:
+      adc: important
+      bite_tce: important
+      antibody: secondary
+    rationale: |
+      The target's SURFACE protein is highly displayed on a normal immune cell type at single-cell
+      resolution — an on-target/off-tumor hazard bulk GTEx/HPA misses (a CD antigen on resting T cells
+      or a hematopoietic subset is a TCE/ADC killing liability, cf. CD19-TCE cytopenias). Opposing for
+      the biologic modalities; most important for bite_tce (CD3-recruited killing is on/off, so low-
+      density normal-cell display is a hazard) + adc (payload delivery to normal cells). Safety caution
+      (therapeutic-window governance), not a target killer.
+
+  - rule_id: sc-surface-absent-normal-immune-safety-supportive
+    when:
+      card_id: sc-surface-normal-safety
+      field: sc_surface_normal_class
+      equals: not_surface_detected_normal_immune
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    modality_importance:
+      adc: secondary
+      bite_tce: secondary
+      antibody: secondary
+    rationale: |
+      The target's SURFACE protein is NOT detected on normal immune cell types (peak mean-CLR below the
+      cell's own protein average) — a favorable off-tumor-floor signal for the immune compartment (e.g.
+      BCMA reads not-detected on normal immune, consistent with its plasma-cell-restricted profile).
+      Supportive, secondary: it clears the immune-compartment surface floor, but normal SOLID tissue
+      (HuBMAP shard, pending) and the bulk IHC card remain the broader safety context.
+
+  # ============================================================================
+  # J — Tumor-vs-normal-selectivity card (P4 Tier-2, 2026-07-24)
+  # selectivity_class is the tumor-vs-normal expression WINDOW. For biologics the
+  # window is doubly critical: an ADC/TCE that binds normal tissue at the same
+  # level as tumor has no therapeutic index (on-target-off-tumor tox).
+  # ============================================================================
+
+  - rule_id: strong-tumor-selective-surface-supportive
+    when:
+      card_id: tumor-vs-normal-selectivity
+      field: selectivity_class
+      equals: strong_tumor_selective
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    modality_importance:
+      adc: important
+      bite_tce: important
+      antibody: important
+    rationale: |
+      Strong, comparator-robust tumor-vs-normal selectivity (all cells support, up, max|log2FC|>=1.5).
+      A wide tumor-vs-normal window is the therapeutic-index basis for a biologic — supportive across
+      adc/bite_tce/antibody. Important: for TCE especially, the normal-tissue floor governs on-target-
+      off-tumor tox, so a strong window is a first-order surface-viability signal.
+
+  - rule_id: not-selective-surface-warning
+    when:
+      card_id: tumor-vs-normal-selectivity
+      field: selectivity_class
+      equals: not_selective
+    signals:
+      adc: opposing
+      bite_tce: opposing
+      antibody: opposing
+    modality_importance:
+      adc: important
+      bite_tce: important
+      antibody: important
+    rationale: |
+      No tumor-vs-normal selectivity (dominant DOWN or no window). Without a tumor-vs-normal window a
+      biologic binds normal tissue as readily as tumor — an on-target-off-tumor liability. Warning
+      (governance review) rather than a hard killer: a masking/avidity or local-delivery strategy can
+      sometimes rescue a low-window antigen, but the default surface read is unfavorable.
+
+  # ============================================================================
+  # K — Expression-purity-confound card (P4 Tier-2, 2026-07-24)
+  # purity_confound_class asks whether a bulk tumor-expression signal is TUMOR-
+  # intrinsic or a stromal/microenvironment artifact. For biologics this is
+  # decisive: an antigen that is microenvironment-sourced (stroma/immune, not the
+  # malignant cell) means an ADC/TCE would bind the wrong compartment.
+  # ============================================================================
+
+  - rule_id: microenvironment-confounded-surface-warning
+    when:
+      card_id: expression-purity-confound
+      field: purity_confound_class
+      equals: microenvironment_confounded
+    signals:
+      adc: opposing
+      bite_tce: opposing
+      antibody: opposing
+    modality_importance:
+      adc: important
+      bite_tce: important
+      antibody: important
+    rationale: |
+      The bulk tumor-expression signal is driven by the MICROENVIRONMENT (stroma/immune), not the
+      malignant cell. A biologic engages wherever the antigen physically sits — a stroma-sourced antigen
+      means an ADC/TCE binds the wrong compartment (off-tumor engagement, poor tumor-cell kill). Warning:
+      single-cell / IHC compartment attribution should confirm tumor-cell-intrinsic antigen before an
+      ADC/TCE program (the exact ADC-critical question single-cell attribution answers).
+
+  - rule_id: tumor-intrinsic-surface-supportive
+    when:
+      card_id: expression-purity-confound
+      field: purity_confound_class
+      equals: tumor_intrinsic
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    modality_importance:
+      adc: secondary
+      bite_tce: secondary
+      antibody: secondary
+    rationale: |
+      The tumor-expression signal is TUMOR-INTRINSIC (survives purity adjustment) — the antigen is on
+      the malignant cell, not stromal contamination. Supportive for biologics: confirms an ADC/TCE would
+      engage the tumor compartment. Secondary importance: it removes a confound rather than adding a
+      first-order presence signal (abundance/selectivity carry that).
+
+  # ============================================================================
+  # L — Within-tumor antigen ESCAPE RISK (biologics-augment Phase 3.2, 2026-08-06;
+  #     REWIRED onto tce_antigen_escape_class + made VERDICT-MOVING 2026-08-24)
+  # ============================================================================
+  # Keyed on the DERIVED tce_antigen_escape_class (tumor-scrna-celltype-expression card; single-cell
+  # CELLxGENE Census donor pseudobulk). This SUPERSEDES the lenient tce_homogeneity_class (which re-binned
+  # malignant_detection_fraction alone on a 0.5 bar); the escape class is the 2-axis coverage x inter-donor
+  # consistency call — the model the card's own stats.py criticized the old field for lacking. For a T-cell
+  # engager, within-tumor antigen heterogeneity is a first-order EFFICACY program-killer: antigen-low
+  # malignant cells escape redirected killing (no bystander payload reaches them — unlike an ADC). ADC is
+  # MORE heterogeneity-tolerant, so its signals here are milder (the classic ADC-vs-TCE discriminator).
+  # VERDICT-MOVING (2026-08-24): the escape-HIGH opposing rung now feeds a surface_modality resolver rung
+  # (adc_preferred_tce_escape_risk / tce_escape_risk) — an EFFICACY foreclosure of the TCE arm, DISTINCT
+  # from the normal-tissue SAFETY killers (which foreclose on toxicity, not escape). Coverage: the
+  # indications with a Census per-cell malignant annotation (COADREAD + NSCLC today); every other
+  # indication resolves data_unavailable and fires NO rule (abstain).
+
+  - rule_id: sc-antigen-escape-low-tce-supportive
+    when:
+      card_id: tumor-scrna-celltype-expression
+      field: tce_antigen_escape_class
+      equals: escape_risk_low
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: neutral
+    modality_importance:
+      bite_tce: important
+      adc: secondary
+    rationale: |
+      High within-tumour coverage AND consistent across donors (single-cell Census; the coverage x
+      inter-donor-consistency escape model that supersedes the detection-fraction-only homogeneity bar).
+      Low antigen-escape risk — the DLL3/BCMA-like uniform-expression ideal that lets a T-cell engager
+      clear the tumour. Important for BiTE/TCE (the TCE-critical cross-cutting signal); secondary-
+      supportive for ADC (which benefits from uniform coverage but tolerates more via bystander payload).
+
+  - rule_id: sc-antigen-escape-high-tce-opposing
+    when:
+      card_id: tumor-scrna-celltype-expression
+      field: tce_antigen_escape_class
+      equals: escape_risk_high
+    signals:
+      adc: neutral
+      bite_tce: opposing
+      antibody: neutral
+    modality_importance:
+      bite_tce: important
+    rationale: |
+      Within-tumour coverage LOW (< 0.5 of malignant cells detect the target; single-cell Census,
+      coverage-first). Antigen-low malignant cells form an ESCAPE RESERVOIR: a T-cell engager redirects
+      killing only to antigen+ cells, so an antigen-low subpopulation survives and repopulates — a
+      first-order TCE EFFICACY program-killer (distinct from a normal-tissue SAFETY liability). OPPOSING
+      + verdict-moving (adc_preferred_tce_escape_risk / tce_escape_risk), NOT a hard killer: affinity/
+      avidity engineering, antigen-density-independent formats, or a combination/OR-gate can still rescue
+      a heterogeneous target. Neutral for ADC (bystander payload reaches antigen-low neighbours).
+
+  # escape_risk_patient_variable — coverage is ADEQUATE but malignant detection is INCONSISTENT across
+  # donors (inter-donor variable): the antigen works in SOME patients and not others. This is a patient-
+  # SELECTION escape risk (a biomarker-stratification problem), MILDER than the coverage-low escape
+  # reservoir of escape_risk_high (which forecloses the TCE arm outright). Made verdict-MOVING 2026-09-04
+  # (#979): it TEMPERS — not forecloses — the TCE arm (bite_tce opposing but modality_importance SECONDARY,
+  # vs escape_risk_high's `important`); ADC is preserved (bystander-tolerant). The resolver maps this to the
+  # positive-caveated adc_preferred_tce_patient_variable / tce_patient_variable verdicts (TCE arm demoted
+  # dominant→supportive in nomination, NOT excluded), so a validated ADC/TCE antigen with normal patient-
+  # variability is not over-penalized.
+  - rule_id: sc-antigen-escape-patient-variable-tce-opposing
+    when:
+      card_id: tumor-scrna-celltype-expression
+      field: tce_antigen_escape_class
+      equals: escape_risk_patient_variable
+    signals:
+      adc: neutral
+      bite_tce: opposing
+      antibody: neutral
+    modality_importance:
+      bite_tce: secondary
+    rationale: |
+      Within-tumour coverage is ADEQUATE but malignant detection is INCONSISTENT across donors (single-cell
+      Census; the inter-donor-consistency axis of the coverage x consistency escape model). The antigen is a
+      dependable TCE target in some patients and an escape-prone one in others — a patient-SELECTION escape
+      risk, milder than the coverage-low reservoir of escape_risk_high. TEMPERS the TCE arm (bite_tce
+      opposing, SECONDARY importance — a caveat, not the escape_risk_high foreclosure); ADC preserved
+      (bystander payload tolerates the antigen-low fraction). Keep escape_risk_moderate /
+      coverage_high_donor_underpowered / data_unavailable inert (partial coverage / underpowered / coverage
+      gap → too uncertain to move the verdict — the stricter-cut design decision).
+
+  # escape_risk_moderate / coverage_high_donor_underpowered DELIBERATELY fire NO rule — a real expressing
+  # subset exists but partial coverage or an underpowered donor count (dropout-aware scRNA) is too uncertain
+  # to move the verdict. data_unavailable likewise fires nothing (coverage gap → abstain).
+
+  # ============================================================================
+  # M — Modality therapeutic-window (biologics-augment, 2026-08-06)
+  # ============================================================================
+  # Keyed on window_class (modality-therapeutic-window card): tumor / max-essential-normal TPM ratio,
+  # thresholded per modality tier. The composed card is scored at the STRICT (BiTE/TCE, 1.0 TPM) tier
+  # by default — the conservative surface-gate read — so window_class here is the strict-tier call.
+  # This is the clean-antigen signal neither tumor-vs-normal-selectivity (within-tissue contrast) nor
+  # normal-tissue-liability (off-tumor breadth) makes; it surfaces the CEACAM5 pattern (huge window yet
+  # strict-TCE liability). VERDICT-BEARING (promoted 2026-08-24): essential_tissue_liability feeds
+  # surface_modality resolver rungs 1b (priorities 7/8, modality-window-essential-liability-tce-opposing →
+  # adc_preferred_tce_unsafe / tce_unsafe_normal_liability). clean_window / narrow_window remain
+  # non-verdict on the surface gate; data_unavailable / not_expressed_in_cohort fire NO rule.
+  # The ADC-vs-TCE split is the point: an essential-tissue liability at the STRICT tier is a TCE concern
+  # but frequently ADC-tolerable (moderate tier / bystander payload) — so essential_tissue_liability is
+  # bite_tce:opposing, adc:neutral (NOT a shared killer). data_unavailable / not_expressed_in_cohort
+  # fire NO rule (cohort gap or wrong-cohort → abstain, never a false negative).
+
+  - rule_id: modality-window-clean-supportive
+    when:
+      card_id: modality-therapeutic-window
+      field: window_class
+      equals: clean_window
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    modality_importance:
+      bite_tce: important
+      adc: important
+    rationale: |
+      Clean therapeutic window at the strict (TCE) tier: tumor expression clears the >=4x separation
+      from the worst essential normal organ AND no essential organ exceeds the strict 1.0-TPM threshold.
+      This is the clean-antigen ideal (CLDN6/DLL3-in-lineage archetype) — supportive across all
+      antibody-based modalities, important for the strict-tolerance TCE where the window is decisive.
+
+  - rule_id: modality-window-essential-liability-tce-opposing
+    when:
+      card_id: modality-therapeutic-window
+      field: window_class
+      equals: essential_tissue_liability
+    signals:
+      adc: neutral
+      bite_tce: opposing
+      antibody: neutral
+    modality_importance:
+      bite_tce: important
+    rationale: |
+      An essential normal organ exceeds the strict (1.0-TPM) tier threshold — even if the tumor window
+      RATIO is large (the CEACAM5 pattern: ~558x window, yet lung > 1.0 TPM). A strict T-cell engager
+      has no bystander buffer, so essential-tissue expression is a first-order concern → bite_tce
+      opposing (important). ADC/antibody are NEUTRAL, not opposing: the moderate-tier (5.0-TPM) bystander
+      buffer frequently tolerates the same essential expression (CEACAM5 is pursued as an ADC) — the
+      ADC-vs-TCE discriminator. Check window_ratio at the ADC tier + surface-abundance-density to confirm.
+
+  - rule_id: modality-window-narrow-opposing
+    when:
+      card_id: modality-therapeutic-window
+      field: window_class
+      equals: narrow_window
+    signals:
+      adc: opposing
+      bite_tce: opposing
+      antibody: neutral
+    modality_importance:
+      adc: secondary
+      bite_tce: secondary
+    rationale: |
+      Expressed with no essential-tissue liability, but the tumor-vs-essential-normal separation is
+      < 4x — a narrow therapeutic window. Opposing (secondary) for ADC + TCE: a thin window leaves
+      little margin for on-target off-tumor toxicity, though it is not a hard block (affinity tuning,
+      dose, or a logic-gate can widen the effective window). Neutral for naked antibody.
+
+  # not_expressed_in_cohort + data_unavailable fire NO rule — a near-zero tumor in THIS TCGA cohort
+  # (possibly the wrong cohort for the target's biology — DLL3/SCLC) or a missing cohort is a coverage
+  # gap, surfaced by the card's warnings, NOT scored as a modality negative (cohort-honesty).
+
+  # ============================================================================
+  # F3-exon — Modality EXON-WINDOW card (enrichment E5, 2026-08-07)
+  # ============================================================================
+  # Keyed on exon_window_class (modality-exon-window card): the EXON-resolution companion of the
+  # gene-level window. HONEST SCOPE — a HYPOTHESIS-GENERATING flag, NOT an isoform-identity call
+  # (per-exon coverage cannot resolve CLDN18.2 from CLDN18.1). So exon_heterogeneity_flag fires only a
+  # GENTLE (secondary) supportive signal — it points at a candidate for junction-level follow-up, it
+  # does not confirm an isoform-restricted epitope. essential_exon_liability mirrors the gene-window
+  # essential-liability (bite_tce opposing / adc neutral — the ADC-vs-TCE discriminator). uniform_gene_
+  # window / not_expressed_in_cohort / not_in_product / data_unavailable fire NO rule. VERDICT-BEARING
+  # (added v1.5.0 2026-08-28): essential_exon_liability feeds surface_modality resolver rungs 1b'
+  # (priorities 9/10, exon-window-essential-liability-tce-opposing), mirroring the gene-window rung 1b.
+  # exon_heterogeneity_flag remains signal-only.
+
+  - rule_id: exon-window-heterogeneity-flag-supportive
+    when:
+      card_id: modality-exon-window
+      field: exon_window_class
+      equals: exon_heterogeneity_flag
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    modality_importance:
+      adc: secondary
+      bite_tce: secondary
+      antibody: secondary
+    rationale: |
+      The tumor-dominant exon stands well above the gene's other exons (within-gene heterogeneity)
+      with a clean tumor-vs-essential-normal window — a HYPOTHESIS that an isoform-resolved epitope
+      may offer a window the gene-level view misses (CLDN18.2-class QUESTION). SECONDARY, not
+      important: per-exon COVERAGE quantiles cannot confirm isoform identity (they are blind to
+      transcript membership), so this is a candidate for JUNCTION-level / isoform-resolved follow-up,
+      NOT a confirmed isoform-restricted target. Scores exon INCLUSION, not skipping.
+
+  - rule_id: exon-window-essential-liability-tce-opposing
+    when:
+      card_id: modality-exon-window
+      field: exon_window_class
+      equals: essential_exon_liability
+    signals:
+      adc: neutral
+      bite_tce: opposing
+      antibody: neutral
+    modality_importance:
+      bite_tce: secondary
+    rationale: |
+      The tumor-DOMINANT exon's own essential-normal expression clears the strict (1.0-TPM) tier —
+      even at exon resolution the window is not clean. Mirrors the gene-level essential-liability: a
+      strict T-cell engager has no bystander buffer (bite_tce opposing), while ADC/antibody are
+      NEUTRAL (moderate-tier bystander buffer frequently tolerates it — the ADC-vs-TCE discriminator).
+      Secondary importance: an exon-grain read is a refinement of, not a replacement for, the gene window.
+
+  # ============================================================================
+  # N — Tumor immune context / EFFECTOR arm (biologics-augment, 2026-08-06)
+  # ============================================================================
+  # Keyed on immune_context_class (immune-context card; CIBERSORT LM22 CD8 T-cell infiltration). The
+  # EFFECTOR half of the biologics story: a T-cell engager can only work where T cells are PRESENT to
+  # redirect — orthogonal to surface-antigen presence. Signals bite_tce ONLY (an ADC is payload-
+  # independent of T cells, so immune context does not gate it). ADDITIVE signal-only: no
+  # surface_modality resolver rung → the surface-modality verdict is byte-stable; the immune-context
+  # SKILL resolves its own effector verdict from these fired rules. data_unavailable fires no rule.
+
+  - rule_id: immune-context-hot-tce-supportive
+    when:
+      card_id: immune-context
+      field: immune_context_class
+      equals: immune_hot
+    signals:
+      bite_tce: supportive
+    modality_importance:
+      bite_tce: important
+    rationale: |
+      Immune-HOT indication (CD8 T-cell fraction at/above the pan-cancer 75th percentile — SKCM-like).
+      An ample effector population is present for a T-cell engager to redirect. Supportive (important)
+      for bite_tce — this is the effector prerequisite a TCE program depends on, independent of how
+      clean the surface antigen is. Not an ADC signal (ADC payload is T-cell-independent).
+
+  - rule_id: immune-context-intermediate-tce-neutral
+    when:
+      card_id: immune-context
+      field: immune_context_class
+      equals: immune_intermediate
+    signals:
+      bite_tce: neutral
+    rationale: |
+      Intermediate immune context (CD8 fraction between the pan-cancer 25th and 75th percentiles —
+      most carcinomas, e.g. COADREAD/NSCLC/PAAD). An effector population exists but is not richly
+      inflamed; neutral for bite_tce — neither a green light nor a program-killer on the effector axis.
+
+  - rule_id: immune-context-cold-tce-opposing
+    when:
+      card_id: immune-context
+      field: immune_context_class
+      equals: immune_cold
+    signals:
+      bite_tce: opposing
+    modality_importance:
+      bite_tce: important
+    rationale: |
+      Immune-COLD indication (CD8 fraction at/below the pan-cancer 25th percentile — T-cell-excluded /
+      desert). A T-cell engager has few effector cells to redirect — a first-order TCE efficacy risk
+      regardless of surface-antigen quality. Opposing (important), NOT killer: TME-conditioning
+      combinations or a switch to an ADC (T-cell-independent payload) can still make the target viable.
+      data_unavailable fires nothing (abstain — never a false cold).
+
+  # The FOURTH class token (2026-09-12). `lymphoid_denominator_unreliable` is NOT a measurement — it is
+  # the reader refusing to publish one. LM22 reports the CD8 share OF THE LEUKOCYTE COMPARTMENT, so in a
+  # leukemia / lymphoma / lymphoid organ that denominator IS the malignant clone (LAML, DLBC) or normal
+  # lymphoid tissue (THYM): the share is arithmetically valid and biologically uninterpretable.
+  #
+  # WHY THIS TOKEN NEEDS A RULE OF ITS OWN, rather than being left to fire nothing like data_unavailable.
+  # The two abstentions are NOT the same statement and the difference is decision-relevant. `data_unavailable`
+  # means "no cohort — ask elsewhere". This means "there IS a cohort (DLBC n=48, median CD8 share 0.1142,
+  # ABOVE the hot cut) and the reference frame does not apply to it". Firing nothing would collapse the
+  # honest answer onto the generic one and hand a reader of TCE-VALIDATED DLBCL (glofitamab, mosunetuzumab)
+  # a shrug where the skill actually knows something specific. NEUTRAL, deliberately: an uninterpretable
+  # denominator is neither a green light nor a program-killer on the effector axis, and treating it as
+  # `opposing` would manufacture a TCE risk signal out of a measurement gap — precisely backwards in
+  # haematologic malignancy, where TCEs are the validated modality.
+  - rule_id: immune-context-lymphoid-denominator-uninterpretable
+    when:
+      card_id: immune-context
+      field: immune_context_class
+      equals: lymphoid_denominator_unreliable
+    signals:
+      bite_tce: neutral
+    rationale: |
+      The indication resolves to a hematologic or lymphoid-organ TCGA cohort (LAML / DLBC / THYM), where
+      CIBERSORT LM22's LEUKOCYTE denominator is the malignant clone or normal lymphoid tissue rather than
+      tumor-infiltrating immunity. A CD8 SHARE is still computable there and would class confidently
+      (DLBC's 0.1142 reads immune-hot), so the reader withholds it instead of publishing it with a caveat.
+      NEUTRAL for bite_tce: this is an absent MEASUREMENT, not measured effector absence — no TCE
+      inference either way. Read it as "this axis does not speak to this indication"; the effector question
+      needs a platform whose denominator is not the tumor (e.g. absolute IHC/flow on the tissue).
+      Distinct from data_unavailable ON PURPOSE: there IS a cohort, and its reference frame is wrong.
+
+  # ============================================================================
+  # O — Peptide-centric HLA presentation (biologics enrichment E1, 2026-08-07)
+  # ============================================================================
+  # Keyed on pmhc_presentation_class (pmhc-presentation card; HLA Ligand Atlas benign immunopeptidome).
+  # The peptide-centric TCE axis: an intracellular oncoprotein presented on HLA is reachable by a
+  # TCR-mimetic T-cell engager. INVERTED safety semantics (benign atlas): restricted normal-tissue
+  # presentation = a CLEAN pMHC-TCE target; broad normal presentation = on-target/off-tumor LIABILITY.
+  # Signals bite_tce ONLY (a pMHC TCE — an ADC/naked antibody binds the folded protein, not pMHC).
+  # broadly_presented_normal is VERDICT-BEARING: with neither-viable-killer + an IEDB positive it feeds
+  # surface_modality resolver rung 3b' (priorities 19/20, pmhc-broadly-presented-normal-tce-opposing),
+  # withdrawing pmhc_tce_supported → tce_unsafe_normal_liability. restricted_presentation stays
+  # signal-only; not_observed + intermediate + data_unavailable fire NO rule (weak-neg / ambiguous / gap -> abstain).
+
+  - rule_id: pmhc-restricted-presentation-tce-supportive
+    when:
+      card_id: pmhc-presentation
+      field: pmhc_presentation_class
+      equals: restricted_presentation
+    signals:
+      bite_tce: supportive
+    modality_importance:
+      bite_tce: important
+    rationale: |
+      Peptides presented on <= 3 normal tissues (atlas Q1) — a CLEAN peptide-centric target: a
+      TCR-mimetic pMHC T-cell engager can reach it (even if intracellular / no surface expression) with
+      limited on-target/off-tumor presentation risk (MAGE-A4 archetype: testis-restricted). Important for
+      bite_tce — this opens targets invisible to surface-antibody modalities. Necessary-not-sufficient:
+      the tumor-restriction call still needs a tumor immunopeptidome.
+
+  - rule_id: pmhc-broadly-presented-normal-tce-opposing
+    when:
+      card_id: pmhc-presentation
+      field: pmhc_presentation_class
+      equals: broadly_presented_normal
+    signals:
+      bite_tce: opposing
+    modality_importance:
+      bite_tce: important
+    rationale: |
+      Peptides presented on >= 19 normal tissues (atlas Q3) — a broad on-target/off-tumor liability: a
+      TCR-mimetic pMHC TCE would engage many normal-tissue cells. Opposing (important), NOT killer — a
+      tumor-restricted peptide + tight HLA restriction can still carve a window, but broad benign
+      presentation is a first-order concern for a peptide-centric program. not_observed / intermediate
+      fire nothing (weak-negative / ambiguous -> abstain).
+
+  # ============================================================================
+  # O2 — EXPERIMENTALLY-VALIDATED pMHC EPITOPE EVIDENCE (IEDB, VERDICT-BEARING 2026-08-25)
+  # ============================================================================
+  # Keyed on epitope_evidence_class (pmhc-epitope-evidence-iedb card; IEDB positive-assay rollup per
+  # UniProt). The EXPERIMENTAL companion to pmhc-presentation (block O, HLA-Ligand-Atlas benign BREADTH):
+  # this is positive-assay epitope + T-cell RECOGNITION GROUND TRUTH — have the target's peptides actually
+  # been observed presented on human HLA and/or T-cell-recognized (KRAS-G12V/WT1/PRAME/NY-ESO-1/MAGE-A4
+  # class)? Signals bite_tce ONLY — a TCR-mimetic pMHC T-cell engager reaches an INTRACELLULAR oncoprotein
+  # via the peptide-MHC complex; an ADC / naked antibody binds the folded surface protein, not pMHC.
+  #
+  # VERDICT-BEARING (promotion 2026-08-25): the two POSITIVE classes feed a surface_modality resolver rung
+  # (pmhc_tce_supported) that fires ONLY in conjunction with neither-viable-killer — i.e. when the folded-
+  # surface ladder is DEAD (neither_viable) but experimental epitopes support the SEPARATE peptide-MHC
+  # (pMHC-TCE) route the surface cards cannot see (WT1/PRAME/NY-ESO-1/MAGE-A4: correctly surface-neither_
+  # viable yet pMHC-TCE-viable). For a surface-VIABLE antigen the neither-viable-killer does NOT fire, so
+  # these rules ride as an ADDITIVE bite_tce signal and do NOT flip the surface ADC/TCE call.
+  #
+  # ASSAY ASYMMETRY (the card's core caveat): absence of a deposited epitope != not presented. So only the
+  # two POSITIVE classes fire — no_positive_epitopes / not_observed / data_unavailable fire NOTHING (a weak
+  # negative / coverage gap → abstain, NEVER a killer or opposing). This mirrors block O's not_observed rule.
+
+  - rule_id: pmhc-iedb-tcell-validated-tce-supportive
+    when:
+      card_id: pmhc-epitope-evidence-iedb
+      field: epitope_evidence_class
+      equals: tcell_validated
+    signals:
+      bite_tce: supportive
+    dominant: true
+    modality_importance:
+      bite_tce: important
+    rationale: |
+      >=1 positive IEDB epitope AND a positive T-cell-recognition assay — the peptide is experimentally
+      T-cell-RECOGNIZED, the strongest pMHC ground truth (ERBB2 / NY-ESO-1(CTAG1B) / MAGE-A4 / WT1 / PRAME
+      archetype). Dominant supportive for bite_tce (a TCR-mimetic pMHC T-cell engager): experimental
+      recognition confirms a real pMHC target even for an INTRACELLULAR oncoprotein invisible to surface
+      presence. bite_tce ONLY — ADC / naked antibody bind the folded surface protein, not the pMHC complex.
+      Necessary-not-sufficient: IEDB is tumor-context-agnostic (a cancer-context flag, not a tumor-
+      restriction call), so the tumor-restriction / normal-presentation window still needs the benign-atlas
+      (pmhc-presentation) + a tumor immunopeptidome. VERDICT-MOVING only when the folded-surface fit is
+      neither_viable (→ pmhc_tce_supported); additive otherwise (surface-viable antigens keep their fit).
+
+  - rule_id: pmhc-iedb-presented-tce-supportive
+    when:
+      card_id: pmhc-epitope-evidence-iedb
+      field: epitope_evidence_class
+      equals: presented_not_tcell_confirmed
+    signals:
+      bite_tce: supportive
+    modality_importance:
+      bite_tce: secondary
+    rationale: |
+      >=1 positive IEDB epitope with MHC-ligand PRESENTATION observed but no recorded positive T-cell assay
+      (presented; recognition uncharacterised). Supportive but NON-DOMINANT (secondary) for bite_tce: the
+      peptide is experimentally displayed on human HLA — a real peptide-MHC target for a TCR-mimetic pMHC
+      TCE — but T-cell recognisability is not yet confirmed, a weaker call than tcell_validated. bite_tce
+      ONLY. Same VERDICT-MOVING scope as the validated rung: it promotes a surface-neither_viable target to
+      pmhc_tce_supported (the pMHC route is the sole biologics route), else it is additive. no_positive_
+      epitopes / not_observed / data_unavailable fire NOTHING (assay asymmetry: absence is a weak negative,
+      never a proven non-epitope).
+
+  # ============================================================================
+  # F5 — sc-normal-celltype-expression card (scRNA normal, WIRED 2026-08-07)
+  # ============================================================================
+  # Single-cell RNA expression in NORMAL tissue at cell-type resolution (Census
+  # pseudobulk, donor-replicate). Complements the F4 HPA IHC breadth card:
+  # HPA gives protein breadth (gross footprint); this gives cell-type-resolved RNA
+  # signal — critical for ADC/TCE programs that need to know WHICH normal cell types
+  # express the target (cardiomyocyte, hepatocyte, colonocyte, etc.), not just
+  # "detected somewhere". Liability ladder: HIGH → MODERATE → LOW → NOT_EXPRESSED.
+  # Same modality-tiered severity logic as F4 (BiTE/TCE no-buffer → killer on HIGH).
+  # Substrate: sc-normal-celltype-expression-{tissue}-v1 Tier-1 parquets.
+
+  - rule_id: sc-normal-high-liability-bite-killer
+    when:
+      card_id: sc-normal-celltype-expression
+      field: sc_normal_essential_veto_grade
+      in: [accessible_high_severity, accessible_ungraded]
+    signals:
+      bite_tce: killer
+    dominant: true
+    # killer_message has a HARD schema cap of 500 chars and the message it replaced already sat at
+    # 482 — so the compartment/severity detail lives in the rationale (uncapped), not here. 482/500.
+    killer_message: |
+      Single-cell RNA shows HIGH, cross-donor-consistent, multi-atlas expression in an ESSENTIAL
+      cell type of a NON-origin critical organ a systemically dosed biologic REACHES
+      (heart/liver/kidney/marrow/lung/pancreas/adrenal). BiTE/TCE have no payload buffer and no
+      binding-consequence gating, making this a first-order on-target-off-tumor liability. Not
+      viable without mitigation (conditional activation, dual-antigen gating, restricted
+      delivery). Check the named essential-cell driver.
+    rationale: |
+      The strict-modality no-buffer safety killer (cell-type-resolved RNA layer, mirrors
+      the HPA-essential-tissue killer in F4). BiTE/TCE-only: ADC + antibody receive opposing
+      (not killer) via sc-normal-high-liability-adc-antibody-opposing.
+
+      HISTORY OF THIS PREDICATE — it has been sharpened twice, each time because the field it
+      keyed on could not discriminate:
+        - originally sc_normal_expression_class == HIGH_LIABILITY, which the method author
+          flags as "too blunt to veto a validated ADC target" (fires on ANY high normal cell
+          type incl. tissue-of-origin epithelium + non-essential cells);
+        - repointed 2026-09-07 to the ORGAN-AWARE sc_normal_safety_essential_class ==
+          critical_organ_liability, matching the field the sibling tumor-selectivity gate
+          (tvn-sc-normal-critical-organ-veto) consumes — closing a cross-skill desync that
+          false-TCE-vetoed origin-tissue / non-essential-only antigens;
+        - repointed 2026-09-16 (HERE) to sc_normal_essential_veto_grade, because
+          critical_organ_liability is a BOOLEAN that fires on 468/504 corpus-20260914 targets
+          (92.9% as measured then; 474/504 = 94.0% on 2026-09-18 after AM #660/#661/#663).
+          A dominant killer that fires on 93% of a corpus is not a discriminator, it is a
+          constant. ⚠️ RETRACTION, 2026-09-18 (skills CASE-035): this bullet originally
+          continued "DLL3-SCLC is vetoed by it today — and tarlatamab is an APPROVED TCE",
+          offering DLL3-SCLC as the motivating example of a false veto the repoint relieves.
+          That is NO LONGER TRUE. AM #663 promoted `gut -> "colon"` into SC_NORMAL_CROSSWALK,
+          and colon is the only systemically-accessible tissue containing neurons (the enteric
+          nervous system), so DLL3's BBB-protected neural liability became an ACCESSIBLE one:
+          DLL3-SCLC now grades accessible_high_severity (driver `inhibitory motor neuron` /
+          colon, det 0.747 / donor 1.000 / 6 atlases) and this killer fires on it again, giving
+          bite_tce: unsafe for an approved-TCE target. The predicate change stands on the
+          saturation argument alone — a 94% boolean is still a constant — but it is no longer
+          the fix for DLL3-SCLC. The bullet is corrected in place rather than deleted, because
+          the false claim reached trunk and squash-merge makes commit text permanent.
+          Disposition of the DLL3 finding: ACCEPTED AS REAL, not engineered away — the two
+          candidate remedies (excluding gut hits from the severity pool; narrowing to gut
+          neurons) were measured and REFUTED, the first because it breaks the
+          grade-refines-class invariant on 6 pairs and re-opens the CDH17-ESCA organ-panel
+          fail-open, the second because enteric neurons genuinely ARE outside the BBB. See
+          skills eval/CASE_LOG.md CASE-035 for the substrate audit and two filed OPEN findings.
+
+      WHY A NEW FIELD AND NOT A NEW THRESHOLD. The detection axis is saturated, so no line on
+      it helps: sweeping the off-origin floor 0.20/0.30/0.40/0.50/0.60/0.70/0.80/0.90 gives
+      92.9/89.3/87.5/81.0/73.2/67.5/55.8/42.9%, the observed minimum is 0.219 (nothing sits
+      near the current floor), and corpus detection medians 0.871 / p75 0.970. What was missing
+      was a SECOND axis. sc_normal_essential_veto_grade supplies two — COMPARTMENT (can a
+      systemically dosed biologic reach the organ at all?) x SEVERITY (magnitude x cross-donor
+      consistency x independent-atlas replication) — precomputed method-side because this rule
+      grammar is single-predicate and cannot express the conjunction.
+
+      EFFECT, MEASURED LIVE over all 504 pairs (not estimated from the stored top-15 footprint,
+      which is truncated in a way that CORRELATES with breadth). Two vintages, kept separate
+      because the ladder moved under this rule without a rules edit:
+        - as measured at #786 (2026-09-16): base rate 92.9% -> 44.2%; of the 48.6 points of
+          relief the SEVERITY/replication rung was 88% (216 targets), the compartment rung 12%
+          (29).
+        - RE-MEASURED 2026-09-18 after AM #660 (replication rung) / #661 / #663 (gut promotion):
+          94.0% (474/504) -> 65.5% (330/504). The grade ladder now reads
+          accessible_high_severity 330 / accessible_moderate_severity 86 /
+          accessible_low_confidence 35 / not_applicable 26 / bbb_protected 23 /
+          origin_tissue 4. Of the 144 pairs relieved relative to the boolean, the
+          SEVERITY/replication rung is 84% (121 = 86 moderate + 35 low_confidence) and the
+          compartment rung 16% (23 bbb_protected). The drop from 216 to 121 relieved is the
+          three AM PRs promoting targets INTO high_severity, not a change to this predicate.
+          Anyone citing a rate here should re-measure: this rule's population is a function of
+          a field it does not own.
+      The compartment axis is nonetheless load-bearing as a CORRECTNESS GUARD: it is decided
+      over the WHOLE above-floor off-origin pool rather than the argmax organ, because (measured
+      at #786) 230 of the 259 brain-argmax critical calls (88.8%) ALSO carry an accessible-organ
+      hit, so an argmax-based call would fail OPEN on 230 real lung/liver/marrow liabilities.
+
+      FAIL-CLOSED PREDICATE. `in` deliberately includes accessible_ungraded — an accessible hit
+      whose grading inputs are ABSENT. Thinner data must never buy a better safety verdict, so
+      the ungraded rung keeps the hard veto rather than dropping to a lower rung. It occurs 0x
+      on corpus-20260914; inert by corpus is not safe by contract.
+
+      WHAT NO LONGER FIRES THIS KILLER, and where it goes instead: accessible_moderate_severity
+      / accessible_low_confidence / bbb_protected now take bite_tce OPPOSING via the three
+      graded rules below (a therapeutic-window justification is required, not an automatic
+      veto). origin_tissue is window-arbitrated and fires nothing, as origin_tissue_liability
+      did. not_applicable / data_unavailable fire nothing here — the coverage gap is surfaced
+      by the card's sc_normal_data_unavailable warning_predicate, and a gap must not read as
+      either a veto or a pass.
+
+  # --- graded companions to the killer above (2026-09-16) -------------------------------
+  # These three cover the rungs that USED to take the dominant killer. They are OPPOSING, not
+  # killers, and they are NOT wired into any resolver gate — so they are annotation-only
+  # (rule_role_partition: display): they make the retained liability visible in the narrative
+  # and per-modality signal tally without minting new verdict rungs. That restraint is
+  # deliberate; adding verdict rungs is a separate architectural decision, not a side effect
+  # of grading a veto.
+
+  - rule_id: sc-normal-graded-accessible-moderate-bite-opposing
+    when:
+      card_id: sc-normal-celltype-expression
+      field: sc_normal_essential_veto_grade
+      equals: accessible_moderate_severity
+    signals:
+      bite_tce: opposing
+    rationale: |
+      REPLICATED essential-cell expression in a systemically accessible non-origin critical
+      organ, but below the HIGH bar (det >= 0.50 AND donor >= 0.70 AND >= 2 atlases). A real
+      on-target-off-tumor liability that requires a therapeutic-window justification — not an
+      automatic veto. 14.1% of corpus-20260914 (71 targets) at #786; RE-MEASURED 2026-09-18
+      after AM #660/#661/#663: 17.1% (86 targets). ⚠️ RETRACTION, 2026-09-18: this rationale
+      also called itself "the rung that relieves DLL3-SCLC". FALSE today — #663's gut promotion
+      moved DLL3-SCLC to accessible_high_severity, so it takes the dominant killer, not this
+      rung. See the killer's HISTORY bullet above and skills CASE-035. CAVEAT worth carrying:
+      the HIGH bar is a CONJUNCTION, so a heavily replicated hit can land here on the det
+      conjunct alone — MSLN-PAAD grades moderate at det 0.413 / donor 0.881 / 26 independent
+      atlases. Read the named sc_normal_essential_max_* driver fields before treating this rung
+      as reassuring.
+
+  - rule_id: sc-normal-graded-accessible-low-confidence-bite-opposing
+    when:
+      card_id: sc-normal-celltype-expression
+      field: sc_normal_essential_veto_grade
+      equals: accessible_low_confidence
+    signals:
+      bite_tce: opposing
+    rationale: |
+      Essential-cell expression in a systemically accessible non-origin critical organ, but
+      resting on THIN evidence: det < 0.30 OR a single atlas. The EPCAM/FOLR1 shape — a det
+      0.99 detection carried by exactly ONE atlas. Opposing, because the liability may well be
+      real; not a killer, because one atlas cannot support a dominant modality veto. 28.8% of
+      corpus-20260914 (145 targets) at #786 and the single largest relieved group THEN;
+      RE-MEASURED 2026-09-18 after AM #660/#661/#663: 6.9% (35 targets), and no longer the
+      largest — accessible_moderate_severity is, at 86. The collapse is #660's replication rung
+      promoting thin-but-heavily-replicated hits up out of this bucket, which is the intended
+      direction. NOTE THE ASYMMETRY WITH
+      accessible_ungraded, which keeps the hard veto: low_confidence means the replication was
+      MEASURED and came back thin, whereas ungraded means it was not measurable at all. A
+      measured weakness may lower a rung; missing data may not.
+
+  - rule_id: sc-normal-graded-bbb-protected-bite-opposing
+    when:
+      card_id: sc-normal-celltype-expression
+      field: sc_normal_essential_veto_grade
+      equals: bbb_protected
+    signals:
+      bite_tce: opposing
+    rationale: |
+      EVERY above-floor off-origin essential hit is brain parenchyma. Opposing rather than
+      killer on the compartment argument alone: a systemically dosed T-cell engager is the
+      modality least able to reach parenchyma behind an intact blood-brain barrier. This is a
+      RELEASE OF THE HARD VETO ONLY, not a safety pass — GD2 and B7-H3 are proof that brain is
+      not a free pass, and a BBB-crossing modality (small_molecule / degrader) would warrant a
+      veto here; this card emits nothing on those channels and this change does not widen it.
+      Rare: 5.8% of corpus-20260914 (29 targets) at #786; RE-MEASURED 2026-09-18 after AM
+      #660/#661/#663: 4.6% (23 targets). #663's gut promotion is the main reason this rung
+      SHRANK — colon is the only systemically-accessible tissue carrying neurons, so a
+      neural-lineage target whose pool was formerly all-brain can now carry an accessible
+      enteric hit and leave this rung (DLL3-SCLC is exactly that transition). It is otherwise
+      rare BECAUSE the rung requires the
+      whole pool to be brain — brain wins the ARGMAX on 55.3% of firings, and reading the
+      argmax instead would have mislabelled 230 accessible-organ liabilities as protected.
+
+  - rule_id: sc-normal-high-liability-adc-antibody-opposing
+    when:
+      card_id: sc-normal-celltype-expression
+      field: sc_normal_expression_class
+      equals: HIGH_LIABILITY
+    signals:
+      adc: opposing
+      antibody: opposing
+    rationale: |
+      High normal-cell-type RNA expression is an on-target-off-tumor liability for ADC +
+      antibody too, but not a categorical killer: ADCs tolerate some normal-tissue binding
+      via payload/linker design + bystander effect; antibody consequence is
+      binding-context-dependent. Opposing → requires a therapeutic-window justification
+      (tumor-vs-normal differential), not an automatic veto.
+
+  - rule_id: sc-normal-moderate-opposing
+    when:
+      card_id: sc-normal-celltype-expression
+      field: sc_normal_expression_class
+      equals: MODERATE_LIABILITY
+    signals:
+      adc: opposing
+      bite_tce: opposing
+      antibody: opposing
+    rationale: |
+      Moderate normal-cell-type RNA expression: any cell type has median_det > 0.20 OR
+      expressing_donor_fraction > 0.30. Detectable in a meaningful fraction of donor
+      cells — a caution across all biologic modalities. Opposing, not killer: the
+      specific cell type(s) and tumor-vs-normal window govern whether the liability
+      can be managed. Check max_detection_cell_type + safety_essential_flags.
+
+  - rule_id: sc-normal-low-supportive
+    when:
+      card_id: sc-normal-celltype-expression
+      field: sc_normal_expression_class
+      equals: LOW_LIABILITY
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    rationale: |
+      Low normal-cell-type RNA expression: detected in some cell types but below both
+      the moderate and high thresholds — a favorable on-target-off-tumor safety profile
+      at RNA level. Supportive for all biologic modalities. Complement with HPA IHC
+      (protein may diverge from RNA, especially for glycoproteins / post-translational
+      regulation).
+
+  - rule_id: sc-normal-not-expressed-supportive
+    when:
+      card_id: sc-normal-celltype-expression
+      field: sc_normal_expression_class
+      equals: NOT_EXPRESSED
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    dominant: true
+    rationale: |
+      Not expressed in any queried normal tissue cell type (all median_det < 0.01) — the
+      most favorable biologics safety profile at the RNA layer (tumor-restricted /
+      neoantigen-like). Dominant supportive. Confirm tumor expression via the scRNA
+      tumor-presence card — 'not expressed in normal' is a safety signal, not a presence
+      signal.
+
+  - rule_id: sc-normal-data-unavailable-insufficient
+    when:
+      card_id: sc-normal-celltype-expression
+      field: sc_normal_expression_class
+      equals: data_unavailable
+    signals:
+      adc: insufficient
+      bite_tce: insufficient
+      antibody: insufficient
+    rationale: |
+      No sc-normal-celltype-expression product available for the queried tissue(s), or
+      all donor-cell-type groups have n_donors_reliable < 5. COVERAGE GAP — normal-cell-
+      type liability is UNKNOWN, NOT low. Must NOT be read as a favorable window
+      (measured-vs-null discipline: absence of a safety read is not a safety pass).
+
+# ============================================================================
+# Signal-vocabulary reference
+# ============================================================================
+#
+# Each rule assigns per-modality signals from the enum:
+#   killer     — rules out the modality; downstream synthesis should NOT
+#                emit affirmative recommendations for this modality.
+#   warning    — flag for governance review; modality may still be pursued
+#                but requires an override justification.
+#   neutral    — no positive or negative signal.
+#   supportive — positive signal for this modality.
+#
+# Rules with dominant=true carry extra weight in Tier-3 synthesis.
+
+  # ============================================================================
+  # Genomic axis → axis-2 SURFACE lens (2026-08-07): the cross-modality matrix's SURFACE column for
+  # two alteration classes that previously fed ONLY the intracellular lens (SM/degrader). Both cards
+  # declare modality_relevance incl. adc/bite_tce/antibody (P4 sweep #241) but had NO surface rules —
+  # "declared-relevant-but-mute", stranded on the biology axis. Encodes the matrix spec verbatim:
+  #   Loss-of-function  → ADC "may ELIMINATE antigen → resistance"; Biologic "may eliminate binding target"
+  #   Fusion            → ADC "only if surface epitope preserved/created"; Biologic "if extracellular/receptor"
+  # DEGRADER-channel untouched here (surface file); SM/degrader cells stay in intracellular rules. All
+  # additive signal-only — no resolver rung references these (verdict spine byte-stable).
+  # ============================================================================
+
+  - rule_id: biallelic-inactivation-surface-antigen-opposing
+    when:
+      card_id: functional-gene-state
+      field: functional_state_class
+      equals: recurrent_biallelic_inactivation
+    signals:
+      adc: opposing
+      bite_tce: opposing
+      antibody: opposing
+    rationale: |
+      Recurrent biallelic inactivation (completed two-hit LoF) — the protein is genuinely lost in a
+      recurrent fraction of tumours. For a SURFACE modality this ARGUES AGAINST the target: a
+      degraded/deleted gene may eliminate the antigen (ADC/antibody binding target) or the epitope a
+      TCE engages, so antigen-negative escape is the expected resistance mode. OPPOSING (not killer):
+      the loss is fraction-of-cohort, not universal, and heterozygous/wild-type tumours retain the
+      antigen — a patient-selection caveat, not a veto. Matrix cell: Loss-of-function × {ADC, Biologic}.
+
+  - rule_id: fusion-driver-surface-epitope-neutral
+    when:
+      card_id: fusion-rearrangement-landscape
+      field: fusion_class
+      equals: recurrent_fusion_driver
+    signals:
+      adc: neutral
+      bite_tce: neutral
+      antibody: neutral
+    rationale: |
+      A recurrent fusion driver is a strong INTRACELLULAR signal (catalytic-domain-retained kinase
+      fusion → small-molecule; bindable/degradable fusion → degrader — encoded in the intracellular
+      rules). For a SURFACE modality the matrix is CONDITIONAL: an ADC/antibody/TCE applies "only if a
+      surface epitope is preserved or created" by the fusion — which THIS card cannot determine (it
+      reports recurrence, not the fusion's effect on the extracellular domain / surface topology).
+      NEUTRAL (honest): no positive or negative surface-antigen argument from fusion recurrence alone;
+      a fusion that truncates the ectodomain would be antigen-negative, one creating a neoepitope could
+      be favourable — resolve with the surface-topology card, not here. Matrix cell: Fusion × {ADC, Biologic}.
+
+  # ============================================================================
+  # F-mutstrat — MUTATION-STRATIFIED surface window (Card mutation-stratified-surface, E4-A2)
+  # ============================================================================
+  # A patient-selection-aware surface presence signal: a surface antigen ELEVATED in a driver's
+  # MUTANT tumor subset (vs WT) is a biologics handle enriched in the mutant patient population —
+  # the gene-level-averaged tumor-vs-normal window dilutes these subset-specific antigens. ADDITIVE
+  # signal-only: the surface_modality verdict resolves off adc-tce-modality-fit.fit_class, so this
+  # rule feeds NO resolver rung → verdict byte-stable; it raises/annotates the biologics presence
+  # argument. Only mutant_up_surface fires (supportive); mutant_down / not_stratified / underpowered /
+  # not_in_product emit nothing (measured-vs-null: a coverage gap or non-signal is not opposing).
+  - rule_id: mutant-up-surface-antigen-supportive
+    when:
+      card_id: mutation-stratified-surface
+      field: mutant_stratified_surface_class
+      equals: mutant_up_surface
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    rationale: |
+      The surface antigen is significantly ELEVATED in the driver-mutant subset of this indication
+      (Mann-Whitney q<=0.10, median delta_log2>=0.5 mutant-vs-WT) — a biologics handle enriched in
+      the driver-mutant patient population, which the gene-level-averaged tumor-vs-normal window
+      dilutes away (the KRAS-mut-NSCLC → MSLN/CEACAM5 archetype). Supportive across adc/bite_tce/
+      antibody as a PATIENT-SELECTION-aware presence argument; confirm mutant-subset antigen density
+      before nomination. SURFACE-scoped (an intracellular SM target does not use a surface antigen).
+
+  # ============================================================================
+  # F-precedent — CD / IO-antigen backbone clinical-precedent (enrichment E6-CD, 2026-08-07)
+  # ============================================================================
+  # Keyed on cd_antigen_backbone_class (cd-antigen-backbone card; HGNC gene-group-471). A CLASS-level
+  # clinical-PRECEDENT prior, orthogonal to the PREDICTED-biology surface rules (topology/density/window).
+  # SUPPORTIVE-ONLY: not_cd_antigen fires NOTHING — it is the ABSENCE of a CD-backbone prior, NOT a
+  # negative (most solid-tumor ADC/TCE antigens — CEACAM5/FOLR1/TROP2/MSLN — are not CD molecules; an
+  # opposing signal here would wrongly penalize them). ADDITIVE: no surface_modality resolver rung
+  # (verdict resolves off adc-tce-modality-fit.fit_class) → verdict byte-stable.
+
+  - rule_id: cd-established-io-backbone-supportive
+    when:
+      card_id: cd-antigen-backbone
+      field: cd_antigen_backbone_class
+      equals: established_io_backbone
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    modality_importance:
+      adc: important
+      bite_tce: important
+      antibody: important
+    rationale: |
+      Target is a canonical CD/IO antigen whose CLASS has delivered APPROVED or advanced-clinical
+      biologics (CD19/CD20/CD22/CD38/CD30/CD33/CD79B/BCMA-class mAb/ADC/TCE/CAR-T). The strongest
+      tractability PRECEDENT prior surface-modality-fit carries — an antigen class de-risked by real
+      drugs, supportive across all antibody-based modalities. Important, but PRECEDENT-not-validation:
+      class success is not this-target validation; confirm the specific-target evidence.
+
+  - rule_id: cd-antigen-backbone-supportive
+    when:
+      card_id: cd-antigen-backbone
+      field: cd_antigen_backbone_class
+      equals: cd_antigen
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    modality_importance:
+      adc: secondary
+      bite_tce: secondary
+      antibody: secondary
+    rationale: |
+      Target is a canonical CD antigen (on the HGNC CD-molecule roster) but not in the curated
+      approved-precedent set — a real but weaker backbone prior (a well-characterized surface
+      immuno-antigen class). Supportive SECONDARY. not_cd_antigen fires no rule (absence of a
+      CD-backbone prior is not a negative — most solid-tumor ADC/TCE antigens are not CD molecules).
+
+  # ============================================================================
+  # F-pathstrat — PATHWAY/STATE-stratified surface window (Card pathway-stratified-surface, E4-A3)
+  # ============================================================================
+  # Sibling of F-mutstrat (E4-A2). A surface antigen ELEVATED in a tumor-STATE-HIGH subset (e.g. the
+  # hypoxia-HIGH tertile) is a biologics handle on that tumor compartment — the gene-level-averaged
+  # tumor-vs-normal window dilutes these state-conditional antigens. ADDITIVE signal-only: the
+  # surface_modality verdict resolves off adc-tce-modality-fit.fit_class, so this rule feeds NO
+  # resolver rung → verdict byte-stable. Only pathway_high_up_surface fires (supportive); down /
+  # not_stratified / underpowered / not_in_product emit nothing (measured-vs-null discipline).
+  - rule_id: pathway-high-up-surface-antigen-supportive
+    when:
+      card_id: pathway-stratified-surface
+      field: pathway_stratified_surface_class
+      equals: pathway_high_up_surface
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    rationale: |
+      The surface antigen is significantly ELEVATED in the pathway/stress-HIGH subset of this
+      indication (Mann-Whitney q<=0.10, median delta_log2>=0.5 high-vs-low tertile) — a biologics
+      handle on that tumor compartment, which the gene-level-averaged tumor-vs-normal window dilutes
+      away (the hypoxia-HIGH → CA9/SLC2A1 archetype). Supportive across adc/bite_tce/antibody as a
+      state-conditional presence argument; confirm subset antigen density before nomination.
+      SURFACE-scoped. NB v1 = hypoxia in NSCLC where the high tertile is squamous-enriched (a histology
+      confound documented on the card) — read as the hypoxic/squamous niche, not pure hypoxia.
+
+  # ── Block J — SPATIAL tumour–normal co-localization (in-situ neighbourhood) ────────────────────────
+  # spatial_coloc_class = the in-situ neighbourhood pattern of the target's MALIGNANT cells (imaging
+  # single-cell; spatial-tumor-normal-colocalization card). The tissue-architecture axis dissociated
+  # scRNA is blind to. Three classes carry a signal: the two decision-relevant NEGATIVES
+  # (immune_excluded, normal_epithelium_adjacent) and the TCE-favourable POSITIVE
+  # (immune_niche_colocalized, J-3 below — bite_tce supportive/important). The remaining classes —
+  # stromal_niche_colocalized, endothelial_niche_colocalized, other_niche_colocalized,
+  # no_spatial_preference — emit nothing (neutral / measured-vs-null).
+  - rule_id: spatial-immune-excluded-tce-opposing
+    when:
+      card_id: spatial-tumor-normal-colocalization
+      field: spatial_coloc_class
+      equals: immune_excluded
+    signals:
+      adc: neutral
+      bite_tce: opposing
+      antibody: neutral
+    modality_importance:
+      bite_tce: important
+    rationale: |
+      The target-positive malignant cells are spatially DEPLETED of immune neighbours vs the malignant
+      baseline (in-situ enrichment <= 0.85) — the target marks immune-COLD / immune-excluded tumour
+      regions. A liability for bite_tce specifically: a bispecific T-cell engager needs effector T cells
+      in the immediate neighbourhood to lyse the tumour cell, and immune exclusion means they are not
+      there. Neutral for adc / antibody (payload / Fc-effector mechanisms do not require adjacent T cells).
+      SPATIAL-scoped; a modality-context lens, not a presence signal.
+
+  - rule_id: spatial-normal-epithelium-adjacent-opposing
+    when:
+      card_id: spatial-tumor-normal-colocalization
+      field: spatial_coloc_class
+      equals: normal_epithelium_adjacent
+    signals:
+      adc: opposing
+      bite_tce: opposing
+      antibody: neutral
+    modality_importance:
+      adc: secondary
+      bite_tce: secondary
+    rationale: |
+      The target-positive malignant cells spatially ABUT normal epithelium (in-situ enrichment for the
+      normal-epithelium neighbour compartment >= 1.15) — a bystander-tox geometry: an ADC payload or a
+      TCE engaging target-high tumour at the tumour–normal interface can damage the adjacent normal
+      epithelial layer. Opposing for adc + bite_tce (spatial bystander margin); neutral for antibody.
+      SPATIAL-scoped safety-margin flag; confirm the target's normal-epithelium expression before weighting.
+
+  - rule_id: spatial-immune-niche-colocalized-supportive
+    when:
+      card_id: spatial-tumor-normal-colocalization
+      field: spatial_coloc_class
+      equals: immune_niche_colocalized
+    signals:
+      adc: neutral
+      bite_tce: supportive
+      antibody: neutral
+    modality_importance:
+      bite_tce: important
+    rationale: |
+      The target-positive malignant cells sit in an immune-RICH spatial niche (in-situ enrichment for the
+      immune neighbour compartment >= 1.15) — effector T cells are adjacent, a favourable context for a
+      bite_tce (the spatial converse of immune_excluded). Supportive/important for bite_tce; neutral for
+      adc / antibody. SPATIAL-scoped modality-context lens, not a monospecific presence signal.
+
+  # ── Block K — SPATIAL region-PROTEIN abundance (in-situ, by tumour compartment) ───────────────────
+  # spatial_protein_class = MEASURED in-situ protein (GeoMx DSP) in the TUMOUR compartment vs TME
+  # (spatial-surface-protein-abundance card). tumour_present_no_compartment_preference + data_unavailable
+  # emit nothing (measured-vs-null). The two decision-relevant calls carry a signal.
+  - rule_id: spatial-protein-tumour-enriched-supportive
+    when:
+      card_id: spatial-surface-protein-abundance
+      field: spatial_protein_class
+      equals: tumour_enriched_protein
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    rationale: |
+      The target's protein is MEASURED in situ (GeoMx DSP) and CONCENTRATED in the tumour compartment vs
+      the microenvironment (tumour - TME >= 0.5 log-CPM) — an orthogonal, protein-grade presence argument
+      that the bulk-CPTAC×HPA copies/cell estimate (Axis-3) cannot establish in situ. Supportive across
+      adc / bite_tce / antibody as a measured tumour-compartment surface-presence signal. SPATIAL-scoped;
+      complements (does not replace) the Axis-3 density estimate.
+
+  - rule_id: spatial-protein-tme-enriched-specificity-caveat
+    when:
+      card_id: spatial-surface-protein-abundance
+      field: spatial_protein_class
+      equals: tme_enriched_protein
+    signals:
+      adc: opposing
+      bite_tce: opposing
+      antibody: opposing
+    modality_importance:
+      adc: secondary
+      bite_tce: secondary
+      antibody: secondary
+    rationale: |
+      The target's protein is MEASURED higher in the microenvironment (TME) than the tumour compartment
+      (tumour - TME <= -0.5 log-CPM) — the protein is concentrated on stromal / immune / vascular cells
+      rather than tumour cells (the CD34-endothelial / CD68-macrophage archetype), a tumour-SPECIFICITY
+      caveat for a tumour-directed biologic. Opposing (secondary) across modalities as an in-situ
+      specificity flag; confirm the target's tumour-cell vs TME attribution before nomination.
+      SPATIAL-scoped.
+
+  # ── Block L — SPATIAL region-RNA expression (in-situ, by tumour compartment) ──────────────────────
+  # spatial_rna_class = MEASURED in-situ RNA (GeoMx DSP Whole Transcriptome Atlas) in the TUMOUR compartment
+  # vs TME (spatial-region-rna-expression card). RNA is a PRESENCE/localization proxy, NOT a surface-protein
+  # claim — signals are deliberately SECONDARY (corroborating), weaker than the region-PROTEIN Block-K.
+  # tumour_present_no_compartment_preference + data_unavailable emit nothing (measured-vs-null).
+  - rule_id: spatial-rna-tumour-enriched-supportive
+    when:
+      card_id: spatial-region-rna-expression
+      field: spatial_rna_class
+      equals: tumour_enriched_rna
+    signals:
+      adc: supportive
+      bite_tce: supportive
+      antibody: supportive
+    modality_importance:
+      adc: secondary
+      bite_tce: secondary
+      antibody: secondary
+    rationale: |
+      The target's RNA is MEASURED in situ (GeoMx DSP WTA) and CONCENTRATED in the tumour compartment vs
+      the microenvironment (tumour - TME >= 0.5 log-scale) — a measured, region-resolved tumour-compartment
+      localization argument that dissociated scRNA (no architecture) cannot establish. Supportive but
+      SECONDARY across adc / bite_tce / antibody: RNA enrichment corroborates target PRESENCE/localization
+      but does NOT establish surface-protein display — confirm on the region-PROTEIN (Block K) / Axis-3
+      surface readouts before treating as a surface argument. SPATIAL-scoped.
+
+  - rule_id: spatial-rna-tme-enriched-specificity-caveat
+    when:
+      card_id: spatial-region-rna-expression
+      field: spatial_rna_class
+      equals: tme_enriched_rna
+    signals:
+      adc: opposing
+      bite_tce: opposing
+      antibody: opposing
+    modality_importance:
+      adc: secondary
+      bite_tce: secondary
+      antibody: secondary
+    rationale: |
+      The target's RNA is MEASURED higher in the microenvironment (TME) than the tumour compartment
+      (tumour - TME <= -0.5 log-scale) — expression is concentrated on stromal / immune / vascular cells
+      rather than tumour cells (the COL1A1-stroma / PECAM1-endothelium / PTPRC-immune archetype), a
+      tumour-SPECIFICITY caveat for a tumour-directed biologic. Opposing (secondary) across modalities as
+      an in-situ, RNA-grade specificity flag; confirm the target's tumour-cell vs TME attribution before
+      nomination. SPATIAL-scoped.

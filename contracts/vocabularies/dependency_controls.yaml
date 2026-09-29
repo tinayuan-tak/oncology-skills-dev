@@ -1,0 +1,162 @@
+# dependency_controls.yaml
+#
+# Curated POSITIVE / NEGATIVE control genes for the functional-requirement
+# (dependency / Gate-C) subskill's control-benchmark axis — the dependency analog
+# of vocabularies/tumor_presence_controls.yaml (Axis 2 of the contextualized-
+# interpretation enhancement).
+#
+# WHY A CONTROL AXIS FOR DEPENDENCY (and why it INVERTS):
+#   A raw Chronos score is already a control-normalized scale by construction:
+#   0 ≈ a non-essential gene (knockout has no fitness effect), and −1 ≈ the median
+#   of the pan-essential (common-essential) reference set DepMap uses to scale each
+#   screen. So unlike tumor abundance (where "99th percentile of WHAT?" is genuinely
+#   ambiguous), a Chronos value carries built-in reference frames. This axis makes
+#   those frames EXPLICIT — it anchors the target against named pan-essential and
+#   non-essential genes on the SAME Chronos scale, in the SAME panel, so a reader can
+#   say "the target is more dependent than every non-essential control but nowhere
+#   near as essential as the ribosomal/proteasome pan-essentials."
+#
+#   THE INVERSION (the load-bearing design difference vs the presence controls):
+#   For tumor-presence, sitting ABOVE the positive controls (approved antigens) is
+#   GOOD (a strong antigen). For DEPENDENCY it is the OPPOSITE: a target that reads
+#   AS essential as the pan-essential positives is a BROAD-TOXICITY LIABILITY, not a
+#   win — inhibiting it would kill every cell (normal tissue included), the classic
+#   pan-essential tox problem. The therapeutic SWEET SPOT is a Chronos that sits
+#   BETWEEN the two control bands: a real, selective dependency (clearly below the
+#   non-essential floor) that is NOT pan-essential (well above the common-essential
+#   ceiling). So:
+#     positive_controls  = pan-essential / common-essential genes  → a CEILING of
+#                          essentiality; reading AT this depth is a TOX WARNING.
+#     negative_controls  = non-essential genes                     → a FLOOR;
+#                          reading AT/above this is "no dependency".
+#   This mirrors feedback_pan_essentiality_safety_liability: pan-essentiality is a
+#   safety signal (broad tox), not evidence of a good target.
+#
+# WHY A CURATED LIST (not a database):
+#   "Canonical pan-essential gene" and "canonical non-essential gene" are established
+#   biological reference sets (ribosome/proteasome/core-machinery vs olfactory
+#   receptors / germ-cell-restricted genes), not a queryable per-screen field. This
+#   mirrors the discipline of tumor_presence_controls.yaml + known_target_calibration
+#   _set.yaml (each entry cites WHY it is a control). All Chronos figures in the
+#   rationales are empirical DepMap 26Q1 pan-panel medians (n≈1538 cell lines),
+#   verified at authoring time — a control gene absent from the CRISPR panel is NOT
+#   listed (POLR2A, a natural pan-essential candidate, is absent from 26Q1 and is
+#   deliberately excluded rather than silently dropped at runtime).
+#
+# WHAT `dep_control_position` MEANS (the emitted output):
+#   For a target, the method fetches the pan-panel MEDIAN Chronos for the target AND
+#   for every control gene present in the panel (same release, same scale), then
+#   classifies where the target sits relative to the pan-essential ceiling + the
+#   non-essential floor. It is a CONFIDENCE / interpretability facet — like the rest
+#   of this subskill's contextualization axes it is ONE-DIRECTIONAL and NEVER flips
+#   the dependency_verdict (no rule reads it; the resolver golden snapshot is
+#   untouched).
+#
+# CURATION DISCIPLINE:
+#   - Every entry cites its rationale + the empirical 26Q1 median.
+#   - Positives are canonical common-essential genes spanning a DEPTH range (deep
+#     core-essentials ≈ −2.5 to −3.0 AND shallower essentials ≈ −1.5 to −1.7) so the
+#     "pan-essential band" is a range, not a single point.
+#   - Negatives are canonical non-essential genes (Chronos ≈ 0).
+#   - Extending is cheap: add an entry + bump version. A calibration harness locks the
+#     three anchor cases (POLR2A-class pan-essential → as_essential_as_pan_essential;
+#     KRAS → between_controls; an olfactory receptor → non_dependent_near_negatives).
+
+version: 1.0.0
+schema_version: 1
+curator: ryan.abo@takeda.com
+curation_status: iter1_authored
+
+# The scale these controls are read on. A control's position is only comparable to a
+# target's when BOTH come from the same axis (pan-cancer DepMap Chronos, per release).
+chronos_source:
+  release_pin: 26q1
+  metric: pan_panel_median_chronos   # per-gene median over all screened cell lines
+  scale_note: >
+    Chronos: 0 ≈ non-essential; −1 ≈ median of DepMap common-essential reference set.
+    More negative = more depleted = more essential. Values below are empirical 26Q1
+    pan-panel medians (n≈1538), verified at authoring.
+
+# ---------------------------------------------------------------------------
+# POSITIVE CONTROLS — pan-essential / common-essential genes. These form the
+# ESSENTIALITY CEILING. A target reading AS essential as these is a BROAD-TOXICITY
+# liability (pan-essential → kills normal tissue too), NOT a therapeutic win.
+# ---------------------------------------------------------------------------
+positive_controls:
+
+  PCNA:
+    role: pan_essential
+    applies: universal
+    empirical_median_chronos_26q1: -2.98
+    rationale: "Proliferating cell nuclear antigen: DNA-replication sliding clamp, a canonical deep core-essential (26Q1 median −2.98, among the most depleted genes genome-wide). Anchors the deep end of the pan-essential ceiling."
+    citation: "DepMap common-essential reference; Hart et al. 2015 core-essential gene set."
+
+  RPS11:
+    role: pan_essential
+    applies: universal
+    empirical_median_chronos_26q1: -2.74
+    rationale: "40S ribosomal protein S11: ribosome-biogenesis core-essential (26Q1 median −2.74). Ribosomal proteins are the archetypal common-essential class used to calibrate CRISPR screens."
+    citation: "DepMap common-essential reference; Hart et al. 2015."
+
+  RPL3:
+    role: pan_essential
+    applies: universal
+    empirical_median_chronos_26q1: -2.55
+    rationale: "60S ribosomal protein L3: large-subunit ribosomal core-essential (26Q1 median −2.55). Sibling ribosomal anchor to RPS11 (small subunit)."
+    citation: "DepMap common-essential reference; Hart et al. 2015."
+
+  EEF2:
+    role: pan_essential
+    applies: universal
+    empirical_median_chronos_26q1: -2.74
+    rationale: "Eukaryotic translation elongation factor 2: essential for peptide-chain elongation (26Q1 median −2.74). Translation-machinery core-essential, distinct pathway from the ribosomal proteins."
+    citation: "DepMap common-essential reference."
+
+  PSMB2:
+    role: pan_essential
+    applies: universal
+    empirical_median_chronos_26q1: -1.74
+    rationale: "Proteasome subunit beta 2: 20S proteasome core-essential (26Q1 median −1.74). A SHALLOWER pan-essential than the ribosomal/replication anchors — deliberately included so the pan-essential band spans a depth range, not a single point."
+    citation: "DepMap common-essential reference."
+
+  SF3B1:
+    role: pan_essential
+    applies: universal
+    empirical_median_chronos_26q1: -1.50
+    rationale: "Splicing factor 3b subunit 1: core spliceosome, essential (26Q1 median −1.50). The shallowest pan-essential anchor here (≈ the common-essential −1 calibration line), marking the UPPER edge of the essentiality-ceiling band."
+    citation: "DepMap common-essential reference."
+
+# ---------------------------------------------------------------------------
+# NEGATIVE CONTROLS — canonical NON-ESSENTIAL genes. These form the DEPENDENCY FLOOR
+# (Chronos ≈ 0). A target reading AT or ABOVE this band has no CRISPR dependency; a
+# genuine dependency must read clearly BELOW it.
+# ---------------------------------------------------------------------------
+negative_controls:
+
+  OR2T4:
+    role: non_essential
+    applies: universal
+    empirical_median_chronos_26q1: 0.02
+    rationale: "Olfactory receptor 2T4: olfactory receptors are expressed almost exclusively in olfactory epithelium and are non-essential in tumor cell lines (26Q1 median +0.02). The canonical non-essential control class."
+    citation: "DepMap non-essential reference; olfactory-receptor non-expression in cancer lines."
+
+  OR51E2:
+    role: non_essential
+    applies: universal
+    empirical_median_chronos_26q1: 0.04
+    rationale: "Olfactory receptor 51E2: non-essential olfactory receptor (26Q1 median +0.04). Sibling non-essential anchor to OR2T4."
+    citation: "DepMap non-essential reference."
+
+  PRM1:
+    role: non_essential
+    applies: universal
+    empirical_median_chronos_26q1: 0.08
+    rationale: "Protamine 1: testis/sperm-restricted chromatin protein, unexpressed and non-essential in somatic tumor lines (26Q1 median +0.08). A germ-cell-restricted non-essential floor anchor (also the silent floor in tumor_presence_controls.yaml — a gene that is neither expressed nor required)."
+    citation: "DepMap non-essential reference; PRM1 testis restriction (GTEx)."
+
+  MYH2:
+    role: non_essential
+    applies: universal
+    empirical_median_chronos_26q1: -0.04
+    rationale: "Myosin heavy chain 2: skeletal-muscle-restricted, non-essential in tumor cell lines (26Q1 median −0.04). A lineage-restricted non-essential control from a different tissue class than the olfactory receptors."
+    citation: "DepMap non-essential reference; MYH2 skeletal-muscle restriction (GTEx)."

@@ -1,0 +1,179 @@
+# target_thesis.yaml — the governed THESIS-ROUTING vocabulary (Step 2a of the framework-architecture
+# remediation, 2026-09-11).
+#
+# WHY THIS EXISTS. The nomination gate implements dependency-AND-safety, but the ontology
+# (target_profiling_axes.yaml:55) declares necessity as ANY-OF: an antigen-driven target carries no
+# recurrent dependency, so vetoing it on `dependency` adjudicates it on the wrong axis (measured: 0/14
+# surface antigens decided on surface biology). The fix is to TYPE the target's thesis, then let THAT
+# thesis's admissible axis decide (Step 2b). This vocabulary is the governed routing key.
+#
+# GOVERNANCE (non-negotiable, mirrors archetype_core's contract). archetype_core stays strictly
+# VERDICT-INERT — it mints no recommendation and never enters the gate. The ROUTING is done by THIS
+# governed vocabulary + a deterministic derivation (skills/target-profile derive_thesis), which is
+# PR-reviewable like every other vocabulary. A data-derived signal (the archetype soft-membership
+# mixture) is READ, but the mapping to a thesis and the hard-margin rule are declared HERE.
+#
+# STEP 2a IS BYTE-STABLE. The derived `thesis` is EMITTED onto the composition (nomination.json) and
+# consumed by NOTHING yet — no gate block reads it until Step 2b. So this file + the derivation move
+# no verdict. `unresolved` reproduces today's gate exactly, by construction.
+
+version: 1.1.0  # 1.1.0 (2026-09-18, Stage 2b parity): each `step_2b_refinement` lane's `when_verdicts.dependency` list gains `not_dependent_in_indication` alongside `non_dependent`. Widens the ROUTING CONDITION (no lane, thesis, or `admissible_deciding_axes` added or removed), forced by `subsumes:` being a CLAIM rather than a cross-reference — the veto_suppressors / gof_driver_scoped_veto_downgrade blocks each gained a twin for the new token, so a lane naming only the pooled arm would make its own subsumption assertion false and Step 2c would retire the epicycle out from under the new arm. Each rationale is re-argued rather than copied, because all three turned on the word POOLED: lane 1 escapes by ORTHOGONALITY (a KO is the wrong assay for a neomorphic activity at ANY grain), lanes 2-3 by DILUTION (an indication's models are overwhelmingly biomarker-WT, and a subtype is strictly narrower than an indication). NO verdict moves until the skills side populates `indication_dependency_class` (Stage 5); the token is unreachable today.
+schema_version: 1
+
+# ── The thesis enum ──────────────────────────────────────────────────────────────────────────────
+# Each thesis names the axis(es) that may legitimately DECIDE a target of that thesis (Step 2b fills in
+# the per-thesis necessity conjunctions in nomination_verdict_gate.yaml). `admissible_deciding_axes` is
+# ADVISORY documentation here (2b is the enforcing artifact); it is recorded so the routing key and the
+# gate blocks are reviewed together.
+theses:
+  antigen_driven:
+    describes: "Surface-antigen target for a biologics modality (ADC / TCE / mAb); carries NO recurrent somatic driver by design."
+    admissible_deciding_axes: [expression, selectivity, surface_modality, safety]
+    irrelevant_axes: [dependency]              # an unfired dependency must NOT read as failing necessity (ANY-OF)
+    exemplars: [FOLR1, DLL3, MSLN, CLDN18.2, TACSTD2, EPCAM, CDH3]
+  oncogene_addiction:
+    describes: "Classic oncogene the tumour is addicted to (GoF SNV or amplification); the genetic dependency decides. Today's default behaviour."
+    admissible_deciding_axes: [dependency, genomic_alteration, tractability_sm]
+    irrelevant_axes: []
+    exemplars: [KRAS, EGFR, ERBB2, BRAF, MET]
+  neomorphic_gof:
+    describes: "Neomorphic gain-of-function driver (a new activity, not just more of the WT); genomic driver + tractability decide, whole-gene-KO dependency is irrelevant."
+    admissible_deciding_axes: [genomic_alteration, tractability_sm]
+    irrelevant_axes: [dependency]
+    exemplars: [IDH1, MET-METex14]
+    derived_by: step_2b   # not archetype-membership-derivable — refined in 2b from the genomic axis (neomorphic verdicts)
+  partner_conditional_sl:
+    describes: "Synthetic-lethal / partner-conditional dependency (context-restricted); partner-conditional/SL evidence decides, pooled dependency is irrelevant."
+    admissible_deciding_axes: [dependency, combination_vulnerability]
+    irrelevant_axes: []
+    exemplars: [WRN, PRMT5, MAT2A]
+    derived_by: step_2b   # refined in 2b from a fired partner-conditional/SL dependency verdict
+  pan_essential_buffered:
+    describes: "Broadly essential but with a therapeutic-index window (buffered); the safety window decides. Recovers BCL2/XPO1/PSMB5/CDK4-6 from the pan-essential veto."
+    admissible_deciding_axes: [safety, dependency]
+    irrelevant_axes: []
+    exemplars: [BCL2, XPO1, PSMB5, CDK4, CDK6]
+    derived_by: step_2b   # refined in 2b from pan_essential + a measured safety window
+  tme_io:
+    describes: "Tumour-microenvironment / immuno-oncology target; immune-context becomes an admissible deciding axis (gateless today)."
+    admissible_deciding_axes: [immune_context, safety]
+    irrelevant_axes: [dependency]
+    exemplars: [PDCD1, CTLA4, CD274]
+  unresolved:
+    describes: "No dominant thesis (ambiguous mixture, or no signal). Routes to TODAY's gate byte-for-byte — the conservative fallback that guarantees no regression."
+    admissible_deciding_axes: []   # today's gate (dependency-veto + safety-hold) applies unchanged
+    irrelevant_axes: []
+
+# ── Derivation (Step 2a): archetype soft-membership → thesis, under a HARD-MARGIN rule ─────────────
+# archetype_core emits a convex `soft_membership` over its anchor labels. A thesis is assigned only
+# when ONE component clearly dominates; an ambiguous mixture is `unresolved` (→ today's gate). The
+# thresholds are conservative on purpose — when in doubt, DO NOT route.
+derivation:
+  source: archetype_companion.soft_membership     # computed by _skills_common/archetype_core (verdict-inert)
+  hard_margin:
+    dominant_weight_min: 0.50    # the top component must hold >= half the mixture mass
+    separation_min: 0.20         # and lead the 2nd component by >= this, else `unresolved`
+  # archetype anchor label -> thesis (the labels archetype_core's atlas actually emits)
+  archetype_label_to_thesis:
+    expression_surface: antigen_driven
+    snv_driver: oncogene_addiction          # GoF SNV; neomorphic_gof is a 2b refinement over the genomic axis
+    amp_driver: oncogene_addiction
+    dependency_essential: oncogene_addiction # a genetic dependency → the dependency axis decides
+    immune_checkpoint: tme_io
+    tsg_loss: unresolved                     # TSG-loss has no clean thesis in this enum yet → conservative
+    control_housekeeping: unresolved
+    control_absent: unresolved
+    "?": unresolved                          # derived/unknown anchor label
+
+# ── Fallback: the curated biology_axis lookup, used ONLY when the archetype mixture is `unresolved` ──
+# Guarantees the ~20 curated biology_axis targets still receive a thesis, so they never regress when the
+# data-derived mixture is ambiguous (the plan's explicit requirement). biology_axis values come from
+# vocabularies/target_biology_axis_lookup.yaml (enum: intracellular_intrinsic|surface_intrinsic|extrinsic|mixed).
+biology_axis_fallback:
+  surface_intrinsic: antigen_driven
+  intracellular_intrinsic: oncogene_addiction
+  extrinsic: tme_io
+  mixed: unresolved
+  unknown: unresolved        # uncurated target with an ambiguous mixture → today's gate (no routing)
+
+# ── Step 2b REFINEMENT: promote a coarse thesis to a FINER one from AXIS SIGNALS ───────────────────
+# The archetype mixture types the COARSE thesis (surface/oncogene/immune). The finer theses cannot come
+# from the mixture — the atlas has no anchor for them — so they are a SECOND stage keyed on the fired
+# sub-skill VERDICTS, reusing the exact triggers the corresponding epicycle block uses so that thesis
+# routing genuinely SUBSUMES it (Step 2c can then retire the epicycle). Applied AFTER the coarse
+# derivation; first matching rule wins. A rule fires only when the coarse thesis is in `from` (so a
+# surface/immune thesis is never overridden) AND every (sub_skill → verdict∈list) in `when_verdicts`
+# holds against the run's sub-verdicts.
+step_2b_refinement:
+  - to: neomorphic_gof
+    from: [oncogene_addiction, unresolved]
+    when_verdicts:
+      genomic_alteration: [confirmed_driver, multi_class_driver]   # a confirmed GoF/activating driver
+      # …whose whole-gene KO reads non-dependent at EITHER grain. `not_dependent_in_indication` added
+      # 2026-09-18 (Stage 2b) because `subsumes:` is a CLAIM, not a cross-reference: the epicycle it
+      # names now has a twin entry for the new token, so a lane listing only the pooled arm would make
+      # the subsumption FALSE — and Step 2c retiring the epicycle on the strength of that claim would
+      # silently delete the new arm's escape. For THIS thesis the grain is doubly irrelevant: a KO is
+      # the wrong ASSAY for a neomorphic activity, so conditioning it on the queried indication cannot
+      # make it relevant (ORTHOGONALITY, not dilution).
+      dependency: [non_dependent, not_dependent_in_indication]
+    subsumes: gof_driver_scoped_veto_downgrade
+    rationale: |
+      Neomorphic GoF (IDH1 R132): a confirmed GoF/activating oncogenic driver whose POOLED pan-cancer
+      CRISPR reads `non_dependent` — the drug (ivosidenib) inhibits the mutant's GAINED activity, not a
+      whole-gene dependency, so the pooled non-dependence is an IRRELEVANT criterion. The favorable
+      GENOMIC-driver read is the 2d co-condition that justifies making the dependency veto irrelevant
+      (dropped → the genomic + tractability axes decide). Exactly the fire condition of
+      gof_driver_scoped_veto_downgrade (confirmed_driver/multi_class_driver + the non_dependent it
+      downgrades), so thesis routing subsumes that epicycle — but DROPS (nominate-eligible via
+      genomic+tractability) where the epicycle only HELD. KRAS is confirmed_driver but
+      concordant_dependent (NOT non_dependent) → condition fails → stays oncogene_addiction (dependency
+      decides), preserving the KRAS golden. LoF/TSG drivers are excluded (not in the verdict list).
+  # partner_conditional_sl — the MEASURED partner/context-conditional dependency (pooled non_dependent is
+  # a dilution artifact). Two rules (OR via first-match) mirror the two MEASURED arms of veto_suppressors,
+  # both nominate-eligible; the ANNOTATION-only SL arm (sl_partner_class=has_experimental_sl_partner →
+  # insufficient, NOT nominate) is DELIBERATELY NOT mapped here — a plain thesis drop would over-permit
+  # annotation, so that arm stays in veto_suppressors until a routing form that preserves the
+  # insufficient-cap is designed. Both require a dependency NON-DEPENDENCE verdict (the veto being
+  # escaped) so a target that IS a measured dependency stays oncogene_addiction. As of 2026-09-18 that
+  # means either arm — pooled `non_dependent` or `not_dependent_in_indication` — and the 3-suppressors-
+  # to-2-lanes ratio is UNCHANGED by the addition: the indication-grain twin of the annotation-only SL
+  # arm is likewise not mapped, for the same over-permissiveness reason, so the `subsumes:` claims below
+  # stay exactly as complete (and as incomplete) as they were.
+  - to: partner_conditional_sl
+    from: [oncogene_addiction, unresolved]
+    when_verdicts:
+      genomic_alteration: [biomarker_stratified_dependency, moderate_biomarker_dependency]
+      dependency: [non_dependent, not_dependent_in_indication]
+    subsumes: "veto_suppressors (biomarker-stratified arm, BOTH non-dependence verdicts)"
+    rationale: |
+      A MEASURED biomarker-stratified dependency (EGFR-mut, IDH1-R132, FLT3-ITD) means the pooled
+      pan-cancer non_dependent is a dilution artifact — the target is required in its mutant-selected
+      stratum. The stratified read is the favorable measured co-condition; the partner/biomarker axis
+      decides. Exactly the veto_suppressors biomarker-stratified arm's trigger → routing subsumes it.
+      `not_dependent_in_indication` (2026-09-18) escapes for the SAME reason but the argument has to be
+      re-made rather than inherited, because the sentence above turns on the word POOLED and that word
+      is false of it: the dilution is SMALLER at indication grain and never zero, since an indication's
+      models are overwhelmingly biomarker-WT (EGFR-mut is a minority of LUAD lines, FLT3-ITD of AML).
+      A narrower denominator that is still the wrong denominator is still the wrong estimator.
+  - to: partner_conditional_sl
+    from: [oncogene_addiction, unresolved]
+    when_verdicts:
+      subtype_fit: [subtype_restricted_dependency]
+      dependency: [non_dependent, not_dependent_in_indication]
+    subsumes: "veto_suppressors (subtype_restricted_dependency arm, BOTH non-dependence verdicts)"
+    rationale: |
+      A MEASURED, floor-cleared strong dependency confined to a molecular subtype (POU2F3/SCLC-P;
+      CMS4/CRC) — the pooled non_dependent is a dilution artifact and the subtype is the patient-
+      selection population. The measured subtype-restricted read is the co-condition; the subtype axis
+      decides. Exactly the veto_suppressors subtype_restricted_dependency arm's trigger → subsumed.
+      `not_dependent_in_indication` (2026-09-18) is the arm where the escape is STRUCTURALLY clearest,
+      not merely analogous: a subtype is strictly NARROWER than an indication (SCLC-P ⊂ SCLC), so an
+      indication-level negative is a pooled read OVER the subtypes it contains and a subtype-restricted
+      positive is exactly what it averages away. This is also why the dependency resolver leaves
+      `subtype_specific_non_dependence` a HOLD while making this token a VETO: that verdict forecloses
+      a scope narrower than the question, this one forecloses the question.
+  # pan_essential_buffered: STILL RESERVED. It must soften a pan_essential_killer VETO when a therapeutic
+  # window exists (recovers BCL2/XPO1/PSMB5/CDK4-6) — which collides with the 2b guardrail "never drop
+  # pan_essential_killer" and needs the exists-safe-modality-window computation (safety_verdict_by_modality)
+  # + grounded verification on those 4 approved drugs. Deferred to its own careful cycle.

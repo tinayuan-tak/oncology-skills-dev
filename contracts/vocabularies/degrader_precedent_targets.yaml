@@ -1,0 +1,105 @@
+# degrader_precedent_targets.yaml
+#
+# Curated vocabulary of gene symbols with documented TARGETED-DEGRADER precedent (a clinical or
+# well-characterized tool PROTAC / molecular glue that degrades the target). Precedent = the
+# strongest degradability signal: the target has actually been degraded, so feasibility is
+# demonstrated (not merely inferred from natural-substrate biology).
+#
+# WHY CURATED (not ingested): PROTAC-DB — the comprehensive degrader database — is license-
+# restricted (personal, non-transferable; no mirroring/redistribution), so it CANNOT be ingested
+# to S3. The FACTS (which targets have degrader precedent, with a representative compound +
+# primary citation) are not copyrightable; this small curated set captures them, citing PROTAC-DB
+# and primary literature as reference. Complements the natural-substrate prior from
+# ubibrowser-e3-substrate-per-gene-v1 (a PROTAC creates an INDUCED neo-substrate, so a target with
+# no natural E3 can still be a proven degrader target — e.g. BRD4).
+#
+# Consumed by analysis-methods/methods/degradation_feasibility: a curated entry drives
+# degradability_feasibility_class = precedented_degradable (unless the surfaceome location gate
+# excludes it) and surfaces the examples. Additive; feeds the degrader lens via degrader-channel
+# rules on the degradation-feasibility card. Verdict-inert for the small-molecule spine.
+#
+# Curation discipline: only targets with a named degrader molecule that has been characterized
+# in vivo / in the clinic (not "a PROTAC could be made"). Grows manually; coverage = curated only.
+# recruited_e3 records the E3 ligase the representative degrader recruits (CRBN/VHL dominate).
+
+entries:
+
+  AR:
+    examples: ["ARV-110 (bavdegalutamide)", "ARV-766"]
+    recruited_e3: CRBN
+    modality: PROTAC
+    context: "Androgen receptor degraders in clinical trials for mCRPC; degrade full-length AR incl. ligand-binding-domain-mutant forms that antagonists miss."
+    primary_source_doi: 10.1200/JCO.2022.40.16_suppl.3080
+    reference: PROTAC-DB; Arvinas clinical program
+
+  ESR1:
+    examples: ["ARV-471 (vepdegestrant)"]
+    recruited_e3: CRBN
+    modality: PROTAC
+    context: "Estrogen receptor degrader (Arvinas/Pfizer), Phase III in ER+ breast cancer; degrades ESR1 incl. LBD-mutant (Y537S/D538G) forms driving endocrine resistance."
+    primary_source_doi: 10.1158/2159-8290.CD-23-0612
+    reference: PROTAC-DB; VERITAC-2 program
+
+  BRD4:
+    examples: ["dBET1", "ARV-771", "MZ1"]
+    recruited_e3: CRBN/VHL
+    modality: PROTAC
+    context: "Prototype BET-bromodomain degraders; degrade BRD4 more durably/deeply than bromodomain inhibition (engages the ET scaffolding domain a BET inhibitor spares). Ties the domain-modality-relevance removal_favored call for BRD4."
+    primary_source_doi: 10.1126/science.aab1433
+    reference: PROTAC-DB; Winter 2015 Science
+
+  BTK:
+    examples: ["NX-2127", "NX-5948", "BGB-16673"]
+    recruited_e3: CRBN
+    modality: PROTAC
+    context: "BTK degraders in trials for B-cell malignancies; degrade BTK incl. C481S and non-covalent-inhibitor-resistant mutants, and eliminate BTK's kinase-independent scaffolding signaling."
+    primary_source_doi: 10.1182/blood-2023-179648
+    reference: PROTAC-DB; Nurix/BeiGene programs
+
+  STAT3:
+    examples: ["SD-36", "KT-333"]
+    recruited_e3: CRBN
+    modality: PROTAC
+    context: "STAT3 degraders (an 'undruggable' transcription factor with no catalytic pocket); molecular-degradation succeeds where SH2/dimerization inhibition failed. Ties domain-modality removal_favored."
+    primary_source_doi: 10.1073/pnas.1819473116
+    reference: PROTAC-DB; Kymera KT-333
+
+  IKZF1:
+    examples: ["lenalidomide", "iberdomide (CC-220)", "pomalidomide"]
+    recruited_e3: CRBN
+    modality: molecular_glue
+    context: "IKZF1/IKZF3 (Ikaros/Aiolos) are the canonical MOLECULAR-GLUE neo-substrates — thalidomide analogs redirect CRBN to degrade them; the founding degrader mechanism in multiple myeloma."
+    primary_source_doi: 10.1126/science.1244851
+    reference: PROTAC-DB; Kronke 2014 Science
+
+  IKZF3:
+    examples: ["lenalidomide", "iberdomide", "pomalidomide"]
+    recruited_e3: CRBN
+    modality: molecular_glue
+    context: "Aiolos — CRBN molecular-glue neo-substrate alongside IKZF1; degraded by IMiDs in myeloma."
+    primary_source_doi: 10.1126/science.1244851
+    reference: PROTAC-DB; Kronke 2014 Science
+
+  GSPT1:
+    examples: ["CC-885", "CC-90009 (eftozanermin-class)"]
+    recruited_e3: CRBN
+    modality: molecular_glue
+    context: "Translation termination factor GSPT1 — CRBN molecular-glue neo-substrate; degradation is the mechanism (AML), a target with no classic small-molecule inhibitor."
+    primary_source_doi: 10.1038/nature18611
+    reference: PROTAC-DB; Matyskiela 2016 Nature
+
+  RIPK2:
+    examples: ["POI-degrader tool compounds"]
+    recruited_e3: VHL
+    modality: PROTAC
+    context: "Early VHL-recruiting PROTAC proof-of-concept target; degrades the RIPK2 kinase-scaffold."
+    primary_source_doi: 10.1073/pnas.1521738113
+    reference: PROTAC-DB; Bondeson 2015
+
+  BCL2L1:
+    examples: ["DT2216"]
+    recruited_e3: VHL
+    modality: PROTAC
+    context: "BCL-XL PROTAC (DT2216) recruits VHL (low in platelets) to degrade BCL-XL while sparing platelet toxicity that limits BCL-XL inhibitors — a degrader-specific therapeutic-window win."
+    primary_source_doi: 10.1038/s41591-019-0668-z
+    reference: PROTAC-DB; Khan 2019 Nat Med

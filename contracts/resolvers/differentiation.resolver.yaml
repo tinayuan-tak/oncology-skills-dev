@@ -1,0 +1,38 @@
+# differentiation-landscape (Gate E) verdict resolver (gap #5, 2026-07-20).
+# Declarative transcription of skills/differentiation-landscape/scripts/run.py::_verdict.
+# Covers EVERY REACHABLE cooccurrence_class the axis can fire — the canonical silent-fall-through
+# skill (ns→insufficient rename bug); the explicit `ns` rung + explicit default are what
+# close that decision-layer collapse, now statically checkable by validate_resolvers.
+# The `has_cooccurring_driver` rung was REMOVED (2026-09-07, v1.2.0) as STRUCTURALLY DEAD: the reader
+# (cooccurrence_fisher_pancohort) sets has_cooccurring_driver=True under the SAME predicate
+# (qc<0.001 AND log2_or>1.0) that classifies cooccurrence_class as both_patterns_present / strong_cooccurring,
+# so a shape rung (priority 0 or 2) ALWAYS co-fired and outranked it — the has_cooccurring_driver verdict
+# could never win (won 0 across the panel). The `has-cooccurring-driver-supportive` RULE still fires (it
+# emits SM/degrader signals); only the dead resolver rung + verdict token are removed.
+gate: differentiation
+version: 1.2.0
+description: Co-mutation / mutual-exclusivity precedence (most-informative first).
+resolve:
+  - verdict: both_patterns_present
+    when_fired: cooccurrence-both-patterns-supportive
+    priority: 0
+  - verdict: strong_mutually_exclusive
+    when_fired: strong-mutual-exclusivity-supportive
+    priority: 1
+  - verdict: strong_cooccurring
+    when_fired: cooccurrence-strong-supportive
+    priority: 2
+  - verdict: modest_cooccurring
+    when_fired: cooccurrence-modest-cooccurring-neutral
+    priority: 4
+  - verdict: modest_mutually_exclusive
+    when_fired: cooccurrence-modest-mutually-exclusive-neutral
+    priority: 5
+  - verdict: ns
+    when_fired: cooccurrence-ns-neutral
+    priority: 6
+  - verdict: data_unavailable
+    when_fired: cooccurrence-data-unavailable-insufficient
+    priority: 7
+default: insufficient
+evaluation: match_all_reduce

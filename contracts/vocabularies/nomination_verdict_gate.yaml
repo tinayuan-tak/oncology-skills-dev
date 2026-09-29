@@ -1,0 +1,1457 @@
+# nomination_verdict_gate.yaml
+# Controlled policy: which sub-skill verdicts DETERMINISTICALLY force the
+# target-profile overall_recommendation, overriding the LLM's choice.
+#
+# Background: target-profile's overall_recommendation was historically 100%
+# LLM-chosen — a killer sub-verdict only appeared in the synthesis prompt as
+# text and never forced the call (the framework's own "Decision #5": is the
+# nomination LLM judgment we trust, or logic we can audit?). This file makes
+# the veto/hold policy AUDITABLE and reviewable by product owners without a
+# code change. The gate in
+# claude-oncology-skills/skills/target-profile/scripts/run.py loads it and
+# clamps overall_recommendation when a listed (sub_skill, verdict) fires.
+#
+# SAFETY-CRITICAL LOADER CONTRACT: the gate treats this file as an OVERRIDE of
+# a conservative hardcoded fallback, NOT as the sole source. If this file is
+# missing/unparseable the gate falls back to the hardcoded set and warns — it
+# must NEVER become permissive (a missing policy silently disabling a
+# pan-essential veto is a safety regression). Editing this file can only make
+# the gate as-conservative-or-more against the fallback.
+#
+# CURATION PRINCIPLE — only genuine CROSS-TARGET vetoes belong here. A verdict
+# that forecloses one MODALITY (e.g. surface neither_viable, degrader
+# expression killers) must NOT force a blanket veto: the target may still be
+# viable via another modality. KRAS×COADREAD is the canonical guard — it hits
+# surface + degrader killers yet is a correct `nominate` via small molecule.
+# Adding a modality-scoped killer here would regress that golden.
+
+enum_id: nomination_verdict_gate
+version: 1.26.0  # 1.26.0 (2026-09-28, skills #1794): pan-essential-unanchored-broad-tox-safety-warning added to the safety pan_essential_broad_tox_concern hold's driving_rule_ids (+ rationale updated to name both arms). NO new gate row for it: the unanchored rung (safety.resolver.yaml v2.4.0 priority 2) reuses the existing hold verdict — an UNVERIFIABLE >=85% pan-essential (curated anchor unreachable) holds exactly as a verified one until a re-run resolves it; every closed-set consumer already handles the token. Coverage extension in the fail-CLOSED direction (previously an anchor outage fail-opened the broad-tox liability to a clean verdict). DELIBERATE ABSENCE, recorded here: the OTHER new safety verdict broad_dependency_partial_tox_concern (resolver v2.4.0 priority 6, the graded 0.60-0.85 partial_broad_band liability) gets NO gates/kill_capable/positive_* row — it is a CAUTION, not a hold (12/504 corpus carriers include managed clinical-stage targets AURKA/MTOR/ATR/PRMT5; a hold would over-fire), and it has no negative decision semantics, exactly like moderately_constrained_safety. Skills-side: tp_gates routes an UNRECOGNIZED safety verdict to a forced hold (fail-closed, loud), so between the TC pin bump and the SK consumer wiring the 12 band carriers would over-clamp to hold rather than fail open — the wiring step must add the token to _RECOGNIZED_GATING_VERDICTS (recognized, non-gating) + risk_projection + safety claim/question-table maps. # 1.25.0 (2026-09-28, skills #1793): tphp-hpa-blind-vital-organ-protein-safety-warning added to the safety normal_tissue_protein_safety_concern hold's driving_rule_ids (+ rationale rewritten to name BOTH protein arms). NO new verdict token, no new gate row: the TPHP HPA-blind-organ rung (safety.resolver.yaml v2.3.0) reuses the existing hold verdict, so every closed-set consumer already handles it — this entry only keeps the gate's provenance list in lockstep with the resolver's two driving rules. Coverage extension in the fail-CLOSED direction: endocrine/CNS/vascular (HPA-vocab-blind) protein liabilities can now raise the hold. # 1.24.0 (2026-09-27, #893): annotation_only_indirect (tractability_small_molecule.resolver.yaml v1.7.0, priority-11/-20) added as a tractability_sm CONTRADICTION in BOTH kill_capable_verdicts (COMPLETE registry, coverage rule 3) and positive_contradictions — mirroring its negative sibling chemically_unhit. It was named in NO gate clause: a closed-set consumer silently treated the unseen token as non-negative (false absence), so a target whose only SM signal was "an approved agent is catalogued but there is no direct SM binder" passed the SM nomination gate unflagged (intracellular GFAP/H3-3A have no surface-modality rescue → wrong-direction). Contradiction (blocks `strong`), NOT a veto — a target may still nominate on another axis. n=504 carriers: CLDN18-STAD, EPCAM-COADREAD, GFAP-COADREAD, H3-3A-LUSC, MS4A1-DLBCL, DLL3-SCLC. validate_verdict_tokens walks gate->resolver one-way and the token is already emitted by resolver v1.7.0 (no forced ordering needed). Reciprocal skills-side half (risk_projection druggability bin) = claude-oncology-skills#1568, NOT touched here. # 1.23.0 (2026-09-26, claude-oncology-skills#1624): ONE new positive_signals row — {sub_skill: subtype_fit, verdict: subtype_powered_differential, weight: dominant}. The DOMINANT-weight half of the #1624 locked decision (the annotation half is verdict-INERT and lives skills-side). A POWERED cross-subtype expression differential (>=2 strata clear n>=30, is_differential_axis) is now a first-class patient-SELECTION nomination input: the promoted subtype-expression-enriched/restricted-context rules emit subtype_fit_expression: supportive, and tp_fanout `_subtype_verdict` mints `subtype_powered_differential` on the subtype_fit short at LOWEST priority (ADDITIVE — never displaces the existing subtype_restricted_dependency / subtype_restricted_selectivity verdicts). This is the FIRST `dominant` subtype_fit verdict, so it is the one that can supply the dominant a `strong` tier needs — but only alongside a SECOND independent dimension, and the positive tier runs ONLY in the kill gate's no-veto/no-hold else-branch, so it is F1-SAFE (can never mask a kill or rescue a measured dependency veto). NOT added to correlated_dimension_groups: the cross-subtype contrast is a distinct measurement from the tumor-vs-normal `expression`/`selectivity` reads (subtype heterogeneity within tumor, not disease-vs-normal level). Cross-repo FORCED ORDERING (same as 1.22.0): `validate_verdict_tokens` walks gate->resolver one-way, so this row must land BEFORE the skills producer/pin-bump or the token is unseen; the skills side then bumps the skills-validate.yml TC pin to this commit and registers the token in tp_gates `_RECOGNIZED_GATING_VERDICTS` + tp_fanout `_SUBTYPE_VERDICT_POLARITY`. Recompute confirms the delta is exactly {34 annotated} u {<=5 kill-free eligible bin moves} — no kill-gated package moves, no safety hold/veto clears, no dangerous-FP headroom consumed. # 1.22.0 (2026-09-18, Stage 2b): PARITY, not new policy — `not_dependent_in_indication` (minted by target-contracts #812, resolver dependency v1.4.0→v1.5.0, priority 9) inherits every mechanism the pooled `non_dependent` (priority 22) already had, and the two new POSITIVE tokens get their `positive_signals` weights. FORCED ORDERING, not a follow-up: `validate_verdict_tokens` walks gate→resolver ONE-WAY, so a resolver verdict that no gate block names is INVISIBLE to every gate — it is not demoted, it is unseen — and the calibration set's `must_not_veto` assertions would pass VACUOUSLY on a token no gate can reach. Landing the skills-side producer first would therefore fail the dependency axis OPEN on indication-scoped runs. Touched: a THIRD veto arm in `gates` (+ `kill_capable_verdicts`), 4 new `veto_suppressors` (A1i/A2i/A3i mirror a pooled arm each; A4i deliberately has NO pooled twin — see below), a third `modality_scoped_veto_suppression` entry, twins in `biology_axis_scoped_veto_downgrade` and `gof_driver_scoped_veto_downgrade`, the new arm appended to all 4 `thesis_axis_relevance.irrelevant` lists, and 2 `positive_signals` rows. VETO not hold, decided by MEASUREMENT: every calibration entry is keyed (target, indication, modality) and MET/LUAD's own note calls an indication-wrong veto WRONG, so a nomination IS indication-scoped — which is why `subtype_specific_non_dependence` stays a HOLD (it forecloses a subtype NARROWER than the queried scope) while this token forecloses EXACTLY the queried scope. POWER-GATED BY CONSTRUCTION: the driving rule keys on one measured token and all three could-not-look states route to a separate `insufficient*` rung, so the veto can never fire on an under-sampled indication. The three `insufficient*` dependency verdicts are a DELIBERATE ABSENCE from `kill_capable_verdicts`, now asserted as such. The suppressor/downgrade twins DUPLICATE rather than generalize to a verdict list on purpose: skills `tp_gates._load_veto_suppressors` reads `downgrades.verdict` / `suppresses.verdict` as SCALARS, so a list would be a schema the reader has never seen and would silently match NOTHING. Rationales are REWRITTEN, never copied: all four pooled ones justify the escape with the word POOLED, which is FALSE of this token — the surviving escapes are either DILUTION (an indication still pools genotypes and subtypes: smaller, never zero) or ORTHOGONALITY (a surface antigen / neomorphic GoF is not adjudicated by a knockout at ANY grain), and only the latter is grain-independent. A4i (paralog buffering) EXISTS BECAUSE OF A MEASURED RESOLVER GAP FOUND WHILE BUILDING THIS PARITY, and it is the finding a reviewer should read first: resolver v1.5.0 added compound twins pairing `not-dependent-in-indication-killer` with partner-conditional (rungs 6,7) and chemical-genetic (8) but NOT with `strong-paralog-buffering-degrader-preferred`, whose pooled compound rung sits at 19 — and priority 9 OUTRANKS 19. Measured on the calibration set: 3 of the 8 live `must_not_veto` controls resolve `non_dependent_paralog_buffered` today (WWTR1/MESO, MARK2/PAAD, MARK3/PAAD; MARK2/3 are ADVANCED programs), so at Stage 5 all three would flip from a non-veto verdict to a VETO. A4i suppresses the veto — correct on its own merits, since a single-gene KO is blind to a redundant paralog at EVERY panel size (ORTHOGONALITY, not dilution) — but it cannot relabel the verdict, and `expected_verdict_not_in` is asserted against the RESOLVER verdict, so the calibration suite is the forcing function: the resolver twin is a Stage-5 BLOCKER, declared and shape-pinned in the new guard rather than left in a comment. Six (not five) existing closed-set pins were deliberately WIDENED (they were written to stop veto scope creep, and a third veto arm IS scope creep), each preserving the property it protected — notably that suppressors never touch `pan_essential_killer`. ⚠ NECESSARY BUT NOT SUFFICIENT: `tp_gates.py:714` routes an UNRECOGNIZED dependency verdict to a FORCED VETO and none of the 4 new tokens is in `_RECOGNIZED_GATING_VERDICTS["dependency"]`; the two vocab→skills coupling tests catch 3 of them at pin-bump time, but `insufficient_underpowered_in_indication` is caught by NEITHER because it deliberately appears in no vocab block — so after Stage 5 "we could not look" would silently force a veto. The full forced skills-side delta is declared as a cross-repo obligation list in tests/vocabularies/test_indication_verdict_gate_parity.py, with an anti-drift assert against the resolver's own verdict set. # 1.21.0 (2026-09-15, Step 3, RELANDED): NEW `thesis_deciding_axes` block — the FIRST deterministic producer of `nominate`. Until now the gate could only VETO or HOLD (`action_precedence` has no `nominate`; `forced = max(hits)` ∈ {veto, hold, None}), so every `nominate` in every published run was LLM-authored and the positive tier's only observable effect was a confidence `floored_to`. This block graduates a thesis's BUILT-BUT-GATELESS deciding axis (Step 3 = surface_modality under antigen_driven) to a positive decider: on gate ABSTENTION, when the thesis's full necessity conjunction reads MEASURED-FAVOURABLE, the recommendation is floored `insufficient_evidence` → `nominate`. STRUCTURALLY F1-SAFE — it lives in the else-branch of the kill gate (unreachable when any veto/hold survives), exactly like the positive tier, so it can never mask or subordinate a kill. Routing STILL cannot invent a GO: every conjunct is a measured verdict/card field, an absent or `insufficient`/`data_unavailable`/`unmeasured` read FAILS the conjunction (→ insufficient_evidence, never nominate), and INVERTED FALLBACK means a missing/malformed block yields NO deciding axes → `nominate` becomes unreachable again. Only `antigen_driven` is graduated here; every other thesis (incl. `unresolved`) is byte-for-byte unchanged. SECOND deterministic producer, COMPLEMENTARY to 1.18.0's positive tier and DISJOINT from it: the favorable surface verdicts live in `positive_signals_modality_scoped` (explicit --modality only), so the 1.18.0 `strong` tier can never nominate an antigen; and `oncogene_addiction` has no `thesis_deciding_axes` entry, so this block can never nominate EGFR/ERBB2. Different BASIS too — 1.18.0 counts evidence QUANTITY (>=2 dims + a dominant), this one tests a thesis-SPECIFIC necessity CONJUNCTION on one named axis plus an anti-blind measuredness conjunct. Verdict-moving; verified on hermetic gate-tests + grounded structural and full-LLM runs. RELAND NOTE (2026-09-15): authored against main at 1.18.0 and relanded onto 1.20.0, so the DISJOINTNESS argument above is re-derived here against what landed in between. vs 1.19.0 (+3 tractability middle-ladder positives): disjoint by AXIS and by INSUFFICIENCY -- those positives are sub_skill tractability_sm, while this block conjoins only surface_modality under antigen_driven, and main's own entry records that they carry SUPPORTIVE weight on one dimension and so cannot supply the dominant a strong tier needs. vs 1.20.0 (4th disposition uncorroborated, 2 verdicts moved off contradiction): NOT disjoint, and now MEASURED rather than left open -- the interaction is real, but the mechanism this note first named was WRONG and is retracted here rather than quietly dropped. ABSTENTION IS UNAFFECTED, provably: the abstaining population is the list of surviving veto/hold hits, and in skills tp_gates.py only a `gated` disposition ever reaches that list -- `contradiction` and `uncorroborated` share a branch documented there as a NON-VETO lifecycle event -- so relabelling a row BETWEEN those two dispositions cannot move which pairs abstain, and `dependency: non_dependent` (the `gated` one) was never relabelled. The real interaction sits one guard further in: this block's opposing-verdict conjunct reads `positive_contradictions` ALONE, and 1.20.0 moved (dependency, discordant) and (selectivity, discordant_across_comparators) OUT of it into the new `positive_uncorroborated` block, so the set that blocks a nomination shrank by exactly those two keys -- while skills' own splitter warns in-source that a caller needing the strong-block must use the UNION and never contradictions alone. Reachability was then measured PER THESIS, on the only thesis this block graduates: (selectivity, discordant_across_comparators) is INERT, because selectivity is a `requires` conjunct whose verdict_in excludes it and the conjunction therefore still fails; (dependency, discordant) is LIVE, because dependency appears NOWHERE in the antigen_driven block, so a target carrying it was blocked before 1.20.0 and is not blocked now. The enlargement is therefore exactly ONE key on ONE thesis, and it is confined to the verdict whose whole content is THAT THE AXIS RESOLVED NOTHING. The surviving dependency guardrails were MEASURED on this thesis rather than inferred from the general rule, because vocab 1.17.0's thesis_axis_relevance DROPS the `non_dependent` veto for antigen_driven by design (the 0/14-surface fix): `pan_essential_killer` still VETOES -- the gate fires and the decider is never reached, and that is the one guardrail 1.17.0 explicitly never drops -- and `broadly_dependent` is still a listed contradiction and still blocks. `non_dependent` does NOT block and does nominate, but that is 1.17.0's deliberate choice for this thesis and not a consequence of the 1.20.0 relabelling. Not blocking on an axis that resolved nothing is the same correction this block already makes BY HAND via irrelevant_contradiction_axes for tractability_sm (the FOLR1/OV case), reached from the other direction. So it is recorded as CORRECT-BY-INTENT and pinned by a new test on the SKILLS side of this landing -- where the gate runs, and where the 40 tests shipped here could not testify because they predate 1.20.0. KNOWN LEAK, RECORDED 2026-09-15 POST-LANDING, NOT HIDDEN: the (A) selectivity conjunct admits the clamp OUTPUT `selective_with_normal_liability` while EXCLUDING one of that same clamp's declared `applies_to_input_verdicts` (`field_effect_tumor_selective`), and the loader only ever sees the POST-clamp token — so a field-effect target with a CLEAN normal profile is blocked, while the same target with a critical-organ liability DETECTED is admitted. The direction is fail-OPEN (detecting a liability turns a block into a GO) and CEACAM5/COADREAD sits one rule-fire away. Admitting `field_effect` instead would nominate it outright — a 5th dangerous FP against a floor of 4 that 1.21.0 already fills — so the leak is BOUNDED by test_admitted_clamp_arms_cannot_launder_an_excluded_pre_clamp_verdict (which fails if it ever widens, is closed, or stops being reachable) rather than widened. Closing it needs the clamp's PRE-PRECEDENCE (post-upgrade) input verdict published skills-side — NOT "the pre-clamp verdict", which this note said first and which is INSUFFICIENT: the clamp's `upgrade:` arm runs BEFORE the downgrade precedence and mints the excluded token `field_effect_tumor_selective` from {not_informative, discordant_across_comparators}, so a field named for what enters the clamp publishes `not_informative`, the exclusion compares against a token that is not it, and the leak survives behind a field that looks like the fix. See THE PRESCRIPTION IS NARROWER THAN IT LOOKS in the ⚠ block at conjunct (A) for the three-token chain. No semantic change, hence no version bump.
+  # 1.20.0 (2026-09-13): NEW 4th disposition `uncorroborated` + its classification block `positive_uncorroborated`, and 2 rows moved off `contradiction` onto it: selectivity/discordant_across_comparators and dependency/discordant. Both verdicts say "this axis's own arms disagree with each other", which is an absence of resolution, not a measurement against the target — each resolver says so in its own rung comment (dependency: "an absence of resolution, not a measurement against the target"; selectivity's rung is literally named tvn-discordant-neutral-flagged and its `upgrade:` block groups the verdict with `not_informative` as rescuable). Filing them as contradictions put "the comparators disagree" on the rung reserved for "the measurement opposes", the same conflation the claim-vector `single_arm` rung fixed one level down. LABEL-NOT-DROP, forced by measurement (56 pairs / 21 live axis-instances): 0 carrying pairs are at `strong` today but 2 (KRAS/COADREAD selectivity 5 hits; CEACAM5/NSCLC) would REACH `strong` if the strong-block were simply removed, so dropping the rows is fail-OPEN. The strong-block is therefore PRESERVED byte-for-byte (positive tier reads contradictions ∪ uncorroborated); only the LABEL changes (scorecard `coverage_gap` not `opposing`; no opposing per-axis role). tractability_sm/discordant deliberately STAYS a contradiction — there the discordance IS the finding (compound kills but NOT via the target = evidence against), and it is the row holding CEACAM5/NSCLC down. 1.19.0 (2026-09-12): +3 tractability MIDDLE-ladder positives (chemically_active, measured_potent_ligand, structurally_ligandable), all SUPPORTIVE weight, sub_skill=tractability_sm (one dimension, cannot supply the dominant a `strong` tier needs). Panel-validated (fire on approved/advanced/active, declines carry no dominant so cannot flip). Verdict-moving only where a target already has a dominant positive + abstains. 1.18.0 (2026-09-11, A1): positive_tier_config.forces_nominate_at_tier: strong — the positive path may now FORCE `nominate`, closing the asymmetry in which this gate could only veto/hold and EVERY nomination was therefore LLM-authored with no auditable rule behind it (measured on the 13-target panel: 10 hold / 2 veto / 17 abstain / 0 nominate; ERBB2/BRCA hit `strong` on 3 hits, all 3 `dominant`, and still resolved to None — and with --emit being LLM-free there was no confidence to floor, so the whole positive apparatus was unobservable in exactly the mode the eval harness scores, making its specificity arm vacuous). FAIL-CLOSED: missing key => pre-1.18.0 behaviour byte-for-byte. `nominate` deliberately stays OUT of action_precedence (that map keys a max() over fired KILL hits; a positive there could tie-break against a restraint) and out of every gate's `action:`. Still else-branch-only, so it cannot mask a kill. 1.17.0 (2026-09-11, Step 2b): NEW `thesis_axis_relevance` block — routes on the governed `thesis` (target_thesis.yaml) to make a dependency `non_dependent` VETO IRRELEVANT (dropped, not just downgraded) for theses whose biology does not live on the dependency axis (antigen_driven / tme_io / neomorphic_gof / partner_conditional_sl), so the target falls to its OWN thesis axis and can reach nominate — the ANY-OF fix for the 0/14-surface defect. Generalizes biology_axis_scoped_veto_downgrade (kept as the `unresolved`-path fallback until 2c). GUARDRAILS unchanged: never drops pan_essential_killer, never touches safety, `unresolved`→today byte-for-byte, routing cannot invent a GO (dropping a veto only falls to the LLM proposal, bounded above by the kill gate + below by the abstention lower-bound clamp). Verdict-moving; verified on the hermetic skills gate-tests.
+  # 1.16.0 (2026-09-08): biology_axis_scoped_veto_downgrade now admits curated `extrinsic` (TME/immune/stromal) + `mixed` axes (was surface_intrinsic/unknown only) → a checkpoint (PD-L1/CD274=mixed, PD-1/CTLA4=extrinsic) with a FAVORABLE surface fit has its dependency non_dependent VETO downgraded to HOLD, same as a surface antigen (engaged by blockade/binding, not a tumor-intrinsic dependency). Fixes a CURATION PENALTY: an uncurated checkpoint (unknown, e.g. LAG3) already got the downgrade but curated CD274/PDCD1/CTLA4 were locked out. Favorable-surface co-condition + intracellular_intrinsic exclusion BOTH unchanged (only the axis list grew), so a neither_viable/shed surface or an intracellular target still VETOes. veto→hold only. Live-verified panel: CD274/LUAD VETO→HOLD via this arm; PDCD1/CTLA4/VEGFA already non-vetoing via other paths (net effect = CD274 alone). Verdict-moving; golden regen + grounded verify.
+# 1.15.0 (2026-09-08): + surface-fit contradiction_reconciler — a FAVORABLE surface_modality fit (ADC/TCE surface antigen) RECONCILES (drops) the selectivity selective_but_broadly_normal KILL, because the therapeutic window is modality-engineered (payload/DAR/avidity), NOT the bulk tumor÷normal-organ RNA ratio. Fires on default/no-modality runs (favorable fit = the surface-antigen evidence). Reconciles ERBB3/TACSTD2/MUC17; STANDS for secreted (VEGFA) + intracellular (CDK2) targets (no viable surface arm). Drops the contradiction only (no positive_signal) → safety axis remains the guardrail → lands at hold, never a manufactured strong. Same INVERTED-FALLBACK contract as (1). Verdict-moving; golden regen + grounded verify.
+# 1.14.0 (2026-09-08): + contradiction_reconcilers block — a genomic biomarker_stratified_dependency RECONCILES (drops) the selectivity selective_but_broadly_normal CONTRADICTION (the no-window KILL is bulk-RNA÷critical-organ, which dilutes an amp/biomarker-selected window — HER2/FGFR2/HER3). Surfaced by the IDAS backtest (ERBB2/STAD = T-DXd APPROVED, vetoed on no-window). Applied at positive-tier strong-block + gate scorecard + synthesis role; keeps the KILL for no-amp housekeeping (TROP2/GAPDH). Verdict-moving; golden regen + grounded verify.
+                 # 1.13.0 (2026-09-08): + modality_ambiguous to biology_axis_scoped_veto_downgrade.when_surface_verdict_in — IDAS-seed experiment found GPRC5D/MM (talquetamab, APPROVED) + CLDN18.2/STAD (zolbetuximab, APPROVED) HARD-VETOED on dependency:non_dependent because their surface fit reads modality_ambiguous (GPCR multi-TM / claudin topology the surface-fit can't resolve), which was NOT in the downgrade set. An ambiguous (not-dead) surface signal on an intracellular non-dependency should HOLD, not hard-veto — neither_viable/shed_dominant_opposed still veto (genuine surface-junk). Verdict-moving (GPRC5D/CLDN18.2 veto→hold); golden regen + backtest.
+                 # 1.12.0 (2026-09-08): + pmhc_tce_supported to biology_axis_scoped_veto_downgrade.when_surface_verdict_in — SYNC FIX (Takeda ONC backtest CASE-016/NOX1): v1.8.0 added pmhc_tce_supported to positive_signals_modality_scoped but NOT to the veto-downgrade set, so a pMHC-TCE-viable antigen (NOX1/CRC, advanced) got HARD-VETOED on dependency:non_dependent instead of downgraded to hold like the ADC-preferred verdicts. Now a viable pMHC-TCE surface arm downgrades the intracellular-dependency veto→hold (consistent with adc_preferred_tce_unsafe). Verdict-moving (NOX1 veto→hold); golden regen + backtest.
+                 # 1.11.0 (2026-09-07): + differentiation:strong_mutually_exclusive as a SUPPORTIVE positive_signal, GROUPED with [genomic_alteration, cis_coherence] (driver-inference re-read → confidence raise, never an independent `strong`-manufacturing line). Wires the formerly advisory-in-gate differentiation axis. Backtest-gated.
+                 # 1.10.0 (2026-09-06): + selectivity POST-RESOLVER clamp KILLs (selective_but_broadly_normal, selective_but_stromal_confound) as contradictions in kill_capable_verdicts + positive_contradictions, so a composed selectivity KILL blocks `strong` (was display-only — advisory→silent-degradation gap). Backed by selectivity.resolver.yaml clamp_verdicts (folded into emitted_verdicts_by_gate). selective_with_normal_liability is preserving → NOT a contradiction.
+                 # 1.9.0 (2026-09-04, #979): + surface_modality adc_preferred_tce_patient_variable / tce_patient_variable
+                 #   to positive_signals_modality_scoped (TCE arm dominant→supportive temper; escape-insensitive arms
+                 #   stay dominant) + to biology_axis_scoped_veto_downgrade.when_surface_verdict_in (favorable-surface
+                 #   veto downgrade preserved). The MIDDLE antigen-escape band: tempers, does not foreclose, the TCE arm.
+                 # 1.8.0 (2026-08-25): + surface_modality pmhc_tce_supported to positive_signals_modality_scoped
+                 #   (bite_tce-scoped POSITIVE, weight supportive). The IEDB pMHC-epitope promotion: the pMHC-TCE
+                 #   route for a folded-surface-dead intracellular oncoprotein. POSITIVE, not kill-capable — no
+                 #   gates / excluded_modality_scoped / kill_capable_verdicts entry (F-symmetry: applies only under
+                 #   an explicit bite_tce modality query). No veto/hold set changed.
+                 # 1.7.0 (2026-08-21): safety data-utilization expansion — 2 new safety HOLD verdicts gated +
+                 #   registered kill-capable: pan_essential_broad_tox_concern (DepMap common-essential broad tox)
+                 #   and normal_tissue_protein_safety_concern (HPA-IHC essential-tissue protein). Both HOLD (not
+                 #   veto), mirroring highly_constrained_safety_concern. The pan-essential HOLD is redundant-with
+                 #   the existing dependency pan_essential_killer VETO (veto > hold), so it never loosens a
+                 #   nomination — it makes the SAFETY-axis broad-tox reason legible. recessive-only reassurance
+                 #   reuses tolerant_reduced_safety_risk (already a passing verdict) so needs no gate entry.
+                 # 1.6.0 (2026-08-20): cis-coherence GRADUATION — coherent_cis_driver positive_signal (supportive,
+                 #   grouped w/ genomic_alteration) + expressed_cis_coupled_inert positive_contradiction + kill_capable entry.
+                 # 1.5.0 (2026-08-16): + kill_capable_verdicts registry (roadmap §6.6 fail-closed, gate-
+                 #   complete). Per-resolver enumeration of EVERY verdict with negative decision semantics,
+                 #   each tagged disposition ∈ {gated, excluded_modality_scoped, contradiction}. Forces every
+                 #   kill verdict to be EXPLICITLY classified (a completeness CI test fails if a kill verdict
+                 #   is unclassified or renamed out of its resolver). Adds NO new veto/hold — the `gates` block
+                 #   (2 vetoes + 3 holds) is byte-stable; the registry only makes the COMPLETE kill set legible
+                 #   so the skills gate can iterate it (never fail-open on a silently-ignored kill).
+                 # 1.4.0 (2026-08-12): + contested_threshold (verdict-INERT fragility banner; NEVER
+                 #   changes overall_recommendation/confidence). `gates`/positive/suppressor blocks
+                 #   unchanged. 1.3.0 (2026-07-21): + target-intrinsic expression positive
+                 #   (expression:strongly_upregulated_in_tumor, SUPPORTIVE; broadly_high_expression stays
+                 #   excluded — modality-scoped). `gates` (kills) unchanged. 1.2.0 (2026-07-17): +
+                 #   modality-conditional veto suppression + genomic_alteration biomarker-stratified rescue
+                 #   (backtest-driven: gate C false-negatived 10/16 approved targets). 1.1.0: + positive
+                 #   tier (confidence-floor, F1-safe). `gates` unchanged in all.
+description: |
+  Deterministic (sub_skill, verdict) → forced overall_recommendation policy for
+  the target-profile nomination gate. Precedence when multiple fire: veto > hold.
+  RESTRAINT actions only — `nominate` is forced by the POSITIVE TIER (see
+  positive_tier_config.forces_nominate_at_tier), never by a gate, and so never
+  appears in action_precedence or in a gate's `action:` field.
+
+# Forced-action precedence (higher wins when multiple gates fire).
+# RESTRAINT-ONLY BY DESIGN — do NOT add `nominate` here. This map is the key function of a
+# `max()` over the FIRED KILL hits, so a positive token would be ranked against, and tie-break
+# with, a veto/hold. The positive path forces `nominate` from its own branch instead
+# (positive_tier_config.forces_nominate_at_tier), reachable only when no kill fired.
+action_precedence:
+  veto: 2
+  hold: 1
+
+gates:
+  - sub_skill: dependency               # functional-requirement sub-skill
+    verdict: pan_essential_killer
+    action: veto
+    rationale: |
+      Non-selective (pan-lineage) essentiality — inhibiting the target kills
+      normal cells as readily as tumor cells, so there is no therapeutic
+      window at ANY modality. A genuine cross-target veto.
+    driving_rule_ids: [pan-essential-killer, rnai-pan-essential-killer]
+
+  - sub_skill: dependency
+    verdict: non_dependent
+    action: veto
+    rationale: |
+      No dependency in the relevant lineage at all — the target is not required
+      for tumor-cell survival, so on-target inhibition has no efficacy basis.
+      NOTE (2026-09-18) this arm is computed POOLED pan-cancer: "the relevant
+      lineage" describes the intent, not the measurement. The grain-matched arm
+      is `not_dependent_in_indication` below; this one stays because it is the
+      only dependency negative available on a target-grain run (no indication
+      supplied), and every context-escape suppressor below exists precisely
+      because a pooled negative is not always a trusted one.
+    driving_rule_ids: [non-dependent-killer]
+
+  - sub_skill: dependency
+    verdict: not_dependent_in_indication
+    action: veto
+    rationale: |
+      The target is not functionally required in the QUERIED indication: that
+      indication's own models were screened at adequate sample size and do not
+      reach the dependency floor. On-target inhibition has no efficacy basis in
+      the indication the run asked about, which is the scope a nomination is
+      made at (every calibration entry is keyed (target, indication, modality);
+      KRAS×COADREAD is the canonical guard).
+
+      VETO, not hold — and the contrast with `subtype_specific_non_dependence`
+      (hold) is the reason, not an inconsistency. That verdict forecloses a
+      subtype NARROWER than the queried scope, so the indication may remain
+      alive around it and a blanket veto would be wrong. This one forecloses
+      EXACTLY the queried scope, so there is nothing left for the nomination to
+      be about.
+
+      Can only fire on a MEASURED negative: `not-dependent-in-indication-killer`
+      keys on the single card token `not_dependent_in_indication`, and the three
+      could-not-look states (`underpowered`, `not_in_panel`, `data_unavailable`)
+      route to `insufficient_underpowered_in_indication` instead — so an
+      under-sampled indication can never reach this veto. Carries the SAME
+      context-escape suppressors and downgrades as `non_dependent` (an
+      indication still pools genotypes and subtypes, and a surface/GoF target's
+      non-dependence is an irrelevant criterion at ANY grain).
+    driving_rule_ids: [not-dependent-in-indication-killer]
+
+  - sub_skill: safety                   # on-target-safety-liability sub-skill
+    verdict: highly_constrained_safety_concern
+    action: hold
+    rationale: |
+      A serious on-target safety liability (e.g. essential normal-tissue
+      expression). Treated as HOLD, not veto: a constrained window may still be
+      addressable in a specific subtype / with a selective modality / with a
+      narrow therapeutic index. Escalation to veto is a product decision, not a
+      default.
+    driving_rule_ids: [highly-constrained-safety-warning]
+
+  - sub_skill: safety                   # on-target-safety-liability sub-skill (P5 human-genetics leg, 2026-07-24)
+    verdict: human_genetics_safety_concern
+    action: hold
+    rationale: |
+      A human-genetics WT-loss safety signal from the P5 leg — population
+      rare-variant burden (LoF raises disease risk), ClinGen autosomal-dominant
+      dosage sensitivity (haploinsufficiency), or an adult mouse-KO lethal
+      phenotype. Fires only when the gnomAD constraint chain is SILENT (the
+      resolver places it below the gnomAD rungs), so it EXTENDS safety coverage
+      rather than competing. HOLD, not veto — same precedent as
+      highly_constrained_safety_concern: a WT-loss window may still be
+      addressable with a mutant-selective modality — the GoF/allele-selective
+      escape is MODALITY-CONDITIONAL (small_molecule=conditional in
+      safety_verdict_by_modality), realised via exists_safe_modality
+      veto-suppression, NOT a scalar downgrade (the scalar role-proxy
+      mismatch downgrade was retired, safety.resolver v2.0.0).
+    driving_rule_ids: [gene-burden-lof-safety-warning, clingen-dominant-loss-safety-warning, clinvar-germline-pathogenic-safety-warning, mouse-ko-lethal-safety-warning]
+
+  - sub_skill: safety                   # on-target-safety-liability sub-skill (data-utilization expansion, 2026-08-21)
+    verdict: pan_essential_broad_tox_concern
+    action: hold
+    rationale: |
+      DepMap classes the target common_essential — depleted across essentially the whole cell-line
+      panel — so a full-KO modality abrogates an essential function in NORMAL tissue too (on-target
+      broad toxicity). HOLD, not veto: a constrained window may still be addressable with a
+      mutant-selective modality (the GoF/allele-selective escape is MODALITY-CONDITIONAL —
+      small_molecule=conditional in safety_verdict_by_modality, via exists_safe_modality suppression,
+      NOT a scalar downgrade; the scalar mismatch downgrade was retired v2.0.0), or in a specific
+      subtype. NOTE this is the
+      SAFETY-axis reading of pan-essentiality and is DELIBERATELY redundant with the dependency-axis
+      pan_essential_killer VETO (veto > hold in precedence): it never loosens a nomination — it makes
+      the broad-tox reason legible on the safety scorecard rather than only as a dependency veto.
+      TWO ARMS (skills #1794): the curated arm (pan-essential-broad-tox-safety-warning,
+      dependency_class == common_essential) and the UNANCHORED arm
+      (pan-essential-unanchored-broad-tox-safety-warning, dependency_class ==
+      common_essential_unanchored — a well-powered >=85% fraction whose curated core-essential
+      anchor was unreachable: unverifiable, so the hold stands until a re-run resolves it).
+    driving_rule_ids: [pan-essential-broad-tox-safety-warning, pan-essential-unanchored-broad-tox-safety-warning]
+
+  - sub_skill: safety                   # on-target-safety-liability sub-skill (data-utilization expansion, 2026-08-21)
+    verdict: normal_tissue_protein_safety_concern
+    action: hold
+    rationale: |
+      The target protein is MEASURED present in >=1 curated ESSENTIAL/dose-limiting normal organ —
+      an on-target-off-tumor liability for a systemically-delivered full-KO SM/degrader. TWO protein
+      arms reach this verdict (skills #1793): HPA immunohistochemistry over its 16-name vocabulary
+      (heart, brain/CNS, ...), and TPHP DIA-MS over the vital organs HPA structurally CANNOT see
+      (nerve / blood / adrenal gland / thyroid) — the coverage extension that lets an endocrine/CNS/
+      vascular liability raise this hold at all. HOLD, not veto: a narrow therapeutic index /
+      delivery-restricted / subtype-selective program may still be addressable. The HPA arm is the
+      intracellular-axis (SM/degrader) reading of the same normal-tissue-liability card the
+      surface-modality skill uses for its BiTE/TCE killer.
+    driving_rule_ids: [normal-tissue-protein-liability-safety-warning, tphp-hpa-blind-vital-organ-protein-safety-warning]
+
+  - sub_skill: subtype_fit              # subtype-panorama sub-verdict (2026-07-17)
+    verdict: subtype_specific_non_dependence
+    action: hold
+    rationale: |
+      The QUERIED molecular subtype shows a MEASURED (floor-cleared, n>=30)
+      absence of dependency on the target — a trusted subtype-specific efficacy
+      gap, not an unknown. HOLD, not veto: this forecloses the SUBTYPE, not the
+      target. The target may remain a strong dependency in other subtypes of the
+      same indication, so a blanket veto would be wrong (mirrors the
+      safety-concern → hold precedent and the curation principle above). Only
+      fires when Scope.subtypes is populated AND the subtype row cleared the
+      subgroup-n floor; an underpowered subtype row is INADMISSIBLE and cannot
+      reach this verdict. One-directional: this can only make a nomination MORE
+      conservative, never force nominate.
+    driving_rule_ids: [subtype-non-dependence-opposing]
+
+# DELIBERATELY NOT GATED (documented so future edits don't "helpfully" add them):
+#   - surface_modality:neither_viable   → forecloses ADC/TCE only; SM may work
+#   - expression:broadly_low_expression → degrader-scoped killer; SM/other may work
+#   - expression:not_informative        → degrader-scoped killer
+# These are modality-scoped, not target-foreclosing. See the curation principle above.
+excluded_modality_scoped:
+  - sub_skill: surface_modality
+    verdict: neither_viable
+  - sub_skill: expression
+    verdict: broadly_low_expression
+  - sub_skill: expression
+    verdict: not_informative
+  # v1.5.0: the remaining surface + SM modality-scoped KILLERS, now EXPLICITLY excluded
+  # (previously silently ignored — the §6.6 fail-open). Each forecloses a MODALITY, not
+  # the target, so — exactly like neither_viable — it must NOT force a blanket veto:
+  #   surface adc_preferred_tce_unsafe      → TCE unsafe (normal liability); ADC still viable
+  #                                            (also a modality-scoped POSITIVE for adc/antibody below)
+  #   surface tce_unsafe_normal_liability   → TCE unsafe; other modalities unaffected
+  #   surface adc_preferred_tce_escape_risk → TCE EFFICACY risk (within-tumor antigen escape); ADC still
+  #                                            viable (bystander-tolerant) — new 2026-08-24, ADC-preserving
+  #                                            analog of adc_preferred_tce_unsafe but efficacy- not safety-driven
+  #   surface tce_escape_risk               → TCE efficacy risk; no ADC-favored arm (analog of
+  #                                            tce_unsafe_normal_liability) — new 2026-08-24
+  #   surface shed_dominant_opposed         → shed antigen opposes surface-directed biologics; SM/degrader ok
+  #   tractability_sm structurally_intractable → NO small-molecule pocket; a biologic/degrader may still work
+  # Listing them here (not in `gates`) preserves the KRAS×COADREAD golden and the 2-veto set while
+  # making the disposition auditable instead of a silent no-op.
+  - sub_skill: surface_modality
+    verdict: adc_preferred_tce_unsafe
+  - sub_skill: surface_modality
+    verdict: tce_unsafe_normal_liability
+  - sub_skill: surface_modality
+    verdict: adc_preferred_tce_escape_risk
+  - sub_skill: surface_modality
+    verdict: tce_escape_risk
+  - sub_skill: surface_modality
+    verdict: shed_dominant_opposed
+  - sub_skill: tractability_sm
+    verdict: structurally_intractable
+
+# ============================================================================
+# KILL-CAPABLE VERDICT REGISTRY (2026-08-16, v1.5.0) — fail-closed, gate-complete (§6.6).
+# ============================================================================
+# The COMPLETE, per-resolver enumeration of every emitted verdict with NEGATIVE decision
+# semantics (kill / veto / hold / opposing / uncorroborated). "NEGATIVE decision semantics" is
+# a statement about the DECISION, not about the measurement: a verdict belongs here if it
+# constrains the recommendation, whether it does so because the measurement opposes the target
+# (`contradiction`) or because the measurement never resolved (`uncorroborated` — see below).
+# Its purpose is NOT to add vetoes — the active
+# veto set stays exactly the two cross-target killers — but to force EVERY kill verdict to
+# be EXPLICITLY classified, so a kill can never be silently ignored (the §6.6 fail-open) and
+# a rename can never silently disable one.
+#
+# Each entry carries a `disposition` naming WHERE the verdict is classified elsewhere in
+# this file:
+#   gated                    — forces overall_recommendation via `gates` (veto or hold).
+#   excluded_modality_scoped — forecloses a MODALITY, not the target; in
+#                              `excluded_modality_scoped`; deliberately NOT a blanket veto
+#                              (the KRAS×COADREAD golden). Foreclosure is real but modality-local.
+#   contradiction            — opposing MEASURED evidence; in `positive_contradictions`;
+#                              blocks the `strong` confidence tier and renders as scorecard
+#                              `opposing`; deliberately NOT a blanket veto.
+#   uncorroborated           — the axis's own arms DISAGREE WITH EACH OTHER, so nothing was
+#                              resolved; in `positive_uncorroborated` (2026-09-13, v1.20.0).
+#                              Blocks the `strong` confidence tier exactly as a contradiction
+#                              does — two channels that disagree have corroborated nothing, and
+#                              LABEL-NOT-DROP is mandatory here: dropping these rows would
+#                              RELAX the strong-block, which is fail-OPEN (measured: KRAS/COADREAD
+#                              and 1 other pair reach `strong` if the block is lost). What changes
+#                              is only the LABEL: it renders as scorecard `coverage_gap`, not
+#                              `opposing`, and does not count as an opposing per-axis role.
+#                              "The arms disagree" != "the measurement opposes" — the same
+#                              measured-vs-null discipline one level up from
+#                              insufficient/data_unavailable.
+#
+# COMPLETENESS CI (tests/vocabularies/test_kill_capable_completeness.py):
+#   (1) every entry's disposition MATCHES its actual classification block (gated↔gates,
+#       excluded_modality_scoped↔excluded_modality_scoped, contradiction↔positive_contradictions,
+#       uncorroborated↔positive_uncorroborated);
+#   (2) every resolver-backed entry is EMITTED case-exact by its resolver (a rename that
+#       orphans a kill fails CI) — reuses validators/validate_verdict_tokens.emitted_verdicts_by_gate;
+#   (3) COVERAGE: every negative-classification pair (gates ∪ excluded_modality_scoped ∪
+#       positive_contradictions ∪ positive_uncorroborated) whose sub_skill has a resolver MUST
+#       appear here — so a newly
+#       classified kill (or a resolver that starts emitting a classified verdict) can never be
+#       omitted from this registry.
+# The skills-side gate loader (claude-oncology-skills target-profile/tp_gates.py) reads this
+# registry (with a hardcoded complete fallback) to iterate the full declared kill set and to
+# emit the per-gate `hard_gates` status block.
+#
+# NOTE on sub_skill names: these are the target-profile SUB-SKILL shorts (the keys of
+# sub_results), NOT resolver filenames. The one alias is tractability_sm →
+# tractability_small_molecule.resolver.yaml. subtype_fit is advisory-per-resolver (no resolver
+# file); its single kill verdict is verified against the gates block only.
+kill_capable_verdicts:
+  dependency:
+    - {verdict: pan_essential_killer,             disposition: gated}          # veto
+    - {verdict: non_dependent,                    disposition: gated}          # veto (POOLED pan-cancer)
+    - {verdict: not_dependent_in_indication,      disposition: gated}          # veto (QUERIED indication, 2026-09-18)
+    # The three `insufficient*` dependency verdicts (incl. `insufficient_underpowered_in_indication`)
+    # are DELIBERATELY absent from this registry and from every gate block: "could not look" is not a
+    # negative decision, it is the absence of one, and the gate's own neutral disposition already
+    # covers it. Asserted as a deliberate absence by tests/vocabularies/test_indication_verdict_gate_parity.py
+    # so it cannot read as an omission — this registry is otherwise the COMPLETE enumeration.
+    # CRISPR-vs-RNAi POOLED disagreement. `uncorroborated`, NOT `contradiction`: the dependency
+    # resolver's own rung comment says this verdict "reports that the two pooled channels do not
+    # agree, which is an absence of resolution, not a measurement against the target". It still
+    # blocks `strong` (two channels that disagree have not corroborated anything) but it is not
+    # opposing evidence, so it must not be LABELLED opposing on the scorecard or hard-gate rows.
+    - {verdict: discordant,                       disposition: uncorroborated}
+    - {verdict: broadly_dependent,                disposition: contradiction}
+  safety:
+    - {verdict: highly_constrained_safety_concern, disposition: gated}         # hold
+    - {verdict: human_genetics_safety_concern,     disposition: gated}         # hold
+    - {verdict: pan_essential_broad_tox_concern,   disposition: gated}         # hold (data-util expansion 2026-08-21)
+    - {verdict: normal_tissue_protein_safety_concern, disposition: gated}      # hold (data-util expansion 2026-08-21)
+  subtype_fit:
+    - {verdict: subtype_specific_non_dependence,   disposition: gated}         # hold (no resolver; gates-checked)
+  selectivity:
+    - {verdict: not_selective,                    disposition: contradiction}
+    # `uncorroborated`, NOT `contradiction`. The selectivity resolver's own rung for this verdict is
+    # named `tvn-discordant-neutral-flagged`, and the resolver's `upgrade:` block lists this verdict
+    # alongside `not_informative` as a RESCUABLE input — the resolver treats it as uninformative, not
+    # as an opposing read. Filing it as a contradiction put "the comparators disagree with each other"
+    # on the rung reserved for "the measurement opposes the target", which is the same conflation the
+    # claim-vector `single_arm` rung fixed one level down. Still blocks `strong`; no longer labelled
+    # opposing. NOTE the contrast with tractability_sm/discordant, which STAYS a contradiction: there
+    # the discordance IS the finding (a compound kills but not via the target = evidence against).
+    - {verdict: discordant_across_comparators,    disposition: uncorroborated}
+    # POST-RESOLVER Python-clamp KILLs (selectivity_veto.py; declared in selectivity.resolver.yaml
+    # clamp_verdicts). MEASURED opposing signals on the selectivity axis → contradictions (block `strong`):
+    - {verdict: selective_but_broadly_normal,     disposition: contradiction}   # housekeeping / no normal window (GAPDH/TROP2)
+    - {verdict: selective_but_stromal_confound,   disposition: contradiction}   # axis-A signal is in stroma/CAF, not malignant cells
+    # NOTE: selective_with_normal_liability is selectivity-PRESERVING (a named-organ liability, not a
+    # contradiction) → deliberately NOT listed; it does not block `strong`.
+    # POST-RESOLVER marrow-coverage ABSTAIN (#796; selectivity_veto.apply_marrow_coverage_abstain,
+    # declared in selectivity.resolver.yaml marrow_coverage_abstain). `uncorroborated`, NOT
+    # `contradiction`: the marrow safety denominator was TRANSIENTLY incomplete on a marrow-plausible
+    # target, so the confident selective call is WITHHELD pending a re-run — an absence of resolution,
+    # not a measurement AGAINST the target (mirrors discordant_across_comparators above). It blocks
+    # `strong` (an incomplete safety denominator cannot support a confident selective nomination) but is
+    # not labelled opposing, and it is deliberately absent from positive_contradictions.
+    - {verdict: selective_pending_marrow_coverage, disposition: uncorroborated}
+  surface_modality:
+    - {verdict: neither_viable,                   disposition: excluded_modality_scoped}
+    - {verdict: adc_preferred_tce_unsafe,         disposition: excluded_modality_scoped}
+    - {verdict: tce_unsafe_normal_liability,      disposition: excluded_modality_scoped}
+    - {verdict: adc_preferred_tce_escape_risk,    disposition: excluded_modality_scoped}   # efficacy: TCE antigen-escape, ADC-preserving (2026-08-24)
+    - {verdict: tce_escape_risk,                  disposition: excluded_modality_scoped}   # efficacy: TCE antigen-escape, no ADC arm (2026-08-24)
+    - {verdict: shed_dominant_opposed,            disposition: excluded_modality_scoped}
+  tractability_sm:
+    - {verdict: structurally_intractable,         disposition: excluded_modality_scoped}
+    - {verdict: chemically_unhit,                 disposition: contradiction}
+    - {verdict: annotation_only_indirect,         disposition: contradiction}   # #893: catalogued approved agent but NO direct SM binder (biologic-only / undruggable-TF) — a MEASURED negative SM-tractability read, sibling of chemically_unhit
+    - {verdict: discordant,                       disposition: contradiction}
+  cis_coherence:                                                                 # graduation 2026-08-20
+    - {verdict: expressed_cis_coupled_inert,      disposition: contradiction}    # present+cis-driven but NOT required
+
+# ============================================================================
+# VETO SUPPRESSION (2026-07-17, v1.2.0) — backtest-driven gate-C correction.
+# ============================================================================
+# A 16-target approved-drug backtest showed the dependency veto is a narrow
+# pan-cancer band-pass filter that false-negatives 10/16 approved targets at BOTH
+# ends: `pan_essential_killer` (too essential — PSMB5/bortezomib) and
+# `non_dependent` (not essential enough — EGFR, PARP, IDH1, FLT3, and every
+# biologics surface antigen CD19/TROP2/DLL3). Two suppression rules below fix the
+# demonstrated false-negative classes WITHOUT weakening a true veto.
+#
+# STRICTLY CONSERVATIVE CONTRACT (mirrors the loader's never-permissive rule):
+#   - Suppression only fires on an EXPLICIT positive rescue signal or an EXPLICIT
+#     modality declaration. Absent either, the veto stands exactly as today.
+#   - INVERTED FALLBACK: if these blocks are missing/malformed the gate loader
+#     ignores them and the full veto fires (a missing suppressor can only make the
+#     gate MORE conservative — it can never silently disable a veto).
+
+# (A) Context-escape: a MEASURED biomarker-stratified dependency proves the target
+# IS required in its relevant stratum, so a POOLED pan-cancer `non_dependent` read
+# is a sampling artifact, not a trusted negative. When the rescue verdict is present
+# the pooled dependency veto is suppressed (the target routes to the positive tier
+# via the biomarker-stratified positive_signal above). Rescues EGFR/IDH1/FLT3.
+# CROSS-AXIS CONTRADICTION RECONCILERS (2026-09-08). DISTINCT from veto_suppressors (which suppress a
+# dependency VETO/HOLD gate action): a reconciler removes a CONTRADICTION verdict (a kill_capable
+# `disposition: contradiction` / positive_contradiction that blocks `strong` and reads as opposing to
+# the synthesis) when a co-present verdict on ANOTHER axis proves the contradiction is measured on the
+# wrong basis. INVERTED FALLBACK, same as suppressors: a missing/malformed block reconciles NOTHING (the
+# contradiction stands) — a reconciler can only ever make the gate LESS conservative when its trigger is
+# genuinely present, never silently. Applied everywhere the contradiction is read (positive-tier
+# strong-block, gate scorecard opposing status, per-axis synthesis role) so the deterministic call AND the
+# LLM's view move together.
+contradiction_reconcilers:
+  - reconciles: {sub_skill: selectivity, verdict: selective_but_broadly_normal}
+    when_present:
+      - {sub_skill: genomic_alteration, verdict: biomarker_stratified_dependency}
+      - {sub_skill: genomic_alteration, verdict: moderate_biomarker_dependency}
+    rationale: |
+      The no-therapeutic-window / broadly-normal selectivity KILL is computed as BULK tumor RNA ÷ the
+      worst of 15 critical normal organs — which DILUTES the therapeutic window for an AMPLIFICATION /
+      biomarker-selected target (HER2/ERBB2, FGFR2, ERBB3): the real window lives in the amp+ / biomarker+
+      stratum (assessed by CDx/IHC in practice), not the pan-cohort bulk average. When the genomic axis
+      reports a biomarker-stratified (amplification-conditional) dependency, the bulk-RNA broadly-normal
+      read is NOT a trusted contradiction → reconcile it (drop from the contradiction set) so it no longer
+      blocks `strong` nor reads as unopposed opposing evidence to the synthesis. Surfaced by the IDAS
+      backtest (ERBB2/STAD = trastuzumab-deruxtecan APPROVED, hard-vetoed on no-window; also ERBB3/LUAD,
+      FGFR2/STAD). KEEPS the KILL for targets with NO amp/biomarker conditioning (true housekeeping —
+      TROP2/GAPDH salivary-gland archetype). Does NOT itself nominate (no positive_signal) — the
+      biomarker-stratified dependency already carries the positive tier.
+
+  # (2) SURFACE-ANTIGEN modality-engineered window (2026-09-08). A SECOND basis on which the bulk-RNA
+  # no-therapeutic-window KILL is measured on the wrong axis: for an ADC / T-cell-engager surface antigen,
+  # the therapeutic index is engineered by the MODALITY (payload potency + DAR + internalization; T-cell
+  # synapse avidity) — it is NOT governed by the bulk tumor-vs-normal-organ RNA ratio the `tvn-no-window`
+  # rule computes. TROP2 (TACSTD2), HER3 (ERBB3), MUC17 are expressed on normal epithelium yet are validated
+  # ADC/TCE targets (Trodelvy/Dato-DXd, patritumab-DXd) precisely because the modality creates the window.
+  # DATA-DRIVEN co-condition, NOT a --modality flag (the IDAS backtest ran default/no-modality): fires only
+  # when the live surface_modality fit is FAVORABLE — the SAME favorable-fit set that gates
+  # biology_axis_scoped_veto_downgrade — which is minted only from real surface topology + surfaceome-family
+  # signal. This BOUNDS false-positives exactly as that downgrade does: a secreted ligand (VEGFA →
+  # shed/neither_viable) or an intracellular target (CDK2 → neither_viable) has NO favorable surface arm, so
+  # its no-window KILL correctly STANDS. Drops the contradiction (stops the auto-KILL) so the surface + the
+  # independent on-target-SAFETY axis decide the disposition; carries no positive_signal, so it cannot
+  # manufacture a nomination on its own — the residual safety/surface liabilities still land the target at
+  # hold rather than a green-lit strong.
+  - reconciles: {sub_skill: selectivity, verdict: selective_but_broadly_normal}
+    when_present:
+      - {sub_skill: surface_modality, verdict: both_viable}
+      - {sub_skill: surface_modality, verdict: adc_preferred}
+      - {sub_skill: surface_modality, verdict: tce_preferred}
+      - {sub_skill: surface_modality, verdict: adc_preferred_tce_unsafe}
+      - {sub_skill: surface_modality, verdict: adc_preferred_tce_escape_risk}
+      - {sub_skill: surface_modality, verdict: adc_preferred_tce_patient_variable}
+      - {sub_skill: surface_modality, verdict: tce_patient_variable}
+      - {sub_skill: surface_modality, verdict: surface_viable_density_caveated}
+    rationale: |
+      Symmetric to reconciler (1) but keyed on a FAVORABLE surface_modality fit instead of a genomic
+      biomarker: an ADC/TCE surface antigen's therapeutic window is modality-engineered (payload/DAR/
+      internalization; T-cell avidity), NOT the bulk tumor÷normal-organ RNA ratio the no-window KILL
+      computes. Fires on default runs (no --modality) because a FAVORABLE fit_class is itself the
+      surface-antigen evidence. Reconciles ERBB3/LUAD, TACSTD2/TNBC, MUC17/STAD; STANDS for secreted
+      (VEGFA) and intracellular (CDK2) targets whose surface arm is not viable. Drops the contradiction
+      only — no positive_signal — so the on-target-safety axis remains the guardrail and the target lands
+      at hold, never a manufactured strong.
+
+# NOTE: suppresses only `non_dependent` (dilution artifact), NOT `pan_essential_killer`
+# (a too-essential target is not rescued by a stratified signal — different failure).
+veto_suppressors:
+  - suppresses: {sub_skill: dependency, verdict: non_dependent}
+    when_present:
+      - {sub_skill: genomic_alteration, verdict: biomarker_stratified_dependency}
+      - {sub_skill: genomic_alteration, verdict: moderate_biomarker_dependency}
+    rationale: |
+      Pooled pan-cancer CRISPR dilutes a mutant/context-restricted dependency
+      (EGFR-mut, IDH1-R132, FLT3-ITD) below the non_dependent floor. A measured
+      biomarker-stratified dependency is the true read; the pooled `non_dependent`
+      is not a trusted negative. Suppress the veto; the stratified signal carries
+      the target through the positive tier. Does NOT touch pan_essential_killer.
+
+  # (A2) Curated synthetic-lethal partner (SynLethDB v3, published). A pooled
+  # `non_dependent` CRISPR read is a CONTEXT-CONDITIONAL false negative when the target
+  # has an experimentally-supported SL partner: the target is dispensable in the
+  # unperturbed pool but REQUIRED once the partner is altered (SMARCA2←SMARCA4-loss,
+  # ARID1B←ARID1A). This is the arbitrary partner-conditional case the paralog signal
+  # (intra-gene-family) cannot catch. ANNOTATION not measurement: suppresses the veto
+  # to `insufficient` (abstention) — it does NOT nominate (annotation ≠ a measured
+  # dependency; no positive_signal entry) and does NOT touch pan_essential_killer.
+  # ONLY the experimental tier suppresses (has_experimental_sl_partner) — a
+  # computational-only prediction is too weak to override a measured pooled negative.
+  - suppresses: {sub_skill: dependency, verdict: non_dependent}
+    when_present:
+      # CARD-FIELD trigger (2026-08-21): the SL signal was consolidated 2026-08-20 into the
+      # `combination_vulnerability` sub-skill, which is GATELESS (verdict=None) — so the old
+      # `{sub_skill: synthetic_lethal_partners, verdict: has_experimental_sl_partner}` verdict-tuple
+      # trigger could never match a live sub-verdict in the composed profile (the SL rescue went
+      # DEAD). The load-bearing signal still exists as the `synthetic-lethal-partners` CARD field
+      # `sl_partner_class` (composed under combination_vulnerability), so trigger on it directly.
+      - {card_id: synthetic-lethal-partners, field: sl_partner_class, value: has_experimental_sl_partner}
+    rationale: |
+      An experimentally-supported curated SL partner (SynLethDB v3) means the pooled
+      pan-cancer `non_dependent` read is not a trusted negative — the target may be a
+      genuine dependency in the partner-altered context (SMARCA2←SMARCA4). Suppress the
+      veto → the target routes to `insufficient` (NOT nominate — a curated SL
+      relationship is annotation, not a measured dependency). Complements the paralog-
+      buffering suppressor (intra-family); catches arbitrary partner-conditional SL.
+      ONLY has_experimental_sl_partner qualifies (computational-only is too weak).
+      Does NOT touch pan_essential_killer (an essential target is not rescued by an SL
+      partner — different failure mode).
+
+  # (A3) Subtype-restricted dependency (2026-08-19, subtype-verdict-shifting review §5). UNLIKE the SL
+  # suppressor above (annotation → abstain only), this is a MEASURED, floor-cleared STRONG dependency
+  # confined to a molecular subtype: the pooled pan-cancer `non_dependent` is a DILUTION artifact of a
+  # genuine subtype-restricted requirement. So it both SUPPRESSES the veto AND — because it is measured,
+  # not annotation — carries the target through the positive tier as SUPPORTIVE (the positive_signal
+  # above), with the subtype as the patient-selection population. Opt-in-by-scope (--subtypes only).
+  - suppresses: {sub_skill: dependency, verdict: non_dependent}
+    when_present:
+      - {sub_skill: subtype_fit, verdict: subtype_restricted_dependency}
+    rationale: |
+      A MEASURED, floor-cleared strong CRISPR dependency confined to a molecular subtype means the
+      pooled pan-cancer `non_dependent` read is a dilution artifact, not a trusted negative — the target
+      is genuinely required in that subtype (POU2F3/SCLC-P; CMS4/CRC). Suppress the veto; the subtype +
+      its classifier assay are the patient-selection biomarker. Distinct from the SL suppressor
+      (annotation → insufficient): this is measured, so it ALSO enters the positive tier (supportive,
+      never dominant — subtype strata are thinner than a mutation call). Does NOT touch pan_essential_killer.
+
+  # ---------------------------------------------------------------------------------------------
+  # (A1i) / (A2i) / (A3i) — the SAME THREE context escapes for the INDICATION-CONDITIONED veto
+  # (2026-09-18, Stage 2b; the verdict was minted by target-contracts #812 / c475e69).
+  #
+  # WHY THESE ARE NOT REDUNDANT WITH (A1)-(A3): a suppressor keys on ONE (sub_skill, verdict) pair,
+  # so the three above are literally unreachable for `not_dependent_in_indication`. Without these
+  # entries the new veto would be STRICTLY LESS ESCAPABLE than the pooled one it improves on — a
+  # fail-CLOSED regression exactly as damaging as the fail-OPEN one Stage 2b exists to prevent.
+  #
+  # WHY THE ESCAPES STILL APPLY AT INDICATION GRAIN — and the rationales below say this rather than
+  # reusing the phrase "pooled pan-cancer", which is FALSE of this verdict: conditioning on the
+  # indication removes ONE confounder (the wrong lineage), not all of them. An indication's model
+  # set still pools GENOTYPES (EGFR-mut is a minority of LUAD lines) and still pools SUBTYPES (a
+  # subtype is nested INSIDE an indication by construction), so a mutant- or subtype-restricted
+  # dependency is diluted by an indication median too. The dilution is smaller, never zero.
+  #
+  # WHY THE RESOLVER'S OWN RESCUE RUNGS DO NOT COVER THIS: dependency.resolver v1.5.0 rungs 6-8
+  # already outrank the indication veto with partner_conditional / chemical-genetic positives — but
+  # `resolve_verdict` sees only fired rule_ids WITHIN the dependency axis. genomic_alteration,
+  # subtype_fit and combination_vulnerability are OTHER sub-skills and are structurally invisible to
+  # it, so every CROSS-AXIS escape has to live here. The two layers are complements, not duplicates.
+  # ---------------------------------------------------------------------------------------------
+  - suppresses: {sub_skill: dependency, verdict: not_dependent_in_indication}
+    when_present:
+      - {sub_skill: genomic_alteration, verdict: biomarker_stratified_dependency}
+      - {sub_skill: genomic_alteration, verdict: moderate_biomarker_dependency}
+    rationale: |
+      An indication is not a genotype. Conditioning the dependency read on the queried
+      indication removes the wrong-lineage confounder but still pools mutant and wild-type
+      models (EGFR-mut is a minority of LUAD lines; IDH1-R132 of glioma), so a measured
+      biomarker-stratified dependency remains the true read and the indication-level
+      negative is not a trusted one. Suppress the veto; the stratified signal carries the
+      target through the positive tier. Does NOT touch pan_essential_killer.
+
+  - suppresses: {sub_skill: dependency, verdict: not_dependent_in_indication}
+    when_present:
+      - {card_id: synthetic-lethal-partners, field: sl_partner_class, value: has_experimental_sl_partner}
+    rationale: |
+      A partner-altered context is orthogonal to indication: an indication's models are
+      overwhelmingly partner-WT, so an experimentally-supported curated SL partner
+      (SynLethDB v3) makes the indication-conditioned negative untrustworthy for exactly
+      the reason it makes the pooled one untrustworthy (SMARCA2←SMARCA4-loss). Suppress the
+      veto → the target routes to `insufficient`, NOT nominate: a curated SL relationship
+      is annotation, not a measured dependency, so this arm has no positive_signal entry.
+      ONLY has_experimental_sl_partner qualifies. Does NOT touch pan_essential_killer.
+
+  - suppresses: {sub_skill: dependency, verdict: not_dependent_in_indication}
+    when_present:
+      - {sub_skill: subtype_fit, verdict: subtype_restricted_dependency}
+    rationale: |
+      The STRONGEST of the three at this grain, because the nesting is structural: a
+      molecular subtype lies INSIDE an indication, so an indication-level median dilutes a
+      floor-cleared subtype-restricted dependency by construction (POU2F3/SCLC-P is a
+      minority of SCLC lines; CMS4 of CRC). Measured, not annotation, so it both suppresses
+      the veto AND enters the positive tier as supportive, with the subtype as the
+      patient-selection population. Does NOT touch pan_essential_killer.
+      Note the deliberate asymmetry with `subtype_specific_non_dependence` (a HOLD gate):
+      a subtype-restricted DEPENDENCY rescues the indication-level negative, while a
+      subtype-restricted NON-dependence forecloses only the subtype. Both follow from the
+      subtype being the narrower scope.
+
+  # A4i — DELIBERATELY WITHOUT A POOLED TWIN. The three arms above mirror a pooled arm each;
+  # this one has none. At POOLED grain the paralog rescue is handled one layer DOWN, in the
+  # resolver: a compound rung fires on `non-dependent-killer` AND
+  # `strong-paralog-buffering-degrader-preferred` and re-LABELS the verdict to
+  # `non_dependent_paralog_buffered`, so the pooled veto never reaches this gate and a pooled
+  # suppressor here would be unreachable.
+  #
+  # HISTORY, kept because it is the reason this arm's shape looks odd (updated 2026-09-18):
+  # when this arm was written, dependency.resolver v1.5.0 had NO such rung at indication grain —
+  # it had added compound twins pairing `not-dependent-in-indication-killer` with
+  # partner-conditional and chemical-genetic evidence but not with paralog buffering, so the
+  # indication killer outranked the pooled paralog relabel and the veto DID reach this gate.
+  # Resolver v1.6.0 CLOSED that gap by adding the indication paralog twin. This arm is kept
+  # anyway — see the rationale below: the repos are pin-decoupled, so the gate layer and the
+  # resolver layer protect at DIFFERENT MOMENTS, and the overlap is defence-in-depth rather than
+  # duplication. The general invariant the v1.5.0 gap slipped through (every rung that escapes the
+  # pooled veto needs an indication twin) is now asserted by
+  # tests/vocabularies/test_indication_dependency_class_partition.py.
+  #
+  # This arm is correct on its own merits, not merely as a patch: a single-gene knockout cannot
+  # reveal a dependency masked by a redundant paralog, and that blindness is a property of the
+  # ASSAY, so it is grain-INDEPENDENT (ORTHOGONALITY, like the neomorphic-GoF escape — not
+  # dilution). Narrowing the panel to one indication does not make a single-gene KO able to see a
+  # reciprocal paralog SL. Suppresses the veto only; it does NOT relabel the verdict — the
+  # resolver rung is what makes the reader see `non_dependent_paralog_buffered` rather than
+  # `not_dependent_in_indication`, which is precisely why both layers are wanted.
+  #
+  # Blast radius, MEASURED against the calibration set (not inferred): 3 of the 8 live
+  # `must_not_veto` controls resolve `non_dependent_paralog_buffered` today — WWTR1/MESO,
+  # MARK2/PAAD, MARK3/PAAD (MARK2/3 are ADVANCED programs; the reciprocal MARK2<->MARK3 SL is the
+  # textbook case of KO blindness). Without this arm all three acquire a false veto at Stage 5.
+  # No positive_signals entry: `strong` paralog buffering is degrader-PREFERRED, i.e. evidence
+  # about the right MODALITY, not evidence that the target is required — so it suppresses the
+  # veto (routes to `insufficient`) and must never help mint a nominate.
+  - suppresses: {sub_skill: dependency, verdict: not_dependent_in_indication}
+    when_present:
+      - {card_id: paralog-buffering, field: paralog_buffering_class, value: strong}
+    rationale: |
+      A strong paralog-buffering read means the single-gene knockout the indication verdict rests
+      on is the WRONG INSTRUMENT, not a small sample: a redundant paralog masks the requirement at
+      every panel size (YAP1 buffers WWTR1/TAZ; MARK2<->MARK3 reciprocally). That blindness is a
+      property of the assay, so unlike the dilution arms it does not shrink as the panel narrows —
+      it is the same escape the neomorphic-GoF route uses. Suppress the veto → the target routes
+      to `insufficient` and a degrader/dual-targeting hypothesis stays reachable, NOT nominate:
+      buffering says which modality could work, never that the target is required. Deliberately
+      has NO pooled twin — at pooled grain the resolver's paralog rung relabels the verdict before
+      the gate ever sees it, so a pooled suppressor would be unreachable.
+      KEPT ALONGSIDE THE RESOLVER RUNG (corrected 2026-09-18, resolver v1.6.0). This arm was first
+      written when the indication grain had no such rung, and its original wording justified itself
+      by that gap. The gap is now closed, and the arm is still load-bearing — because the two repos
+      are PIN-DECOUPLED. claude-oncology-skills pins a target-contracts SHA, so there is a window in
+      which skills runs an OLD resolver (indication killer still wins) against a NEW gate vocabulary,
+      and in that window this arm is the only thing between the three ADVANCED controls above and a
+      false veto. The reverse window is covered by the rung. Two layers, two different moments — not
+      redundancy, and deleting either one re-opens a real window. Pinned by
+      test_a4i_is_kept_as_defence_in_depth_not_as_redundancy, which fails if this paragraph reverts
+      to claiming the resolver gap still exists.
+      Does NOT touch pan_essential_killer: a buffered paralog does not undo broad-tox liability.
+
+# (B) Modality-scoped: for a BIOLOGICS query (ADC / TCE / naked antibody) the target
+# is engaged via a surface antigen regardless of genetic essentiality (CD19, TROP2,
+# DLL3 are approved and none are dependencies). Dependency is INFORMATIVE-only for
+# these modalities — it must not veto. Fires ONLY when a modality is explicitly
+# declared (default None = biology-first, conservative: veto stands). This is the
+# exact symmetry of why surface neither_viable does not veto an SM target.
+modality_scoped_veto_suppression:
+  - suppresses: {sub_skill: dependency, verdict: non_dependent}
+    when_modality_in: [adc, bite_tce, antibody]
+  - suppresses: {sub_skill: dependency, verdict: not_dependent_in_indication}
+    when_modality_in: [adc, bite_tce, antibody]
+  - suppresses: {sub_skill: dependency, verdict: pan_essential_killer}
+    when_modality_in: [adc, bite_tce, antibody]
+    rationale: |
+      A surface-directed biologic kills via antigen engagement (payload / T-cell
+      synapse), not via the antigen's genetic dependency. ALL THREE dependency veto
+      arms are intracellular-modality-scoped and are suppressed for biologics
+      modalities. This escape is GRAIN-INDEPENDENT — it is an orthogonality argument,
+      not a dilution argument — so conditioning the dependency read on the queried
+      indication does not make it any more relevant to an ADC/TCE/mAb: CD19, TROP2 and
+      DLL3 are approved antigens and none is a dependency in ANY indication. The
+      indication-conditioned arm was added 2026-09-18 with the verdict itself; the
+      dependency rules behind all three arms emit `killer` only for
+      small_molecule/degrader, so this block is defence in depth, not the only guard.
+
+# (C) Biology-axis-scoped DOWNGRADE (2026-08-24). The modality-scoped suppression (B) fires ONLY when a
+# modality is EXPLICITLY declared. But a curated SURFACE-antigen target (biology_axis=surface_intrinsic)
+# whose surface_modality independently returned a FAVORABLE fit is engaged via antigen binding, not
+# genetic dependency — so a pooled `dependency: non_dependent` veto CONTRADICTS the captured surface
+# biology even on a default (no --modality) run (DLL3/TACSTD2/FOLR1/NECTIN4/CD19 all veto'd this way).
+# Unlike (B) which SUPPRESSES the veto entirely, this DOWNGRADES it to `hold` — conservative: the target
+# surfaces (not force-declined) but is not fully green-lit absent an explicit modality query. The
+# favorable-surface co-condition BOUNDS false-positives: a surface target with no viable arm
+# (neither_viable / shed_dominant_opposed) still vetoes. Never touches pan_essential_killer.
+biology_axis_scoped_veto_downgrade:
+  - downgrades: {sub_skill: dependency, verdict: non_dependent}
+    to_action: hold
+    when_biology_axis_in: [surface_intrinsic, unknown, extrinsic, mixed]
+    when_surface_verdict_in: [both_viable, adc_preferred, tce_preferred, adc_preferred_tce_unsafe, adc_preferred_tce_escape_risk, adc_preferred_tce_patient_variable, tce_patient_variable, surface_viable_density_caveated, pmhc_tce_supported, modality_ambiguous]
+    rationale: |
+      A surface antigen with a FAVORABLE surface_modality fit is engaged via antigen binding, so a
+      pooled pan-cancer `non_dependent` is not a trusted reason to VETO — it is downgraded to `hold`,
+      surfacing the target (with its real surface/safety liabilities carried by the surface + safety
+      axes) rather than force-declining it on an irrelevant intracellular-dependency criterion.
+
+      DATA-DRIVEN, not curation-gated (2026-08-25, gap T2b): the axis set includes `unknown` (a
+      target NOT in the curated target_biology_axis_lookup), because a FAVORABLE adc/tce `fit_class`
+      is itself the surface-antigen evidence — it is minted only from real surface topology +
+      surfaceome-family signal, so a cytosolic/nuclear target resolves to `neither_viable` and is
+      never downgraded here. This closes the default-run false-veto of UNCURATED approved antigens
+      (TROP2/TACSTD2, NECTIN4, CD19, FOLR1 …) that the 22-target lookup does not enumerate. An
+      explicitly-classified `intracellular_intrinsic` target is DELIBERATELY excluded (it keeps the
+      veto) — an intracellular oncogene with an incidental surface signal is not a surface antigen.
+
+      EXTRINSIC / MIXED axes (2026-09-08): the curated `extrinsic` (TME / immune / stromal) and `mixed`
+      axes are now ALSO admitted. A TME/immune/stromal target (immune checkpoint PD-L1/CD274=mixed,
+      PD-1/PDCD1 + CTLA-4=extrinsic) is engaged by BLOCKADE / neutralization via antigen binding — the
+      SAME orthogonality to a tumor-intrinsic `non_dependent` as a surface antigen — so its pooled pan-
+      cancer non-dependence is an irrelevant criterion, not a disqualifier. Fixes a CURATION PENALTY:
+      an UNCURATED checkpoint (`unknown` — LAG3/HAVCR2) with a favorable surface fit already earned the
+      downgrade, but a CURATED one (CD274 `mixed`, PDCD1/CTLA4 `extrinsic`) was LOCKED OUT — curation
+      made it strictly worse off. TWO bounds (BOTH unchanged by this edit — only the axis list grew):
+      (i) the favorable-surface co-condition — an extrinsic/mixed target whose surface arm is
+      `neither_viable`/`shed` (no cell-surface antigen to bind) is NOT downgraded here; (ii) the
+      `intracellular_intrinsic` exclusion is untouched, so an intracellular oncogene keeps its veto.
+      Live-verified panel (verdict-only): CD274/LUAD (surface `adc_preferred_tce_unsafe` + a
+      `surface_antigen_no_dependency` coherence thesis) VETO→HOLD via THIS arm — aligning the gate with
+      the thesis; PDCD1/CTLA4/VEGFA were already non-vetoing via other paths (context_escape / a
+      non-veto `discordant`), so this arm's NET effect on the panel is CD274 alone. veto→hold only
+      (never nominate).
+
+      Fires without an explicit --modality; the favorable-surface co-condition prevents rescuing
+      surface-junk. Downgrade is veto→hold (never nominate), so it cannot manufacture a false
+      nomination. Does NOT touch pan_essential_killer.
+
+  - downgrades: {sub_skill: dependency, verdict: not_dependent_in_indication}
+    to_action: hold
+    when_biology_axis_in: [surface_intrinsic, unknown, extrinsic, mixed]
+    when_surface_verdict_in: [both_viable, adc_preferred, tce_preferred, adc_preferred_tce_unsafe, adc_preferred_tce_escape_risk, adc_preferred_tce_patient_variable, tce_patient_variable, surface_viable_density_caveated, pmhc_tce_supported, modality_ambiguous]
+    rationale: |
+      The indication-conditioned twin of the arm above (2026-09-18, Stage 2b), with the SAME two
+      bounds — the favorable-surface co-condition and the `intracellular_intrinsic` exclusion — and
+      the same veto→hold direction, so it likewise cannot manufacture a false nomination.
+
+      Why the escape survives the grain change: this arm is an ORTHOGONALITY argument, not a
+      dilution one. A surface antigen engaged by antigen binding is not adjudicated by whether a
+      whole-gene knockout kills the line, and that is equally true of a knockout performed in the
+      queried indication's own models. TROP2/TACSTD2 is not a genetic dependency in ANY indication.
+      Omitting this entry would make the grain-CORRECT verdict harder to escape than the pooled
+      proxy it replaces — the false-veto of uncurated approved antigens that gap T2b closed would
+      simply reappear under a new token as soon as Stage 5 makes it reachable.
+    # Kept as a SEPARATE entry rather than widening the one above to a verdict LIST: the consumer
+    # (skills target-profile/scripts/run.py) reads `downgrades.verdict` as a SCALAR, so a list would
+    # be a schema the reader has never seen — silently matching nothing, which is the fail-open this
+    # whole stage exists to prevent. Same reason every block below duplicates rather than generalizes.
+
+# ── THESIS ROUTING (Step 2b, 2026-09-11) — the per-thesis necessity conjunction ──────────────────
+# The core of the framework-architecture remediation. The gate implements dependency-AND-safety, but
+# the ontology (target_profiling_axes.yaml:55) declares necessity as ANY-OF: an antigen-driven target
+# carries no recurrent dependency, so a pooled `non_dependent` VETO adjudicates it on the WRONG axis
+# (measured: 0/14 surface antigens decided on surface biology). This block routes on the GOVERNED
+# `thesis` (vocabularies/target_thesis.yaml, derived from archetype_core's verdict-inert soft_membership
+# + the biology_axis fallback), making a dependency veto IRRELEVANT for the theses whose biology does
+# not live on the dependency axis — the target then falls to its OWN thesis's deciding axes
+# (surface / safety / genomic), reachable as a nominate rather than force-vetoed.
+#
+# GENERALIZES biology_axis_scoped_veto_downgrade (which keys on biology_axis + surface verdict): the
+# derived thesis is the co-condition (antigen_driven is minted only from a DOMINANT expression_surface
+# archetype mixture — itself the surface-antigen evidence — under the hard-margin rule). Whereas the
+# biology_axis block DOWNGRADES veto→hold (capped at hold), thesis routing makes the axis IRRELEVANT
+# (dropped), so the target's real thesis axis can DECIDE, up to nominate. That is the 2b enhancement.
+#
+# GUARDRAILS (unchanged from the proven pattern):
+#   • Only a NON-DEPENDENCE verdict is ever made irrelevant — as of 2026-09-18 that is the two arms
+#     `non_dependent` (pooled) and `not_dependent_in_indication` (queried indication), and NEVER
+#     `pan_essential_killer` (a broad-tox SAFETY liability, real regardless of thesis;
+#     pan_essential_buffered is its OWN thesis where the safety window decides, handled separately —
+#     it is NOT listed here). The guardrail is the PROPERTY, not the singular token: what may be
+#     dropped is "this axis returned a negative", never "this axis returned a safety liability".
+#   • SAFETY holds are NEVER touched by thesis routing (a thesis never makes safety irrelevant).
+#   • `thesis: unresolved` has NO entry → today's gate byte-for-byte + the existing epicycle blocks
+#     (veto_suppressors / biology_axis_scoped_veto_downgrade / … ) remain the unresolved-path fallback
+#     until Step 2c retires them.
+#   • Routing cannot invent a GO: dropping a veto only lets the target FALL to its other axes + the
+#     LLM's proposal, which stays bounded above by the kill gate and below by the abstention
+#     lower-bound clamp (an unbacked LLM negative → insufficient_evidence).
+# BOTH dependency non-dependence arms are listed on every thesis below (the indication-conditioned
+# arm added 2026-09-18, Stage 2b). This is NOT a widening of thesis routing — it is what keeps the
+# landed 0/14 surface-antigen fix from silently regressing. dependency.resolver v1.5.0 puts
+# `not_dependent_in_indication` at priority 9 and `non_dependent` at 22, so once the skills side
+# populates the card field (Stage 5) an indication-scoped run on a surface antigen resolves the NEW
+# token — and a thesis list naming only the old one would stop dropping the veto it drops today.
+# Listing one arm and not the other would make the fix depend on which token happened to win the
+# ladder, which is exactly the accident this block exists to remove.
+thesis_axis_relevance:
+  - thesis: antigen_driven
+    irrelevant:
+      - {sub_skill: dependency, verdict: non_dependent}
+      - {sub_skill: dependency, verdict: not_dependent_in_indication}
+    rationale: "Surface antigen (ADC/TCE/mAb): engaged by antigen binding, carries no recurrent intracellular dependency by design. Non-dependence is an irrelevant criterion at EITHER grain — CD19/TROP2/DLL3 are approved and none is a dependency in any indication; surface + selectivity + safety decide."
+  - thesis: tme_io
+    irrelevant:
+      - {sub_skill: dependency, verdict: non_dependent}
+      - {sub_skill: dependency, verdict: not_dependent_in_indication}
+    rationale: "TME/IO target (checkpoint/stromal): engaged by blockade/neutralization, not a tumor-intrinsic dependency — so a tumor-cell-intrinsic non-dependence is irrelevant however narrowly it was measured. immune-context + safety decide."
+  - thesis: neomorphic_gof
+    irrelevant:
+      - {sub_skill: dependency, verdict: non_dependent}
+      - {sub_skill: dependency, verdict: not_dependent_in_indication}
+    rationale: "Neomorphic GoF (e.g. IDH1): a NEW activity, not a whole-gene-KO dependency. The KO readout is the wrong ASSAY, not the wrong lineage, so conditioning it on the queried indication does not make it relevant; the genomic driver + tractability decide."
+  - thesis: partner_conditional_sl
+    irrelevant:
+      - {sub_skill: dependency, verdict: non_dependent}
+      - {sub_skill: dependency, verdict: not_dependent_in_indication}
+    rationale: "Synthetic-lethal / partner-conditional: the dependency is context-restricted and an indication is not the context — an indication's models are overwhelmingly partner-WT, so the indication-conditioned negative is a dilution artifact for the same reason the pooled one is. Partner-conditional/SL evidence decides."
+  # oncogene_addiction, pan_essential_buffered, unresolved: NO entry — dependency stays a live veto
+  # (today's behaviour). oncogene_addiction is the thesis where the dependency axis legitimately decides;
+  # pan_essential_buffered keeps pan_essential_killer and is routed by its SAFETY window (a later 2b arm).
+
+# ============================================================================
+# THESIS DECIDING AXES (2026-09-11, v1.18.0, Step 3) — the FIRST deterministic
+# producer of `nominate`. Read the block comment on `version` above first.
+# ============================================================================
+# WHY THIS EXISTS. Step 2b stopped surface antigens being force-declined on the wrong
+# (dependency) axis, but a grounded full-LLM run then showed FOLR1/OV, DLL3/SCLC and
+# MSLN/OV all landing at `insufficient_evidence`, NOT `nominate`: removing a false veto
+# creates an ABSTENTION, not a nomination. With no positive DECIDER on the surface axis
+# the LLM stayed negative and the abstention lower-bound clamp floored it. This block is
+# the missing half — it lets a thesis's own axis CARRY the call.
+#
+# THE BOUND THAT MAKES IT SAFE (the plan's 2d constraint, restated operationally):
+# routing must never invent a GO. A thesis does NOT license a nomination; it names which
+# axis is ADMISSIBLE as the decider, and admissibility is CO-CONDITIONED on that axis (and
+# every other conjunct) returning a FAVORABLE MEASURED read. Four independent ways this
+# block fails CLOSED to `insufficient_evidence`:
+#   1. ABSTENTION-ONLY (structural, enforced in code, not policy): the decider runs in the
+#      else-branch of the kill gate, so it is UNREACHABLE while any veto/hold survives. It
+#      cannot mask, outrank or subordinate a kill — the same structural argument that makes
+#      the positive tier F1-safe, not a precedence entry in `action_precedence` (which is
+#      deliberately left as {veto: 2, hold: 1}, with NO `nominate`).
+#   2. MEASURED-ONLY: every conjunct must match a live verdict / card field. An ABSENT verdict,
+#      or an `insufficient` / `data_unavailable` / `unmeasured` token, FAILS the conjunction.
+#      Absence of measurement can never satisfy a requirement (the honest-negative discipline).
+#   3. REGISTERED-THESIS-ONLY: `unresolved`, `None`, and any thesis without an entry here get
+#      NO deciding axis → today's behaviour byte-for-byte.
+#   4. INVERTED FALLBACK: a missing/malformed block loads EMPTY → no thesis can nominate at
+#      all. Symmetric to the positive loader (a broken file must never mint a positive) and
+#      OPPOSITE to the kill `gates` loader (whose fallback is conservative-and-complete).
+# Additionally the code requires: no un-reconciled `positive_contradictions` present, and no
+# `_fail_closed` hit anywhere in the gate history.
+#
+# ONE THESIS IS GRADUATED HERE. Step 3 is deliberately incremental (per the plan's
+# `blind_axis_load_bearingness` order: 13 surface / 7 SL / 6 cell-state). `antigen_driven`
+# only. `partner_conditional_sl` (combination-and-vulnerability SL/CODEP) and `tme_io`
+# (immune-context) are the next two graduations and get NO entry until their own cycle —
+# each is one block entry plus a grounded verify, no big-bang.
+thesis_deciding_axes:
+  - thesis: antigen_driven
+    # THE DECIDING AXIS. `surface_modality` is the axis an antigen program actually lives on,
+    # and it has been BUILT-BUT-GATELESS in the default (biology-first) path since inception:
+    # `excluded_positive_modality_scoped` excludes the surface positives unless an explicit
+    # --modality is passed. That exclusion rests on the F-symmetry argument ("a biologics-
+    # favorable surface does not make the TARGET strong"), which is correct when the thesis is
+    # UNKNOWN — but a DERIVED `antigen_driven` thesis IS the modality declaration. For this
+    # thesis, surface fit is not modality-adjacent trivia; it is the necessity biology. So the
+    # thesis replaces the --modality flag as the condition, and the F-symmetry is preserved
+    # everywhere else (no other thesis reads a surface positive in default mode).
+    deciding:
+      sub_skill: surface_modality
+      # The fit_class tokens that mean a surface therapeutic ARM IS VIABLE. Kept in sync with
+      # tp_gates._SURFACE_FAVORABLE_VERDICTS + the escape/patient-variable arms already
+      # registered as modality-scoped positives. DELIBERATELY EXCLUDED: `neither_viable` and
+      # `shed_dominant_opposed` (no viable arm at all); `tce_unsafe_normal_liability` and
+      # `tce_escape_risk` (the TCE arm is foreclosed and NO ADC arm is asserted — contrast
+      # `adc_preferred_tce_unsafe`, which preserves the ADC arm explicitly); `pmhc_tce_supported`
+      # (a folded-surface-DEAD intracellular oncoprotein rescued by an IEDB pMHC signal — a
+      # single-axis, tumor-context-agnostic, necessary-not-sufficient read that the vocab already
+      # calls `supportive`, never `dominant`; it must not carry a nomination alone);
+      # `surface_annotation_only_unconfirmed` (annotation, not measurement).
+      favorable_verdicts:
+        - both_viable
+        - adc_preferred
+        - tce_preferred
+        - adc_preferred_tce_unsafe
+        - adc_preferred_tce_escape_risk
+        - adc_preferred_tce_patient_variable
+        - tce_patient_variable
+        - surface_viable_density_caveated
+    # THE NECESSITY CONJUNCTION. ALL of these must ALSO read measured-favorable. This is the
+    # ontology's ANY-OF band made concrete for ONE thesis: an antigen-driven target satisfies
+    # necessity via presence + selectivity + surface fit (never via a recurrent alteration or a
+    # pooled dependency), so those are the axes that must all be affirmatively evidenced.
+    requires:
+      # (A) A TUMOR-vs-NORMAL WINDOW that survived the post-resolver Python clamp
+      #     (selectivity_veto.py, declared as a `post_resolver_clamp` stage in
+      #     selectivity.resolver.yaml). `selective_with_normal_liability` IS admitted: per that
+      #     declaration it is the SELECTIVITY-PRESERVING clamp arm (a named-organ / abundant-
+      #     normal-protein FLAG that keeps the selective call), whereas
+      #     `selective_but_broadly_normal` and `selective_but_stromal_confound` are the clamp's
+      #     KILL arms and are excluded here AND listed in `positive_contradictions` below.
+      #     `field_effect_tumor_selective` is excluded (a field effect is not tumor specificity);
+      #     `not_selective` / `discordant_across_comparators` / `not_informative` /
+      #     `data_unavailable` are excluded as non-favorable or unmeasured.
+      #
+      #     ⚠ THAT LAST EXCLUSION IS NOT ENFORCEABLE THROUGH THE CLAMP, and the direction of the
+      #     leak is fail-OPEN. `selective_with_normal_liability` is the clamp's PRESERVING arm, so
+      #     the token means "one of `applies_to_input_verdicts` — {strong, modest, FIELD_EFFECT}
+      #     _tumor_selective — PLUS a named-organ liability". Admitting the output while excluding
+      #     one of its inputs means a field-effect target reads:
+      #         clean normal profile           -> field_effect_tumor_selective  -> BLOCKED
+      #         critical-organ liability FIRED -> selective_with_normal_liability -> ADMITTED
+      #     i.e. DETECTING a liability turns a block into a GO. The loader cannot tell them apart —
+      #     it reads only the post-clamp token, and the clamp publishes no pre-clamp provenance
+      #     field (`provenance_fields` is modality_suppressed_veto_arms / _note / verdict_
+      #     modality_lens). NOT hypothetical: CEACAM5/COADREAD reads field_effect_tumor_selective
+      #     and its panel note is "no veto fired (clean_window; sc origin_tissue_liability does NOT
+      #     veto)" — one rule-fire from the flip. The fix is NOT to admit field_effect: that
+      #     nominates CEACAM5/COADREAD immediately, a 5th dangerous FP against
+      #     _FLOORS["max_dangerous_false_positives"] = 4, which 1.21.0 already fills. So the
+      #     leak is PINNED (test_admitted_clamp_arms_cannot_launder_an_excluded_pre_clamp_verdict
+      #     fails if it WIDENS, if it is CLOSED, or if the shape that makes it reachable goes
+      #     away) and closing it is deferred to a skills-side change that publishes the clamp's
+      #     PRE-PRECEDENCE input verdict — NOT, as this line read before 2026-09-15, "the pre-clamp
+      #     verdict". Those are different tokens on the one path that is actually reachable; see
+      #     THE PRESCRIPTION IS NARROWER THAN IT LOOKS below, which is why this comment changed
+      #     with no version bump.
+      #
+      #     REACHABILITY IS INTERNAL TO THIS ONE RESOLVER STAGE, not an argument about some other
+      #     producer: the SAME clamp's `upgrade:` arm MINTS field_effect_tumor_selective out of
+      #     {not_informative, discordant_across_comparators}, so a target can be promoted INTO the
+      #     excluded state and then re-labelled OUT of it by a liability fire. That is also the
+      #     limit of the reland note's record that (selectivity, discordant_across_comparators) is
+      #     inert here: true of the PUBLISHED token the loader compares against verdict_in, but the
+      #     axis state behind that token can still reach an ADMITTED arm via upgrade -> downgrade.
+      #
+      #     THE PRESCRIPTION IS NARROWER THAN IT LOOKS (correction, 2026-09-15, session d50d3d59,
+      #     landed immediately AFTER 1.21.0's leak note itself landed as 232f4ca8 / #778. The squash
+      #     body of 232f4ca8 carries this same correction, because `squash_merge_commit_message:
+      #     COMMIT_MESSAGES` would otherwise have made the earlier wording trunk's permanent
+      #     INSTRUCTION to whoever implements this; the note below is the copy AT THE POINT OF USE,
+      #     which is the one a future reader of this file actually hits).
+      #     "Publish THE pre-clamp verdict" presumes the clamp has ONE input stage. It has TWO, and
+      #     the phrase misses the reachable one. `upgrade:` is declared "one-directional UP, applied
+      #     BEFORE the downgrade precedence" (selectivity.resolver.yaml), so the laundering chain is
+      #     THREE tokens, not two:
+      #         {not_informative | discordant_across_comparators}  <- what ENTERS the clamp
+      #           --upgrade (protein-up AND crossing-up)-->
+      #         field_effect_tumor_selective                       <- THE EXCLUDED TOKEN; on this path
+      #                                                               it exists only INSIDE the clamp
+      #           --precedence (tvn-sc-normal-critical-organ-veto |
+      #                         tvn-tphp-broad-abundant-normal-protein-veto)-->
+      #         selective_with_normal_liability                    <- ADMITTED by verdict_in below
+      #     A field literally named "the pre-clamp verdict" therefore publishes `not_informative`, so
+      #     a conjunct excluding `field_effect_tumor_selective` compares against a token that is not
+      #     it and ADMITS. It closes the direct-rung arm (resolver returns field_effect itself) and
+      #     leaves the upgrade arm open: a PARTIAL fix wearing the shape of a total one, which is
+      #     WORSE than this disclosed leak, because the ⚠ above would be deleted along with it and
+      #     the guard test would read as legitimately closed (its arm 2 fires on closure BY DESIGN,
+      #     so it cannot tell a real fix from a fix that only covers one arm).
+      #     PUBLISH INSTEAD the immediate input to the PRECEDENCE WALK, i.e. post-upgrade. Two fields
+      #     (`resolver_verdict` + `clamped_from_verdict`) are clearer still; one field suffices only
+      #     if its definition names the precedence walk rather than "the clamp".
+      #     GENERAL FORM, worth more than this instance: WHEN A STAGE IS INTERNALLY MULTI-STEP,
+      #     "pre-<stage>" DOES NOT IDENTIFY A TOKEN. The paragraph directly above already carried the
+      #     whole evidence for this and stopped one inference short — the `upgrade:` arm it documents
+      #     as the REACHABILITY argument is the same fact that makes the single field insufficient.
+      - sub_skill: selectivity
+        verdict_in: [strong_tumor_selective, modest_tumor_selective, selective_with_normal_liability]
+        rationale: "An antigen with no measured tumor-vs-normal window is not a nomination at any density."
+      # (B) MEASURED COHORT PRESENCE — the antigen is actually there in the queried cohort.
+      #     The three tumor-expression tokens; `broadly_high_expression` is EXCLUDED on purpose
+      #     (it is the modality-adjacent token `excluded_positive_modality_scoped` already
+      #     documents — high panel expression favors biologics, it is not target-presence
+      #     evidence, and admitting it would let a housekeeping gene satisfy this conjunct).
+      - sub_skill: expression
+        verdict_in: [strongly_upregulated_in_tumor, tumor_broadly_expressed, tumor_moderately_expressed]
+        rationale: "Presence in the queried tumor cohort is a necessity conjunct for an antigen thesis."
+    # (C) THE ANTI-BLIND CONJUNCT — the deciding axis's own necessity SUB-QUESTION must have been
+    #     MEASURED. This is what stops Step 3 nominating on a blind decider, and it is the reason
+    #     the surface cohort's 0/14 axis-attribution can be fixed HONESTLY rather than by fiat.
+    #     Every surface target in the calibration set carries `deciding_axis_coverage: blind`, and
+    #     in all 7 cases the ground-truth deciding axis is E2 antigen DENSITY/topology. The
+    #     `surface-abundance-density` card computes exactly that and is explicitly VERDICT-INERT
+    #     ("feeds NO resolver rung" — cards/surface-abundance-density.card.yaml): the canonical
+    #     built-but-gateless evidence Step 3 is chartered to graduate.
+    #
+    #     IT IS A MEASUREDNESS TEST, NOT A THRESHOLD. Per the card's own governed vocabulary,
+    #     `density_floor_verdict` is derived "from the MEASURED Tier-1 absolute value ONLY
+    #     (grade A/B)" and is `unmeasured` at grade E, where "absence is NOT low density (the
+    #     honest-negative discipline)". So requiring != unmeasured is exactly "the E2 axis was
+    #     measured". `below_tce_floor` IS admitted because the card documents it as "a MODALITY
+    #     caveat, NOT a target killer (CD19 = 110/cell yet a validated CAR-T/TCE antigen)" —
+    #     DLL3 reads 608 copies/cell at grade B and tarlatamab is approved, so gating on the
+    #     floor VALUE would have the framework overrule an approved drug on a floor its own
+    #     card flags as grade-gated at source. The value stays a narrative caveat.
+    requires_measured_card_field:
+      - card_id: surface-abundance-density
+        field: density_floor_verdict
+        value_in: [above_adc_high_payload_floor, above_tce_floor_below_adc, below_tce_floor]
+        rationale: |
+          The E2 antigen-density sub-question must be MEASURED (Tier-1 absolute, grade A/B), not a
+          grade-D/E estimate. Blocks a nomination whose deciding axis is blind — the honest form of
+          the never-invent-a-GO bound. Its standing vs the modality floor is a caveat, not a gate.
+    # A nomination is also blocked by any MEASURED `positive_contradictions` verdict (an opposing read
+    # anywhere; same set + same reconcilers the positive tier uses). This names the axes whose
+    # contradictions do NOT oppose THIS thesis. It is deliberately narrow and it is a WHITELIST OF
+    # IRRELEVANCE, not of permission: it can only stop a contradiction on a named axis from blocking,
+    # it can never make a KILL suppressible (kills resolve in the gate, before this stage runs) and it
+    # may not name an axis this thesis's own `deciding`/`requires` conjunction depends on.
+    irrelevant_contradiction_axes:
+      - sub_skill: tractability_sm
+        rationale: |
+          FOUND BY A GROUNDED RUN, not by inspection: FOLR1/OV (APPROVED — mirvetuximab) reads
+          `tractability_sm: discordant`, which is a positive_contradiction, so the opposing-verdict
+          bound blocked the nomination of an approved ADC target on a SMALL-MOLECULE-CHEMISTRY
+          disagreement. That is the SAME ontology defect this remediation exists to remove (a
+          cross-thesis axis read as an AND-conjunct): an ADC/TCE needs a surface epitope, not a
+          binding pocket, so `discordant` / `chemically_unhit` on the small-molecule tractability
+          axis says nothing about an antigen thesis either way.
+          NOT AN OVERFIT: `tractability_sm: discordant` covers FOLR1 + NECTIN4 + TACSTD2 (all
+          APPROVED) and CEACAM5 (the known FP) — it is a surface-antigen-GENERAL artifact, so
+          excluding it does not selectively rescue the FP. Every other contradiction axis still
+          blocks, and both of the ones the decoys carry are among them (GAPDH reads
+          `cis_coherence: expressed_cis_coupled_inert`).
+    action: nominate
+    rationale: |
+      An antigen-driven target with (i) a viable measured surface arm, (ii) a measured tumor-vs-normal
+      window, (iii) measured cohort presence, and (iv) a MEASURED antigen density, reached on gate
+      ABSTENTION with no opposing measured verdict, has satisfied its thesis's necessity conjunction on
+      its own axis. That is a nomination, and saying `insufficient_evidence` instead is the
+      unaccountable HOLD this remediation exists to remove (0/14 surface antigens were adjudicated on
+      surface biology). FOLR1/OV + DLL3/SCLC + MSLN/OV all satisfy it; MUC13/CRC + GRIN2D/GI +
+      NECTIN4/BLCA + STEAP1/PRAD do NOT (grade-E density and/or no surviving window), so the panel's
+      `framework_abstains_correctly` cases stay correct.
+
+      ★KNOWN LIMITATION, RECORDED NOT HIDDEN: CEACAM5/LUAD satisfies this conjunction and is a
+      phase-3 FAILURE (see known_target_calibration_set.yaml, reclassified from honest_blind to
+      framework_false_positive by this change). On every WIRED axis CEACAM5 reads BETTER than FOLR1
+      (strong_tumor_selective vs selective_with_normal_liability; strongly_upregulated_in_tumor vs
+      tumor_broadly_expressed; tolerant_reduced_safety_risk safety; 76k copies/cell at grade B). Its
+      real discriminator is that the antigen-positive ESSENTIAL NORMAL TISSUE IS THE INDICATION'S OWN
+      ORGAN (lung / LUAD) — the "~558x-window-yet-lung-positive" pattern that surface_modality.resolver
+      .yaml names CEACAM5 for by name. That same-organ conjunction is NOT wired (it needs normal-tissue
+      identity crossed with the indication's organ) and is the next substrate build. No non-overfit
+      rule over the currently wired signals separates CEACAM5 from FOLR1, so this block ships the
+      false positive KNOWINGLY rather than tightening the conjunction until it nominates nothing.
+
+# GoF-DRIVER-SCOPED dependency-veto DOWNGRADE (2026-08-25, round-2 gap: neomorphic GoF, e.g. IDH1).
+# Symmetric to biology_axis_scoped_veto_downgrade but keyed on the GENOMIC sub-verdict instead of the
+# surface arm — it reaches the neomorphic / intracellular slice the surface downgrade cannot.
+gof_driver_scoped_veto_downgrade:
+  - downgrades: {sub_skill: dependency, verdict: non_dependent}
+    to_action: hold
+    when_genomic_verdict_in: [confirmed_driver, multi_class_driver]
+    rationale: |
+      A confirmed GoF / activating oncogenic driver (alteration-role GoF; the non-LoF `confirmed_driver`
+      and `multi_class_driver` genomic verdicts) engaged by a MUTANT-SELECTIVE mechanism — the archetype
+      is a neomorphic enzyme like IDH1 R132, where the drug (ivosidenib) inhibits the mutant's GAINED
+      activity, NOT a genetic dependency — is a legitimate target even when the pooled pan-cancer CRISPR
+      read is `non_dependent`: whole-gene KO is not the same event as mutant-selective inhibition, so the
+      pooled non-dependence is an IRRELEVANT criterion, not a disqualifier. Downgrade the non_dependent
+      VETO to `hold` (surface the target for the mutant-selective hypothesis) rather than force-decline it.
+
+      DISTINCT from the biomarker_stratified_dependency context-escape (veto_suppressors), which FULLY
+      suppresses the veto on a MEASURED stratified dependency line (KRAS/BRAF/ERBB2 → nominate-eligible):
+      a `confirmed_driver` WITHOUT a stratified-dependency line is weaker evidence, so it earns a HOLD,
+      never a nominate. CONSERVATIVE + spine-safe: veto→hold cannot manufacture a false nomination; LoF
+      drivers (`confirmed_lof_driver` / `multi_class_lof_driver` — TSGs) are EXCLUDED (a TSG is not a
+      mutant-selective GoF target); `missense_dominant_pattern` and other non-driver genomic reads are
+      EXCLUDED, so a non-driver non_dependent target (e.g. GLS/LUAD) still correctly VETOES. Does NOT
+      touch pan_essential_killer (MYC).
+
+  - downgrades: {sub_skill: dependency, verdict: not_dependent_in_indication}
+    to_action: hold
+    when_genomic_verdict_in: [confirmed_driver, multi_class_driver]
+    rationale: |
+      The indication-conditioned twin (2026-09-18, Stage 2b), with the same bounds: LoF/TSG drivers and
+      non-driver genomic reads stay EXCLUDED, and the direction is veto→hold, so it cannot manufacture a
+      false nomination.
+
+      GRAIN-INDEPENDENT for the same reason as the pooled arm: "whole-gene KO is not the same event as
+      mutant-selective inhibition" is a statement about the ASSAY, not about which lines it was run on.
+      Running the knockout in the queried indication's own models measures the same wrong thing — IDH1
+      R132 in glioma is still a gained activity, not a knockout dependency.
+
+      Preserves the same KRAS carve-out: KRAS is `confirmed_driver` but resolves a dependency POSITIVE,
+      not a negative, so this arm's verdict condition fails and the KRAS×COADREAD golden is untouched.
+      That remains true after the spine lands — KRAS/COADREAD is one of the pairs where the queried
+      lineage IS the enriched one, so it resolves `lineage_selective_in_indication` (a positive_signal),
+      never `not_dependent_in_indication`.
+
+# ============================================================================
+# POSITIVE TIER (2026-07-17; forces `nominate` at `strong` since 1.18.0)
+# ============================================================================
+# Graded positives raise an AUDITABLE confidence tier (strong/moderate) instead of
+# being LLM-advisory only. STRICTLY F1-SAFE:
+#   - The positive tier is computed ONLY when NO kill (veto/hold) fired — the gate
+#     resolves kills first, positives in the else-branch. A positive can therefore
+#     never mask or subordinate a kill (structural, not policy).
+#   - It writes a confidence FLOOR (max with the LLM's confidence) and, at the tier
+#     named by `positive_tier_config.forces_nominate_at_tier` (= `strong`), it forces
+#     `overall_recommendation = nominate`. Before 1.18.0 it touched confidence ONLY and
+#     could not force `nominate` at all — which left every nomination LLM-authored with
+#     no rule behind it. See the forces_nominate_at_tier comment for the measurement
+#     that motivated the change and for why `nominate` is still NOT a gate action.
+#   - INVERTED FALLBACK vs the kill `gates`: if this file is missing/malformed the
+#     positive loader returns EMPTY (kill-only, LLM confidence stands) — it must
+#     NEVER mint a spurious `strong`. (The kill fallback is the opposite: conservative-
+#     and-complete so a missing file still fires vetoes.)
+#
+# SAME CURATION PRINCIPLE as `gates`: only CROSS-TARGET axes count. dependency +
+# tumor-selectivity are the two axes that can both kill AND confirm; small-molecule
+# tractability can confirm but not kill. Surface/expression/mechanism are advisory in
+# BOTH directions (a biologics-favorable surface does not make the TARGET strong — the
+# F-symmetry of why surface neither_viable is excluded from kills above).
+positive_signals:
+  - {sub_skill: dependency,      verdict: concordant_dependent,          weight: dominant}
+  - {sub_skill: dependency,      verdict: lineage_selective,             weight: supportive}
+  # Indication-conditioned positives (2026-09-18, Stage 2b; resolver v1.5.0 rungs 4 and 5). Absent
+  # from this block a positive verdict contributes NOTHING to the tier — a FALSE ABSENCE that no gate
+  # catches, because the positive loader walks this list and never the resolver. So these are forced
+  # by the same landing that minted the tokens, not an enhancement.
+  #
+  # BOTH `supportive`, deliberately EQUAL to pooled `lineage_selective` above, and that equality is
+  # the point rather than a shrug: `lineage_selective_in_indication` is the HONEST FORM of the same
+  # claim off the SAME DepMap read — the grain fix deletes a false statement, it does not add
+  # evidence, so it must not also promote the tier. Promoting it to `dominant` would let one CRISPR
+  # read reach `strong` (>=2 dims + a dominant) and `forces_nominate_at_tier: strong` turns that into
+  # a FORCED nominate — i.e. renaming a token would have manufactured GOs. Holding the weight equal
+  # makes Stage 5 tier-NEUTRAL on the positive path: whatever tier a target reached via
+  # `lineage_selective`, it reaches via the in-indication token and no other, so the only verdict
+  # movement Stage 5 can produce runs through the KILL gate, where it is audited above.
+  - {sub_skill: dependency,      verdict: lineage_selective_in_indication, weight: supportive}
+  # `dependent_in_indication` means dependent in the queried lineage but NOT selectively so — strictly
+  # WEAKER evidence than the selective arm, so `supportive` is its ceiling, not a choice between tiers.
+  # It still belongs here: pre-Stage-5 that target's only reachable positive was the pooled shape
+  # token, and a run that asked about the RIGHT lineage would otherwise score BELOW one that did not.
+  - {sub_skill: dependency,      verdict: dependent_in_indication,        weight: supportive}
+  - {sub_skill: dependency,      verdict: selective_dependent,           weight: supportive}
+  # E-PRISM re-home (2026-07-20): chemical+genetic target-engagement (triangulated PRISM
+  # concordance) as a gate-C dependency CONFIRMATION. SUPPORTIVE, not dominant, on purpose:
+  # the SAME rule (e7-triangulated-target-engaged-supportive) already contributes a
+  # `tractability_sm: well_covered` DOMINANT positive below — making this dominant too
+  # would let ONE measurement manufacture a `strong` tier by being counted twice. As a
+  # supportive it corroborates (raises confidence) without double-counting into `strong`.
+  - {sub_skill: dependency,      verdict: chemical_genetic_confirmed_dependent, weight: supportive}
+  # Track PC (2026-08-09): PARTNER-CONDITIONAL SL dependency is a CROSS-TARGET positive — a target
+  # required only where a PARTNER gene is deficient (WRN×MSI, the partner_conditional_sl family) is a
+  # genuine dependency, not an absence. Pooled pan-cancer CRISPR dilutes it below the non_dependent
+  # floor; the partner-stratified signal is the true read. `dominant`: the rescue rung fires only on a
+  # significant MODERATE-or-stronger partner-conditional dependency, the same bar as the stratified
+  # family. DISTINCT verdict from biomarker_stratified_dependency (partner-SL != own-oncogene addiction).
+  - {sub_skill: dependency,      verdict: partner_conditional_dependent,  weight: dominant}
+  # Subtype-restricted dependency (2026-08-19, subtype-verdict-shifting review §5): a MEASURED,
+  # floor-cleared STRONG dependency in a specific molecular subtype (POU2F3/SCLC-P, CMS4/CRC) is a
+  # precision-oncology win — the subtype label + its classifier assay ARE the patient-selection
+  # biomarker. SUPPORTIVE, not dominant: transcriptional/cell-line subtype strata are thinner + noisier
+  # than a mutation call, so it lifts confidence / rescues a diluted pooled negative (see veto_suppressors)
+  # but never mints a `nominate` alone. OPT-IN-BY-SCOPE (fires only under --subtypes); the pooled spine is
+  # byte-identical without it. The POSITIVE counterpart of subtype_specific_non_dependence (one-directional
+  # negative HOLD) — this closes the framework's population-DEFINITION asymmetry (genomic subgroups could
+  # already positively nominate via biomarker_stratified_dependency; transcriptional ones could only hold).
+  - {sub_skill: subtype_fit,     verdict: subtype_restricted_dependency,  weight: supportive}
+  # Subtype-restricted TUMOR-TISSUE SELECTIVITY (2026-09-11, STAD subtype-shard wiring): a MEASURED,
+  # floor-cleared (n>=30 tumors) STRONG per-subtype tumor-vs-normal selectivity stratum (from the
+  # per-subgroup DESeq2 sensitivity product; STAD ships MSI_H/GS/CIN/HER2_amp). The tumor-tissue
+  # analogue of subtype_restricted_dependency, added to reach the SAME population-definition asymmetry
+  # for indications where the cell-line dependency subtype channel is DATA-BLOCKED (STAD/ESCA carry 0
+  # subtype-labeled DepMap lines, so subtype_restricted_dependency can never fire there). SUPPORTIVE,
+  # never dominant. DELIBERATELY WEAKER than the dependency rung: NOT a non_dependent veto-suppressor
+  # (see veto_suppressors — deliberately omitted) because selectivity is tumor-vs-normal PRESENCE
+  # selectivity, not proof of on-target dependency, so it must not rescue a measured dependency veto.
+  # OPT-IN-BY-SCOPE (fires only under --subtypes); the pooled spine is byte-identical without it.
+  - {sub_skill: subtype_fit,     verdict: subtype_restricted_selectivity, weight: supportive}
+  # POWERED subtype differential (2026-09-26, v1.23.0, claude-oncology-skills#1624): a MEASURED,
+  # floor-cleared cross-subtype expression DIFFERENTIAL on a `powered` subtype axis (>=2 strata clear
+  # the n>=30 floor, is_differential_axis) — the target's RNA is enriched in / restricted to a molecular
+  # subtype. Minted skills-side by tp_fanout `_subtype_verdict` from the promoted
+  # subtype-expression-enriched/restricted-context rules (subtype_fit_expression: supportive), at LOWEST
+  # priority so it is ADDITIVE — it never displaces the existing subtype dependency / selectivity
+  # verdicts. This is the DOMINANT-weight half of the #1624 locked decision: a powered differential is a
+  # first-class patient-SELECTION handle, so it is the one subtype_fit verdict allowed to supply the
+  # `dominant` that a `strong` tier requires. F1-SAFE by construction: `dominant` only lifts a target to
+  # `strong` (and thus `forces_nominate_at_tier: strong`) when a SECOND, genuinely independent positive
+  # dimension is also present, and the whole positive tier runs ONLY in the kill gate's no-veto/no-hold
+  # else-branch — a powered differential can never mask a kill or rescue a measured dependency veto.
+  # NOT added to correlated_dimension_groups (below): the cross-subtype contrast is a DISTINCT
+  # measurement from the tumor-vs-normal reads that `expression`/`selectivity` collapse there (subtype
+  # HETEROGENEITY within tumor, not disease-vs-normal level), so it is a genuine independent line. The
+  # #1624 recompute confirms the kill-free eligible flips pair it with `tractability_sm` (a distinct
+  # short), and no package reaches `strong` on RNA-derived dimensions alone.
+  - {sub_skill: subtype_fit,     verdict: subtype_powered_differential,   weight: dominant}
+  - {sub_skill: selectivity,     verdict: strong_tumor_selective,        weight: dominant}
+  - {sub_skill: selectivity,     verdict: modest_tumor_selective,        weight: supportive}
+  # 2026-07-21: target-INTRINSIC expression positive. strongly_upregulated_in_tumor comes from the
+  # tumor-vs-adjacent card (the target's own biology in the disease: up in tumor vs matched normal),
+  # NOT from a modality-favorable expression level. SUPPORTIVE (a confidence floor, mirrors
+  # selectivity:modest_tumor_selective), never an action. DISTINCT from broadly_high_expression,
+  # which stays in excluded_positive_modality_scoped below — that one is modality-adjacent (high
+  # panel expression favors biologics, not target strength; the KRAS-guard symmetry). Promoting the
+  # intrinsic verdict without touching the excluded one threads that distinction.
+  - {sub_skill: expression,      verdict: strongly_upregulated_in_tumor, weight: supportive}
+  - {sub_skill: tractability_sm, verdict: well_covered,                  weight: dominant}
+  - {sub_skill: tractability_sm, verdict: chemically_confirmed_genetic,  weight: dominant}
+  # Tractability MIDDLE ladder (2026-09-12, v1.19.0): the three sub-dominant small-molecule
+  # tractability rungs that sit BELOW the two dominant rungs above and were previously INVISIBLE to
+  # the positive tier (a target with a measured tool compound but no full chemical-genetic package
+  # could not contribute any tractability confidence). SUPPORTIVE, never dominant — and all three
+  # share sub_skill=tractability_sm, which is NOT in correlated_dimension_groups, so a target with
+  # several of them still counts as ONE dimension and NONE can supply the `dominant` a `strong` tier
+  # requires. A target therefore flips to `nominate` off these ONLY if it ALREADY has a dominant
+  # positive on another axis + is in abstention — the declines (GRIN2D, MUC13) carry no dominant and
+  # so cannot flip. Panel cross-tab (29 known targets, outcome-labeled): measured_potent_ligand 2 pos
+  # / 0 neg; chemically_active 6 pos / 1 neg (GRIN2D, an honest_blind decline, no dominant);
+  # structurally_ligandable 3 pos / 1 neg (MUC13, likewise). The stronger "clean" discriminators
+  # (mechanism.well_characterized 9/0, genomic.confirmed_driver) were REJECTED as study-depth/fame
+  # proxies or deliberately-nomination-inert verdicts, not target-quality signals.
+  - {sub_skill: tractability_sm, verdict: chemically_active,             weight: supportive}
+  - {sub_skill: tractability_sm, verdict: measured_potent_ligand,        weight: supportive}
+  - {sub_skill: tractability_sm, verdict: structurally_ligandable,       weight: supportive}
+  # 2026-07-17: biomarker-stratified dependency is a CROSS-TARGET positive — a
+  # target required only in its mutant/context stratum (EGFR-mut, IDH1-R132,
+  # FLT3-ITD) is a genuine dependency, not an absence. Pooled pan-cancer CRISPR
+  # dilutes these below the non_dependent floor; the stratified signal is the
+  # true read. `dominant` for the strong stratified call, `supportive` for moderate.
+  - {sub_skill: genomic_alteration, verdict: biomarker_stratified_dependency, weight: dominant}
+  - {sub_skill: genomic_alteration, verdict: moderate_biomarker_dependency,   weight: supportive}
+  # Genotype x DRUG-RESPONSE biomarker (deferred-c, 2026-08-09) — a genotype that predicts SENSITIVITY
+  # to a drug TARGETING the gene (PRISM Log2AUC; e.g. BRAF-mut -> vemurafenib). The most clinically-
+  # shaped biomarker signal (an actual pharmacologic agent, not a KO). `supportive`, NOT `dominant`:
+  # cell-panel PRISM is necessary-not-sufficient for a clinical predictive biomarker, and it must not
+  # outrank the KO-proven genetic dependency (biomarker_stratified_dependency stays the dominant call).
+  # DISTINCT verdict from the CRISPR biomarker — the two are never conflated (drug-sensitivity != KO-dep).
+  - {sub_skill: genomic_alteration, verdict: drug_response_biomarker,          weight: supportive}
+  # cis-coherence GRADUATION (2026-08-20): coherent_cis_driver = the target's own CN drives its own
+  # expression AND that tracks its own dependency (amplification-driven oncogene addiction; ERBB2/MYC/
+  # KRAS-amp). SUPPORTIVE, not dominant, and GROUPED with genomic_alteration below: coherent_cis_driver
+  # is largely a re-read of the SAME amplification the genomic_alteration amp-expr biomarker already
+  # counts, so it must corroborate (raise confidence) without minting a `strong` tier by being counted
+  # twice. coherent_epigenetic_silencing is deliberately NOT a positive (a silenced gene is turned OFF —
+  # an SL hypothesis, not a druggable-dependency nomination). See cis_coherence.resolver.yaml.
+  # coherent_cis_loss_of_function (resolver v1.3.0, 2026-09-12) is UNREGISTERED for the SAME reason and
+  # deliberately so: it is the deletion-coupled, no-dependency cell of the cross-tab — loss lowers the
+  # target's expression — which is a synthetic-lethal / re-expression / loss-biomarker hypothesis, not a
+  # reason to nominate the target for direct inhibition. It must not be a positive_signal (it says the
+  # target is DOWN where the locus is lost) and must not be a positive_contradiction either (it does not
+  # contradict anything the other axes claim — an SL hypothesis is a different question, and turning it
+  # into a contradiction would block `strong` for every deleted suppressor the framework profiles).
+  # APC / STK11 / NF1 are the live cases. Confirm this list against the resolver's verdict enum whenever
+  # a cis_coherence rung is added: an UNREGISTERED verdict is a choice, and it should be a stated one.
+  - {sub_skill: cis_coherence,   verdict: coherent_cis_driver,            weight: supportive}
+  # differentiation GRADUATION (2026-09-07): strong_mutually_exclusive = the target's mutations are
+  # strongly mutually-exclusive with established driver partner(s) — a classic DRIVER-INFERENCE +
+  # patient-selection signal (functional redundancy in a shared pathway implies the target is itself a
+  # genuine driver). SUPPORTIVE, not dominant, and GROUPED with genomic_alteration + cis_coherence below:
+  # the driver-hood it corroborates is largely a re-read of what genomic_alteration's alteration-role /
+  # biomarker rungs already count, so it raises confidence without being a 2nd INDEPENDENT line that
+  # manufactures `strong`. both_patterns_present is ALSO wired supportive (#897, 2026-09-25): by
+  # classifier construction (cooccurrence_fisher_pancohort/read.py:225-230) both_patterns_present is a
+  # SUPERSET of the strong_mutually_exclusive predicate (strong_mutex = qc<0.001 AND log2_or<-1.0, :217-218)
+  # — every both_patterns_present target ALSO satisfies the mutex arm that earns strong_mutually_exclusive
+  # its credit. Wiring only the mutex-exclusive composite was NON-MONOTONE: adding co-occurring evidence on
+  # top of qualifying mutex evidence STRIPPED the credit (strictly-stronger evidence scored lower). The mutex
+  # HALF is a genuine driver-inference signal regardless of the co-occurring half; wiring both restores
+  # monotonicity. strong_cooccurring stays UNWIRED (pure combination CONTEXT, no mutex arm); neutral/gap
+  # verdicts stay advisory. Same supportive weight/grouping — a both-patterns target is at least as
+  # mutex-supportive as a mutex-only one, not more.
+  - {sub_skill: differentiation, verdict: strong_mutually_exclusive,      weight: supportive}
+  - {sub_skill: differentiation, verdict: both_patterns_present,          weight: supportive}
+
+# Modality-scoped positives (2026-08-14): under an EXPLICIT biologics modality, a
+# favorable surface-modality verdict IS a target positive — symmetric to
+# modality_scoped_veto_suppression (which lifts the dependency veto for the same
+# modalities). In DEFAULT biology-first mode these do NOT apply (surface stays
+# excluded per excluded_positive_modality_scoped), preserving the F-symmetry.
+positive_signals_modality_scoped:
+  - {sub_skill: surface_modality, verdict: both_viable,               weight: dominant,   when_modality_in: [adc, bite_tce, antibody]}
+  - {sub_skill: surface_modality, verdict: adc_preferred_tce_unsafe,  weight: dominant,   when_modality_in: [adc, antibody]}
+  # ADC-preserving analog for the EFFICACY escape verdict (2026-08-24): TCE arm dropped for antigen escape,
+  # but ADC remains a favored, bystander-tolerant arm → positive weight for adc/antibody (mirrors above).
+  - {sub_skill: surface_modality, verdict: adc_preferred_tce_escape_risk, weight: dominant, when_modality_in: [adc, antibody]}
+  # Patient-variable antigen-escape (#979, 2026-09-04): the MIDDLE escape band (escape_risk_patient_variable)
+  # TEMPERS the TCE arm rather than foreclosing it (unlike escape_risk_high → excluded_modality_scoped). The
+  # bite_tce arm is DEMOTED dominant→SUPPORTIVE (a patient-SELECTION caveat: the antigen works in some patients,
+  # not others), while the escape-INSENSITIVE arms stay dominant (ADC = bystander-tolerant; naked antibody does
+  # not depend on within-tumor uniformity) — so a validated ADC/TCE antigen with normal patient-variability is
+  # tempered, not over-penalized.
+  - {sub_skill: surface_modality, verdict: adc_preferred_tce_patient_variable, weight: dominant,   when_modality_in: [adc, antibody]}
+  - {sub_skill: surface_modality, verdict: adc_preferred_tce_patient_variable, weight: supportive, when_modality_in: [bite_tce]}
+  - {sub_skill: surface_modality, verdict: tce_patient_variable,               weight: dominant,   when_modality_in: [antibody]}
+  - {sub_skill: surface_modality, verdict: tce_patient_variable,               weight: supportive, when_modality_in: [bite_tce]}
+  # R1-casing (2026-08-15): the surface_modality resolver EMITS lowercase `tce_preferred`/`adc_preferred`
+  # (surface_modality.resolver.yaml:61-63); the gate loader matches verdicts case-sensitively, so the
+  # prior TitleCase `TCE_preferred`/`ADC_preferred` here never matched — these two positives were DEAD.
+  - {sub_skill: surface_modality, verdict: tce_preferred,             weight: dominant,   when_modality_in: [bite_tce, antibody]}
+  - {sub_skill: surface_modality, verdict: adc_preferred,             weight: dominant,   when_modality_in: [adc, antibody]}
+  # pMHC-TCE route (2026-08-25): IEDB-promotion positive. pmhc_tce_supported fires when the folded-surface
+  # fit is neither_viable but experimentally-validated pMHC epitopes support a TCR-mimetic peptide-MHC T-cell
+  # engager (WT1/PRAME/NY-ESO-1/MAGE-A4 intracellular oncoproteins). bite_tce ONLY (an ADC / naked antibody
+  # binds the folded protein, not the pMHC complex) — so scoped to [bite_tce], NOT adc/antibody. SUPPORTIVE,
+  # not dominant: a single-axis IEDB ground-truth signal (necessary-not-sufficient; tumor-context-agnostic)
+  # corroborates a pMHC-TCE nomination and rescues the surface-neither_viable target from a modality-dead read
+  # under an explicit bite_tce query — but must not alone mint a `strong` tier. In DEFAULT (no --modality)
+  # mode it does NOT apply, symmetric to the other surface positives (the F-symmetry). NOT kill-capable.
+  - {sub_skill: surface_modality, verdict: pmhc_tce_supported,        weight: supportive, when_modality_in: [bite_tce]}
+
+# An OPPOSING MEASURED verdict on a positive-eligible axis blocks `strong`. NOTE:
+# insufficient / data_unavailable / not_informative are NOT contradictions — absence
+# of measurement is not opposing evidence (measured-vs-null discipline).
+positive_contradictions:
+  - {sub_skill: selectivity,     verdict: not_selective}
+  # selectivity Python-clamp KILLs (measured opposing signals; see kill_capable_verdicts.selectivity):
+  - {sub_skill: selectivity,     verdict: selective_but_broadly_normal}
+  - {sub_skill: selectivity,     verdict: selective_but_stromal_confound}
+  - {sub_skill: dependency,      verdict: broadly_dependent}
+  - {sub_skill: tractability_sm, verdict: discordant}
+  - {sub_skill: tractability_sm, verdict: chemically_unhit}
+  # #893: annotation_only_indirect (resolver v1.7.0, priority-11/-20) = an approved agent is catalogued but there is
+  # no direct SM binder (biologics-only antigens, undruggable TFs). A MEASURED negative for the SM axis — its negative
+  # sibling chemically_unhit is already a contradiction. Was in NO gate clause (closed-set consumer silently treating an
+  # unseen token as non-negative = false absence), so a target whose ONLY SM signal is this passed the SM gate unflagged;
+  # intracellular carriers (GFAP-COADREAD, H3-3A-LUSC) have no surface-modality rescue, so the unflagged pass was
+  # unambiguously wrong-direction. Contradiction (blocks `strong`), NOT a veto: a target may still nominate on another
+  # axis (surface modality for CLDN18/EPCAM/DLL3). n=504 carriers: CLDN18-STAD, EPCAM-COADREAD, GFAP-COADREAD,
+  # H3-3A-LUSC, MS4A1-DLBCL, DLL3-SCLC. Reciprocal skills-side half: claude-oncology-skills#1568.
+  - {sub_skill: tractability_sm, verdict: annotation_only_indirect}
+  # cis-coherence GRADUATION (2026-08-20): expressed_cis_coupled_inert = the target's own CN DRIVES its
+  # own expression (it IS cis-expressed) but that expression does NOT track a dependency — present + cis-
+  # driven yet NOT required. This is the abundance-laundering guard made a first-class contradiction: it
+  # opposes an oncogene-addiction nomination (the amplification is real but confers no dependency), so it
+  # blocks the `strong` tier. NOT a blanket veto (a target may still nominate on another axis). The only
+  # genuinely NEW nomination signal cis-coherence adds — no other axis flags expressed-but-inert.
+  - {sub_skill: cis_coherence,   verdict: expressed_cis_coupled_inert}
+
+# ============================================================================
+# POSITIVE UNCORROBORATED (2026-09-13, v1.20.0) — "the arms disagree" != "the measurement opposes".
+# ============================================================================
+# Verdicts whose content is that the axis's OWN arms disagree with each other, so the axis
+# resolved NOTHING. They block the `strong` confidence tier on exactly the same terms as a
+# positive_contradiction — a `strong` claim requires corroboration, and two channels that
+# disagree have corroborated nothing — but they are NOT opposing evidence, so they must not be
+# LABELLED opposing: scorecard status `coverage_gap`, not `opposing`, and no opposing per-axis
+# synthesis role.
+#
+# WHY LABEL-NOT-DROP (measured, 2026-09-13, 56 target×indication pairs / 21 live axis-instances
+# carrying these verdicts): 0 of the carrying pairs are at `strong` today, and 2 — KRAS/COADREAD
+# (selectivity, 5 hits) and CEACAM5/NSCLC (tractability_sm, held by the row that deliberately did
+# NOT move) — would REACH `strong` if the strong-block were merely removed. Deleting the rows is
+# therefore fail-OPEN. This block exists so the block survives the relabelling: the positive tier
+# reads gates ∪ excluded_modality_scoped ∪ positive_contradictions ∪ positive_uncorroborated when
+# deciding `strong`, and reads positive_contradictions alone when deciding what to call `opposing`.
+#
+# NOT in this block, deliberately: insufficient / data_unavailable / not_informative (never
+# classified negative at all — absence of measurement is not a decision constraint), and
+# tractability_sm/discordant (there the discordance IS the finding: a compound that kills but NOT
+# through the target is evidence AGAINST tractability, per that resolver's own rung comment).
+positive_uncorroborated:
+  # Two comparator arms disagree on the tumour-vs-normal window (rung tvn-discordant-neutral-flagged;
+  # the resolver's own `upgrade:` block groups this verdict with `not_informative` as RESCUABLE).
+  - {sub_skill: selectivity,     verdict: discordant_across_comparators}
+  # #796 marrow-coverage ABSTAIN: the marrow safety denominator was TRANSIENTLY unavailable on a
+  # marrow-plausible target, so the confident selective call is withheld pending a re-run — an absence
+  # of resolution, not a measurement against the target (selectivity_veto.apply_marrow_coverage_abstain;
+  # declared in selectivity.resolver.yaml marrow_coverage_abstain). Blocks `strong`; NOT opposing.
+  - {sub_skill: selectivity,     verdict: selective_pending_marrow_coverage}
+  # CRISPR and RNAi pooled channels disagree (the dependency resolver's rung comment: "an absence
+  # of resolution, not a measurement against the target").
+  - {sub_skill: dependency,      verdict: discordant}
+
+positive_tier_config:
+  min_dimensions_for_strong: 2    # analog of compose-dashboard MIN_IN_SCOPE_FOR_STRONG
+  require_dominant_for_strong: true
+  # THE TIER AT WHICH THE POSITIVE PATH FORCES `nominate` (1.18.0, 2026-09-11 — the A1 fix).
+  #
+  # Until now this gate could ONLY veto or hold: `action_precedence` has no `nominate`, the positive
+  # path wrote a confidence FLOOR and nothing else, and so EVERY nomination in the framework was
+  # LLM-authored with no auditable rule behind it. Measured on the 13-target known panel (grounded
+  # re-emit 2026-09-11): 10 hold / 2 veto / 17 abstain / 0 nominate. ERBB2/BRCA reached the `strong`
+  # tier on THREE hits, ALL THREE `dominant`, and still resolved to recommendation=None; EGFR/LUAD the
+  # same. And because `--emit` is LLM-free there was no confidence value to floor, so in exactly the
+  # mode the eval harness scores, the entire positive apparatus was UNOBSERVABLE — which in turn made
+  # the panel's specificity arm vacuous (every assertion is `reco != "nominate"`, a branch that could
+  # not be taken; see eval/run_known_target_panel.py).
+  #
+  # `strong` is deliberately the ONLY sane threshold: it is already the conjunction a nomination should
+  # require — >= min_dimensions_for_strong INDEPENDENT lines (after correlated_dimension_groups collapse
+  # the double-counts), a `dominant` hit, and NO unreconciled MEASURED contradiction. Setting this to
+  # `moderate` would nominate on a single supportive hit; don't.
+  #
+  # FAIL-CLOSED and F1-SAFE, on the same structural grounds as the confidence floor it sits beside:
+  #   - MISSING/null key => no nomination (pre-1.18.0 behaviour byte-for-byte). The skills loader
+  #     treats an unreadable file as "no positive signals at all", so a broken vocab cannot mint a GO.
+  #   - Still computed ONLY in the no-kill else-branch, so it can never mask or outrank a veto/hold.
+  #   - This is NOT a gate action: `nominate` stays OUT of `action_precedence` and out of every gate's
+  #     `action:` field ON PURPOSE. action_precedence feeds a `max()` over FIRED KILL hits; a positive
+  #     token in that ranking would let a nomination be compared against — and tie-break with — a
+  #     restraint. The positive path is a separate branch, not a competing kill.
+  #   - The skills side additionally WITHHOLDS the nomination when the abstention lower-bound clamp
+  #     fired (i.e. the LLM authored a veto/hold with no rule behind it). Nominating over the narrative
+  #     printed beside it would be worse than abstaining; that case records `nominate_withheld`.
+  forces_nominate_at_tier: strong
+  # min_dimensions_for_strong counts INDEPENDENT lines of evidence. Some positive axes are NOT
+  # independent — they are two reads of the same underlying measurement, so counting both toward the
+  # "2 dimensions" bar double-counts one line. Each group below collapses to ONE dimension for the
+  # min_dimensions_for_strong test (weights/has_dominant are unaffected; a genuinely independent third
+  # axis still lifts a grouped target to strong). Missing key → no grouping (backward-compatible).
+  #
+  # expression + selectivity: `expression:strongly_upregulated_in_tumor` (tumor-vs-adjacent card) and
+  # `selectivity:strong/modest_tumor_selective` (tumor-vs-normal card) are BOTH the tumor-vs-normal RNA
+  # contrast — selectivity is essentially the contrasted form of the same upregulation. Counting them
+  # as 2 dimensions manufactured a `strong` tier for HTR1D/COADREAD (2026-08-15 calibration review): a
+  # DECLINED serotonin-GPCR whose only positives were these two hits — relative RNA up from a near-zero
+  # normal-colon baseline, INTERNALLY contradicted at the protein level inside the selectivity axis
+  # itself (ihc-not-detected-killer in colon, ~300 copies/cell, 3.84x narrow window). One RNA line, not
+  # two. (Follow-on, NOT here: protein IHC-not-detected should also DOWNGRADE strong_tumor_selective in
+  # the selectivity resolver — that addresses the RNA-vs-protein contradiction directly.)
+  correlated_dimension_groups:
+    - [expression, selectivity]
+    # cis-coherence GRADUATION (2026-08-20): cis_coherence:coherent_cis_driver and genomic_alteration's
+    # amp-expr biomarker (biomarker_stratified_dependency / moderate_biomarker_dependency) are two reads
+    # of the SAME amplification→dependency signal. Grouping them collapses to ONE dimension for the
+    # min_dimensions_for_strong test, so a coherent cis-driver corroborates confidence but cannot be the
+    # 2nd independent line that manufactures `strong`. dependency stays independent (Chronos KO is a
+    # distinct measurement) — only the amplification re-read is grouped.
+    # differentiation:strong_mutually_exclusive joins this group (2026-09-07): mutual-exclusivity-with-
+    # drivers corroborates the SAME driver-hood the genomic_alteration alteration-role/biomarker rungs
+    # already count, so it collapses to ONE dimension for min_dimensions_for_strong — a supportive
+    # confidence raise, never the 2nd independent line that manufactures `strong`.
+    - [genomic_alteration, cis_coherence, differentiation]
+
+# Documented exclusions from the positive set (symmetric to excluded_modality_scoped
+# for kills) — so a future edit doesn't "helpfully" add a modality-scoped positive.
+# NOTE: this documents DEFAULT-mode exclusion only; positive_signals_modality_scoped
+# above RE-ENABLES surface positives under an explicit biologics modality.
+excluded_positive_modality_scoped:
+  # 2026-08-15: reconciled to the tokens the surface_modality resolver ACTUALLY emits
+  # (surface_modality.resolver.yaml:61-65 → adc_preferred / tce_preferred / both_viable).
+  # The former adc_favorable/tce_favorable were never emitted, so this guard was INERT
+  # against the real positives it is meant to document as default-mode exclusions.
+  - {sub_skill: surface_modality, verdict: adc_preferred}
+  - {sub_skill: surface_modality, verdict: tce_preferred}
+  - {sub_skill: expression,       verdict: broadly_high_expression}
+  - {sub_skill: mechanism,        verdict: well_characterized}   # advisory network context only
+
+# ============================================================================
+# CONTESTED THRESHOLD (2026-08-12, v1.4.0) — verdict-INERT fragility banner.
+# ============================================================================
+# Consumed by the target-profile FRAGILITY facet (flip-stability), NOT by the
+# kill gate or positive tier. The facet re-runs the deterministic resolver over
+# single-rule-perturbed fired sets to measure how easily each decision-relevant
+# axis's verdict would flip its DECISION ROLE (kill / positive / contradiction);
+# target_index is the worst-case (0..1) over those axes. When target_index >=
+# fragility_index_min the facet sets a categorical `contested: true` flag that
+# the report surfaces as a banner ("this call is one plausible rule-change from
+# flipping").
+#
+# STRICTLY VERDICT-INERT — UNLIKE every other block in this file, this one NEVER
+# changes overall_recommendation or confidence. It only annotates robustness. It
+# is therefore NOT safety-critical in the veto sense.
+#
+# NEVER-FABRICATE CONTRACT (the inert-flag analog of the loaders' never-permissive
+# rule): if this stanza is absent/malformed the facet emits contested=None (no
+# flag). A missing threshold can only make the facet emit LESS (no banner), never
+# fabricate a contested banner — and because the flag is inert, its absence is
+# never a safety regression (contrast the kill `gates`, whose fallback is
+# conservative-and-complete so a missing file still fires vetoes).
+#
+# TUNABLE: fragility_index_min is a product-reviewable knob. 0.5 = at a typical
+# 2-rule axis, a single verdict-movable rule toggling the decision role flips the
+# call → contested. Raise it to flag only the most fragile calls; lower it to be
+# more cautious. Blind (un-evidenced) axes are a COVERAGE concern owned by the
+# deciding-axis router and are deliberately NOT folded into target_index, so this
+# threshold governs flip-stability only, not evidence gaps.
+contested_threshold:
+  fragility_index_min: 0.5

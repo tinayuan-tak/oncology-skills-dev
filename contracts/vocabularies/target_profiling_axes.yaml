@@ -1,0 +1,1202 @@
+# target_profiling_axes.yaml — THE canonical objective → axis → card ontology (v1.0.0)
+#
+# WHAT THIS IS: the single source of truth for the target-profiling OBJECTIVE decomposition —
+# the decision questions a full target profile must answer, the biological evidence AXIS that
+# answers each, the necessity/sufficiency BAND it sits in, the framework's coverage standing, and
+# the three orthogonal CONDITIONER axes (modality · subtype · molecular-form) that refine the
+# questions without being questions themselves. It is what the card-binding metadata
+# (`consumed_by.lens`, `axis_edge.reports_into` in card.schema.json) REFERENCES.
+#
+# WHY IT EXISTS: the objective decomposition previously lived in THREE un-reconciled generations
+# that disagreed on their letter schemes —
+#   (1) the 8-gate scaffold doc  (A Present … E DRUGGABLE … G DIFFERENTIATED, H TRANSLATIONAL)
+#   (2) gate_coverage.yaml v2     (biology_gates A–E + NAMED modality_fit)
+#   (3) per-skill SKILL.md phase: (E=Altered, F=tractability, G=Safety, I=combo, J=translational)
+# This artifact SUPERSEDES all three. It keys on the stable, letter-free `short` name (the
+# SUB_SKILLS sub-verdict slot), and carries a `legacy_letters` crosswalk that RETIRES the drifted
+# letters. gate_coverage.yaml v2's content (coverage vocab, biomarker_facets, reports_into) is
+# PORTED here verbatim; a one-time equivalence check (tests/vocabularies/test_axis_ontology_
+# supersedes_gate_coverage.py) asserts no per-axis coverage assignment regressed.
+#
+# HONESTY GUARDRAIL (inherited from gate_coverage v2 / KNOWN_TARGET_FRAMEWORK_REFRAMES Reframe 3):
+# `framework_can_evidence` is the STATIC baseline standing. The deciding-axis router uses it only
+# to REPORT (name the axis that FIRED; list un-evidenced axes + their band + standing), NEVER to
+# PREDICT which axis will decide. Per-run the router may downgrade to blind/data_blocked, never up.
+#
+# VERDICT-NEUTRAL: taxonomy + routing metadata only. No resolver / nomination-gate logic changes.
+
+enum_id: target_profiling_axes
+version: 1.1.0
+supersedes:
+  - {artifact: docs/design/CARD_ARCHITECTURE_DECISION.md, scheme: "8-gate scaffold (A–H)"}
+  - {artifact: vocabularies/gate_coverage.yaml, scheme: "gate-model v2 (biology_gates A–E + named modality_fit)", relation: content_ported}
+  - {artifact: "per-skill SKILL.md composition.phase", scheme: "phase letters (drifted A–J,K)", relation: retired}
+
+description: |
+  Canonical target-profiling objective decomposition. The objective — "should we nominate target X
+  in indication Y?" — decomposes into NECESSITY questions ("is this real, actionable biology?":
+  Expressed · Selective · Required · Mechanism · Altered) and SUFFICIENCY questions ("will it become
+  a drug in a given modality?": Small-molecule druggability · Surface-biologics fit · Safety ·
+  Differentiation · Translational). Three orthogonal CONDITIONER axes (modality, subtype,
+  molecular-form) refine the questions but are not themselves questions. Relational feature×outcome
+  evidence lives as biomarker_facets reporting into the question they modulate.
+
+# ---------------------------------------------------------------------------
+# COVERAGE VOCAB — ported verbatim from gate_coverage.yaml v2 (+ shared with the calibration set).
+# ---------------------------------------------------------------------------
+coverage_vocab:
+  captured:        "framework wires real data for this axis; a correct read is expected."
+  partial:         "wired but thin / one-axis / known-gap-prone."
+  blind:           "framework does not model the deciding evidence for this axis."
+  license_blocked: "deciding data exists but is commercial-license-walled (not an eng gap)."
+  out_of_scope:    "Tier-2 / a different engine's job (dynamic-perturbation, TME)."
+
+bands:
+  necessity:   "Is this real, actionable biology? Modality-independent. (was 8-gate A–D + Altered). ANY-OF, NOT conjunctive (M2): a target may satisfy necessity via ANY path — an antigen-driven target (FOLR1/DLL3/MSLN/CLDN18.2) carries NO recurrent somatic alteration, so an UNFIRED `genomic_alteration` must NOT be read as failing necessity. `mechanism` is a characterization member (advisory), not a gate."
+  sufficiency: "Will it become a drug in THIS modality? Per-lens. (was 8-gate E–H)"
+
+# ---------------------------------------------------------------------------
+# THE SCIENTIFIC HOMING RULE — machine-readable statement the card-binding guard enforces.
+# ---------------------------------------------------------------------------
+homing_rule:
+  home: "A card's HOME skill = the axis-question it PRIMARILY measures (its measurement construct)."
+  foreign_consume: "A card is FOREIGN-consumed by another skill iff that skill's verdict logic needs the evidence (a resolver rung / veto fires on it). Foreign-composition edges are DERIVED from rule_id -> resolver -> gate, not authored freely."
+  reference: "consumed_by.lens (card.schema.json) MUST name a `short` defined in questions[] or a conditioner_axes[] id."
+
+# ===========================================================================
+# QUESTIONS — the objective decomposition. Keyed on the stable letter-free `short`.
+# `legacy_letters` retires the three drifted schemes. `home_skill` / `foreign_consumers`
+# encode the homing rule. `framework_can_evidence` is PORTED from gate_coverage v2.
+# ===========================================================================
+questions:
+  # ---------- NECESSITY (is this real biology?) ----------
+  - short: expression
+    question: "Is the target expressed / present in the tumor?"
+    band: necessity
+    risk_category: biological
+    home_skill: tumor-presence
+    foreign_consumers: [functional-requirement, surface-modality-fit]
+    framework_can_evidence: captured
+    legacy_letters: {scaffold_8gate: A, gate_coverage_v2: A, skill_phase: A}
+    evidences: "RNA transcribed / protein made (recount3 + DepMap + CPTAC)."
+    conditioned_by: [modality, subtype, molecular_form]
+
+  - short: selectivity
+    question: "Is the target selective for tumor vs normal (adjacent=efficacy; population=safety)?"
+    band: necessity
+    risk_category: safety              # #856: reconciled to runtime AXIS_TO_DIM["selectivity"]="safety" (risk_projection.py); selectivity escalates the SAFETY window
+    home_skill: tumor-selectivity
+    foreign_consumers: [surface-modality-fit]
+    framework_can_evidence: captured
+    legacy_letters: {scaffold_8gate: B, gate_coverage_v2: B, skill_phase: B}
+    evidences: "tumor-vs-normal window (recount3 4-cell DESeq2; adjacent + GTEx comparators)."
+    conditioned_by: [modality, subtype, molecular_form]
+
+  - short: dependency
+    question: "Is the target a functional dependency / driver, and in which context?"
+    band: necessity
+    risk_category: biological
+    home_skill: functional-requirement
+    foreign_consumers: []
+    framework_can_evidence: partial
+    legacy_letters: {scaffold_8gate: C, gate_coverage_v2: C, skill_phase: C}
+    receives_facets: [mutation_stratified, expression_correlation, crispr_rnai_concordance,
+                      chemical_genetic_concordance, synthetic_lethal_partners,
+                      dependency_predictability, subtype_fit]
+    evidences: "functional requirement (DepMap CRISPR + RNAi)."
+    coverage_note: |
+      partial: pooled pan-cancer scalar conflates six dependency modes (only oncogene-addiction
+      fully wired). Context-conditional modes are biomarker_facets reporting into this question.
+
+  - short: mechanism
+    question: "What is the target's network position / MoA hook / PD marker?"
+    band: necessity
+    risk_category: biological
+    home_skill: mechanism-and-pharmacology
+    foreign_consumers: []
+    framework_can_evidence: partial
+    characterization_only: true        # M1: advisory — describes MoA, does NOT move the deterministic verdict; a CHARACTERIZATION member of the ANY-OF necessity set, not a conjunctive gate
+    legacy_letters: {scaffold_8gate: D, gate_coverage_v2: D, skill_phase: D}
+    evidences: "network position / MoA hook (SIGNOR + CollecTri + Reactome + kinome)."
+    coverage_note: "advisory-only today; does not move the deterministic verdict (characterization, not a gate)."
+
+  - short: genomic_alteration
+    question: "How is the target genomically altered (SNV / CN / fusion), and which class drives?"
+    band: necessity
+    risk_category: biological
+    home_skill: genomic-alteration-profile
+    foreign_consumers: [on-target-safety-liability]
+    framework_can_evidence: captured
+    reports_into: [dependency]        # biomarker-stratified-dependency modulates Required
+    legacy_letters: {scaffold_8gate: "A (overloaded)", gate_coverage_v2: E, skill_phase: E}
+    evidences: "somatic alteration landscape (TCGA-MC3 + GENIE): mutation / CN / fusion frequency."
+    conditioned_by: [subtype]
+
+  # ---------- SUFFICIENCY (will it become a drug?) — modality-conditional ----------
+  - short: tractability_sm
+    question: "Is the target druggable by a small molecule (compound exists + agrees with genetics)?"
+    band: sufficiency
+    risk_category: druggability
+    home_skill: tractability-small-molecule
+    foreign_consumers: []
+    modality_relevance: [small_molecule, degrader]
+    framework_can_evidence: partial
+    legacy_letters: {scaffold_8gate: E, gate_coverage_v2: tractability_sm, skill_phase: F}
+    evidences: "chemical-genetic (PRISM) + forward ligandability (AlphaFold/PDB pocket structure)."
+    coverage_note: "partial: retrospective PRISM + pocket ligandability wired; degrader feasibility + medchem tractability not."
+    conditioned_by: [modality, molecular_form]
+
+  - short: surface_modality
+    question: "Does surface biology support a biologics modality (ADC / TCE / antibody)?"
+    band: sufficiency
+    risk_category: druggability
+    home_skill: surface-modality-fit
+    foreign_consumers: []
+    modality_relevance: [adc, bite_tce, antibody]
+    framework_can_evidence: partial
+    legacy_letters: {scaffold_8gate: E, gate_coverage_v2: surface_modality, skill_phase: F}
+    evidences: "topology + surfaceome-family + LIVE surface-abundance-density (CPTAC + calibrated copies/cell ladder vs the ~1000/cell TCE floor) + shed + therapeutic-window; ADC/TCE fit_class composed."
+    coverage_note: |
+      partial (review H1: CORRECTED from a stale `blind`). surface-abundance-density is LIVE (derives
+      estimated_copies_per_cell + a 5-level surface_density_class vs the TCE floor; resolver carries
+      measured below-floor downgrade rungs). REAL blind legs: the DERIVED surface-density MS product
+      (method built, product not yet materialized) + endocytosis/turnover for ADC-vs-TCE discrimination
+      + avidity/co-expression. NOTE: gate_coverage.yaml v2 still baselines this `blind` and the
+      target-profile deciding-axis router reads that — a coordinated router migration to `partial` is
+      tracked separately (cross-repo; skills CI asserts the current blind baseline).
+    conditioned_by: [modality, molecular_form]
+
+  - short: safety
+    question: "Is the target intolerant of loss-of-function / does normal-tissue liability threaten a therapeutic window?"
+    band: sufficiency
+    risk_category: safety
+    home_skill: on-target-safety-liability
+    foreign_consumers: []
+    modality_relevance: [small_molecule, degrader, adc, bite_tce, antibody]   # tiered severity per lens
+    framework_can_evidence: partial
+    legacy_letters: {scaffold_8gate: F, gate_coverage_v2: safety, skill_phase: G}
+    evidences: "germline LoF constraint (gnomAD) + normal-tissue liability (HPA IHC)."
+    coverage_note: "partial: germline constraint + HPA IHC breadth wired; normal-tissue-SURFACE window (biologics-deciding) thin. Modality-tiered."
+    conditioned_by: [modality]
+
+  - short: differentiation
+    question: "Is the target differentiated (co-mutation landscape, precedent, biomarker definability)?"
+    band: sufficiency
+    risk_category: translational        # #856: reconciled to runtime AXIS_TO_DIM["differentiation"]="translational" (risk_projection.py); patient-selection escalates the TRANSLATIONAL dim
+    home_skill: differentiation-landscape
+    foreign_consumers: []
+    framework_can_evidence: partial
+    legacy_letters: {scaffold_8gate: G, gate_coverage_v2: differentiation, skill_phase: E}
+    evidences: "co-mutation / mutual-exclusivity + biomarker definability (TCGA-MC3 + GENIE Fisher)."
+    coverage_note: "partial -> license_blocked for the decisive axis: clinical precedent + competitive differentiation are commercial-license-walled (Cortellis/IQVIA/Flatiron)."
+    conditioned_by: [subtype]
+
+  - short: translational
+    question: "Can the nomination be preclinically validated (patient-derived models, PD/imaging assays, combination/resistance)?"
+    band: sufficiency
+    risk_category: translational
+    home_skill: translational-readiness       # descriptive; not in the nomination fan-out
+    foreign_consumers: []
+    framework_can_evidence: blind
+    status: unbuilt
+    legacy_letters: {scaffold_8gate: H, gate_coverage_v2: "unbuilt.translational", skill_phase: J}
+    evidences: "patient-derived model coverage (HCMI) — one leg wired; PD/imaging/internal-model legs unbuilt."
+    coverage_note: "blind by construction — translational-readiness is a descriptive partial skill; not in the nomination fan-out."
+
+  # RELATIONAL AXIS (Archetype B) — added v1.1.0. The one axis whose answer is a RANKED PARTNER LIST,
+  # not a single-target scalar. Today fragmented across 3 standalone skills + 2 edge cards; Debt #2
+  # consolidates them under a `combination-and-vulnerability` skill (see relational_consolidation).
+  - short: combination_vulnerability
+    question: "What does the target depend on / combine with RELATIONALLY — synthetic-lethal partners, measured dual-KO co-dependencies, combination co-targets under inhibition, and resistance mediators?"
+    band: sufficiency                  # combination / resistance STRATEGY (informs the drug program), not "is this real biology"
+    risk_category: biological          # #856: reconciled to runtime ir._CONTEXT_DIM["combination_vulnerability"]="biological" (displayed as a biological `context` companion; verdict=None / declared_descriptive)
+    home_skill: combination-and-vulnerability   # PLANNED consolidated relational skill (Debt #2); today split (see relational_consolidation)
+    foreign_consumers: []
+    framework_can_evidence: partial
+    status: planned_consolidation
+    unit_of_analysis: pair             # target × partner / co-target / mediator — NOT a single-target scalar
+    output_contract: ranked_partner_table
+    reports_into: [dependency]         # an experimental SL partner suppresses the pooled non-dependent veto (existing facet edge)
+    legacy_letters: {scaffold_8gate: "n/a (not in the 8-gate)", gate_coverage_v2: "synthetic_lethal_partners (facet, grain sub_skill)", skill_phase: "C-adjacent / I"}
+    evidences: "curated SL (SynLethDB v3) + measured dual-KO GI (DepMap ParalogV2 + published) + drug-anchored combination/resistance CRISPR screens (DepMap 26Q1)."
+    conditioned_by: [subtype]
+    coverage_note: |
+      RELATIONAL: the answer is a RANKED PARTNER LIST (partner × interaction-type × evidence ×
+      direction), not a scalar verdict — forcing it into a scalar gate is the Archetype-B trap.
+      Today fragmented across 3 standalone single/two-card skills + 2 edge cards homed in
+      functional-requirement (paralog-buffering, partner-conditional-dependency). Consolidation
+      target = the combination-and-vulnerability skill; see relational_consolidation.
+
+  - short: cis_coherence
+    question: "Does the target's OWN locus feature (copy-number / promoter methylation) explain its OWN expression AND its OWN dependency — a coherent cis-driven addiction, or co-occurring but mechanistically-independent axes?"
+    band: necessity                    # characterizes WHY the target is a dependency (cis-driven addiction); does not itself flip the nomination verdict
+    characterization_only: true        # gateless coherence axis (the "verdict" is a 2×2 leg interaction), advisory like `mechanism` — not a hard gate
+    risk_category: biological          # #856: reconciled to runtime ir._CONTEXT_DIM["cis_coherence"]="biological" (displayed as a biological `context` companion; declared_context_tier). Also fixes the "biology"/"biological" spelling drift.
+    home_skill: cis-feature-coherence
+    foreign_consumers: []
+    framework_can_evidence: partial    # wired (7 composer cards + cis-coherence.rules.yaml); thin leg = cross-grain TCGA-patient corroboration
+    status: wired
+    reports_into: [dependency]         # a coherent cis-driven addiction strengthens the dependency read
+    conditioned_by: [subtype, molecular_form]
+    legacy_letters: {scaffold_8gate: "n/a (not in the 8-gate)", gate_coverage_v2: "n/a (post-v2 axis, 2026-08-20 consolidation)", skill_phase: "cis-feature-coherence owner"}
+    evidences: "cell-line CNV / methylation × expression × dependency coherence (DepMap 26Q1) + cross-grain TCGA-patient corroboration."
+    coverage_note: |
+      GATELESS coherence owner: the answer is a 2×2 leg interaction (does CN/methylation drive the
+      target's own expression, and does that expression predict its own dependency), NOT a scalar gate.
+      Owned by the cis-feature-coherence skill; CIS_DOSAGE/SILENCING/EXPR_DEP/CONJOINT claim_vector with
+      cross-grain TCGA-patient corroboration. Registered as a first-class question 2026-08-21 to close
+      the #479 dangling primary_axis (cis-feature-coherence pointed here before the axis existed).
+
+# ===========================================================================
+# CONDITIONER AXES — orthogonal refinements of the questions (NOT questions/gates themselves).
+# "8 questions × modality × subtype × molecular-form" (GATE_SCAFFOLD_MODALITY_CONDITIONAL.md).
+# ===========================================================================
+conditioner_axes:
+  - id: modality
+    definition: "The therapeutic modality lens. Selects which sufficiency questions are relevant (via modality_relevance) and tiers their severity. NOT a question — a lens over the questions."
+    refines: [tractability_sm, surface_modality, safety, expression, selectivity]
+    values: [small_molecule, degrader, adc, bite_tce, antibody]
+    home: "vocabularies/ (MODALITY_TAXONOMY.md); already encoded as `modality_relevance` on questions + cards."
+
+  - id: subtype
+    definition: "Molecular/clinical subgroup partition of an indication. Refines a question WITHIN strata (who responds). Opt-in via --subtypes; negative-selection only, floor-gated (n>=30)."
+    refines: [expression, selectivity, dependency, genomic_alteration, differentiation]
+    values: "per-indication strata (COADREAD CMS/CIMP/MSI/sidedness; LUAD/NSCLC driver strata; ...)."
+    home: "surfaced as subtype_fit (sub_skill facet) + *-by-subtype / subgroup-stratified-* cards."
+
+  - id: molecular_form
+    definition: |
+      Which MOLECULAR FORM of the target (isoform / splice variant / exon / epitope) is present and
+      targetable. A conditioner (like subtype/modality), NOT a gate. Refines: Expressed (which form
+      is made), Selective (a tumor-specific splice/isoform is a strong selectivity signal — near-ideal
+      target), and the modality-fit questions (which epitope/exon/domain is targetable).
+    refines: [expression, selectivity, surface_modality, tractability_sm]
+    framework_can_evidence: partial
+    status: consolidating              # plan Part 6.3 — unify the four scattered pieces below
+    unifies:
+      - piece: cellline_isoform
+        card: cellline-isoform-expression        # NEW (plan 6.3): promoted from a sub-call facet
+        promoted_from: "sub-call inside cellline-rna-distribution (isoform_expression_class)"
+        method: depmap-isoform-expression
+        product: depmap-isoform-expression-per-gene-v1
+        home_skill: tumor-presence
+      - piece: tumor_splice
+        card: tumor-splice-dysregulation         # (tumor-splice-expression was a duplicate, collapsed 2026-09-06)
+        promoted_from: "sub-call inside tumor-rna-distribution (splicing_dysregulation_class)"
+        method: tcga-spliceseq-psi
+        product: tcga-spliceseq-psi-per-gene-v1
+        home_skill: tumor-presence
+        foreign_consumers: [tumor-selectivity]   # tumor-specific splice = selectivity signal (NEW edge)
+      - piece: exon_window
+        card: modality-exon-window               # EXISTING
+        home_skill: surface-modality-fit
+        scope_caveat: "exon-INCLUSION only; blind to transcript identity (cannot resolve CLDN18.2 / METex14 / EGFRvIII)."
+      - piece: isoform_guardrail
+        artifact: vocabularies/isoform_selective_targets.yaml   # EXISTING curated caveat
+        consumed_by_caveat: [surface-modality-fit, mechanism-and-pharmacology]
+        note: "curated selective isoforms (HER2-p95, AR-V7, METex14, EGFRvIII, CLDN18.2)."
+    scope_caveats:
+      - "bulk-cohort splice (SpliceSeq PSI) misses low-frequency isoforms (AR-V7-type read 'stable')."
+      - "measured molecular-form (isoform/splice) is orthogonal to the curated isoform_selective_targets guardrail; surface them together as one story."
+
+  # --- NEW conditioner axes (card-audit 2026-08-21) ---------------------------------------------
+  # The audit ("should we nominate target X in indication Y?") surfaced two orthogonal refinements the
+  # framework was BLIND to as conditioners. Both are registered here as first-class conditioner_axes
+  # (NOT questions/gates) and enumerated in scientific_gaps as blind conditioners. They deliberately do
+  # NOT belong in subtype_crosswalk.yaml — that file is strictly per-indication molecular strata with a
+  # catalog-existence invariant; ancestry / disease-setting have no data-catalog subgroup members.
+  - id: genetic_ancestry
+    definition: |
+      Genetic-ancestry stratum of the cohort (continental ancestry). A conditioner (like subtype/
+      modality), NOT a gate. Alteration frequency, expression, and selectivity can differ by ancestry
+      (e.g. EGFR-mutant NSCLC enrichment in EAS) — so a pan-cohort answer can mislead for an
+      ancestry-enriched patient population. BLIND today: no ancestry-stratified product is wired
+      (the ancestry-stratified-alteration-frequency card is captured-as-draft only, not landed).
+    refines: [genomic_alteration, expression, selectivity]
+    values: [EUR, AFR, EAS, SAS, AMR]   # 1000G/gnomAD continental-ancestry labels
+    framework_can_evidence: blind
+    home: "conditioner only; no landed card. Draft: ancestry-stratified-alteration-frequency (captured, not wired)."
+
+  - id: disease_setting
+    definition: |
+      Disease SETTING / treatment LINE the drug is actually given in — primary vs metastatic, and
+      treatment-naive vs post-treatment/relapsed. A conditioner (like subtype/modality), NOT a gate.
+      Target expression can drift across the disease timeline (antigen down-regulation under therapy
+      pressure; gain/loss in the metastatic transition), so a static-cohort answer can misstate
+      presence in the setting where the drug is used. This is the conditioner the BLIND translational
+      axis needs; the one card-addressable feed is temporal-setting-expression-shift (placeholder,
+      blocked_needs_per_sample_reader).
+    refines: [expression, selectivity, translational]
+    values: [primary, metastatic, treatment_naive, post_treatment, relapsed]
+    framework_can_evidence: blind
+    home: "surfaced by temporal-setting-expression-shift (temporal_expression_shift measurement_type; placeholder_not_wired) + the RWD-LOT-only rwd-stratified-expression."
+
+# ===========================================================================
+# BIOMARKER FACETS — relational feature×outcome evidence. PORTED from gate_coverage.yaml v2.
+# NOT questions: each surfaces UNDER the question it reports_into. grain: sub_skill = scorecard row;
+# grain: card = renders inside the outcome question's section only.
+# ===========================================================================
+biomarker_facets:
+  - short: synthetic_lethal_partners
+    grain: sub_skill
+    role: stratification
+    reports_into: [dependency]
+    surfaces_as: patient_selection
+    framework_can_evidence: partial
+    evidences: "curated SL partner annotation (SynLethDB v3) — suppresses a pooled non-dependent veto."
+
+  - short: subtype_fit
+    grain: sub_skill
+    role: stratification
+    reports_into: [dependency]
+    surfaces_as: patient_selection
+    framework_can_evidence: partial
+    evidences: "subtype-stratified dependency (DepMap panorama) — one-directional hold only."
+
+  - short: mutation_stratified
+    grain: card
+    card_id: mutation-stratified-dependency
+    role: stratification
+    reports_into: [dependency]
+    surfaces_as: patient_selection
+    framework_can_evidence: captured
+    evidences: "dependency stratified by own mutation status (oncogene-addiction biomarker)."
+
+  - short: expression_correlation
+    grain: card
+    card_id: expression-dependency-correlation
+    role: stratification
+    reports_into: [dependency]
+    surfaces_as: patient_selection
+    framework_can_evidence: captured
+    evidences: "own mRNA expression predicts own dependency (expression-as-biomarker)."
+
+  - short: crispr_rnai_concordance
+    grain: card
+    card_id: crispr-rnai-dependency-concordance
+    role: corroboration
+    reports_into: [dependency]
+    surfaces_as: confidence
+    framework_can_evidence: captured
+    evidences: "CRISPR and RNAi LOF assays agree the target is required."
+
+  - short: chemical_genetic_concordance
+    grain: card
+    card_id: prism-crispr-concordance
+    role: corroboration
+    reports_into: [dependency, tractability_sm]   # the genuine cross-gate case (feeds BOTH)
+    surfaces_as: confidence
+    framework_can_evidence: partial
+    evidences: "compound kill-pattern tracks CRISPR+RNAi dependency (on-target engagement)."
+
+  - short: dependency_predictability
+    grain: card
+    card_id: dependency-predictability
+    role: corroboration
+    reports_into: [dependency]
+    surfaces_as: confidence
+    framework_can_evidence: captured
+    evidences: "how omics-predictable the dependency is (meta-evidence -> C-confidence)."
+
+# ===========================================================================
+# SKILL OBJECTIVES — per-skill prevailing scientific objective + the questions it answers with its
+# card set (user requirement 2026-08-19). `primary_axis` names the question this skill owns (the
+# homing rule's HOME). `decomposes_to` records the skill-internal sub-question set the card set must
+# COVER (a coverage guard enforces: every sub-question addressed by >=1 card; every card answers
+# >=1). Seeded here; populated skill-by-skill (like consumed_by). The two 7-question tables already
+# exist in _skills_common as the template to generalize.
+# ===========================================================================
+skill_objectives:
+  - skill: tumor-presence
+    objective: "Is the target present in the tumor, across cell lines vs tumor samples at RNA / protein / single-cell?"
+    primary_axis: expression
+    decomposes_to: {template: _skills_common/presence_question_table.py, n_questions: 7}
+    questions:
+      # "Expressed in cancers at all?" — cancer MODELS (DepMap panel) AND PATIENT tumours. Cell-line
+      # data must NOT be the sole contributor: patient per-sample tumour RNA is the most direct evidence
+      # that the gene is expressed in actual cancer (2026-08-19 review). tumor-rna-distribution also
+      # answers Q2 (this-indication-vs-others) — a card may serve multiple questions.
+      - {q: "Expressed in cancers at all?", answered_by: [cellline-rna-distribution, cellline-protein-abundance, cellline-protein-abundance-procan, tumor-rna-distribution, tumor-protein-abundance-cptac, hpa-pathology-cancer-ihc]}
+      - {q: "This indication vs other cancers?", answered_by: [tumor-rna-distribution, tumor-elevation-breadth]}
+      - {q: "Elevated vs normals (adjacent + normal-tissue footprint)?", answered_by: [tumor-rna-vs-adjacent, normal-tissue-liability, sc-normal-celltype-expression]}
+      - {q: "Do subtypes differ (from each other / normals)?", answered_by: [tumor-rna-distribution-by-subtype, cellline-rna-distribution-by-subtype, tumor-protein-distribution-by-subtype]}
+      - {q: "Absolute abundance vs all genes?", answered_by: [tumor-protein-abundance-cptac, cellline-protein-abundance, cellline-rna-distribution, tumor-rna-distribution]}
+      - {q: "Do RNA and protein agree?", answered_by: [cellline-rna-protein-concordance, rna-protein-concordance-tumor]}
+      - {q: "Is the tumor signal malignant-cell-intrinsic (not stroma)?", answered_by: [tumor-scrna-celltype-expression, expression-purity-confound]}
+  - skill: tumor-selectivity
+    objective: "Is the target selective for tumor vs normal, robustly across bulk / single-cell / spatial comparators?"
+    primary_axis: selectivity
+    questions:
+      - {q: "Selective vs adjacent normal (efficacy window)?", answered_by: [tumor-vs-normal-selectivity, tumor-protein-abundance-cptac, tumor-vs-normal-protein-abundance-tphp]}
+      - {q: "Selective vs population normals / GTEx breadth (safety)?", answered_by: [modality-therapeutic-window, normal-tissue-protein-abundance-tphp]}
+      - {q: "Does the window hold at single-cell normal resolution (critical-organ veto)?", answered_by: [sc-normal-celltype-expression]}
+      - {q: "Malignant-cell vs stroma (purity confound)?", answered_by: [tumor-scrna-celltype-expression, expression-purity-confound]}
+      - {q: "In-situ spatial tumour-vs-TME enrichment?", answered_by: [spatial-region-rna-expression, spatial-tumor-normal-colocalization, spatial-surface-protein-abundance]}
+      - {q: "Absolute surface-density floor for the modality?", answered_by: [surface-abundance-density]}
+      - {q: "Percentile-crossing robustness of the window?", answered_by: [tumor-vs-normal-percentile-crossing, tumor-vs-normal-percentile-crossing-by-subtype]}
+  - skill: functional-requirement
+    objective: "Is the target a genetic dependency, and how does the call hold across CRISPR + RNAi + lineage?"
+    primary_axis: dependency
+    decomposes_to: {template: _skills_common/dependency_question_table.py, n_questions: 7}
+    questions:
+      - {q: "Required by CRISPR LOF?", answered_by: [pan-cancer-crispr-dependency-distribution]}
+      - {q: "Required by RNAi (orthogonal LOF)?", answered_by: [pan-cancer-rnai-dependency-distribution]}
+      - {q: "Do CRISPR and RNAi agree?", answered_by: [crispr-rnai-dependency-concordance]}
+      - {q: "Lineage / indication / subtype-selective dependency?", answered_by: [dependency-lineage-selectivity, subgroup-stratified-dependency]}
+      - {q: "Biomarker / partner / paralog-conditional dependency?", answered_by: [partner-conditional-dependency, paralog-buffering, expression-dependency-correlation, abundance-dependency]}
+      - {q: "Chemical-genetic confirmation?", answered_by: [prism-crispr-concordance]}
+      - {q: "How predictable / corroborated (confidence)?", answered_by: [dependency-predictability, cross-consortium-dependency, organoid-crispr-dependency, recommended-models, genomic-event-model-match, coessential-module]}
+  - skill: genomic-alteration-profile
+    objective: "How is the target genomically altered (SNV/CN/fusion), and which class drives?"
+    primary_axis: genomic_alteration
+    questions:
+      - {q: "Recurrent SNV/indel driver (overall + by subtype)?", answered_by: [mutation-type-counts, mutation-hotspot-frequency, alteration-role, variant-level-interpretation, variant-effect-mave-mavedb, subgroup-stratified-mutation-frequency]}
+      - {q: "Copy-number driven (amplification / deletion)?", answered_by: [copy-number-distribution, subgroup-stratified-copy-number, alteration-role]}
+      - {q: "Fusion / rearrangement driven?", answered_by: [fusion-rearrangement-landscape, subgroup-stratified-fusion, alteration-role]}
+      - {q: "Splice exon-skipping driver (e.g. METex14)?", answered_by: [splice-exon-skip-landscape]}   # curated exon-skip GoF driver oncogenic in-indication + live DepMap carriers (verdict-driving; CASE-002)
+      - {q: "Which alteration class carries a biomarker-stratified dependency?", answered_by: [mutation-stratified-dependency, copy-number-stratified-dependency, fusion-stratified-dependency, amp-expr-stratified-dependency, cross-consortium-dependency, dependency-predictability]}
+      - {q: "Genotype → drug-response biomarker?", answered_by: [mutation-drug-response]}
+      - {q: "Clonal / biallelic state of the alteration?", answered_by: [target-clonality, functional-gene-state]}
+      - {q: "Cohort genome context (instability, signatures, pathways)?", answered_by: [genomic-instability-state, mutational-signature-context, ddr-deficiency-context, oncogenic-pathway-alteration]}
+      - {q: "Patient ↔ model genomic-event match?", answered_by: [genomic-event-model-match]}
+      - {q: "Splice-form dysregulation (aberrant splicing at the target)?", answered_by: [tumor-splice-dysregulation]}   # R10: transcript-form alteration, display-inert
+  - skill: mechanism-and-pharmacology
+    objective: "What is the target's network position / MoA hook / PD marker?"
+    primary_axis: mechanism
+    questions:
+      - {q: "Network position + actionable MoA class / hook?", answered_by: [signaling-network-mechanism]}
+      - {q: "Pathway-activity context?", answered_by: [pathway-activity-context, phospho-pathway-activity]}
+      - {q: "MoA / PD-marker perturbation signature?", answered_by: [tahoe-drug-perturbation]}
+      - {q: "Which omics features (candidate mechanistic partners) best predict the dependency (feature-attribution)?", answered_by: [dependency-predictability]}   # M3: relabeled from a mis-copied 'confidence' framing
+  - skill: tractability-small-molecule
+    objective: "Is the target druggable by a small molecule, and does the chemical signal agree with the genetics?"
+    primary_axis: tractability_sm
+    questions:
+      - {q: "Is there a compound that hits it (cell-line drug response: PRISM + Sanger GDSC)?", answered_by: [prism-compound-activity, gdsc-drug-activity]}
+      - {q: "Does the chemical signal agree with the genetic dependency?", answered_by: [prism-crispr-concordance]}
+      - {q: "Measured potency of known ligands?", answered_by: [measured-potency-tractability]}
+      - {q: "Structurally ligandable pocket?", answered_by: [structure-features-static]}
+      - {q: "Known-drug / pharmacology precedent?", answered_by: [known-drug-tractability]}
+      - {q: "Degrader feasibility (E3 / PROTAC)?", answered_by: [degradation-feasibility]}
+      - {q: "How predictable is the dependency (confidence)?", answered_by: [dependency-predictability]}
+      - {q: "Does an approved allele-selective drug cover the indication's DOMINANT mutant allele, or only a minority (#993 pt1 caveat context)?", answered_by: [mutation-hotspot-frequency]}
+  - skill: surface-modality-fit
+    objective: "Does surface biology support an ADC / TCE / antibody modality?"
+    primary_axis: surface_modality
+    questions:
+      - {q: "Is it a surface protein (topology / family)?", answered_by: [surface-topology-and-ptm, surfaceome-family-classification, protein-surface-evidence]}
+      - {q: "Surface abundance / density sufficient for the modality?", answered_by: [surface-abundance-density, cellline-surfaceome-abundance]}
+      - {q: "Where does the antigen rank among all surface proteins in the indication (cohort percentile)?", answered_by: [surfaceome-cohort-ranking]}
+      - {q: "ADC vs TCE vs antibody fit class?", answered_by: [adc-tce-modality-fit]}
+      - {q: "Normal-tissue surface safety window (off-tumor)?", answered_by: [sc-normal-celltype-expression, normal-tissue-liability, modality-therapeutic-window, sc-surface-normal-safety]}
+      - {q: "Is the antigen homogeneously expressed across malignant cells (TCE heterogeneity liability)?", answered_by: [tumor-scrna-celltype-expression]}
+      - {q: "Shed / soluble ectodomain decoy liability?", answered_by: [shed-ectodomain-liability]}
+      - {q: "Epitope / exon window (splice/isoform) + stratified surface signal?", answered_by: [modality-exon-window, mutation-stratified-surface, pathway-stratified-surface]}
+      - {q: "Antigen density from amplification + RNA↔protein proxy quality?", answered_by: [copy-number-distribution, rna-protein-concordance-tumor, sc-surface-rna-protein-concordance]}   # H3 fix + M6 sc twin
+      - {q: "Small-molecule pocket cross-reference (DISPLAYED — drives the SM sibling, NOT the biologics fit_class)?", answered_by: [structure-features-static]}   # H3: structure is an SM card, not a surface-antigen answer
+      - {q: "Peptide-centric (pMHC) reach + CD/IO backbone precedent?", answered_by: [pmhc-presentation, pmhc-epitope-evidence-iedb, cd-antigen-backbone]}   # pmhc-epitope-evidence-iedb (2026-08-25) = IEDB experimentally-validated epitope ground truth (verdict-inert display), complements the HLA-Ligand-Atlas benign-breadth pmhc-presentation card
+      - {q: "Same-cell avidity + tumor-vs-normal selectivity window for an AND-gate bispecific (TCE / dual-ADC)?", answered_by: [surface-colocalization-avidity]}
+      - {q: "Best tumor-vs-normal SELECTIVE bispecific PAIR (AND/OR/NOT logic gate)?", answered_by: [surface-bulk-pair-selectivity]}
+  - skill: on-target-safety-liability
+    objective: "Is the target intolerant of LoF, and what does that imply for a full-KO modality?"
+    primary_axis: safety
+    questions:
+      - {q: "Germline LoF-constrained (gnomAD)?", answered_by: [gnomad-lof-constraint]}
+      - {q: "Continuous dominant-LoF selection intolerance (s_het) corroborating the constraint call? (display-only)", answered_by: [shet-lof-intolerance]}
+      - {q: "Population burden / dosage sensitivity?", answered_by: [gene-burden-safety, clingen-dosage]}
+      - {q: "Mouse-KO normal-physiology phenotype?", answered_by: [mouse-ko-phenotype]}
+      - {q: "Germline pathogenicity (ClinVar)?", answered_by: [clinvar-pathogenicity-safety]}
+      - {q: "Normal-tissue expression breadth (RNA atlas + essential-tissue protein)?", answered_by: [normal-tissue-liability-gtex, normal-tissue-liability, normal-tissue-protein-abundance-tphp, sc-normal-celltype-expression]}   # normal-tissue-liability = HPA-IHC essential-tissue PROTEIN liability (data-util 2026-08-21); normal-tissue-protein-abundance-tphp = TPHP DIA-MS quantitative vital-organ PROTEIN (T0-3, verdict-inert; fills nerve/muscle/blood/adrenal/thyroid HPA-IHC is blind to); sc-normal-celltype-expression = cell-type-resolved scRNA normal (L2b-3 #1546, verdict-inert; feeds ONLY the deterministic normal_liability_concordance claim, anchors the card in reverse-coverage — declared as NORMAL_TISSUE context_type above, not a scored question source)
+      - {q: "Broadly pan-essential (non-selective tox liability)?", answered_by: [pan-cancer-crispr-dependency-distribution]}   # DepMap common-essential broad-tox safety signal (data-util 2026-08-21)
+      - {q: "Mechanism downgrade (GoF mutant-selective / amplification)?", answered_by: [alteration-role, copy-number-distribution, functional-gene-state]}   # functional-gene-state = rarely-altered guard (PR-4c 2026-08-24): a rarely_altered oncogene KEEPS the WT-loss hold (MCL1)
+      - {q: "Engineered safety prior?", answered_by: [target-safety-prioritisation]}
+      - {q: "Pharmacovigilance precedent — do drugs engaging the target carry black-box / withdrawn warnings?", answered_by: [drug-warning-safety]}   # OT drug_warning context (verdict-inert, 2026-08-21)
+      - {q: "Drug-label adverse-event profile (per-MedDRA-term, incl. boxed-warning severity) of drugs engaging the target?", answered_by: [onsides-adverse-event-safety]}   # OnSIDES ADE context (verdict-inert display, fuzzy drug->gene join, 2026-08-25)
+  - skill: differentiation-landscape
+    objective: "Is the target differentiated (co-mutation landscape, precedent, biomarker definability)?"
+    primary_axis: differentiation
+    questions:
+      # mutational-signature-context wired as a patient-selection render facet of the co-mutation
+      # landscape (#1815 / #954 completion): differentiation-landscape's run.py now consumes it, so it
+      # is anchored here as an answered_by (already a question SOURCE via f73eae9; this closes the
+      # skill_objective anchoring gap that reds test_every_consumed_card_is_anchored_in_a_question).
+      - {q: "Co-mutation / mutual-exclusivity partners?", answered_by: [co-mutation-and-mutual-exclusivity, mutational-signature-context]}
+      # PROGNOSTIC ASSOCIATION — a THREE-ARM question (user 2026-08-19). All three arms are now BUILT
+      # (2026-08-20): expression (Q11), alteration-status (Q11-alteration), and by-subtype (Q2-subtype).
+      - {q: "Prognostic association — does the target's EXPRESSION stratify survival?", answered_by: [expression-clinical-association, precog-prognostic-association], arms: {expression: built, alteration_status: "built → alteration-clinical-association", by_subtype: "built → subtype-survival-association"}}
+      - {q: "Prognostic association — does the target's ALTERATION (mutation) status stratify survival?", answered_by: [alteration-clinical-association], arms: {alteration_status: built}}
+      - {q: "Prognostic association — does survival differ ACROSS the indication's molecular subtypes?", answered_by: [subtype-survival-association], arms: {by_subtype: built}}
+      - {q: "Stemness / aggressiveness context?", answered_by: [stemness-context]}
+      # oncogenic-pathway-alteration is the orthogonal genomic pathway-alteration-frequency lens
+      # complementing the dependency-only node-leverage read (#1816 / #954 completion): consumed by
+      # differentiation-landscape's run.py, so anchored here as an answered_by (already a question
+      # SOURCE via f73eae9).
+      - {q: "Comparative pathway node-leverage?", answered_by: [pathway-node-leverage, oncogenic-pathway-alteration]}
+      # Clinical-trial precedent (2026-08-21): the objective's "precedent" arm, now BUILT via
+      # public-domain AACT (clinical-precedent card, generic-dispatched). Verdict-inert render facet.
+      - {q: "Clinical-trial precedent — has a drug that ENGAGES the target been trialed in this indication (highest stage / approved agents / notable failures)?", answered_by: [clinical-precedent]}
+      # Competitor landscape (2026-08-24): the objective's "competitive positioning" arm, BUILT via the
+      # pinned Open Targets mirror (competitor-landscape card). WHO ELSE is developing a drug against
+      # the target, at what MODALITY + clinical stage. Verdict-inert render facet; the cross-ref vs the
+      # framework's own modality-fit is computed at the target-profile fan-out (competitor_crossref).
+      - {q: "Competitor landscape — who else is developing a drug against the target, at what modality and clinical stage (crowded vs white-space)?", answered_by: [competitor-landscape]}
+  - skill: target-intrinsic
+    objective: "What is known about the target independent of indication (identity, class, structure, GO, mechanism, interactome)?"
+    primary_axis: null
+    role_note: "descriptive / gateless (verdict=None); spans multiple axes, owns no single question."
+    coverage_note: |
+      H2: target-intrinsic's run.py CARDS is 19 but the questions below cover only its 7 EXCLUSIVE
+      cards. The other 12 are BORROWED/DISPLAYED indication-independent projections of cards HOMED in
+      sibling skills (safety legs → safety; surface/structure/shed/normal-tissue → surface_modality/
+      expression; signaling-network → mechanism; paralog-buffering → combination_vulnerability) — they
+      answer their sibling's question, not a new target-intrinsic question. The skill-level coverage
+      clause therefore applies to the 7 exclusive cards.
+    displays_borrowed_cards: [gnomad-lof-constraint, gene-burden-safety, clingen-dosage, clinvar-pathogenicity-safety, mouse-ko-phenotype, target-safety-prioritisation, surfaceome-family-classification, structure-features-static, shed-ectodomain-liability, normal-tissue-liability, signaling-network-mechanism, paralog-buffering, measured-potency-tractability]
+    questions:
+      - {q: "Canonical identity + development level (druggability tier)?", answered_by: [target-identity-summary, target-development-level]}
+      - {q: "Protein domain architecture + modality relevance?", answered_by: [protein-domains-class, domain-modality-relevance]}
+      - {q: "Interactome + pathway / GO membership?", answered_by: [ppi-interactome, reactome-pathway-membership, gene-ontology-annotation]}
+  - skill: translational-readiness
+    objective: "Can the nomination be preclinically validated (patient-derived models available)?"
+    primary_axis: translational
+    role_note: "descriptive partial; not in the nomination fan-out."
+    questions:
+      - {q: "Are patient-derived (HCMI) models available to validate the target in this indication?", answered_by: [target-model-availability]}
+      - {q: "Do the available patient-derived (HCMI) models CARRY a functional coding alteration in this target — is there a genotype-matched model to validate the nomination? (display-only)", answered_by: [target-genotype-matched-model]}
+      - {q: "Does the target's drug-response signal reproduce IN VIVO — do treatments naming it produce tumour regression in PDX population trials (Novartis PDXE)? (display-only)", answered_by: [target-pdx-drug-response]}
+      - {q: "Does the target's dependency REPRODUCE EX VIVO in patient-derived organoid models (HCMI/DepMap 3D CRISPR), the ex-vivo complement of the PDX in-vivo leg? (display-only, borrowed from the dependency axis)", answered_by: [organoid-crispr-dependency]}
+  - skill: literature-context
+    objective: "What does the literature say about the target in this indication — co-occurrence volume/recency, the top cited statements, and typed relation direction — with citations?"
+    primary_axis: null
+    role_note: "VERDICT-INERT descriptive context fan-out member (2026-09-02); promotes the former cited_literature_evidence.json tp_grounding side-channel to a first-class card. Composes ONE card (cited-literature-evidence: OT europepmc co-occurrence + PubTator3 relation direction). Gateless (verdict=None); literature is CONTEXT/CONFIDENCE, never a nomination-gate input (RISK_ASSESSMENT_INTEGRATION.md §4). Distinct from literature-risk-assessment (that skill is context-tier by decision record and holds no cards; this is the reproducible pinned-product citation facet)."
+    questions:
+      - {q: "What does the literature say about the target in this indication — co-occurrence volume/recency + the top cited statements (Open Targets europePMC), and typed relation direction (PubTator3 associate/cause/inhibit/…) — with citations?", answered_by: [cited-literature-evidence]}
+  - skill: immune-context
+    objective: "Is the indication immune-hot/cold (CD8 effector population for a TCE to redirect), and what is the surrounding TME context — suppressive myeloid states, CAF/stroma, and the ICI-response association?"
+    primary_axis: null
+    role_note: "EXTRINSIC/TME axis — not in the current intrinsic biology_gates (biology_axis: extrinsic, deferred_to_iter2). The 3 TME/immune facet cards below (myeloid / CAF / ICI-response) are VERDICT-INERT display context wired 2026-08-25; they add TME composition + outcome-anchored ICI-response direction alongside the CD8 effector call, moving no verdict."
+    questions:
+      - {q: "Is there a CD8 effector T-cell population (immune-hot vs cold) for a TCE to redirect?", answered_by: [immune-context]}
+      - {q: "Does spatial co-localization (GeoMx/Xenium/CosMx) resolve the INFLAMED (immune adjacent to target-high malignant cells) vs IMMUNE-EXCLUDED (immune segregated to peritumoral stroma — a TCE liability) call that a bulk CD8 fraction structurally cannot make? (verdict-inert facet; T0-4)", answered_by: [spatial-tumor-normal-colocalization]}
+      - {q: "Does an ABSOLUTE H&E deep-learning TIL fraction (Saltz 2018) corroborate the CIBERSORT CD8 hot/cold call? (display-only)", answered_by: [tcga-til-fraction-saltz]}
+      - {q: "Does the target sit on tumour-infiltrating MYELOID cells — is it a myeloid-target / suppressive-TAM antigen (CSF1R-axis / TREM2 / SPP1 / SIRPA)? (display-only)", answered_by: [myeloid-compartment-expression-cheng]}
+      - {q: "Does the target sit on tumour cancer-associated fibroblasts, and in which CAF state (myCAF / iCAF / apCAF / ...)? (display-only, stroma-vs-malignant denominator)", answered_by: [caf-compartment-expression-luo]}
+      - {q: "Is baseline target expression higher in melanoma ICI (anti-PD-1) responders than non-responders? (display-only, melanoma-scoped)", answered_by: [ici-response-association]}
+      - {q: "In urothelial (IMvigor210 atezolizumab), is baseline target expression higher in ICI responders, and in which desert/excluded/inflamed phenotype? (display-only, urothelial-scoped)", answered_by: [ici-response-imvigor210]}
+  - skill: combination-and-vulnerability
+    objective: "What does the target depend on / combine with — synthetic-lethal partners, measured dual-KO co-dependencies, combination co-targets under inhibition, and resistance mediators?"
+    primary_axis: combination_vulnerability
+    role_note: "CONSOLIDATED relational (gene×gene) fan-out member (2026-08-20); absorbs the retired synthetic-lethal-partners / combinatorial-dependency / combo-and-resistance skills. Gateless (verdict=None); output = ranked_partner_table + SL/CODEP/COMBO/RESISTANCE claim_vector (target_pair atoms)."
+    questions:
+      - {q: "Is there a curated synthetic-lethal partner, and is the evidence experimental vs computational?", answered_by: [synthetic-lethal-partners]}
+      - {q: "Is there a measured dual-KO genetic interaction (constitutive / context / suppressive), and which paralog partner is strongest?", answered_by: [combinatorial-dependency, cross-consortium-paralog-gi]}
+      - {q: "Which co-targets become MORE essential under inhibition (rational combination partners)?", answered_by: [combo-crispr-screen]}
+      - {q: "Which partner DRUGS chemically synergize with a drug hitting the target (Bliss drug×drug synergy)?", answered_by: [combo-chemical-synergy]}
+      - {q: "Which knockouts RESCUE the cell under inhibition (candidate resistance mediators — a monitoring liability)?", answered_by: [resistance-emergence-signature]}
+  - skill: cis-feature-coherence
+    objective: "Does the target's own locus feature (copy-number / methylation) explain its own expression AND its own dependency — a coherent cis-driven addiction, or co-occurring axes?"
+    primary_axis: cis_coherence
+    role_note: "GATELESS coherence owner (the verdict is a 2×2 leg interaction); CIS_DOSAGE/SILENCING/EXPR_DEP/CONJOINT claim_vector with cross-grain TCGA-patient corroboration."
+    questions:
+      - {q: "GoF leg-1: does copy-number drive the target's OWN expression (cis-dosage coupling)?", answered_by: [cis-feature-expression-coherence]}
+      - {q: "GoF leg-1 (protein): is the CN dosage-effect preserved at the target's OWN protein level, or post-transcriptionally buffered (mRNA-vs-protein slope ratio)?", answered_by: [cis-feature-protein-coherence]}
+      - {q: "LoF leg-1: does promoter methylation drive the target's LOW expression (epigenetic silencing)?", answered_by: [cellline-methylation-expression-coherence]}
+      - {q: "Leg-2: does the target's expression / protein abundance predict its OWN dependency (correlation + amp∩overexpr conjoint addiction)?", answered_by: [expression-dependency-correlation, amp-expr-stratified-dependency, abundance-dependency]}
+      - {q: "Does the TCGA patient arm replicate the cell-line cis call (cross-grain corroboration)?", answered_by: [patient-cis-coherence]}
+      - {q: "Which transcript / isoform is expressed, and is it splice-dysregulated in patient tumours (molecular-form context for the cis read)?", answered_by: [cellline-isoform-expression, tumor-splice-dysregulation]}
+
+# ===========================================================================
+# CANDIDATE EDGES — cross-axis edge cards the objective NEEDS but that DO NOT EXIST yet. First
+# entry answered a direct user question (2026-08-19): there was NO genomic-feature × survival card
+# (the two prognostic cards — expression-clinical-association, precog-prognostic-association — were
+# EXPRESSION-keyed). BUILT 2026-08-20: both edges below now ship (methods analysis-methods #438/#439,
+# cards target-contracts #458, wired into differentiation-landscape). status: built (kept here as the
+# provenance of the closed gap).
+# ===========================================================================
+candidate_edges:
+  - proposed_card: alteration-clinical-association
+    status: built   # 2026-08-20 — shipped (verdict-inert; OS by target mutation status)
+    axis_edge: {anchor: clinical_outcome_os, partner: genomic_alteration_status, edge_kind: prognostic_association}
+    reports_into: [differentiation]        # prognostic value of the alteration = biomarker definability
+    home_skill: differentiation-landscape  # (or genomic-alteration-profile; decide at build)
+    question: "Does {target} mutation / CN / fusion STATUS stratify overall survival in {indication} (and by subtype)?"
+    feasibility: "buildable from TCGA MC3 alteration status + TCGA clinical OS — same OS substrate expression-clinical-association already uses; by-subtype via subgroup strata. GENIE lacks broad OS (GENIE-BPC only)."
+    gap_note: "the alteration analog of expression-clinical-association / precog-prognostic-association."
+  - proposed_card: subtype-survival-association
+    status: built   # 2026-08-20 — shipped (verdict-inert; omnibus OS across molecular subtypes)
+    axis_edge: {anchor: clinical_outcome_os, partner: molecular_subtype, edge_kind: prognostic_association}
+    reports_into: [differentiation]        # the SUBTYPE arm of the prognostic question (Q2)
+    home_skill: differentiation-landscape
+    question: "Does overall survival differ across {indication}'s molecular subtypes (subtype × OS)?"
+    feasibility: "buildable from TCGA clinical OS + the subgroup-assignment shards (same substrate as the by-subtype cards); the subtype conditioner applied to the prognostic question."
+    gap_note: "the SUBTYPE arm of differentiation Q2 (expression arm built; alteration + subtype arms are gaps)."
+
+# ===========================================================================
+# SCIENTIFIC GAPS — the enumerated backlog (none existed before). Blind/partial/license_blocked
+# axes the objective NEEDS but the framework cannot fully evidence. "scientific-gap #N" was an
+# informal per-skill annotation; this is its collected home.
+# ===========================================================================
+scientific_gaps:
+  - axis: surface_modality
+    standing: partial
+    gap: "LIVE: topology/family + calibrated surface-abundance-density. BLIND legs: derived surface-density MS product not materialized; endocytosis/turnover for ADC-vs-TCE discrimination; avidity/co-expression. (review H1: rebanded from stale blind.)"
+  - axis: translational
+    standing: blind
+    gap: "only HCMI model-availability leg wired; PD-assay, imaging-tracer, internal-model legs unbuilt (scientific-gap #1)."
+  - axis: differentiation
+    standing: license_blocked
+    gap: "clinical precedent + competitive differentiation commercial-license-walled."
+  - axis: dependency
+    standing: partial
+    gap: "pooled pan-cancer scalar conflates six dependency modes; only oncogene-addiction fully wired."
+  - axis: molecular_form
+    standing: partial
+    gap: "bulk-cohort splice misses low-frequency isoforms; exon-window blind to transcript identity."
+  - axis: genetic_ancestry
+    standing: blind
+    gap: "conditioner (card-audit 2026-08-21): no ancestry-stratified alteration/expression product wired; alteration frequency + expression differ by continental ancestry. Draft card captured (ancestry-stratified-alteration-frequency), not landed."
+  - axis: disease_setting
+    standing: blind
+    gap: "conditioner (card-audit 2026-08-21): the translational-readiness feed. temporal-setting-expression-shift is placeholder_not_wired (blocked_needs_per_sample_reader); no per-sample setting-annotated RNA cohort reader (MSK-MET/GENIE-BPC/paired primary-metastatic) has landed."
+
+# ===========================================================================
+# OUTPUT CONTRACTS — the shape a skill's answer takes. Scalar axes emit a verdict + driving_rule_id;
+# the RELATIONAL axis emits a ranked partner list. Making this explicit is what lets the relational
+# skills stop faking a scalar verdict (Archetype-B fix, Debt #2).
+# ===========================================================================
+output_contracts:
+  scalar_verdict:
+    shape: "{verdict: enum, driving_rule_id: str}"
+    used_by_band: [necessity, sufficiency]
+    note: "the default Archetype-A contract; folds into the target-profile nomination gate."
+  ranked_partner_table:
+    shape: "[{partner, interaction_type, evidence_tier, direction, source}], + summary {n_partners, strongest}"
+    used_by_axis: [combination_vulnerability]
+    note: |
+      Archetype-B: the PAYLOAD is the ranked list, not a scalar. Folds into target-profile as a
+      'combination & vulnerability annex' (a named section), NOT as a verdict facet competing with
+      the necessity/sufficiency gates. An SL-partner annotation may ALSO emit a scalar facet that
+      reports_into dependency (veto-suppressor) — that facet is separate from this list payload.
+
+# ===========================================================================
+# RELATIONAL CONSOLIDATION (Debt #2 plan) — the design target for redefining the relational skills.
+# STATUS: axis + contract defined here (v1.1.0); the SKILL-dir merge is a separate, sign-off-gated
+# workstream (touches fan-out / resolvers / verdict spine — byte-stability-sensitive).
+# ===========================================================================
+relational_consolidation:
+  target_skill: combination-and-vulnerability
+  axis: combination_vulnerability
+  output_contract: ranked_partner_table
+  status: completed_2026-08-20   # combination-and-vulnerability wired into the fan-out; the 3 source skills RETIRED from SUB_SKILLS (still runnable standalone, SKILL.md marked retired-from-fanout).
+  absorbed_skills:
+    - {skill: synthetic-lethal-partners, brought: [synthetic-lethal-partners], was: "gated veto-suppressor + dependency facet"}
+    - {skill: combinatorial-dependency,  brought: [combinatorial-dependency],  was: "gateless additive (dual-KO GI)"}
+    - {skill: combo-and-resistance,      brought: [combo-crispr-screen, resistance-emergence-signature], was: "gateless additive (combination + resistance)"}
+  surfaces_edge_cards:                   # keep HOMED in functional-requirement; surface UNDER the relational annex too
+    - paralog-buffering
+    - partner-conditional-dependency
+  preserves:
+    - "the synthetic_lethal_partners scalar FACET that reports_into dependency (veto-suppressor) — unchanged."
+    - "byte-stability of the nomination verdict spine — the annex is additive; SL's existing gate behavior must be reproduced or explicitly re-homed under golden-spine guard."
+  open_for_signoff:
+    - "final skill name (combination-and-vulnerability vs interaction-genomics vs co-dependency-and-combination)"
+    - "does the relational annex fold into the target-profile fan-out as a gateless peer, or stay standalone + linked?"
+    - "SL: keep the dependency veto-suppressor facet in functional-requirement while moving DISCOVERY output to the new skill (dual-role split)."
+
+# ===========================================================================
+# QUESTION HIERARCHIES (v1.1.0) — the MIDDLE levels of the governed decomposition:
+#   objective -> axis (above) -> SUB-GROUP -> QUESTION -> measurement_type -> card.
+#
+# WHY HERE: the sub-group/question layer is ontology, not skill-implementation — it is
+# the same governed knowledge as the axes it extends, and its card binding depends on
+# measurement_types.yaml. Keeping it in each skill repo's question_hierarchy.yaml let the two
+# drift: a renamed/retired measurement_type could silently orphan a question. This section is the
+# SINGLE SOURCE OF TRUTH; each skill's question_hierarchy.yaml is GENERATED from it and a skills-repo
+# drift-CI test fails if they diverge (see skills/tools/sync_question_hierarchies.py).
+#
+# BINDING RULE (unchanged): a card binds to a question by its measurement_type (governed in
+# measurement_types.yaml), NOT card-id. A question declares a SET of measurement_types; every consumed
+# card of those types is automatically a SOURCE. `claim_axes` (optional) names the claim_vector
+# axis/axes whose tuned signal a consumer overlays onto the sub-group (defaults to the sub_group id).
+#
+# `axis` cross-links each skill to its canonical `questions[].short` above; null for AUXILIARY skills
+# (immune-context, target-intrinsic, cis-feature-coherence) that are not in the nomination fan-out — like
+# the `translational` axis, they carry a hierarchy without a necessity/sufficiency question slot.
+#
+# VERDICT-NEUTRAL: taxonomy only; no resolver/gate logic. CONNECTIVITY is validated by
+# validators/validate_question_hierarchies.py (every question sources >=1 measurement_type that EXISTS
+# in measurement_types.yaml; every sub-group has >=1 question).
+# ===========================================================================
+question_hierarchies:
+  cis-feature-coherence:
+    axis: null
+    sub_groups:
+    - id: CIS_DOSAGE
+      questions:
+      - id: cis_dosage_read
+        measurement_types:
+        - cis_dosage_coupling
+        - cis_protein_dosage_coupling
+      context_types:
+      - cellline_isoform_expression
+      - tumor_splice_dysregulation   # patient TCGA-SpliceSeq splice complement to the cell-line isoform arm above; homed under genomic-alteration-profile SPL but ALSO context here for the cis isoform_splice_concordance claim (skills #1785). Binds its measurement_type so cis-feature-coherence can consume the card without orphaning it.
+    - id: SILENCING
+      questions:
+      - id: silencing_read
+        measurement_types:
+        - methylation_silencing_coupling
+    - id: EXPR_DEP
+      questions:
+      - id: expr_dep_read
+        measurement_types:
+        - expression_dependency_correlation
+        - abundance_dependency_correlation
+    - id: CONJOINT
+      questions:
+      - id: conjoint_read
+        # amp_expr_stratified_dependency IS the conjoint amp∩overexpr-addiction signal (its rule is
+        # cis-conjoint-dependent-supportive; the skill's CONJOINT axis_label is "amp∩overexpr addiction"),
+        # so it belongs here, NOT under CIS_DOSAGE (corrected 2026-09-12 — was mis-grouped, diverging from
+        # the skill's own questions.yaml which already had it under CONJOINT).
+        measurement_types:
+        - amp_expr_stratified_dependency
+        - patient_cis_coherence
+  combination-and-vulnerability:
+    axis: combination_vulnerability
+    sub_groups:
+    - id: SL
+      questions:
+      - id: sl_read
+        measurement_types:
+        - synthetic_lethal_partner
+    - id: CODEP
+      questions:
+      - id: codep_read
+        measurement_types:
+        - combinatorial_ko_dependency
+        - cross_consortium_paralog_gi        # T0-1: orthogonal Dede/in4mer corroboration of the CODEP call (verdict-inert)
+    - id: COMBO
+      questions:
+      - id: combo_read
+        measurement_types:
+        - drug_anchored_combination
+    - id: RESISTANCE
+      questions:
+      - id: resistance_read
+        measurement_types:
+        - drug_anchored_resistance
+    - id: SYNERGY
+      questions:
+      - id: synergy_read
+        measurement_types:
+        - chemical_combination_synergy
+  differentiation-landscape:
+    axis: differentiation
+    sub_groups:
+    - id: COMUT
+      questions:
+      - id: comut_read
+        measurement_types:
+        - mutation_cooccurrence
+      context_types:
+      - clinical_precedent
+      - competitor_landscape
+      - mutational_signature_context     # #1815: TCGA MC3 per-indication mutational-process patient-selection context (MMR-deficiency/HRD/APOBEC/POLE/TMB proxies); verdict-inert facet
+    - id: SURVIVAL
+      questions:
+      - id: survival_read
+        measurement_types:
+        - subtype_survival_association
+    - id: PROGNOSIS
+      questions:
+      - id: prognosis_read
+        measurement_types:
+        - precog_prognostic_association
+        - expression_clinical_association
+        - alteration_clinical_association
+    - id: NODE
+      questions:
+      - id: node_read
+        measurement_types:
+        - pathway_node_leverage
+        - stemness_context
+      context_types:
+      - oncogenic_pathway_alteration     # #1816: Sanchez-Vega per-indication genomic pathway-alteration frequency lens complementing the dependency-only node axis; verdict-inert facet
+  functional-requirement:
+    axis: dependency
+    sub_groups:
+    - id: DEP
+      questions:
+      - id: dep_read
+        measurement_types:
+        - crispr_lof_dependency
+        - rnai_lof_dependency
+        - crispr_rnai_concordance
+        - paralog_buffering
+        - cross_consortium_dependency
+      context_types:
+      - dependency_predictability
+      - coessential_module
+    - id: SEL
+      questions:
+      - id: sel_read
+        measurement_types:
+        - expression_dependency_correlation
+        - abundance_dependency_correlation
+        - patient_model_correspondence
+        - genomic_event_model_match
+    - id: COND
+      questions:
+      - id: cond_read
+        measurement_types:
+        - partner_conditional_dependency
+    - id: CHEM
+      questions:
+      - id: chem_read
+        measurement_types:
+        - chemical_genetic_concordance
+  genomic-alteration-profile:
+    axis: genomic_alteration
+    sub_groups:
+    - id: SNV
+      questions:
+      - id: snv_read
+        measurement_types:
+        - mutation_variant_class_spectrum
+        - mutation_hotspot_frequency
+        - mutation_clonality
+        - variant_level_interpretation
+        - variant_functional_effect_mave
+        - functional_gene_state
+        - alteration_role
+        - oncogenic_pathway_alteration
+      context_types:
+      - genomic_instability_state
+      - ddr_deficiency_context
+      - mutational_signature_context
+    - id: CN
+      questions:
+      - id: cn_read
+        measurement_types:
+        - copy_number_alteration
+        - amp_expr_stratified_dependency
+        - cn_stratified_dependency
+    - id: FUS
+      questions:
+      - id: fus_read
+        measurement_types:
+        - fusion_rearrangement
+        - fusion_stratified_dependency
+    - id: SPL
+      questions:
+      - id: spl_read
+        measurement_types:
+        - splice_exon_skip
+      context_types:
+      - tumor_splice_dysregulation
+    - id: DEP
+      questions:
+      - id: dep_read
+        measurement_types:
+        - mutation_stratified_dependency
+        - mutation_drug_response
+        - cross_consortium_dependency
+        - dependency_predictability
+        - genomic_event_model_match
+  immune-context:
+    axis: null
+    sub_groups:
+    - id: IMMUNE
+      questions:
+      - id: infiltration
+        measurement_types:
+        - immune_context
+        - spatial_til_fraction
+        - spatial_colocalization        # T0-4: spatial inflamed/excluded resolution of the CD8 hot/cold call (verdict-inert)
+      - id: ici_response
+        measurement_types:
+        - ici_response_expression
+      - id: microenvironment
+        measurement_types:
+        - sc_tumor_caf_state_expression
+        - sc_tumor_myeloid_state_expression
+  mechanism-and-pharmacology:
+    axis: mechanism
+    sub_groups:
+    - id: NETWORK
+      questions:
+      - id: network_read
+        measurement_types:
+        - signaling_network_mechanism
+    - id: PHOSPHO
+      questions:
+      - id: phospho_read
+        measurement_types:
+        - phospho_pathway_activity
+    - id: PATHWAY
+      questions:
+      - id: pathway_read
+        measurement_types:
+        - pathway_activity_context
+    - id: PERTURBATION
+      questions:
+      - id: perturbation_read
+        measurement_types:
+        - tahoe_drug_perturbation
+    - id: PREDICTABILITY
+      questions:
+      - id: predictability_read
+        measurement_types:
+        - dependency_predictability
+  on-target-safety-liability:
+    axis: safety
+    sub_groups:
+    - id: CONSTRAINT
+      questions:
+      - id: constraint_read
+        measurement_types:
+        - gnomad_lof_constraint
+        - shet_lof_selection
+      context_types:
+      - alteration_role
+      - copy_number_alteration
+      - functional_gene_state
+      - drug_warning_safety
+      - onsides_adverse_event_safety
+      - target_safety_prioritisation
+    - id: BURDEN
+      questions:
+      - id: burden_read
+        measurement_types:
+        - human_genetic_safety
+    - id: DOSAGE
+      questions:
+      - id: dosage_read
+        measurement_types:
+        - dosage_sensitivity_safety
+    - id: CLINVAR
+      questions:
+      - id: clinvar_read
+        measurement_types:
+        - clinvar_germline_pathogenicity_safety
+    - id: MOUSE_KO
+      questions:
+      - id: mouse_ko_read
+        measurement_types:
+        - mouse_ko_phenotype_safety
+    - id: PAN_ESSENTIAL
+      questions:
+      - id: pan_essential_read
+        measurement_types:
+        - crispr_lof_dependency
+    - id: NORMAL_TISSUE
+      questions:
+      - id: normal_tissue_read
+        measurement_types:
+        - normal_tissue_protein_breadth
+        - normal_tissue_rna_breadth
+        - normal_tissue_protein_abundance        # T0-3: TPHP DIA-MS quantitative vital-organ protein (verdict-inert)
+      context_types:
+      # L2b-3 (SK#1546): sc-normal-celltype-expression feeds ONLY the deterministic cross-source
+      # normal_liability_concordance claim (GTEx bulk x scRNA-normal x HPA-IHC), not a safety verdict
+      # question — context (verdict-inert) rather than a question source.
+      - sc_normal_celltype_expression
+  surface-modality-fit:
+    axis: surface_modality
+    sub_groups:
+    - id: FIT
+      questions:
+      - id: core_modality_fit
+        measurement_types:
+        - adc_tce_modality_fit
+        - cd_antigen_backbone
+        - surfaceome_family
+        - modality_window
+        - exon_window
+      - id: immuno_presentation
+        measurement_types:
+        - pmhc_epitope_evidence
+        - pmhc_presentation
+      - id: antigen_pair
+        measurement_types:
+        - antigen_pair_coexpression
+        - antigen_pair_selectivity
+      context_types:
+      - mutation_stratified_surface
+      - pathway_stratified_surface
+      - copy_number_alteration
+    - id: TOPOLOGY
+      questions:
+      - id: topology_read
+        measurement_types:
+        - surface_topology
+        - structure_druggability
+    - id: DENSITY
+      questions:
+      - id: density_read
+        measurement_types:
+        - surface_density
+        - surface_confirmation
+        - rna_protein_concordance
+        - sc_tumor_celltype_expression
+      context_types:
+      - cell_line_protein_abundance
+    - id: SAFETY
+      questions:
+      - id: safety_read
+        measurement_types:
+        - normal_tissue_protein_breadth
+        - sc_normal_celltype_expression
+        - sc_normal_surface_protein
+    - id: SHED
+      questions:
+      - id: shed_read
+        measurement_types:
+        - shed_ectodomain_liability
+  target-intrinsic:
+    axis: null
+    sub_groups:
+    - id: MODALITY_ROUTING
+      questions:
+      - id: modality_routing_read
+        measurement_types:
+        - domain_modality_relevance
+        - surfaceome_family
+        - structure_druggability
+        - protein_domains_class
+        - gene_ontology_annotation
+        - reactome_pathway_membership
+        - ppi_interactome
+        - signaling_network_mechanism
+        - shed_ectodomain_liability
+        - target_identity
+      context_types:
+      - paralog_buffering
+      - gnomad_lof_constraint
+      - dosage_sensitivity_safety
+      - clinvar_germline_pathogenicity_safety
+      - human_genetic_safety
+      - mouse_ko_phenotype_safety
+      - normal_tissue_protein_breadth
+      - target_safety_prioritisation
+    - id: TRACTABILITY_PRECEDENT
+      questions:
+      - id: tractability_precedent_read
+        measurement_types:
+        - target_development_level
+        - measured_potency_tractability
+  tractability-small-molecule:
+    axis: tractability_sm
+    sub_groups:
+    - id: POTENCY
+      questions:
+      - id: potency_read
+        measurement_types:
+        - measured_potency_tractability
+      context_types:
+      - dependency_predictability
+    - id: ACTIVITY
+      questions:
+      - id: activity_read
+        measurement_types:
+        - prism_compound_activity
+        - chemical_genetic_concordance
+    - id: STRUCT
+      questions:
+      - id: struct_read
+        measurement_types:
+        - structure_druggability
+    - id: DRUG
+      questions:
+      - id: drug_read
+        measurement_types:
+        - known_drug_tractability
+      context_types:
+      # #993 pt1: the indication's mutant-allele spectrum — CONTEXT for the drug read (the verdict-inert
+      # minority_allele_coverage_caveat: an approved allele-selective drug covering only a minority of the
+      # spectrum). Never a tractability question source; fires no rule.
+      - mutation_hotspot_frequency
+    - id: DEGRADER
+      questions:
+      - id: degrader_read
+        measurement_types:
+        - degradation_feasibility
+  tumor-presence:
+    axis: expression
+    sub_groups:
+    - id: abundance
+      claim_axes:
+      - A
+      questions:
+      - id: how_much_present
+        measurement_types:
+        - tumor_expression_distribution
+        - cell_line_rna_expression
+        - tumor_protein_abundance
+        - tumor_protein_ihc_presence
+        - cell_line_protein_abundance
+      - id: rna_protein_proxy
+        role: corroboration
+        measurement_types:
+        - rna_protein_concordance
+      context_types:
+      - expression_purity_confound
+    - id: malignant_intrinsic
+      claim_axes:
+      - C
+      questions:
+      - id: in_cancer_cells
+        measurement_types:
+        - sc_tumor_celltype_expression
+      context_types:
+      - expression_purity_confound
+    - id: generality
+      claim_axes:
+      - D
+      questions:
+      - id: broad_across_cancers
+        measurement_types:
+        - tumor_elevation_breadth
+    other_lenses:
+    - measurement_types:
+      - tumor_vs_adjacent_expression
+      lens: tumor-selectivity
+    - measurement_types:
+      - normal_tissue_protein_breadth
+      lens: tumor-selectivity
+    - measurement_types:
+      - sc_normal_celltype_expression
+      lens: on-target-safety
+  tumor-selectivity:
+    axis: selectivity
+    sub_groups:
+    - id: WIN
+      questions:
+      - id: win_read
+        measurement_types:
+        - tumor_vs_normal_selectivity
+        - tumor_vs_normal_percentile_crossing
+        - tumor_vs_normal_protein_abundance
+        - modality_window
+        - tumor_protein_abundance
+      context_types:
+      - expression_purity_confound
+    - id: DIST
+      questions:
+      - id: dist_read
+        measurement_types:
+        - normal_tissue_protein_abundance
+    - id: INT
+      questions:
+      - id: int_read
+        measurement_types:
+        - sc_tumor_celltype_expression
+        - spatial_colocalization
+        - spatial_region_rna
+        - spatial_surface_protein
+        - surface_density
+    - id: SAFE
+      questions:
+      - id: safe_read
+        measurement_types:
+        - sc_normal_celltype_expression
