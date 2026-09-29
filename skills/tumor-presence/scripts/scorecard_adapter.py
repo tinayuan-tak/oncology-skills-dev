@@ -92,6 +92,7 @@ _L1_ACCURACY_EVIDENCE = {
     "batch_b_test": "skills/tumor-presence/tests/test_scorecard_l1_accuracy_rederivation_batch_b.py",
     "batch_c_test": "skills/tumor-presence/tests/test_scorecard_l1_accuracy_rederivation_batch_c.py",
     "batch_d_test": "skills/tumor-presence/tests/test_scorecard_l1_accuracy_rederivation_batch_d.py",
+    "batch_e_test": "skills/tumor-presence/tests/test_scorecard_l1_accuracy_rederivation_batch_e.py",
     "cards_covered": [
         "cellline-rna-distribution",
         "tumor-scrna-celltype-expression",
@@ -104,8 +105,18 @@ _L1_ACCURACY_EVIDENCE = {
         "rna-protein-concordance-tumor",
         "expression-purity-confound",
         "hpa-pathology-cancer-ihc",
+        "sc-normal-celltype-expression",
+        "normal-tissue-liability",
     ],
-    "cards_not_yet_covered": [],
+    # 13 of 17. The remaining 4 are the by-subtype distribution trio + the ProCan cell-line protein
+    # abundance card — NOT closed by batch E (#2047's own "15/17->17/17, closes the roster" framing
+    # is stale against the committed 11/17 baseline batch D actually landed; corrected here).
+    "cards_not_yet_covered": [
+        "tumor-rna-distribution-by-subtype",
+        "cellline-rna-distribution-by-subtype",
+        "tumor-protein-distribution-by-subtype",
+        "cellline-protein-abundance-procan",
+    ],
     "raw_substrate": {
         "cellline-rna-distribution": "analysis-methods anchor epcam_26q1.cellline_rna_distribution.json "
         "+ expression_vectors/epcam_26q1.cellline_rna_distribution.parquet (2446-model raw log2(TPM+1) "
@@ -171,6 +182,19 @@ _L1_ACCURACY_EVIDENCE = {
         "is precomputed UPSTREAM in data-catalog's hpa-pathology-cancer-ihc-per-gene-v1 build (no aggregation "
         "arithmetic exists in analysis-methods); the anchor validates the OncoTree->HPA cancer-type resolution + "
         "gene predicate + cancer_type row selection + field projection path.",
+        "sc-normal-celltype-expression": "analysis-methods anchor epcam_coadread.sc_normal_celltype.json "
+        "(batch E, #2047) + sc_normal_celltype_rows/epcam_coadread.sc_normal_celltype_rows.parquet (the "
+        "per-(tissue, cell_type) Tier-1 cross-donor-aggregated rows across all 9 queried tissues); "
+        "re-derived through methods.sc_normal_expression.cli.build_summary (only the "
+        "read_gene_celltype_rows S3-load seam mocked). DO-NOT-REFILE: the Tier-1 product's cross-donor "
+        "aggregate is an UNWEIGHTED cross-donor median BY DESIGN (data-catalog's Tier-2->Tier-1 build, "
+        "out of scope for this anchor, which validates the READ + CLASSIFY path only).",
+        "normal-tissue-liability": "analysis-methods anchor epcam_coadread.hpa_normal_tissue_liability.json "
+        "(batch E, #2047) + hpa_normal_liability_rows/epcam.hpa_normal_tissue_liability.row.json (the "
+        "target's single raw HPA master-TSV row); re-derived through "
+        "methods.hpa_normal_tissue_liability.cli.compute_summary directly (no seam mock — pure function "
+        "of its row argument). BOUNDARY: a LOOKUP + classification, not an aggregation — the IHC calls "
+        "themselves are precomputed upstream by HPA.",
     },
     "reconciliation": (
         "fraction_expressed, fraction_highly_expressed, expression_class (cellline-rna-distribution); "
@@ -199,10 +223,18 @@ _L1_ACCURACY_EVIDENCE = {
         "purity_confound_class/n_paired_samples/n_expr_samples/median_purity (expression-purity-confound); "
         "and the full protein_presence_class/fraction_detected/fraction_moderate_strong/staining_score/n_high/"
         "n_medium/n_low/n_not_detected/n_patients_total/prognostic_* /hpa_cancer_type set "
-        "(hpa-pathology-cancer-ihc, byte-exact) "
+        "(hpa-pathology-cancer-ihc, byte-exact); and batch E (#2047): "
+        "sc_normal_expression_class/sc_normal_safety_essential_class/max_detection_cell_type/"
+        "max_detection_fraction/expressing_donor_fraction_max/n_cell_types_above_20pct/"
+        "n_reliable_cell_types/tissues_queried/origin_tissues/indication/method_version "
+        "(sc-normal-celltype-expression) and normal_tissue_breadth_class/hpa_tissue_distribution/"
+        "hpa_tissue_specificity/n_specific_tissues/specific_tissues/method_version "
+        "(normal-tissue-liability, vintage-stable subset) "
         "all match at full precision between the independent "
         "recompute and tests/fixtures/epcam_coadread_decision.json (the two concordance ci95 bounds + the "
-        "purity correlation coefficients are honestly-pinned verdict-inert drifts, see boundary)"
+        "purity correlation coefficients are honestly-pinned verdict-inert drifts from batch D, and the "
+        "sc-normal safety-essential-panel growth + normal-tissue-liability essential_tissue_flag flip are "
+        "honestly-pinned drifts from batch E, see boundary)"
     ),
     "boundary": (
         "Anchors validate the read/aggregation path, NOT the upstream DESeq2/DEG runs (that provenance "
@@ -248,7 +280,28 @@ _L1_ACCURACY_EVIDENCE = {
         "test_purity_correlation_drift_is_bounded_and_class_invariant). "
         "hpa-pathology-cancer-ihc reconciles BYTE-EXACT — its reader is a LOOKUP (the patient-count "
         "aggregation is precomputed upstream in data-catalog's hpa-pathology-cancer-ihc-per-gene-v1; the "
-        "anchor validates the OncoTree->HPA resolution + selection + projection path, NOT the aggregation)."
+        "anchor validates the OncoTree->HPA resolution + selection + projection path, NOT the aggregation). "
+        "BATCH E (#2047) — CORRECTED DENOMINATOR: the issue's own title claims '15/17->17/17, closes the "
+        "roster'; the committed baseline this batch actually started from (batch D, PR#2068) carried "
+        "11/17, so this batch closes 11->13/17, NOT the full roster (4 by-subtype/ProCan cards remain, "
+        "see cards_not_yet_covered). TWO MORE HONESTLY-RECORDED verdict-inert DRIFTS (golden NOT "
+        "regenerated — full structural regen tracked in #2061, behind the 26Q3 migration + #1638): "
+        "(1) sc-normal-celltype-expression's safety-essential cell-type panel grew by 38 keys and lost "
+        "exactly one (`interneuron`, a regex tightening to word-boundary matching) since the golden's "
+        "vintage (stats.py #663/#664 renal-tubule + gut/pancreas fixes); every panel key the golden DOES "
+        "carry, other than the one named removal, is byte-exact, and "
+        "sc_normal_expression_class/sc_normal_safety_essential_class/max_detection_cell_type/"
+        "max_detection_fraction are unchanged (pinned by "
+        "test_sc_normal_schema_growth_is_additive_and_class_invariant). (2) normal-tissue-liability's "
+        "essential_tissue_flag moves unknown->present for EPCAM (essential_tissues_flagged []->"
+        "['intestine'], safety_tissue_flags gains essential_tissue) because 'intestine' was promoted to "
+        "the canonical essential-tissue set on 2026-09-18 — predating, and unrelated to, the "
+        "#1793/#1794 safety-pin bump this issue was held on; the golden simply predates that promotion. "
+        "Two more keys (hpa_ihc_reliability, essential_tissue_low_reliability, AM#745 antibody "
+        "reliability) are new and absent from the golden entirely. normal_tissue_breadth_class/"
+        "hpa_tissue_distribution/hpa_tissue_specificity/n_specific_tissues/specific_tissues/"
+        "method_version are byte-exact (pinned by "
+        "test_hpa_liability_essential_tissue_flag_drift_is_pinned_verdict_inert_and_cross_linked_2061)."
     ),
     "teeth": (
         "test_cellline_rna_distribution_teeth_mutated_input_breaks_the_golden_match, "
@@ -264,7 +317,10 @@ _L1_ACCURACY_EVIDENCE = {
         "RNA<->protein correlation for both concordance grains (n_paired unchanged); permuting purity "
         "across cases breaks the expression<->purity correlation and forcing purity to track expression "
         "flips the class to tumor_intrinsic; dropping the resolved HPA cancer-type row collapses the IHC "
-        "read to data_unavailable — "
+        "read to data_unavailable; and the batch-E (#2047) teeth — dropping every row for the named "
+        "essential-organ driver cell type moves sc_normal_safety_essential_class off the golden's "
+        "critical_organ_liability, and blanking the HPA specific-intensity column moves "
+        "essential_tissue_flag/essential_tissues_flagged off their live-derived values — "
         "mutate the raw input and assert the "
         "match breaks — proving the reconciliation is a live function of substrate, not a self-echo"
     ),
@@ -539,16 +595,19 @@ def build_shard() -> cs.SkillShard:
             "L1 = the 17 cards (OBSERVATIONAL_PROPERTY): 7 ladder-verdict-bearing + 3 L2b-island "
             "substrate + 3 corroboration/certainty-bearing + 1 verdict-adjacent (hpa-pathology-cancer-ihc) "
             "+ 2 safety-comparators + 1 (cellline-protein-abundance-procan, corroboration-bearing). "
-            "accuracy measured for 11 of the 17 cards with a landed analysis-methods T3 anchor bridged to "
+            "accuracy measured for 13 of the 17 cards with a landed analysis-methods T3 anchor bridged to "
             "the EPCAM/COADREAD golden (cellline-rna-distribution, tumor-scrna-celltype-expression; "
             "tumor-rna-distribution + cellline-protein-abundance — batch A, #2043; tumor-rna-vs-adjacent "
             "+ tumor-elevation-breadth — batch B, #2044; tumor-protein-abundance-cptac — batch C, #2045; "
             "cellline-rna-protein-concordance + rna-protein-concordance-tumor + expression-purity-confound "
-            "+ hpa-pathology-cancer-ihc — batch D, #2046). Batch D completes ALL 7 ladder-verdict-bearing "
+            "+ hpa-pathology-cancer-ihc — batch D, #2046; sc-normal-celltype-expression + "
+            "normal-tissue-liability — batch E, #2047). Batch D completed ALL 7 ladder-verdict-bearing "
             "cards PLUS 4 non-verdict cards (2 rna-proxy concordance, the purity confounder, and the "
-            "verdict-adjacent HPA IHC), enrolling non-verdict cards into the accuracy ledger; the remaining "
-            "6 of 17 (corroboration/certainty/safety-comparator cards) have no anchor yet (see "
-            "accuracy evidence cards_covered / cards_not_yet_covered)."
+            "verdict-adjacent HPA IHC); batch E enrolls the 2 normal-tissue safety-comparator cards. "
+            "CORRECTED (batch E's own issue title claimed '15/17->17/17, closes the roster' against a "
+            "stale premise — the true baseline batch D landed was 11/17): the remaining 4 of 17 (the "
+            "by-subtype distribution trio + cellline-protein-abundance-procan) have no anchor yet — the "
+            "roster is NOT closed (see accuracy evidence cards_covered / cards_not_yet_covered)."
         ),
     )
 
