@@ -57,6 +57,9 @@ name: Skills Validate
 # run on skills/methods changes too).
 on:
   pull_request:
+  merge_group:            # GitHub merge queue: run the full gate on the prospective merged tree.
+                          # The `changes` job routes every non-pull_request event to "run all legs"
+                          # and the `pytest` fan-in always posts, so the required check reports here.
   push:
     branches: [main]
 

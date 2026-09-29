@@ -18,11 +18,12 @@ name: ruff
 # and the style families (NOT done). Neither implies the other.
 on:
   pull_request:
+  merge_group:            # GitHub merge queue: this required check must RUN on the queue's
+                          # merge_group event, or the queue entry deadlocks "waiting for status".
 
 # CONCURRENCY (2026-09-29, #2092): mirror skills-validate.yml — group by workflow+ref and cancel
 # superseded runs on pull_request (push-amend churn re-ran the whole-tree format check + diff lint
-# needlessly). This workflow is pull_request-only, but the conditional is kept so a future push
-# trigger would not cancel a trunk run.
+# needlessly). merge_group / push runs are NEVER cancelled (the conditional is false for them).
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -39,9 +40,18 @@ jobs:
         run: pipx install ruff==0.16.6
       - name: Format check (whole tree)
         run: ruff format --check .
-      - name: Lint changed files (diff-aware)
+      - name: Lint changed files (diff-aware on PRs; whole-tree on merge_group)
         run: |
           set -euo pipefail
+          # On a merge_group (or any non-PR) event there is no github.base_ref to diff against.
+          # Since #2092 dropped the `|| true` fail-open, a diff against an empty base would ERROR
+          # and red this required check — deadlocking the merge queue. Lint the whole tree instead
+          # (the merge_group ref IS the prospective merged result, so whole-tree is the right scope).
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "non-PR event (${{ github.event_name }}) — linting whole tree"
+            ruff check .
+            exit 0
+          fi
           base="${{ github.base_ref }}"
           git fetch -q origin "$base"
           # NO `|| true` (#2092): a `git diff` ERROR (bad ref, missing base) must FAIL this step,
