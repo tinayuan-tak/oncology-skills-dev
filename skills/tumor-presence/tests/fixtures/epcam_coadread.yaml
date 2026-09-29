@@ -66,7 +66,6 @@ cellline-protein-abundance:
   - lineage: CNS/Brain
     median_log2_abundance: -2.3833283782191304
     n: 14
-  protein_effect_size: -0.417446428676658
   protein_expression_class: broadly_moderate
 cellline-protein-abundance-procan:
   allgene_percentile: 79.69283276450511
@@ -87,7 +86,6 @@ cellline-protein-abundance-procan:
   p95_log2_abundance_panel: 5.905021825976996
   per_lineage_stats: []
   protein_abundance_source: procan_dia_swath
-  protein_effect_size: 4.3326138624278006
   protein_expression_class: lineage_restricted
 cellline-rna-distribution:
   allgene_percentile: 52.54228591918945

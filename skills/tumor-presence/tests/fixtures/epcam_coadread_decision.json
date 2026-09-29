@@ -2990,20 +2990,6 @@
                 "method_version": "0.1.0"
               },
               "role": "signal"
-            },
-            {
-              "metric": "protein_effect_size",
-              "value": -0.4174,
-              "scale": "effect_size",
-              "provenance": {
-                "source_product_id": null,
-                "n_basis": {
-                  "fraction_detected": 1.0,
-                  "median_log2_abundance_panel": -0.417446428676658,
-                  "n_cell_lines_evaluated": 375
-                },
-                "method_version": "0.1.0"
-              }
             }
           ],
           "categorical_anchors": [
@@ -3111,20 +3097,6 @@
                 "method_version": "0.1.0"
               },
               "role": "signal"
-            },
-            {
-              "metric": "protein_effect_size",
-              "value": 4.3326,
-              "scale": "effect_size",
-              "provenance": {
-                "source_product_id": null,
-                "n_basis": {
-                  "fraction_detected": 0.4879,
-                  "median_log2_abundance_panel": 4.3326138624278006,
-                  "n_cell_lines_evaluated": 463
-                },
-                "method_version": "0.1.0"
-              }
             }
           ],
           "categorical_anchors": [
@@ -4829,7 +4801,6 @@
         "p75_log2_abundance_panel": 1.6310124932881251,
         "p95_log2_abundance_panel": 3.5628947415394725,
         "log2_abundance_iqr": 3.48460614629843,
-        "protein_effect_size": -0.417446428676658,
         "n_lineages_evaluated": 17,
         "per_lineage_stats": [
           {
@@ -5868,7 +5839,6 @@
         "p75_log2_abundance_panel": 5.020104772736808,
         "p95_log2_abundance_panel": 5.905021825976996,
         "log2_abundance_iqr": 1.4923538596813333,
-        "protein_effect_size": 4.3326138624278006,
         "n_lineages_evaluated": 0,
         "per_lineage_stats": [],
         "n_lineage_restricted_lineages": 0,
