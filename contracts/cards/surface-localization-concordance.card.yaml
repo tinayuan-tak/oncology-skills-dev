@@ -38,6 +38,17 @@ capsule:
     - surface_context_concordance_class
     - cellline_surface_localization_class
     - orthogonal_surface_confirmation_class
+    # Display-only descriptive fields (SK#2063 consolidation): this verdict-INERT card's remaining
+    # emitted fields are surfaced for the reader but read by no rule/resolver. Capsule-blocked so the
+    # display is deterministic and each earns exact census credit. `orthogonal_measured_in_cspa` is a
+    # bool → categorical (never numeric_anchors: the renderer type-filters bools out). Consumption by
+    # #966's downstream reader is a deliberate later pass (interpretation: rules_pending).
+    - orthogonal_measured_in_cspa
+    - concordance_substrate
+  numeric_anchors:
+    - cellline_median_enrichment_log2ratio
+    - cellline_n_lines_enrichment_evaluated
+    - orthogonal_n_celllines_detected
 
 tier: target   # both arms are per-target (indication-independent): the surfaceome panel carries no OncotreeLineage crosswalk and is gastric/esophageal by release scope; CSPA/HPA-IF are pan-panel target-grain. Forcing an indication axis where neither input resolves per-indication would be fake precision (mirrors crispr-rnai-dependency-concordance).
 
