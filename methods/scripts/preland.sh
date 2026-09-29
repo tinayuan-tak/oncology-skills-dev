@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
-# preland.sh — run the methods-validate gates locally before landing. Mirrors .github/workflows/methods-validate.yml.
-# RUN FROM THE HOME CHECKOUT (~/rnd-computational-biology-oncology-analysis-methods), NOT a /tmp worktree
-# (`pixi run` in a /tmp worktree deep-copies a multi-GB env -> ENOSPC).
+# preland.sh — run the methods-pytest gate locally before landing. Mirrors the `methods-pytest`
+# job in .github/workflows/skills-validate.yml (the former methods-validate.yml, folded into the
+# monorepo's single required `pytest` fan-in at the SK#2063 consolidation).
+# RUN FROM THE HOME CHECKOUT (~/rnd-computational-biology-oncology-claude-oncology-skills), NOT a
+# /tmp worktree (`pixi run` in a /tmp worktree deep-copies a multi-GB env -> ENOSPC).
+# Invoked by the root dispatcher (scripts/preland.sh methods / all) — this package's unique gate
+# folds to the single `run` line below; the host-protection knobs are unified at the root, but
+# this script still runs standalone (its own PATH/env exports are its half of that contract).
 set -uo pipefail
 export PATH="$HOME/.pixi/bin:$HOME/.local/bin:$PATH"
 # Mirror CI: no AWS creds -> live-S3 tests self-skip via conftest (SKILLS_SKIP_LIVE_DATA).
@@ -16,7 +21,7 @@ fail=0
 run() { local label="$1"; shift; local out
   if out=$("$@" 2>&1); then echo "PASS  $label"
   else echo "FAIL  $label"; echo "$out" | tail -n 30 | sed 's/^/      /'; fail=1; fi; }
-# --- gates (transcribed from methods-validate.yml) ---
+# --- the one gate (transcribed from the methods-pytest job) ---
 # --import-mode=importlib is REQUIRED: several method test files share a basename and collide under the default import mode.
 run "methods+tests" pixi run pytest methods/ tests/ -q --import-mode=importlib -n 8
 [ $fail -eq 0 ] && echo "ALL GATES PASS" || echo "GATES FAILED"

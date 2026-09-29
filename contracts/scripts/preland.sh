@@ -1,8 +1,25 @@
 #!/usr/bin/env bash
-# preland.sh — run the contracts-validate gates locally before landing. Mirrors .github/workflows/contracts-validate.yml.
-# NOTE: plain `pytest` does NOT invoke validators/validate_*.py, and contracts-validate is not a branch-protection-required
-# check — so a schema violation can pass pytest yet turn trunk RED. Run THIS before landing any cards/ | interpretation-rules/
-# | resolvers/ | vocabularies/ change. Bare python (no pixi in this repo).
+# preland.sh — run the contracts-static validator/self-check pool locally before landing.
+# Mirrors the `contracts-static` job in .github/workflows/skills-validate.yml (the former
+# contracts-validate.yml's static leg, folded into the monorepo's single required `pytest`
+# fan-in at the SK#2063 consolidation — contracts-static AND contracts-pytest now BOTH feed
+# that required check, so a schema violation here turns the required check RED, not just
+# trunk). Bare python (no pixi in this repo).
+#
+# SCOPE (narrowed 2026-09-29, SK#2094): this script carries ONLY the validator/self-check
+# pool — direct `python validators/validate_*.py` / `build_*.py --self-check` invocations
+# that plain pytest never runs. The single-file `python -m pytest tests/...` steps this
+# script used to hand-list (one per named test file) are GONE: `contracts-pytest`'s
+# whole-package suite (`pytest -q -n auto --splits 4`, no path filter) already collects
+# every file under contracts/tests/ — including every file those hand-listed steps named —
+# and, since the consolidation, that job is itself part of the required `pytest` check. The
+# hand-listing predates the merge, when contracts-validate.yml was NOT required and this
+# script was the only local net; that gap is closed, so the duplication is pure debt now.
+# Run this before landing any cards/ | interpretation-rules/ | resolvers/ | vocabularies/
+# change (the validator pool is the coverage plain pytest still can't reach); land-pr's CI
+# fan-in is the authoritative gate for everything else in contracts/tests/.
+# Prefer the root dispatcher (scripts/preland.sh contracts) so the host-protection knobs
+# stay in one place; this script also runs standalone.
 set -uo pipefail
 cd "$(cd "$(dirname "$0")/.." && pwd)" || exit 2
 fail=0
@@ -67,52 +84,12 @@ run "validate_certainty_disjointness"    python validators/validate_certainty_di
 run "validate_card_resolver_consumption" python validators/validate_card_resolver_consumption.py
 run "validate_claim_record"              python validators/validate_claim_record.py --schema schemas/claim_record.schema.json --examples docs/design/examples/ --resolvers resolvers/
 run "rule_role_partition --self-check"   python validators/build_rule_role_partition.py --self-check
-run "pytest rule_role_partition"         python -m pytest tests/validators/test_rule_role_partition.py -q
 run "validate_fold_migration"            python validators/validate_fold_migration.py --resolvers resolvers/
-run "pytest tests/schemas"               python -m pytest tests/schemas/ -q
-run "pytest test_eval_ledger"            python -m pytest tests/validators/test_eval_ledger.py -q
 run "build_eval_ledger --self-check"     python validators/build_eval_ledger.py --self-check
-# T1 reachability. Unlike CI, a local run usually HAS the corpus, so the corpus half also verifies
-# the committed counts — set EMISSION_CORPUS to point at a vintage other than the ledger's.
-run "pytest test_emission_ledger"        python -m pytest tests/validators/test_emission_ledger.py -q
 run "build_emission_ledger --self-check" python validators/build_emission_ledger.py --self-check
-# I.3 wiring reconciliation (READS vs DECLARES vs EMITS). Locally the siblings are usually present,
-# so the LIVE half also re-extracts reads and diffs the committed snapshot; CI runs the hermetic half.
-run "pytest test_wiring_reconciliation"      python -m pytest tests/validators/test_wiring_reconciliation.py -q
 run "build_wiring_reconciliation --self-check" python validators/build_wiring_reconciliation.py --self-check
-# I.4 wiring ledger (dataset-grain: read / declared_only / dark). Locally the siblings are usually
-# present, so the LIVE half recomputes the whole ledger and diffs it; CI runs the hermetic half.
-run "pytest test_wiring_ledger"          python -m pytest tests/validators/test_wiring_ledger.py -q
 run "build_wiring_ledger --self-check"   python validators/build_wiring_ledger.py --self-check
-run "pytest subgroup+coverage"           python -m pytest tests/validators/test_subgroup_assignments_and_coverage.py -q
-run "pytest framework_discrimination"    python -m pytest tests/calibration/test_framework_discrimination.py -q
-run "pytest card_concept_discipline"     python -m pytest tests/validators/test_card_concept_discipline.py -q
-run "pytest shared-mt vocabularies"      python -m pytest tests/validators/test_shared_measurement_type_vocabularies.py -q
-run "pytest card vocab-declaration"      python -m pytest tests/validators/test_card_vocabulary_declaration.py -q
-run "pytest card method-wiring"          python -m pytest tests/validators/test_card_method_wiring.py -q
-run "pytest nomination-gate+subtype-tier" python -m pytest tests/vocabularies/test_nomination_verdict_gate.py tests/validators/test_subtype_tier_rules.py -q
-run "pytest target-profiling-axes ontology" python -m pytest tests/vocabularies/test_target_profiling_axes.py tests/vocabularies/test_question_hierarchies.py -q
-# 2026-09-18: the indication-conditioned dependency spine (card field -> 4 rules -> 4 rungs, plus the
-# two-site dependency_verdict_enum parity and the DELIBERATE `indication_not_supplied` absence).
-# Gated HERE and not in contracts-validate.yml on purpose: CI's "Whole-repo test suite (safety net)"
-# step already collects it, but THIS script has no such net — every pytest gate above names one file
-# — so without this line the guard would be absent from the pre-land gate that peers actually run.
-run "pytest dependency indication spine" python -m pytest tests/vocabularies/test_indication_dependency_class_partition.py -q
-# 2026-09-18 (Stage 2b): the RESOLVER -> GATE parity guard, plus the three files whose closed-set veto
-# pins it widens. Same no-net argument as the line above, with a sharper edge: the pins live in files
-# this script NEVER collected (only test_nomination_verdict_gate.py was gated), so the widening of
-# test_kill_capable_completeness / test_target_thesis / test_known_target_calibration would have been
-# invisible to every pre-land run and first observed in CI. test_known_target_calibration also carries
-# the VETO_VERDICTS mirror, whose staleness fails OPEN — a `must_not_veto` assertion blind to a veto
-# arm reports PASS — so it is the last file that should be gated only by the safety net.
-run "pytest indication gate parity"      python -m pytest tests/vocabularies/test_indication_verdict_gate_parity.py tests/vocabularies/test_kill_capable_completeness.py tests/vocabularies/test_target_thesis.py tests/calibration/test_known_target_calibration.py -q
-# 2026-09-18: the three by-subtype arms' `subtype_signal` vocabulary, which they spelled TWO ways
-# (tumour RNA prefixed, cell-line RNA and tumour protein bare). Same no-net argument as the two lines
-# above. The reason this file in particular must be gated here rather than left to CI's safety net is
-# that it guards a MIGRATION: it is the assertion that lets the later bare-token REMOVAL be attempted
-# safely, by reding when a rule keys on a token its own card no longer declares. A migration guard
-# first observed in CI is a guard that was absent exactly when the removal commit was written.
-run "pytest subtype_signal vocabulary"   python -m pytest tests/validators/test_subtype_signal_vocabulary_alignment.py -q
+run "living_doc --self-check"            python validators/architecture_dashboard/living/build_living_doc.py --self-check
 
 # Drain the pool and print every gate's PASS/FAIL in launch (CI) order before the ruff/advisory
 # steps below, which stay SYNCHRONOUS (fast, and the ruff block has its own version-gate control
