@@ -26,7 +26,11 @@ wired — no AXIS_CONFIG entry). Grounding one of these is a future, separately-
 Output = the `grounded` block of a substrate record consumed by both the risk roll-up and the hypothesis:
   { axis, deterministic:{verdict, driving_rule_id, cards:{id:call}},
     grounded:{ findings:[{finding, kind, cited_pmids}], corroborations, contradicts_deterministic,
-               anchor_verdict, confabulated_dropped, corpus_pin, escalate_only:true, n_retrieved } }
+               anchor_verdict, confabulated_dropped, corpus_pin, escalate_only:true, n_retrieved,
+               n_on_signal, insufficient_relevant_evidence? } }
+Zero on-signal evidence (`n_on_signal == 0`) abstains deterministically — no model call, `findings: []`
+— rather than letting the retrieve_axis starvation floor's backfilled off-signal abstracts seed an
+escalate-only finding (#1696, mirroring #1613's grading-path fix).
 """
 
 from __future__ import annotations
@@ -51,7 +55,7 @@ if str(_SKILLS) not in sys.path:
 # and tests referencing ground_axis._retrieve_pmids / _axis_query / AXIS_PUBMED_TERMS / RETRIEVAL_FLOOR /
 # MAX_RETRIEVED etc. keep resolving.
 import retrieval_lanes as rl  # noqa: E402
-from _skills_common.llm import EVIDENCE_ONLY_DIRECTIVE  # noqa: E402
+from _skills_common.llm import EVIDENCE_ONLY_DIRECTIVE, synthesize_structured  # noqa: E402
 from retrieval_lanes import (  # noqa: E402,F401  (re-export)
     AXIS_PUBMED_TERMS,
     MAX_RETRIEVED,
@@ -498,8 +502,6 @@ def ground_axis(
     """LIVE: load the axis's deterministic block, retrieve literature, produce the grounded block."""
     import json
 
-    from _skills_common.llm import synthesize_structured
-
     if axis not in AXIS_CONFIG:
         raise ValueError(f"axis {axis!r} not configured; have {sorted(AXIS_CONFIG)}")
     pkg = json.loads(Path(pkg_path).read_text())
@@ -509,13 +511,24 @@ def ground_axis(
     # Stage-2 relevance gate drops off-axis/off-target abstracts (logged in corpus_pin.relevance_dropped).
     retr = rl.retrieve_axis(target, indication, axis, per_cat=per_cat, mindate=mindate, maxdate=maxdate)
     abstracts = retr["kept"]
+    # n_on_signal = abstracts passing target ∧ (axis ∨ indication) BEFORE the starvation floor backfilled
+    # off-signal literature into `kept`. #1696: this path shares retrieve_axis's RELEVANCE_FLOOR=3 leak
+    # that #1613 fixed for the grading path — a floor-backfilled off-signal abstract is legitimately in
+    # `retrieved`, so a model-invented escalate-only finding citing it would survive build_grounded_block's
+    # containment (the PMID IS retrieved, just off-signal). Abstain deterministically (no model call) on
+    # zero on-signal evidence, mirroring run.py's null-discipline gate; the floor still prevents starvation
+    # on a THIN-but-real axis (n_on_signal >= 1 is still sent to the model).
+    n_on_signal = retr.get("n_on_signal", len(abstracts))
     retrieved = {a.pmid for a in abstracts}
-    out = synthesize_structured(
-        SYSTEM,
-        _prompt(target, indication, axis, det["verdict"], abstracts, abstract_chars=abstract_chars),
-        "axis_findings",
-        TOOL_SCHEMA,
-    )
+    if n_on_signal:
+        out = synthesize_structured(
+            SYSTEM,
+            _prompt(target, indication, axis, det["verdict"], abstracts, abstract_chars=abstract_chars),
+            "axis_findings",
+            TOOL_SCHEMA,
+        )
+    else:
+        out = {"findings": [], "corroborations": [], "contradicts_deterministic": False, "notes": None}
     grounded = build_grounded_block(
         det,
         out,
@@ -528,6 +541,11 @@ def ground_axis(
         },
         n_retrieved=len(abstracts),
     )
+    grounded["n_on_signal"] = n_on_signal
+    # Distinguish "zero relevant despite retrieval" (floor-backfilled) from a true dry query, so a reader
+    # sees the abstain was an active relevance decision, not an absence of any retrieval at all.
+    if not n_on_signal and abstracts:
+        grounded["insufficient_relevant_evidence"] = True
     return {"axis": axis, "deterministic": det, "grounded": grounded}
 
 

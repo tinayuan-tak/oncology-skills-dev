@@ -413,3 +413,97 @@ def test_interleave_round_robin_and_dedup():
     long_entity = [f"e{i}" for i in range(10)]
     merged = ga._interleave(long_entity, ["o1"], ["k1"])
     assert merged.index("o1") <= 2 and merged.index("k1") <= 2
+
+
+# =============================== #1696: escalate-only path shares the #1613 floor-backfill leak ===============================
+# ground_axis() calls the SAME rl.retrieve_axis as run.py's grading path and inherits the same
+# RELEVANCE_FLOOR=3 starvation backfill: a dim with zero on-signal (target ∧ (axis ∨ indication))
+# abstracts can still be handed <=floor backfilled off-signal abstracts. Those PMIDs are legitimately in
+# `retrieved`, so a model-invented escalate-only finding citing one of them would SURVIVE
+# build_grounded_block's containment check. The fix mirrors #1613: gate the model call on n_on_signal,
+# not on len(kept).
+
+
+def _write_pkg(tmp_path, verdict_key="safety", verdict="tolerant_null"):
+    import json
+
+    pkg = {
+        "synthesis": {"sub_verdicts": {verdict_key: {"verdict": verdict, "driving_rule_id": "r1"}}},
+        "cards": [],
+    }
+    p = tmp_path / "pkg.json"
+    p.write_text(json.dumps(pkg))
+    return str(p)
+
+
+class _GAb:
+    def __init__(self, pmid):
+        self.pmid, self.year, self.title, self.abstract = pmid, 2020, "t", "body"
+
+
+def test_ground_axis_abstains_when_retrieval_is_all_off_signal_backfill(tmp_path, monkeypatch):
+    # kept is non-empty (floor backfill) but n_on_signal == 0 -> the model must NOT be consulted, and the
+    # grounded block must carry zero findings + the insufficient_relevant_evidence flag, exactly like
+    # run.py's not_assessed abstain for the grading path.
+    def _backfilled(target, indication, axis, **k):
+        return {"kept": [_GAb("111")], "dropped": [], "n_on_signal": 0}
+
+    called = {"n": 0}
+
+    def _spy_synth(*a, **k):
+        called["n"] += 1
+        raise AssertionError("model must not be consulted when there is zero relevant (on-signal) evidence")
+
+    monkeypatch.setattr(ga.rl, "retrieve_axis", _backfilled)
+    monkeypatch.setattr(ga, "synthesize_structured", _spy_synth)
+    rec = ga.ground_axis("GENE", "some-indication", _write_pkg(tmp_path), axis="safety")
+    assert called["n"] == 0  # deterministic abstain — no model judgment on off-signal-only retrieval
+    grounded = rec["grounded"]
+    assert grounded["findings"] == []
+    assert grounded["n_on_signal"] == 0
+    assert grounded["insufficient_relevant_evidence"] is True
+    assert grounded["n_retrieved"] == 1  # audit trail: abstracts WERE retrieved, just none relevant
+    assert grounded["contradicts_deterministic"] is False
+
+
+def test_ground_axis_still_grounds_thin_but_real_axis_with_floor_backfill(tmp_path, monkeypatch):
+    # #1696 counterpart: the floor's legitimate starvation-prevention is preserved — with >=1 on-signal
+    # abstract (n_on_signal == 1) the model IS still consulted even though the floor backfilled an
+    # off-signal abstract alongside it.
+    def _thin(target, indication, axis, **k):
+        return {"kept": [_GAb("111"), _GAb("222")], "dropped": [], "n_on_signal": 1}
+
+    monkeypatch.setattr(ga.rl, "retrieve_axis", _thin)
+    monkeypatch.setattr(
+        ga,
+        "synthesize_structured",
+        lambda *a, **k: {
+            "findings": [{"finding": "hepatic tox", "kind": "liver", "cited_pmids": ["111"]}],
+            "corroborations": [],
+            "contradicts_deterministic": False,
+            "notes": "",
+        },
+    )
+    rec = ga.ground_axis("GENE", "some-indication", _write_pkg(tmp_path), axis="safety")
+    grounded = rec["grounded"]
+    assert grounded["n_on_signal"] == 1
+    assert "insufficient_relevant_evidence" not in grounded
+    assert [f["finding"] for f in grounded["findings"]] == ["hepatic tox"]
+
+
+def test_ground_axis_true_dry_query_has_no_insufficient_relevant_flag(tmp_path, monkeypatch):
+    # a genuinely empty retrieval (kept == [], n_on_signal == 0) is a dry query, not an active
+    # off-signal-only relevance decision — the abstain still fires (no model call) but the
+    # insufficient_relevant_evidence flag (reserved for "retrieved but all off-signal") stays absent.
+    def _dry(target, indication, axis, **k):
+        return {"kept": [], "dropped": [], "n_on_signal": 0}
+
+    monkeypatch.setattr(ga.rl, "retrieve_axis", _dry)
+    monkeypatch.setattr(
+        ga, "synthesize_structured", lambda *a, **k: (_ for _ in ()).throw(AssertionError("no model call"))
+    )
+    rec = ga.ground_axis("GENE", "some-indication", _write_pkg(tmp_path), axis="safety")
+    grounded = rec["grounded"]
+    assert grounded["n_on_signal"] == 0
+    assert grounded["n_retrieved"] == 0
+    assert "insufficient_relevant_evidence" not in grounded
