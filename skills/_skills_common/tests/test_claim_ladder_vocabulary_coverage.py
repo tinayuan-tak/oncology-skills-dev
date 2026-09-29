@@ -415,6 +415,16 @@ _CORROBORATION_READERS = {
         "annotation (SK#1750; no map, nothing to keep in step). Mirrors safety/presence question_table's "
         "L2b surface annotation."
     ),
+    "skills/_skills_common/l4_synthesis/facet_opportunity_drivers.py": (
+        "PASS-THROUGH — the L4 opportunity_drivers facet (C0b #2005) reads each traversed L3d chapter's "
+        "`corroboration` token twice: (1) it is checked for membership in a small local exclusion set "
+        "(`low`/`none`/`absent`) to decide whether the chapter is corroborated enough to count as an "
+        "opportunity driver — a filter, not a projection to a new vocabulary term — and (2) it is copied "
+        "VERBATIM into the emitted driver record. No map, no ranking: an unrecognised token is simply not "
+        "excluded and reads as itself downstream — honest. VERDICT-INERT: a pure deterministic traversal "
+        "of already-computed L3d chapters that routes nothing back into any claim_vector / question_table "
+        "/ resolver."
+    ),
     # --- PASS-THROUGH: renders or copies the token verbatim. An unrecognised rung reads as ITSELF,
     #     which is honest — no map, so nothing to keep in step. This is the safe way to consume the axis.
     "skills/_skills_common/narrative_grounding.py": (
@@ -469,6 +479,16 @@ _CORROBORATION_READERS = {
         "very set as the reason `low < single_arm`. NOT a projection: no map, no key coverage to keep."
     ),
     "eval/run_known_target_panel.py": "PASS-THROUGH (copied verbatim into the panel row)",
+    "skills/_skills_common/l4_synthesis/facet_modality_implications.py": (
+        "PASS-THROUGH — the L4 modality_implications facet (C0e #2008) reads each traversed L3d chapter's "
+        "`corroboration` token to decide whether the chapter is corroborated enough to count as a "
+        "per-modality opportunity — the SAME small local exclusion-set filter "
+        "`facet_opportunity_drivers` already applies (duplicated locally, module-independence "
+        "convention), not a projection to a new vocabulary term. No map: an unrecognised token is simply "
+        "not excluded and reads as itself downstream — honest. VERDICT-INERT: a pure deterministic "
+        "traversal of already-computed L3d chapters that routes nothing back into any claim_vector / "
+        "question_table / resolver."
+    ),
 }
 
 

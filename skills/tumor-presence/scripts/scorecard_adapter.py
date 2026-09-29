@@ -92,6 +92,7 @@ _L1_ACCURACY_EVIDENCE = {
     "batch_b_test": "skills/tumor-presence/tests/test_scorecard_l1_accuracy_rederivation_batch_b.py",
     "batch_c_test": "skills/tumor-presence/tests/test_scorecard_l1_accuracy_rederivation_batch_c.py",
     "batch_d_test": "skills/tumor-presence/tests/test_scorecard_l1_accuracy_rederivation_batch_d.py",
+    "batch_e_test": "skills/tumor-presence/tests/test_scorecard_l1_accuracy_rederivation_batch_e.py",
     "cards_covered": [
         "cellline-rna-distribution",
         "tumor-scrna-celltype-expression",
@@ -104,8 +105,18 @@ _L1_ACCURACY_EVIDENCE = {
         "rna-protein-concordance-tumor",
         "expression-purity-confound",
         "hpa-pathology-cancer-ihc",
+        "sc-normal-celltype-expression",
+        "normal-tissue-liability",
     ],
-    "cards_not_yet_covered": [],
+    # 13 of 17. The remaining 4 are the by-subtype distribution trio + the ProCan cell-line protein
+    # abundance card — NOT closed by batch E (#2047's own "15/17->17/17, closes the roster" framing
+    # is stale against the committed 11/17 baseline batch D actually landed; corrected here).
+    "cards_not_yet_covered": [
+        "tumor-rna-distribution-by-subtype",
+        "cellline-rna-distribution-by-subtype",
+        "tumor-protein-distribution-by-subtype",
+        "cellline-protein-abundance-procan",
+    ],
     "raw_substrate": {
         "cellline-rna-distribution": "analysis-methods anchor epcam_26q1.cellline_rna_distribution.json "
         "+ expression_vectors/epcam_26q1.cellline_rna_distribution.parquet (2446-model raw log2(TPM+1) "
@@ -171,6 +182,19 @@ _L1_ACCURACY_EVIDENCE = {
         "is precomputed UPSTREAM in data-catalog's hpa-pathology-cancer-ihc-per-gene-v1 build (no aggregation "
         "arithmetic exists in analysis-methods); the anchor validates the OncoTree->HPA cancer-type resolution + "
         "gene predicate + cancer_type row selection + field projection path.",
+        "sc-normal-celltype-expression": "analysis-methods anchor epcam_coadread.sc_normal_celltype.json "
+        "(batch E, #2047) + sc_normal_celltype_rows/epcam_coadread.sc_normal_celltype_rows.parquet (the "
+        "per-(tissue, cell_type) Tier-1 cross-donor-aggregated rows across all 9 queried tissues); "
+        "re-derived through methods.sc_normal_expression.cli.build_summary (only the "
+        "read_gene_celltype_rows S3-load seam mocked). DO-NOT-REFILE: the Tier-1 product's cross-donor "
+        "aggregate is an UNWEIGHTED cross-donor median BY DESIGN (data-catalog's Tier-2->Tier-1 build, "
+        "out of scope for this anchor, which validates the READ + CLASSIFY path only).",
+        "normal-tissue-liability": "analysis-methods anchor epcam_coadread.hpa_normal_tissue_liability.json "
+        "(batch E, #2047) + hpa_normal_liability_rows/epcam.hpa_normal_tissue_liability.row.json (the "
+        "target's single raw HPA master-TSV row); re-derived through "
+        "methods.hpa_normal_tissue_liability.cli.compute_summary directly (no seam mock — pure function "
+        "of its row argument). BOUNDARY: a LOOKUP + classification, not an aggregation — the IHC calls "
+        "themselves are precomputed upstream by HPA.",
     },
     "reconciliation": (
         "fraction_expressed, fraction_highly_expressed, expression_class (cellline-rna-distribution); "
@@ -199,10 +223,18 @@ _L1_ACCURACY_EVIDENCE = {
         "purity_confound_class/n_paired_samples/n_expr_samples/median_purity (expression-purity-confound); "
         "and the full protein_presence_class/fraction_detected/fraction_moderate_strong/staining_score/n_high/"
         "n_medium/n_low/n_not_detected/n_patients_total/prognostic_* /hpa_cancer_type set "
-        "(hpa-pathology-cancer-ihc, byte-exact) "
+        "(hpa-pathology-cancer-ihc, byte-exact); and batch E (#2047): "
+        "sc_normal_expression_class/sc_normal_safety_essential_class/max_detection_cell_type/"
+        "max_detection_fraction/expressing_donor_fraction_max/n_cell_types_above_20pct/"
+        "n_reliable_cell_types/tissues_queried/origin_tissues/indication/method_version "
+        "(sc-normal-celltype-expression) and normal_tissue_breadth_class/hpa_tissue_distribution/"
+        "hpa_tissue_specificity/n_specific_tissues/specific_tissues/method_version "
+        "(normal-tissue-liability, vintage-stable subset) "
         "all match at full precision between the independent "
         "recompute and tests/fixtures/epcam_coadread_decision.json (the two concordance ci95 bounds + the "
-        "purity correlation coefficients are honestly-pinned verdict-inert drifts, see boundary)"
+        "purity correlation coefficients are honestly-pinned verdict-inert drifts from batch D, and the "
+        "sc-normal safety-essential-panel growth + normal-tissue-liability essential_tissue_flag flip are "
+        "honestly-pinned drifts from batch E, see boundary)"
     ),
     "boundary": (
         "Anchors validate the read/aggregation path, NOT the upstream DESeq2/DEG runs (that provenance "
@@ -248,7 +280,28 @@ _L1_ACCURACY_EVIDENCE = {
         "test_purity_correlation_drift_is_bounded_and_class_invariant). "
         "hpa-pathology-cancer-ihc reconciles BYTE-EXACT — its reader is a LOOKUP (the patient-count "
         "aggregation is precomputed upstream in data-catalog's hpa-pathology-cancer-ihc-per-gene-v1; the "
-        "anchor validates the OncoTree->HPA resolution + selection + projection path, NOT the aggregation)."
+        "anchor validates the OncoTree->HPA resolution + selection + projection path, NOT the aggregation). "
+        "BATCH E (#2047) — CORRECTED DENOMINATOR: the issue's own title claims '15/17->17/17, closes the "
+        "roster'; the committed baseline this batch actually started from (batch D, PR#2068) carried "
+        "11/17, so this batch closes 11->13/17, NOT the full roster (4 by-subtype/ProCan cards remain, "
+        "see cards_not_yet_covered). TWO MORE HONESTLY-RECORDED verdict-inert DRIFTS (golden NOT "
+        "regenerated — full structural regen tracked in #2061, behind the 26Q3 migration + #1638): "
+        "(1) sc-normal-celltype-expression's safety-essential cell-type panel grew by 38 keys and lost "
+        "exactly one (`interneuron`, a regex tightening to word-boundary matching) since the golden's "
+        "vintage (stats.py #663/#664 renal-tubule + gut/pancreas fixes); every panel key the golden DOES "
+        "carry, other than the one named removal, is byte-exact, and "
+        "sc_normal_expression_class/sc_normal_safety_essential_class/max_detection_cell_type/"
+        "max_detection_fraction are unchanged (pinned by "
+        "test_sc_normal_schema_growth_is_additive_and_class_invariant). (2) normal-tissue-liability's "
+        "essential_tissue_flag moves unknown->present for EPCAM (essential_tissues_flagged []->"
+        "['intestine'], safety_tissue_flags gains essential_tissue) because 'intestine' was promoted to "
+        "the canonical essential-tissue set on 2026-09-18 — predating, and unrelated to, the "
+        "#1793/#1794 safety-pin bump this issue was held on; the golden simply predates that promotion. "
+        "Two more keys (hpa_ihc_reliability, essential_tissue_low_reliability, AM#745 antibody "
+        "reliability) are new and absent from the golden entirely. normal_tissue_breadth_class/"
+        "hpa_tissue_distribution/hpa_tissue_specificity/n_specific_tissues/specific_tissues/"
+        "method_version are byte-exact (pinned by "
+        "test_hpa_liability_essential_tissue_flag_drift_is_pinned_verdict_inert_and_cross_linked_2061)."
     ),
     "teeth": (
         "test_cellline_rna_distribution_teeth_mutated_input_breaks_the_golden_match, "
@@ -264,7 +317,10 @@ _L1_ACCURACY_EVIDENCE = {
         "RNA<->protein correlation for both concordance grains (n_paired unchanged); permuting purity "
         "across cases breaks the expression<->purity correlation and forcing purity to track expression "
         "flips the class to tumor_intrinsic; dropping the resolved HPA cancer-type row collapses the IHC "
-        "read to data_unavailable — "
+        "read to data_unavailable; and the batch-E (#2047) teeth — dropping every row for the named "
+        "essential-organ driver cell type moves sc_normal_safety_essential_class off the golden's "
+        "critical_organ_liability, and blanking the HPA specific-intensity column moves "
+        "essential_tissue_flag/essential_tissues_flagged off their live-derived values — "
         "mutate the raw input and assert the "
         "match breaks — proving the reconciliation is a live function of substrate, not a self-echo"
     ),
@@ -345,6 +401,46 @@ def _load_package(target: str, indication: str, *, timeout: int = 300) -> tuple[
     try:
         r = subprocess.run(
             [sys.executable, str(RUN_PY), "--target", target, "--indication", indication, "--out", str(dest)],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired:
+        return None, None
+    if r.returncode != 0 or not cached.exists():
+        return None, None
+    return json.loads(cached.read_text()), str(cached.relative_to(REPO_ROOT))
+
+
+def _load_envelope(target: str, indication: str, *, timeout: int = 300) -> tuple[dict | None, str | None]:
+    """Load tumor-presence's evidence_package.json (the SK#1941 --emit-envelope export) for one
+    roster pair — from the on-disk cache if present, else a live `run.py --emit-envelope` invocation.
+    Shares the SAME gitignored per-target cache directory as `_load_package` (a bare decision.json
+    run there does not satisfy this — the envelope file is only written under --emit-envelope), so
+    the two loaders never race: each writes/reads its own filename inside the shared dest dir.
+    Returns (envelope_dict, source_str), or (None, None) if genuinely unavailable — absence is
+    reported (#2071), never silently substituted."""
+    dest = PANEL_CACHE_DIR / f"{target}__{indication.lower()}"
+    cached = dest / "evidence_package.json"
+    if cached.exists():
+        try:
+            return json.loads(cached.read_text()), str(cached.relative_to(REPO_ROOT))
+        except (OSError, json.JSONDecodeError):
+            pass
+    dest.mkdir(parents=True, exist_ok=True)
+    try:
+        r = subprocess.run(
+            [
+                sys.executable,
+                str(RUN_PY),
+                "--target",
+                target,
+                "--indication",
+                indication,
+                "--out",
+                str(dest),
+                "--emit-envelope",
+            ],
             capture_output=True,
             text=True,
             timeout=timeout,
@@ -513,19 +609,181 @@ _L3_FAIL_OPEN_EVIDENCE = {
     "status_as_of": "2026-09-28",
 }
 
-_L2_L3_PANEL_NULL_REASON = (
-    "the SK#1941 envelope export (source_properties/integrated_properties/l3d) has only been exercised "
-    "live for EPCAM/COADREAD (the committed golden `tests/fixtures/epcam_coadread_decision.json` via "
-    "--emit-envelope) — extending the --emit-envelope run across the 5-target roster is future work, "
-    "not yet measured. Left NULL rather than inferring panel behavior from a single target."
+# ── L2a / L2b / L3 panel_consistency: COMPUTED live from the --emit-envelope export (#2071) ────────
+# Extends the L1 panel-consistency pattern (collect_panel_rows/_panel_consistency_criterion above) one
+# layer up: instead of two verdict-bearing card classes, each row carries the SHAPE of the SK#1941
+# envelope export's three named sections (source_properties L2a / integrated_properties L2b / l3d L3)
+# — the set of source-property keys populated, the set of integrated-island keys populated, and
+# whether/how-many-chaptered the l3d story is. "Non-constancy" at this layer means the SHAPE differs
+# across archetypes (a richly-covered flagship should populate more source-properties/islands/chapters
+# than the thin-coverage control), mirroring L1's class-non-constancy + thin-coverage-degrades checks.
+
+
+def collect_envelope_rows() -> tuple[list[dict], dict]:
+    """The L2a/L2b/L3 panel_consistency criteria's shared live computation: one row per roster pair's
+    --emit-envelope export shape, plus non-vacuity + structural-shape checks over the roster. Each of
+    the three per-layer criterion builders below reads the relevant subset of `checks`."""
+    rows: list[dict] = []
+    for target, indication in ROSTER:
+        env, source = _load_envelope(target, indication)
+        if env is None:
+            rows.append({"target": target, "indication": indication, "status": "PACKAGE_MISSING", "source": None})
+            continue
+        sp = env.get("source_properties") or {}
+        ip = {k: v for k, v in (env.get("integrated_properties") or {}).items() if k != "_disclaimer"}
+        l3d = env.get("l3d")
+        rows.append(
+            {
+                "target": target,
+                "indication": indication,
+                "status": "OK",
+                "source": source,
+                "source_properties_keys": sorted(sp.keys()),
+                "integrated_properties_keys": sorted(ip.keys()),
+                "l3d_present": l3d is not None,
+                "l3d_chapter_count": (len(l3d.get("chapters") or []) if isinstance(l3d, dict) else None),
+            }
+        )
+
+    ok_rows = [r for r in rows if r["status"] == "OK"]
+    all_present = len(ok_rows) == len(ROSTER)
+
+    def _shape_not_constant(key: str) -> bool:
+        shapes = {tuple(r.get(key) or []) for r in ok_rows}
+        return len(shapes) > 1
+
+    htr1d = next((r for r in ok_rows if r["target"] == "HTR1D"), None)
+    others = [r for r in ok_rows if r["target"] != "HTR1D"]
+
+    def _thin_coverage_narrower(count_key: str) -> bool:
+        """HTR1D's export must be no richer than, and strictly narrower than at least one other
+        roster member's — the honest degrade its thin-coverage archetype predicts."""
+        if htr1d is None or not others:
+            return False
+        htr1d_n = len(htr1d.get(count_key) or [])
+        other_ns = [len(o.get(count_key) or []) for o in others]
+        return bool(other_ns) and htr1d_n <= min(other_ns) and any(n > htr1d_n for n in other_ns)
+
+    l3d_present_values = {r["l3d_present"] for r in ok_rows}
+    l3d_chapter_counts = {r["l3d_chapter_count"] for r in ok_rows if r["l3d_present"]}
+    l3d_narrower = False
+    if htr1d is not None and others:
+        htr1d_chapters = htr1d.get("l3d_chapter_count") or 0
+        other_chapters = [(o.get("l3d_chapter_count") or 0) for o in others]
+        l3d_narrower = (not htr1d["l3d_present"] and any(o["l3d_present"] for o in others)) or (
+            bool(other_chapters)
+            and htr1d_chapters <= min(other_chapters)
+            and any(c > htr1d_chapters for c in other_chapters)
+        )
+
+    checks = {
+        "all_roster_rows_present": all_present,
+        "source_properties_keys_not_constant": _shape_not_constant("source_properties_keys"),
+        "integrated_properties_keys_not_constant": _shape_not_constant("integrated_properties_keys"),
+        "l3d_presence_or_shape_not_constant": (len(l3d_present_values) > 1) or (len(l3d_chapter_counts) > 1),
+        "thin_coverage_control_narrower_source_properties": _thin_coverage_narrower("source_properties_keys"),
+        "thin_coverage_control_narrower_integrated_properties": _thin_coverage_narrower("integrated_properties_keys"),
+        "thin_coverage_control_narrower_l3d": l3d_narrower,
+    }
+    return rows, checks
+
+
+_ENVELOPE_CAPTURE_METHOD = (
+    "scorecard_adapter.py::_load_envelope -> skills/tumor-presence/scripts/run.py "
+    "--target <T> --indication <I> --emit-envelope (shares the gitignored per-target "
+    "scripts/.panel_cache/<T>__<i>/ directory with _load_package's decision.json, writing/reading "
+    "the sibling evidence_package.json filename)."
 )
 
 
+def _envelope_panel_criterion(
+    *,
+    rows: list[dict],
+    checks: dict,
+    layer_check_names: tuple[str, ...],
+    method: str,
+) -> cs.Criterion:
+    all_present = checks["all_roster_rows_present"]
+    layer_checks = {"all_roster_rows_present": all_present}
+    for name in layer_check_names:
+        layer_checks[name] = checks[name]
+    layer_checks["all_pass"] = all(layer_checks.values())
+    evidence = {
+        "method": method,
+        "roster_source": "eval/SCORECARD_PANEL_ROSTER.md",
+        "capture_method": _ENVELOPE_CAPTURE_METHOD,
+        "rows": rows,
+        "checks": layer_checks,
+        "status_as_of": time.strftime("%Y-%m-%d", time.gmtime()),
+    }
+    if not all_present:
+        missing = [f"{r['target']}/{r['indication']}" for r in rows if r["status"] == "PACKAGE_MISSING"]
+        evidence["null_reason"] = (
+            f"envelope(s) unavailable for {missing} (no cache, and a live --emit-envelope run "
+            "failed/timed out/lacked credentials) — left NULL rather than scoring a partial roster."
+        )
+        evidence["packages_missing"] = missing
+        return cs.Criterion(status=cs.NULL, evidence=evidence)
+    return cs.Criterion(status=(cs.GREEN if layer_checks["all_pass"] else cs.RED), evidence=evidence)
+
+
+def _l2a_panel_consistency_criterion(rows: list[dict], checks: dict) -> cs.Criterion:
+    return _envelope_panel_criterion(
+        rows=rows,
+        checks=checks,
+        layer_check_names=(
+            "source_properties_keys_not_constant",
+            "thin_coverage_control_narrower_source_properties",
+        ),
+        method=(
+            "per-target rows across the whole 5-target roster of the SK#1941 --emit-envelope export's "
+            "source_properties (L2a) section: the SET of populated source-property keys must differ "
+            "meaningfully across archetypes rather than collapsing to one constant shape, and the "
+            "thin-coverage control must populate no more (and strictly fewer than at least one other "
+            "roster member's) source-property keys."
+        ),
+    )
+
+
+def _l2b_panel_consistency_criterion(rows: list[dict], checks: dict) -> cs.Criterion:
+    return _envelope_panel_criterion(
+        rows=rows,
+        checks=checks,
+        layer_check_names=(
+            "integrated_properties_keys_not_constant",
+            "thin_coverage_control_narrower_integrated_properties",
+        ),
+        method=(
+            "per-target rows across the whole 5-target roster of the SK#1941 --emit-envelope export's "
+            "integrated_properties (L2b) section: the SET of populated concordance-island keys must "
+            "differ meaningfully across archetypes rather than collapsing to one constant shape, and "
+            "the thin-coverage control must populate no more (and strictly fewer than at least one "
+            "other roster member's) island keys."
+        ),
+    )
+
+
+def _l3_panel_consistency_criterion(rows: list[dict], checks: dict) -> cs.Criterion:
+    return _envelope_panel_criterion(
+        rows=rows,
+        checks=checks,
+        layer_check_names=("l3d_presence_or_shape_not_constant", "thin_coverage_control_narrower_l3d"),
+        method=(
+            "per-target rows across the whole 5-target roster of the SK#1941 --emit-envelope export's "
+            "l3d (L3) section: EITHER whether the story resolves at all OR its chapter count must "
+            "differ meaningfully across archetypes rather than collapsing to one constant shape, and "
+            "the thin-coverage control must resolve no richer a story (absent, or no more chapters, "
+            "and strictly fewer than at least one other roster member's) than the richer archetypes."
+        ),
+    )
+
+
 def build_shard() -> cs.SkillShard:
-    """Build the tumor-presence scorecard shard in memory. Calls `collect_panel_rows()` live (via
-    `_panel_consistency_criterion`), so re-running this script re-derives the panel evidence rather
-    than replaying a stale table."""
+    """Build the tumor-presence scorecard shard in memory. Calls `collect_panel_rows()` (L1) and
+    `collect_envelope_rows()` (L2a/L2b/L3, #2071) live, so re-running this script re-derives the
+    panel evidence rather than replaying a stale table."""
     shard = cs.baseline_shard(SKILL)
+    envelope_rows, envelope_checks = collect_envelope_rows()
 
     shard.cells["L1"] = cs.Cell(
         built=True,
@@ -539,16 +797,19 @@ def build_shard() -> cs.SkillShard:
             "L1 = the 17 cards (OBSERVATIONAL_PROPERTY): 7 ladder-verdict-bearing + 3 L2b-island "
             "substrate + 3 corroboration/certainty-bearing + 1 verdict-adjacent (hpa-pathology-cancer-ihc) "
             "+ 2 safety-comparators + 1 (cellline-protein-abundance-procan, corroboration-bearing). "
-            "accuracy measured for 11 of the 17 cards with a landed analysis-methods T3 anchor bridged to "
+            "accuracy measured for 13 of the 17 cards with a landed analysis-methods T3 anchor bridged to "
             "the EPCAM/COADREAD golden (cellline-rna-distribution, tumor-scrna-celltype-expression; "
             "tumor-rna-distribution + cellline-protein-abundance — batch A, #2043; tumor-rna-vs-adjacent "
             "+ tumor-elevation-breadth — batch B, #2044; tumor-protein-abundance-cptac — batch C, #2045; "
             "cellline-rna-protein-concordance + rna-protein-concordance-tumor + expression-purity-confound "
-            "+ hpa-pathology-cancer-ihc — batch D, #2046). Batch D completes ALL 7 ladder-verdict-bearing "
+            "+ hpa-pathology-cancer-ihc — batch D, #2046; sc-normal-celltype-expression + "
+            "normal-tissue-liability — batch E, #2047). Batch D completed ALL 7 ladder-verdict-bearing "
             "cards PLUS 4 non-verdict cards (2 rna-proxy concordance, the purity confounder, and the "
-            "verdict-adjacent HPA IHC), enrolling non-verdict cards into the accuracy ledger; the remaining "
-            "6 of 17 (corroboration/certainty/safety-comparator cards) have no anchor yet (see "
-            "accuracy evidence cards_covered / cards_not_yet_covered)."
+            "verdict-adjacent HPA IHC); batch E enrolls the 2 normal-tissue safety-comparator cards. "
+            "CORRECTED (batch E's own issue title claimed '15/17->17/17, closes the roster' against a "
+            "stale premise — the true baseline batch D landed was 11/17): the remaining 4 of 17 (the "
+            "by-subtype distribution trio + cellline-protein-abundance-procan) have no anchor yet — the "
+            "roster is NOT closed (see accuracy evidence cards_covered / cards_not_yet_covered)."
         ),
     )
 
@@ -558,7 +819,7 @@ def build_shard() -> cs.SkillShard:
             "accuracy": cs.Criterion(status=cs.NULL, evidence={"reason": _ACCURACY_NULL_REASON}),
             "utilization": cs.Criterion(status=cs.GREEN, evidence=_L2A_UTILIZATION_EVIDENCE),
             "fail_open": cs.Criterion(status=cs.GREEN, evidence=_L2A_FAIL_OPEN_EVIDENCE),
-            "panel_consistency": cs.Criterion(status=cs.NULL, evidence={"reason": _L2_L3_PANEL_NULL_REASON}),
+            "panel_consistency": _l2a_panel_consistency_criterion(envelope_rows, envelope_checks),
         },
         notes="L2a = source_properties (SK#1941 EXPORTED section, --emit-envelope).",
     )
@@ -569,7 +830,7 @@ def build_shard() -> cs.SkillShard:
             "accuracy": cs.Criterion(status=cs.NULL, evidence={"reason": _ACCURACY_NULL_REASON}),
             "utilization": cs.Criterion(status=cs.GREEN, evidence=_L2B_UTILIZATION_EVIDENCE),
             "fail_open": cs.Criterion(status=cs.GREEN, evidence=_L2B_FAIL_OPEN_EVIDENCE),
-            "panel_consistency": cs.Criterion(status=cs.NULL, evidence={"reason": _L2_L3_PANEL_NULL_REASON}),
+            "panel_consistency": _l2b_panel_consistency_criterion(envelope_rows, envelope_checks),
         },
         notes=(
             "L2b = integrated_properties (SK#1941 EXPORTED section): the coverage/abundance/"
@@ -583,7 +844,7 @@ def build_shard() -> cs.SkillShard:
             "accuracy": cs.Criterion(status=cs.NULL, evidence={"reason": _ACCURACY_NULL_REASON}),
             "utilization": cs.Criterion(status=cs.GREEN, evidence=_L3_UTILIZATION_EVIDENCE),
             "fail_open": cs.Criterion(status=cs.GREEN, evidence=_L3_FAIL_OPEN_EVIDENCE),
-            "panel_consistency": cs.Criterion(status=cs.NULL, evidence={"reason": _L2_L3_PANEL_NULL_REASON}),
+            "panel_consistency": _l3_panel_consistency_criterion(envelope_rows, envelope_checks),
         },
         notes="L3 = l3d, the 'tumor-expression biology story' (SK#1940, DOMAIN_INTERPRETATION).",
     )

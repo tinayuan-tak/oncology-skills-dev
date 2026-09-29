@@ -390,6 +390,11 @@ tumor-rna-distribution:
     interpretation_reach: unreached
     reason: "max across-event PSI dispersion; verdict-inert splicing detail; no exact reader (census 2026-09-19)"
     reviewed: true
+  mean_log2tpm:
+    role: context
+    interpretation_reach: skills_local
+    reviewed: true
+    reason: "five-number-summary mean (AM#857) — arithmetic mean on log2(TPM+1), pairs with median for skew; cited in claim A's evidence atom (claim_passthrough) as verdict-inert distribution-shape provenance; feeds no rule/ladder"
   median_event_psi_std:
     role: display
     interpretation_reach: unreached
@@ -431,6 +436,11 @@ tumor-rna-distribution:
     interpretation_reach: unreached
     reviewed: true
     reason: power / statistical qualifier
+  p5_log2tpm:
+    role: context
+    interpretation_reach: skills_local
+    reviewed: true
+    reason: "five-number-summary 5th percentile (AM#857) — lower-tail spread; cited in claim A's evidence atom (claim_passthrough) as verdict-inert distribution-shape provenance; feeds no rule/ladder"
   p95_log2tpm:
     role: signal
     interpretation_reach: skills_local
@@ -441,6 +451,21 @@ tumor-rna-distribution:
     interpretation_reach: unreached
     reason: "tail rung beyond the p95_log2tpm that claim A's evidence atom already cites"
     reviewed: true
+  q1_log2tpm:
+    role: context
+    interpretation_reach: skills_local
+    reviewed: true
+    reason: "five-number-summary lower quartile (AM#857, == p25) — inter-quartile spread; cited in claim A's evidence atom (claim_passthrough) as verdict-inert distribution-shape provenance; feeds no rule/ladder"
+  q3_log2tpm:
+    role: context
+    interpretation_reach: skills_local
+    reviewed: true
+    reason: "five-number-summary upper quartile (AM#857, == p75) — inter-quartile spread; cited in claim A's evidence atom (claim_passthrough) as verdict-inert distribution-shape provenance; feeds no rule/ladder"
+  sd_log2tpm:
+    role: context
+    interpretation_reach: skills_local
+    reviewed: true
+    reason: "five-number-summary standard deviation (AM#857) — dispersion on log2(TPM+1); cited in claim A's evidence atom (claim_passthrough) as verdict-inert distribution-shape provenance; feeds no rule/ladder"
   splicing_context:
     role: provenance
     interpretation_reach: unreached

@@ -11,8 +11,15 @@ promises siblings:
   2. the L1 panel_consistency evidence carries the FULL 5-pair roster with computed checks, no
      placeholder residue — a partial or hand-typed panel cannot ship as GREEN;
   3. the panel checks have TEETH: fed a doctored panel (every target emitting one constant class),
-     `collect_panel_rows` reds its own checks — the GREEN is a live function of the package bytes.
+     `collect_panel_rows` reds its own checks — the pass is a live function of the package bytes.
   4. L2a/L2b/L3/L4 are all NOT_BUILT for this skill (no exported envelope sections exist).
+  5. (#2070) the `dominant_direction`/`selectivity_class` token-space fix has its own mutation teeth:
+     a synthetic degraded HTR1D row (degraded `selectivity_class`, ordinary `dominant_direction`)
+     proves `thin_coverage_control_degrades` reads the FIXED field — RED-failing if the dead
+     comparison is reintroduced — and `htr1d_matches_expected_archetype` (the applicable clause for
+     this skill's DGE vertical) is exercised on a realistic-shaped panel.
+  6. panel_consistency can never render GREEN while power/coverage grading is blocked on #1663 —
+     it is either RED (an applicable conjunct fails) or NULL/#1663 (all applicable conjuncts pass).
 """
 
 from __future__ import annotations
@@ -62,6 +69,13 @@ def test_shard_validates_and_upper_layers_are_not_built():
     pc = l1.criteria["panel_consistency"]
     if pc.status == cs.NULL:
         assert (pc.evidence or {}).get("null_reason"), "a NULL panel criterion must carry a disposition note"
+    evidence = pc.evidence or {}
+    checks = evidence.get("checks") or {}
+    # If the full roster resolved AND its verdict-bearing cards were reachable, we reached the
+    # power-grading-blocked branch (issue #2070 pt.3) regardless of whether the applicable conjuncts
+    # passed (-> NULL/#1663) or failed (-> RED) — the blocker must be named either way.
+    if checks and not checks.get("all_card_data_unavailable") and checks.get("all_roster_rows_present"):
+        assert evidence.get("blocked_on") == "#1663", "power-grading blocker must be named #1663"
 
 
 def test_every_green_criterion_cites_an_existing_test_file():
@@ -109,11 +123,18 @@ def test_panel_evidence_is_complete_computed_and_placeholder_free():
         assert status == cs.NULL
         assert ev.get("null_reason") and ev.get("card_data_unavailable_by_target")
     elif len(ok_rows) == 5:
-        # Full roster emitted with reachable card data: every OK row cites its package source, and
-        # the status is the computed verdict (GREEN iff all checks pass, else RED) — never withheld.
+        # Full roster emitted with reachable card data: every OK row cites its package source. The
+        # power/coverage grading dimension is structurally blocked on #1663 (n_tumor stranded
+        # panel-wide), so the criterion can never render GREEN here — it reads RED if an applicable
+        # conjunct fails, else the honest NULL/#1663 (issue #2070 decision pt.3), never a fabricated
+        # GREEN.
         assert all(r["source"] for r in ok_rows)
-        assert status in (cs.GREEN, cs.RED)
-        assert (status == cs.GREEN) == bool(checks["all_pass"]), "panel status must equal its computed checks"
+        assert status in (cs.NULL, cs.RED)
+        assert status != cs.GREEN, "panel_consistency must never render GREEN while #1663 blocks power grading"
+        if checks["all_pass"]:
+            assert status == cs.NULL and ev.get("blocked_on") == "#1663"
+        else:
+            assert status == cs.RED
     else:
         # Partial roster: honest NULL with a disposition, and the checks cannot claim a pass.
         assert status == cs.NULL, "a partial panel must not carry a measured status"
@@ -140,6 +161,7 @@ def test_teeth_a_constant_class_panel_reds_the_checks(monkeypatch):
     assert len(rows) == 5 and all(r["status"] == "OK" for r in rows)
     assert checks["direction_class_not_constant"] is False
     assert checks["window_class_not_constant"] is False
+    assert checks["htr1d_matches_expected_archetype"] is False
     assert checks["thin_coverage_control_degrades"] is False
     assert checks["all_pass"] is False
 
@@ -150,3 +172,90 @@ def test_teeth_a_partial_panel_cannot_pass(monkeypatch):
     rows, checks = ad.collect_panel_rows()
     assert all(r["status"] == "PACKAGE_MISSING" for r in rows)
     assert checks["all_roster_rows_present"] is False and checks["all_pass"] is False
+
+
+def test_teeth_htr1d_matches_expected_archetype_on_a_real_shaped_panel(monkeypatch):
+    """The #2070 applicable clause: when HTR1D reads its tumor-selectivity-specific expectation
+    (measured strong_tumor_selective, concordant comparators) and the rest of the roster varies,
+    `htr1d_matches_expected_archetype` fires True and the checks pass (modulo the #1663 power-grading
+    blocker, asserted separately at the Criterion level)."""
+    ad = _load_adapter()
+
+    def _pkg_for(direction: str, selectivity_class: str, concordance: str, window: str) -> dict:
+        return {
+            "cards": [
+                {
+                    "card_id": "tumor-vs-normal-selectivity",
+                    "summary": {
+                        "dominant_direction": direction,
+                        "selectivity_class": selectivity_class,
+                        "comparator_concordance": concordance,
+                    },
+                },
+                {"card_id": "modality-therapeutic-window", "summary": {"therapeutic_window_class": window}},
+            ]
+        }
+
+    shaped = {
+        ("EPCAM", "COADREAD"): _pkg_for("up", "field_effect_tumor_selective", "discordant", "narrow_window"),
+        ("KRAS", "COADREAD"): _pkg_for("down", "discordant_across_comparators", "discordant", "no_therapeutic_window"),
+        ("ERBB2", "BRCA"): _pkg_for("up", "strong_tumor_selective", "concordant", "narrow_window"),
+        ("PLK1", "COADREAD"): _pkg_for("up", "strong_tumor_selective", "concordant", "no_therapeutic_window"),
+        ("HTR1D", "COADREAD"): _pkg_for("up", "strong_tumor_selective", "concordant", "narrow_window"),
+    }
+    monkeypatch.setattr(ad, "_load_package", lambda t, i: (shaped[(t, i)], f"doctored://{t.lower()}"))
+    rows, checks = ad.collect_panel_rows()
+    assert len(rows) == 5 and all(r["status"] == "OK" for r in rows)
+    assert checks["htr1d_matches_expected_archetype"] is True
+    assert checks["direction_class_not_constant"] is True
+    assert checks["window_class_not_constant"] is True
+    assert checks["all_pass"] is True
+    # thin_coverage_control_degrades correctly reads False: HTR1D genuinely does NOT degrade here.
+    assert checks["thin_coverage_control_degrades"] is False
+
+
+def test_teeth_the_degradation_clause_fires_on_a_synthetic_degraded_row_field_mismatch_guard(monkeypatch):
+    """Mutation teeth for the #2070 fix: `thin_coverage_control_degrades` (built on
+    `_is_degraded_selectivity_class`) must CAN fire True on a synthetic HTR1D row whose
+    `selectivity_class` is degraded while `dominant_direction` is an ordinary up/down token (the
+    dead-comparison shape the original bug had: dominant_direction never held a degraded-class
+    token, so a check keyed on it could never fire). If the field-mismatch bug is reintroduced (the
+    check reads `dominant_direction` instead of `selectivity_class`), this row's
+    `dominant_direction="up"` — a NON-degraded token — makes the check read False, and this
+    assertion goes RED."""
+    ad = _load_adapter()
+
+    def _pkg_for(direction: str, selectivity_class: str, concordance: str) -> dict:
+        return {
+            "cards": [
+                {
+                    "card_id": "tumor-vs-normal-selectivity",
+                    "summary": {
+                        "dominant_direction": direction,
+                        "selectivity_class": selectivity_class,
+                        "comparator_concordance": concordance,
+                    },
+                },
+                {"card_id": "modality-therapeutic-window", "summary": {"therapeutic_window_class": "narrow_window"}},
+            ]
+        }
+
+    shaped = {
+        ("EPCAM", "COADREAD"): _pkg_for("up", "strong_tumor_selective", "concordant"),
+        ("KRAS", "COADREAD"): _pkg_for("down", "strong_tumor_selective", "concordant"),
+        ("ERBB2", "BRCA"): _pkg_for("up", "strong_tumor_selective", "concordant"),
+        ("PLK1", "COADREAD"): _pkg_for("up", "strong_tumor_selective", "concordant"),
+        # HTR1D: selectivity_class IS degraded, but dominant_direction is an ordinary "up" —
+        # the exact shape that defeats a check mistakenly keyed on dominant_direction.
+        ("HTR1D", "COADREAD"): _pkg_for("up", "discordant_across_comparators", "discordant"),
+    }
+    monkeypatch.setattr(ad, "_load_package", lambda t, i: (shaped[(t, i)], f"doctored://{t.lower()}"))
+    rows, checks = ad.collect_panel_rows()
+    assert len(rows) == 5 and all(r["status"] == "OK" for r in rows)
+    # Direct token-space unit check: fires on the correct field even when dominant_direction alone
+    # would never carry the degraded token.
+    assert ad._is_degraded_selectivity_class("discordant_across_comparators") is True
+    assert ad._is_degraded_selectivity_class("up") is False
+    assert checks["thin_coverage_control_degrades"] is True
+    # HTR1D reads degraded here, so it does NOT match its tumor-selectivity expectation.
+    assert checks["htr1d_matches_expected_archetype"] is False
