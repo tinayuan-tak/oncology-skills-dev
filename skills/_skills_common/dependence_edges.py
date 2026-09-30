@@ -107,9 +107,12 @@ def concordance_relation(concordant: bool, *, opposed: bool = False) -> str:
       * otherwise            → ``qualifies``    (a non-concordant refinement / directional split /
                                 blind-dimension caveat that tempers but does not negate).
 
-    ``opposed`` is only honoured when NOT concordant. The shipped tumor-presence L2b claims never pass
-    ``opposed=True`` (their non-concordant classes are qualifications, per this module's design note);
-    the flag makes ``contradicts`` reachable for a present/absent-conflict claim family + the tests."""
+    ``opposed`` is only honoured when NOT concordant. No L2b *family fold* passes ``opposed=True``
+    (their non-concordant classes are qualifications, per this module's design note) — but
+    ``presence_claims._provider_call_corroboration`` is a live exception: it passes
+    ``opposed=(concordance == "direction_discordant")`` and reaches ``contradicts`` for real on a
+    provider/re-derived direction conflict. That edge currently has no reader (verify before relying
+    on it); the flag also makes ``contradicts`` reachable for the tests."""
     if concordant:
         return CORROBORATES
     if opposed:

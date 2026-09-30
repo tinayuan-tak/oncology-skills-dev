@@ -95,3 +95,18 @@ def test_concordance_edge_classifies_and_builds_in_one_call():
     assert concordance_edge("sc", "bulk", concordant=False, basis="bulk_masks_low_coverage")["relation"] == "qualifies"
     # the contradicts path is reachable through the shared constructor (a present/absent conflict family).
     assert concordance_edge("ihc", "rna", concordant=False, opposed=True)["relation"] == "contradicts"
+
+
+def test_provider_call_corroboration_is_a_live_contradicts_witness():
+    """Coverage dimension, NOT a gate (SK#2248): the docstring on `concordance_relation` says no L2b
+    *family fold* passes ``opposed=True``, but `presence_claims._provider_call_corroboration` is a named
+    exception that does, and reaches `contradicts` for real on a provider-vs-re-derived direction
+    conflict. This asserts the witness still FIRES — it is allowed to fail honestly if that call site is
+    ever refactored away, unlike an absence-assertion that would invert into a false regression the day a
+    family legitimately gains an opposed arm."""
+    from _skills_common.presence_claims import _provider_call_corroboration  # noqa: PLC0415
+
+    # rederived "up" (dge=("up", "high")), provider significant + calls DOWN -> direction_discordant.
+    result = _provider_call_corroboration(("up", "high"), True, False, 500.0)
+    assert result["concordance"] == "direction_discordant"
+    assert result["edge"]["relation"] == CONTRADICTS
