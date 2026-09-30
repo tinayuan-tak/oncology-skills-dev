@@ -99,6 +99,10 @@ ENTRY_KEYS = {
     "dependence_note",
     "integration_note",
     "note",
+    # OPTIONAL, add-only (#2306 rollout step 1): an L2a entry may DECLARE a `reliability` block. The
+    # facet's TOKEN governance is validate_reliability_enum.py; the STRUCTURAL admission (strict keys +
+    # closed scalar types) is _check_reliability below. No landed catalog declares one yet.
+    "reliability",
 }
 GRAIN_KEYS = {"measurement_type", "sample_context", "entity_grain"}
 OBSERVABLE_KEYS = {"card_id", "field", "role", "dependence_group", "estimates_property", "lift", "emission", "note"}
@@ -116,6 +120,18 @@ INTEGRATION_KEYS = {
     "grain_note",
 }
 CONSUMER_KEYS = {"skill", "axis_key", "surface", "note"}
+
+# OPTIONAL `reliability` declaration block (#2306 rollout step 1). Strict key set + the two CLOSED
+# scalar token sets, mirrored from vocabularies/reliability.enum.yaml the same way VALID_RELATIONS
+# mirrors dependence_edges.py — reliability.enum.yaml stays AUTHORITATIVE (validate_reliability_enum.py
+# cross-checks any declared block's tokens, including these scalars, against it). This validator governs
+# only the STRUCTURE of a declared block: strict keys, an int `n_effective`, and the two closed scalar
+# fields; the GROWING flag vocabularies (`confound_flags` / `artifact_flags`) are token-governed by the
+# enum validator, so here they are checked only to be lists of strings.
+RELIABILITY_KEYS = {"n_effective", "powered", "confound_flags", "artifact_flags", "detection_strength"}
+VALID_POWERED = {True, False, "unmeasured"}
+VALID_DETECTION_STRENGTH = {"weak", "moderate", "strong"}
+RELIABILITY_FLAG_KEYS = ("confound_flags", "artifact_flags")
 
 _SEMVER = re.compile(r"^\d+\.\d+\.\d+$")
 _SNAKE = re.compile(r"^[a-z][a-z0-9_]*$")
@@ -282,6 +298,49 @@ def _check_consumers(r: Report, where: str, consumers, skills_root: Path) -> Non
             r.err(f"{w}: skill `{skill}` has no skills/{skill}/ directory")
 
 
+def _check_reliability(r: Report, where: str, block) -> None:
+    """OPTIONAL `reliability` declaration (#2306 step 1). STRUCTURE only — the enum validator owns tokens.
+
+    Every sub-key is itself optional (the facet's fields are conditionally carried); this checks the
+    strict key set, that `n_effective` is a plain int, and that the two CLOSED scalar fields draw from
+    their locked sets. The growing flag vocabularies are checked only to be lists of strings; their
+    token membership is validate_reliability_enum.py's referential clause. No landed catalog declares a
+    block, so this clause is proven by planted fixtures, not by the committed corpus.
+    """
+    if not isinstance(block, dict):
+        r.err(f"{where}.reliability: must be a mapping ({sorted(RELIABILITY_KEYS)}; every sub-key optional)")
+        return
+    _strict_keys(r, f"{where}.reliability", block, RELIABILITY_KEYS)
+    if "n_effective" in block:
+        n = block["n_effective"]
+        if isinstance(n, bool) or not isinstance(n, int):
+            r.err(f"{where}.reliability: `n_effective` must be an integer, got {n!r}")
+    if "powered" in block:
+        pw = block["powered"]
+        # VALID_POWERED is the SINGLE accepted set, cross-pinned to reliability.enum.yaml's `powered`
+        # tokens by test_reliability_scalar_mirrors_equal_the_enum_authoritative_sets. Reject a non-bool
+        # int FIRST: `1 in {True, False, ...}` is True in Python (1 == True), so a bare membership test
+        # would silently admit `powered: 1`.
+        if (isinstance(pw, int) and not isinstance(pw, bool)) or pw not in VALID_POWERED:
+            r.err(
+                f"{where}.reliability: `powered` must be a boolean or the string 'unmeasured' "
+                f"(the tri-state governed by reliability.enum.yaml), got {pw!r}"
+            )
+    if "detection_strength" in block:
+        ds = block["detection_strength"]
+        if ds not in VALID_DETECTION_STRENGTH:
+            r.err(
+                f"{where}.reliability: `detection_strength` must be one of {sorted(VALID_DETECTION_STRENGTH)} "
+                f"(reliability.enum.yaml), got {ds!r}"
+            )
+    for flag_key in RELIABILITY_FLAG_KEYS:
+        if flag_key not in block:
+            continue
+        vals = block[flag_key]
+        if not isinstance(vals, list) or any(not isinstance(v, str) for v in vals):
+            r.err(f"{where}.reliability: `{flag_key}` must be a list of string tokens, got {vals!r}")
+
+
 def _check_l2a_entry(r: Report, where: str, entry: dict, cards: dict, all_ids: set) -> None:
     status = entry.get("status")
     obs = entry.get("observables")
@@ -440,6 +499,8 @@ def validate_file(path: Path, cards: "dict[str, set[str]]", all_ids: set, skills
         _check_grain(r, where, entry.get("grain"))
         _check_determinants(r, where, entry.get("determinants"))
         _check_consumers(r, where, entry.get("consumers"), skills_root)
+        if "reliability" in entry:
+            _check_reliability(r, where, entry.get("reliability"))
         if kind == "l2b_family":
             _check_l2b_entry(r, where, entry, cards)
         else:

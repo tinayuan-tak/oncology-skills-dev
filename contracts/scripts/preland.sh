@@ -95,6 +95,7 @@ run "validate_concordance_enum"          python validators/validate_concordance_
 run "validate_comparability_state"       python validators/validate_comparability_state.py --enum vocabularies/comparability_state.enum.yaml --families vocabularies/property_catalog/integrated_families.yaml --concordance-enum vocabularies/concordance_class.enum.yaml
 run "validate_expression_property_enum"  python validators/validate_expression_property_enum.py --enum vocabularies/expression_property.enum.yaml --cards cards/
 run "validate_claim_axis"                python validators/validate_claim_axis.py --enum vocabularies/claim_axis.enum.yaml --catalog vocabularies/property_catalog --skills ../skills
+run "validate_reliability_enum"          python validators/validate_reliability_enum.py --enum vocabularies/reliability.enum.yaml --catalog vocabularies/property_catalog
 
 # Drain the pool and print every gate's PASS/FAIL in launch (CI) order before the ruff/advisory
 # steps below, which stay SYNCHRONOUS (fast, and the ruff block has its own version-gate control
@@ -171,6 +172,20 @@ if git rev-parse --verify -q "$pc_base" >/dev/null; then
              --catalog vocabularies/property_catalog --skills ../skills --additive-against "$pc_base"
 else
   echo "WARN  claim-axis additivity SKIPPED — '$pc_base' not fetched; set PRELAND_BASE or run 'git fetch origin main'"
+fi
+
+# --- reliability-enum TOKEN additivity (vocabularies/reliability.enum.yaml) ---
+# Fifth instance of the same shape, same reason. The reliability facet is minted governed at birth
+# (#2306 step 1, add-only, no emit) precisely so its 9 tokens never become ungoverned wire names; the
+# additivity clause is what keeps growth honest once emit lands (steps 2-4): a removed token fails OPEN
+# in every consumer that string-matches it, a flag addition must bump the version, and widening a locked
+# scalar set (powered / detection_strength) is refused as a shape re-mint. Enforced now, while cheap.
+if git rev-parse --verify -q "$pc_base" >/dev/null; then
+  run "validate_reliability_enum --additive-against $pc_base" \
+      python validators/validate_reliability_enum.py --enum vocabularies/reliability.enum.yaml \
+             --catalog vocabularies/property_catalog --additive-against "$pc_base"
+else
+  echo "WARN  reliability-enum additivity SKIPPED — '$pc_base' not fetched; set PRELAND_BASE or run 'git fetch origin main'"
 fi
 
 # --- ruff (.github/workflows/ruff.yml) ---

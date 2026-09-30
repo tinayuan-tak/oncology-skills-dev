@@ -424,6 +424,105 @@ def test_teeth_consumer_without_a_read_site(tmp_path):
     assert any("must say WHERE it reads" in e for e in errs), errs
 
 
+# --------------------------------------------------------------------------- optional reliability block
+#
+# #2306 rollout step 1 (add-only): an L2a entry MAY declare an optional `reliability` block. This
+# validator admits it structurally (RELIABILITY_KEYS + closed scalar types); the TOKEN governance
+# (flag-vocabulary membership) is validate_reliability_enum.py's referential clause. No landed catalog
+# declares a block, so the admission is proven by planted fixtures, not by the committed corpus.
+
+
+def test_teeth_reliability_block_valid_declaration_passes(tmp_path):
+    """The control: a well-formed reliability declaration is admitted (n_effective int, powered bool,
+    detection_strength a closed scalar, flags lists of strings)."""
+    doc = _l2a_doc()
+    doc["properties"]["patient_tumor_abundance"]["reliability"] = {
+        "n_effective": 12,
+        "powered": True,
+        "detection_strength": "weak",
+        "confound_flags": ["microenvironment_weighted"],
+        "artifact_flags": [],
+    }
+    assert _run(tmp_path, "tumor_presence.yaml", doc) == []
+
+
+def test_teeth_reliability_block_powered_unmeasured_sentinel_passes(tmp_path):
+    """The absence-discipline sentinel `powered: unmeasured` (a STRING, not a bool) is a governed value."""
+    doc = _l2a_doc()
+    doc["properties"]["patient_tumor_abundance"]["reliability"] = {"powered": "unmeasured"}
+    assert _run(tmp_path, "tumor_presence.yaml", doc) == []
+
+
+def test_teeth_reliability_block_unknown_key_is_red(tmp_path):
+    """Strict keys: a misspelled or ungoverned sub-key would otherwise ride into the emitted object."""
+    doc = _l2a_doc()
+    doc["properties"]["patient_tumor_abundance"]["reliability"] = {"powered": True, "confidence": "high"}
+    errs = _run(tmp_path, "tumor_presence.yaml", doc)
+    assert any("unknown key `confidence`" in e for e in errs), errs
+
+
+def test_teeth_reliability_block_ungoverned_powered_value_is_red(tmp_path):
+    """`powered` is a CLOSED tri-state; a value outside {true, false, 'unmeasured'} is refused here (the
+    structural half). The growing flag vocabularies are token-checked by the enum validator instead."""
+    doc = _l2a_doc()
+    doc["properties"]["patient_tumor_abundance"]["reliability"] = {"powered": "maybe"}
+    errs = _run(tmp_path, "tumor_presence.yaml", doc)
+    assert any("`powered` must be a boolean or the string 'unmeasured'" in e for e in errs), errs
+
+
+def test_teeth_reliability_block_ungoverned_detection_strength_is_red(tmp_path):
+    doc = _l2a_doc()
+    doc["properties"]["patient_tumor_abundance"]["reliability"] = {"detection_strength": "very_strong"}
+    errs = _run(tmp_path, "tumor_presence.yaml", doc)
+    assert any("`detection_strength` must be one of" in e for e in errs), errs
+
+
+def test_teeth_reliability_block_noninteger_n_effective_is_red(tmp_path):
+    doc = _l2a_doc()
+    doc["properties"]["patient_tumor_abundance"]["reliability"] = {"n_effective": "twelve"}
+    errs = _run(tmp_path, "tumor_presence.yaml", doc)
+    assert any("`n_effective` must be an integer" in e for e in errs), errs
+
+
+def test_teeth_reliability_block_nonlist_flags_is_red(tmp_path):
+    doc = _l2a_doc()
+    doc["properties"]["patient_tumor_abundance"]["reliability"] = {"confound_flags": "microenvironment_weighted"}
+    errs = _run(tmp_path, "tumor_presence.yaml", doc)
+    assert any("`confound_flags` must be a list of string tokens" in e for e in errs), errs
+
+
+def test_reliability_scalar_mirrors_equal_the_enum_authoritative_sets():
+    """Cross-pin (arc 0c: 'no un-pinned second copy of identity'). This validator holds a MIRROR of the
+    two CLOSED reliability scalars — `VALID_DETECTION_STRENGTH` and the `powered` tri-state in
+    `VALID_POWERED` — so it can structurally admit a declared block WITHOUT a file dependency on the enum
+    (the way VALID_RELATIONS mirrors dependence_edges.py). reliability.enum.yaml is authoritative and its
+    scalar sets are additivity-LOCKED, so the mirror must be provably IDENTICAL to them in BOTH
+    directions. The per-token behavior teeth (`very_strong` reds, `maybe` reds) do NOT catch a mirror that
+    is WIDENED (admits an ungoverned token), DROPPED, or drifts from an enum-side edit — this does.
+    """
+    enum = yaml.safe_load((CONTRACTS / "vocabularies" / "reliability.enum.yaml").read_text())
+    enum_tokens = {f["field"]: {t["token"] for t in (f.get("tokens") or [])} for f in enum["fields"]}
+
+    # detection_strength: the string mirror EQUALS the enum roster, both directions.
+    assert V.VALID_DETECTION_STRENGTH == enum_tokens["detection_strength"], (
+        f"detection_strength mirror {sorted(V.VALID_DETECTION_STRENGTH)} != enum "
+        f"{sorted(enum_tokens['detection_strength'])} — the mirror drifted from the additivity-locked enum"
+    )
+
+    # powered: _check_reliability accepts Python True/False/'unmeasured'; the enum names the tokens
+    # 'true'/'false'/'unmeasured'. Pin the bool<->string correspondence with an EXPLICIT, exact, TOTAL
+    # mapping — every accepted value has one enum token and every enum token has one accepted value.
+    powered_accepted_to_token = {True: "true", False: "false", "unmeasured": "unmeasured"}
+    assert V.VALID_POWERED == set(powered_accepted_to_token), (
+        f"VALID_POWERED accepted set {V.VALID_POWERED} != the pinned mapping keys "
+        f"{set(powered_accepted_to_token)} — _check_reliability accepts something the pin does not model"
+    )
+    assert set(powered_accepted_to_token.values()) == enum_tokens["powered"], (
+        f"powered accepted->token map {powered_accepted_to_token} images {sorted(set(powered_accepted_to_token.values()))} "
+        f"!= enum powered tokens {sorted(enum_tokens['powered'])} — the correspondence is not total in both directions"
+    )
+
+
 # --------------------------------------------------------------------------- gate-argv parity
 #
 # 0a shipped WITHOUT a test that invokes the validator exactly as preland.sh does (literal relative

@@ -1,0 +1,303 @@
+# reliability.enum.yaml
+# Controlled vocabulary: the typed `reliability` facet attached to each L2a source-property entry and
+# each L2b source-support arm — how STRONG, how POWERED, and how CONFOUNDED/ARTIFACT-PRONE the
+# underlying measurement is. Evidence-property architecture (epic claude-oncology-skills#1507);
+# structure arc #2210, the #2306 rollout, STEP 1 (governance layer, add-only, no emit).
+#
+# WHAT THIS IS. `reliability` is a typed, DERIVED, byte-stable-omitted, verdict-INERT (SK#2091) object.
+# It projects anchors the pipeline already computes — it never re-stores a datum that already lives in
+# `anchors`/`retained_quantitative`, and it feeds no rule and moves no cut. This file is the
+# machine-readable ROSTER of the tokens each of its four token-bearing fields may carry, plus the
+# discipline that keeps those four sub-vocabularies honest. It is the governance half of the #2306
+# rollout and NOTHING MORE: it mints and governs the vocabulary BEFORE any emit, exactly as the arc
+# minted `comparability_state` before its builders emitted it.
+#
+# WHY GOVERN IT AT BIRTH. The 44 `concordance_class` tokens (Wave-0b) were minted ungoverned across 6
+# modules and took a 650-line retrospective registration and an AST cross-check to bring under control.
+# The same story is already recurring: `safety_claims.py:926` writes a `valence` marker that nothing
+# governs. This vocabulary is 9 tokens across 4 fields on its first day; governing it now costs a file,
+# governing it later costs another 0b. The #2306 sequencing is load-bearing — the object is minted as a
+# governed enum + validator + admitted catalog key BEFORE any builder emits it, else the emit reds the
+# three landed catalogs and an ungoverned object repeats the `valence` drift.
+#
+# WHAT IT IS NOT. It is NOT a quality SCORE and it does NOT rank properties. A `weak` detection or a
+# `false` powered flag is not a criticism — it is an honest statement that absence/low-quality OUTRANKS
+# a naive "fine" (see governance.honest_degradation). It is NOT the L2b `resolved`/`quality_eligible`/
+# `corroboration_eligible` triple: those say whether an arm is USABLE / an independent replication arm;
+# `reliability` says how strong/confounded the underlying MEASUREMENT is. And it is NOT a re-derivation
+# surface: the deriver PROJECTS anchors, it does not recompute (governance.derivation_is_a_projection).
+#
+# NO SECOND COPY OF THE STRUCTURE. The object's SHAPE (which fields exist, which is optional) is locked
+# by issue #2306's ratified comment; this file governs the TOKEN VOCABULARIES those fields draw from and
+# the structural discipline (scalar vs flag, how absence is represented). The per-property STRUCTURAL
+# admission of a declared `reliability` block lives in validate_property_catalog.py (RELIABILITY_KEYS);
+# the per-property TOKEN governance (are a declared block's tokens in these rosters?) is this file's
+# referential clause. Two validators, two concerns, no third copy of the field set.
+
+enum_id: reliability
+version: 1.0.0
+
+description: |
+  The token rosters and structural discipline for the derived `reliability` facet: four token-bearing
+  fields (`powered`, `detection_strength`, `confound_flags`, `artifact_flags`) plus the `n_effective`
+  integer anchor they are all read from. 9 governed tokens today across the four fields. The object is
+  attached in TWO places at emit time — each L2a `source_properties[*]` entry and each L2b
+  `source_support[*]` arm — but this file governs only the vocabulary, not the attachment: emit is
+  steps 2-4 of the #2306 rollout, filed as child issues of #2210 and deliberately NOT in this file.
+
+  Read with vocabularies/property_catalog/ (whose L2a entries may declare an optional `reliability`
+  block, admitted by validate_property_catalog.py and token-checked by this enum's referential clause),
+  and with docs/EVIDENCE_PROPERTY_ENVELOPE_v0.md (the envelope this facet rides in).
+
+governance:
+  role: |
+    Authoritative for: the token roster of each of the four token-bearing `reliability` fields, each
+    token's definition, the datum-kind / optionality / absence-representation discipline that separates
+    a closed scalar state from a growing flag vocabulary, and (via the referential clause) that any
+    catalog-declared `reliability` block draws only governed tokens. NOT authoritative for the object's
+    field SET or attachment sites (issue #2306's ratified comment), for the per-property structural
+    admission of a declared block (validate_property_catalog.py RELIABILITY_KEYS), for the shared
+    deriver `_derive_reliability` (step 2 of the rollout, not yet written), or for the envelope schema
+    (docs/EVIDENCE_PROPERTY_ENVELOPE_v0.md; schemas/evidence_package.schema.json leaves the L2a/L2b
+    entry internals OPEN, so no schema change accompanies this file).
+  versioning: |
+    Semver, additive-only for FLAG vocabularies. Adding a token to a `flag_vocab` field
+    (`confound_flags`, `artifact_flags`) is a MINOR bump and non-breaking — that is the growth path the
+    rollout depends on. Adding a state to a `scalar_state` field (`powered`, `detection_strength`) is a
+    DESIGN change to a locked tri-/three-state set, not additive growth: the additivity clause REJECTS
+    it (it is a re-mint of the #2306-ratified shape, not a vocabulary addition). Removing any token from
+    any field, or removing a field, is BREAKING and the additivity clause rejects it against any git ref.
+  ownership: |
+    This registration is arc #2210, the #2306 rollout STEP 1, and owns no emitting skill. Steps 2-4 are
+    separate child issues: step 2 mints the shared `_derive_reliability(anchors, retained_quantitative,
+    run_health)` in _skills_common and retrofits safety (1a) + dependency (1b); step 3 folds
+    genomic/selectivity/surface (1c-1e); step 4 rewires the `--synthesize` narrator (narrator_engine.py)
+    and the #2303 critic to READ the typed facet instead of re-deriving it from `_CAVEAT_HINTS` /
+    `homogeneity_detail` / `qc_detail`. Nothing in this file may be read as implementing any of them.
+  change_discipline: |
+    Add -> consume -> remove, never a bare rename. These 9 tokens are not yet load-bearing wire names
+    anywhere (no builder emits them yet), which is exactly why the vocabulary is being fixed now rather
+    than after five consumers string-match it. Once emitted, a rename fails OPEN in every consumer: the
+    token simply stops matching and the branch silently stops being taken. `powered` in particular is a
+    tri-state whose `unmeasured` sentinel is a STRING while `true`/`false` emit as booleans — renaming
+    the sentinel would strand every absence read.
+  derivation_is_a_projection: |
+    `reliability` is DERIVED by projecting anchors the pipeline ALREADY computes; it must never re-store
+    a datum that already lives in `anchors` / `retained_quantitative`, and it must never RECOMPUTE one.
+    `n_effective` is read from the property's own n anchor; `powered` is that n compared to a governed
+    per-property-kind floor; `detection_strength` reads an existing detection breakdown; the flags read
+    existing confound/artifact signals (e.g. the `expression-purity-confound` r already recorded by
+    `evidence_frame.py:911`, or the `allgene_percentile` floor-tie already produced at
+    `build_tumor_rank.py:68`). A derivation that recomputed would be a second, drifting source of truth
+    for a number that is not this facet's to own. The deriver is a PURE projection over its inputs.
+  honest_degradation: |
+    Absence-discipline, and it is the whole point of the facet. An ABSENT or unreadable input degrades
+    to `powered: unmeasured` / an OMITTED `detection_strength` / an empty flag list — NEVER to a
+    fabricated "fine". Low quality and absence OUTRANK a naive measurement: a property with no n anchor
+    is `unmeasured`, not `powered: true`, and a detection window that could not be read omits the key
+    rather than asserting `strong`. The facet exists to make weakness LEGIBLE, so a deriver that
+    invented strength from missing data would invert its reason for existing.
+
+criterion: |
+  A `reliability` field is exactly one of three DATUM KINDS, and the kind fixes how the field grows and
+  how its absence is represented — stating this once is what keeps four independent sub-vocabularies
+  honest:
+
+    * `scalar_state` — a single token from a CLOSED set (`powered`, `detection_strength`). The set is
+      locked by the #2306 shape; it does NOT grow additively (widening it is a design re-mint). Its
+      absence is represented EITHER by an explicit sentinel token carried in the set (`powered:
+      unmeasured`) OR by OMITTING the key entirely (`detection_strength`, an optional field), never both.
+
+    * `flag_vocab` — a LIST of zero or more tokens from a set that GROWS additively (`confound_flags`,
+      `artifact_flags`). A new confound or artifact is a MINOR bump; this is the growth path the rollout
+      is built on. Its absence is the EMPTY LIST `[]` — a measured property with no confounds carries
+      `confound_flags: []`, distinct from a property the facet never reached.
+
+    * `integer_anchor` — a projected integer, not a token vocabulary (`n_effective`). It carries no
+      `tokens` roster; it is governed here only so the field SET is complete and its projection-not-
+      recompute discipline is documented. Its absence is an OMITTED key (the anchor could not be read).
+
+  The distinction matters because it fixes the additivity contract per field: a removed token is always
+  breaking; an added flag token needs a version bump; an added scalar state is refused as a re-mint.
+
+fields:
+
+  - field: n_effective
+    datum_kind: integer_anchor
+    optionality: required
+    absent_repr: omit
+    grows: false
+    carried_on: all
+    rationale: |
+      The effective N behind THIS property, read from its own n anchor (e.g. the CD274 IHC case's
+      `n_high + n_medium` = 2 of 12, legible today only inside `presence_claims.py:2494`
+      `retained_quantitative`). PROJECTED, never recomputed. `powered` is derived from it against a
+      governed per-property-kind floor. Absent anchor -> key omitted, and `powered: unmeasured`.
+
+  - field: powered
+    datum_kind: scalar_state
+    optionality: required
+    absent_repr: sentinel_token
+    absent_token: unmeasured
+    grows: false
+    carried_on: all
+    rationale: |
+      Whether `n_effective` clears a governed per-property-kind floor. A TRI-STATE, not a boolean,
+      because "we could not tell" is a distinct and load-bearing answer from "no": `unmeasured` is the
+      absence-discipline sentinel and OUTRANKS a naive `true`. Emits as a boolean `true`/`false` or the
+      STRING `unmeasured`; the referential clause maps the booleans onto the `true`/`false` tokens.
+    tokens:
+      - token: "true"
+        definition: |
+          `n_effective` is present and clears the governed per-property-kind floor — the measurement is
+          adequately powered on its own terms. Says nothing about confounds or detection strength.
+      - token: "false"
+        definition: |
+          `n_effective` is present and BELOW the floor — underpowered. A real, measured statement of
+          weakness, distinct from `unmeasured` (which is the absence of the anchor itself).
+      - token: unmeasured
+        definition: |
+          `n_effective` could not be read (absent anchor). The absence-discipline sentinel: absence
+          OUTRANKS a naive "powered", so a property with no n anchor is `unmeasured`, never `true`.
+
+  - field: detection_strength
+    datum_kind: scalar_state
+    optionality: optional
+    absent_repr: omit
+    grows: false
+    carried_on: detection_abundance
+    rationale: |
+      A three-level ordinal for detection/abundance-kind properties ONLY (protein/RNA windows, sc
+      detection, surface density) — where "how strongly is it detected" is a question distinct from the
+      datum itself. OMITTED (not carried as a sentinel) on dependency/recurrence/CN/constraint
+      properties, where the strength IS the datum and only `n_effective` is meaningful — the same
+      byte-stable conditional-key idiom `comparability_state`/`interpretation` use. The CD274 IHC case
+      (`n_high=1, n_medium=1, n_not_detected=10` of 12) derives `detection_strength: weak`.
+    tokens:
+      - token: weak
+        definition: |
+          Detection is marginal — few samples/cells above the detection floor (e.g. CD274 IHC:
+          2 of 12 at high/medium). The measurement exists but rests on little signal.
+      - token: moderate
+        definition: |
+          Detection is intermediate — a substantial but not dominant fraction is above the floor.
+      - token: strong
+        definition: |
+          Detection is robust — most samples/cells are confidently above the detection floor.
+
+  - field: confound_flags
+    datum_kind: flag_vocab
+    optionality: required
+    absent_repr: empty_list
+    grows: true
+    carried_on: all
+    rationale: |
+      Typed CONFOUNDS on the underlying measurement — reasons the measured value may not mean what a
+      naive read assumes. A LIST because a property can carry several; the EMPTY LIST is the measured
+      "no known confound", distinct from a property the facet never reached. Grows additively as new
+      confound classes are typed. Seeded with the two the pilot cases need; room to grow.
+    tokens:
+      - token: microenvironment_weighted
+        definition: |
+          The measurement is weighted by non-target-cell content of the sample (stromal/immune/tumour
+          microenvironment), so it partly reflects composition rather than target biology. The CD274
+          case: `expression-purity-confound` r=-0.39 (`expression_purity_confound/read.py`,
+          `CONFOUND_R=-0.3`), whose raw r `evidence_frame.py:911` records has 0 structural consumers.
+      - token: entity_pooled
+        definition: |
+          The measurement pools distinct entities (e.g. isoforms, paralogs, or sample subpopulations)
+          into one value, so the reported number is a mixture whose components are not separated.
+
+  - field: artifact_flags
+    datum_kind: flag_vocab
+    optionality: required
+    absent_repr: empty_list
+    grows: true
+    carried_on: all
+    rationale: |
+      Typed pipeline ARTIFACTS — ways the number is distorted by how it was COMPUTED rather than by the
+      biology or the sample. A LIST; the EMPTY LIST is "no known artifact". Grows additively. Seeded
+      with the #2297 floor-tie case; room to grow.
+    tokens:
+      - token: floor_tie_percentile
+        definition: |
+          `allgene_percentile` assigns every sub-detection (zero-median) gene the SAME per-cohort
+          constant, because `build_tumor_rank.py:68` uses `rank(pct=True)` default `method="average"`
+          (the sibling `allgene_rank` on :69 uses `method="min"` and does not tie). A percentile that is
+          a tie-constant, not a rank, is an artifact of the ranking method, not a biological signal.
+
+population_floors:
+  fields: 5
+  token_bearing_fields: 4
+  scalar_state_tokens: 6
+  flag_vocab_tokens: 3
+  governed_tokens: 9
+  note: |
+    Floors, not counts: they fail when the population SHRINKS, which is the failure mode a roster has.
+    `fields` and `token_bearing_fields` are pinned to EQUALITY with the #2306-locked shape (a field
+    added or dropped is a shape change that must be re-ratified, not a silent edit), so the validator
+    treats them as `==`; `scalar_state_tokens` is `==` too (the two scalar sets are closed); the flag
+    counts are `>=` because flag vocabularies grow additively. `governed_tokens` = scalar + flag.
+
+coverage_dimensions:
+  - dimension: emitting_skills
+    measured: 0
+    is_a_gate: false
+    intended_emit_sites: |
+      Step 2 retrofits safety (1a, `safety_claims.py` `_source_properties`) and dependency (1b,
+      `dependency_claims.py`); step 3 folds genomic/selectivity/surface (1c-1e) as dispatched — all
+      through the shared `_derive_reliability` deriver.
+    rationale: |
+      NONE at birth by design — this is the governance layer (#2306 step 1, add-only, no emit). A
+      DIMENSION, never a gate: a gate on this zero would block the arc or force emission ahead of its
+      own child issues. Report it; a future session should read a RISE as adoption, and only then expect
+      this to leave 0.
+  - dimension: consuming_sites
+    measured: 0
+    is_a_gate: false
+    intended_emit_sites: |
+      Step 4 rewires the `--synthesize` narrator (`narrator_engine.py`) and the #2303 critic to READ
+      this typed facet instead of re-deriving reliability from `_CAVEAT_HINTS` / `homogeneity_detail` /
+      `qc_detail`.
+    rationale: |
+      NONE at birth. Reported, never gated, for the same reason as emitting_skills: consumption follows
+      emission, and both are steps 2-4, not this PR.
+  - dimension: conditionally_carried_fields
+    measured: 1
+    is_a_gate: false
+    intended_emit_sites: |
+      `detection_strength` is the one field carried CONDITIONALLY (detection/abundance-kind properties
+      only, OMITTED elsewhere) — the same byte-stable conditional-key shape the envelope records for
+      `comparability_state`'s omitted key.
+    rationale: |
+      Reported so a later session can see the conditional-carry surface without treating it as a gate;
+      the count is the number of fields whose absence is a byte-stable omission rather than a sentinel.
+
+documented_not_emitted:
+  - field_or_token: whole_facet
+    named_in: [safety, dependency, genomic, selectivity, surface]
+    named_where: |
+      Issue #2306's ratified comment (the LOCKED shape) and this file's governance.ownership — the four
+      rollout steps and their emit sites. The three pilot cases (floor-tie / CD274 IHC weakness / CD274
+      microenvironment confound) each already have a typed home in this vocabulary.
+    why_not_emitted: |
+      #2306 is sequenced governance-FIRST: the object is minted + validated + admitted BEFORE any emit,
+      else the emit reds the three landed catalogs and repeats the ungoverned `valence`-marker drift
+      (`safety_claims.py:926`). Emit is steps 2-4, filed as child issues of #2210.
+    action: |
+      No emit in this PR. When step 2 lands the shared deriver, safety (1a) is the first candidate to
+      carry the facet, and this dimension's `emitting_skills` count should leave 0. Do not synthesise
+      any token from a caveat-hint in the meantime — derive it from the anchors, per
+      governance.derivation_is_a_projection.
+
+related_ungoverned_vocabularies:
+  - field: valence marker
+    site: skills/_skills_common/safety_claims.py:926
+    tokens: |
+      An ungoverned marker written today with nothing governing it — the exact drift this arc exists to
+      stop. Named here (not converted) because governing it is not this PR's scope; it is the cautionary
+      precedent for why `reliability` is minted governed at birth.
+    why_out_of_scope: |
+      Bringing `valence` under governance is a separate change to a skills-side module; this PR is
+      add-only within contracts/ and mints the reliability vocabulary only. Additive-only: nothing about
+      `valence` changes here.
