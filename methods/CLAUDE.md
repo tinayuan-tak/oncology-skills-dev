@@ -35,6 +35,21 @@ for the full authoring contract.
   a local run without the profile set will silently skip the same tests, which
   reads as green for the wrong reason. Reconcile the SKIP column, not just the exit
   code.
+- **A worktree gate tests the WORKTREE — enforced, not by convention (skills#2266).**
+  `oncology-analysis-methods` is installed EDITABLE, and depending on how the env was
+  built its finder can resolve `onc_methods` to a DIFFERENT checkout than the tree you
+  are running from (classically the primary checkout a `/tmp` worktree was branched
+  off). Historically that made a `methods/` suite run from a worktree silently exercise
+  TRUNK — a green branch proved nothing (measured: six planted mutations of production
+  constants all survived at 42/42 green). Neither cwd nor invocation form was a reliable
+  guard: the `pytest` console script puts its `bin/` dir (not cwd) on `sys.path[0]`, so
+  even `cd methods/` did not shadow the editable finder — only `python -m pytest` did, by
+  luck. **`methods/conftest.py` now binds `onc_methods` to the tree the conftest lives in
+  before importing it, and asserts it loudly at collection time.** So a worktree gate is
+  correct by construction, and if the binding ever cannot be established the run ERRORS
+  ("methods/ gate is BLIND") rather than reporting a false green. You no longer need
+  per-module `spec_from_file_location` / `sys.path` shims to gate a worktree correctly;
+  if the guard fires, re-run `pixi install` in the worktree.
 - **Gate with the dispatcher, not bare pytest**: `scripts/preland.sh methods` from
   the repo root (or `methods/scripts/preland.sh` from inside `methods/`) — see root
   CLAUDE.md's Testing section for the full `{skills|methods|contracts|all}` dispatcher.

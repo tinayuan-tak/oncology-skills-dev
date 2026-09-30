@@ -18,10 +18,44 @@ real credentials.
 from __future__ import annotations
 
 import os
+import sys
+from pathlib import Path
 
 import pytest
 
-from onc_methods._common.live_data_skip import is_live_data_exception
+# ── worktree binding guard (skills#2266) ─────────────────────────────────────────────────────────
+# `oncology-analysis-methods` is installed EDITABLE, and depending on how the active env was built
+# its finder can resolve `onc_methods` to a DIFFERENT checkout than the tree this conftest lives in —
+# classically the PRIMARY checkout a /tmp worktree was branched from. Because this conftest imports
+# `onc_methods` at COLLECTION time (below), that binding is frozen into sys.modules before any test
+# module runs; from then on a `sys.path.insert(0, <worktree>/methods)` is INERT — `import onc_methods`
+# is served straight out of sys.modules. Net effect: a `methods/` suite run from a worktree silently
+# exercises the OTHER tree, and a green branch proves nothing about the branch (measured in skills#2266:
+# six planted mutations of production constants ALL survived at 42/42 green). Neither cwd nor the
+# invocation form is a reliable guard — the `pytest` console script puts its bin/ dir (not cwd) on
+# sys.path[0], so even `cd $WT/methods` does not shadow the editable finder; only `python -m pytest`
+# happened to, by luck. So: BEFORE the import, purge any stale `onc_methods` binding and put THIS
+# tree first, making worktree gates correct by construction rather than by per-module workaround or
+# invocation discipline. Then assert loudly — a blind suite must never be able to report green.
+_METHODS_DIR = Path(__file__).resolve().parent  # the dir that holds onc_methods/
+for _stale in [_m for _m in sys.modules if _m == "onc_methods" or _m.startswith("onc_methods.")]:
+    del sys.modules[_stale]
+if not sys.path or Path(sys.path[0]).resolve() != _METHODS_DIR:
+    sys.path.insert(0, str(_METHODS_DIR))
+
+import onc_methods as _onc_methods  # noqa: E402
+from onc_methods._common.live_data_skip import is_live_data_exception  # noqa: E402
+
+_resolved_methods_dir = Path(_onc_methods.__file__).resolve().parent.parent
+if _resolved_methods_dir != _METHODS_DIR:
+    raise RuntimeError(
+        "methods/ gate is BLIND (skills#2266): the onc_methods package under test resolved to\n"
+        f"    {_onc_methods.__file__}\n"
+        f"which is NOT the tree this conftest lives in ({_METHODS_DIR}/onc_methods). A suite run this\n"
+        "way would exercise the wrong checkout and could report GREEN while testing other code.\n"
+        "Run the methods gate from inside the worktree; if this persists, the editable install's\n"
+        "finder is bound to another tree — re-run `pixi install` in this worktree."
+    )
 
 # Exploratory method-development scripts (methods/<pkg>/method_development/<YYYY-MM>_<slug>/...) are
 # NOT unit tests: they invoke R and read live S3, and run on demand (see a package's method_development
