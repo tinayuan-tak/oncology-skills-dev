@@ -248,16 +248,15 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
     return resolve_or_raise(fired, "safety")
 
 
-# The mutant-selective DOWNGRADE verdicts — a WT-constraint / human-genetics concern that is
-# largely nullified for an allele-selective mechanism. Every such verdict must carry the
-# mechanism-conditioning note (incl. the conditionality caveat). By naming convention these end in
-# `_mechanism_mismatch`; the Guard-A test (skills/tests/test_resolver_verdict_consumers.py) asserts
-# this set == the resolver's *_mechanism_mismatch verdicts, so a new downgrade verdict can't
-# silently lose its note (the wt_human_genetics_mechanism_mismatch bug).
 # RETIRED 2026-08-24 (VERDICT_REPRESENTATION.md Layer-2b/3): the resolver no longer emits a scalar
 # mutant-selective downgrade — the modality-conditional downgrade moved to the per-modality safety
-# verdict (safety_verdict_by_modality) + tp_gates exists-safe-modality logic. Empty set; Guard-A
-# (test_resolver_verdict_consumers) now asserts the resolver emits ZERO *_mechanism_mismatch verdicts.
+# verdict (safety_verdict_by_modality) + tp_gates exists-safe-modality logic. Kept as a permanently-
+# empty frozenset (not deleted) because skills/tests/test_resolver_verdict_consumers.py (Guard-A,
+# fleet-wide) asserts this set == the resolver's *_mechanism_mismatch verdicts == set(), so a future
+# downgrade verdict can't silently lose its note. #1799: the consuming branch below (is_mismatch /
+# mechanism_conditioning_note / _safety_tension_extra) was dead — this set can never gain a member
+# without a resolver change, which would also need a new consuming branch — so it was removed;
+# mechanism_conditioning_note is now hardcoded None.
 _MECHANISM_MISMATCH_VERDICTS = frozenset()
 
 
@@ -288,8 +287,6 @@ _SAFETY_VERDICT_PHRASE = {
     # deliberately weaker than the HOLDs above (12/504 corpus carriers include managed clinical-stage
     # targets) but stronger than every tolerant reassurance rung. A concern (red badge), never a gate.
     "broad_dependency_partial_tox_concern": "Partial broad dependency (0.60–0.85 band) — graded broad-tox caution",
-    # (mutant-selective downgrade RETIRED 2026-08-24 — modality-conditionality now in the per-modality
-    #  safety verdict + tp_gates exists-safe-modality; the resolver emits the raw concern, no mismatch token)
     # tolerant / reduced-risk
     "tolerant_reduced_safety_risk": "LoF-tolerant — reduced safety risk",
     # equivocal mid-band + gaps
@@ -314,7 +311,6 @@ _SAFETY_CONCERN_VERDICTS = frozenset(
 _SAFETY_REASSURING_VERDICTS = frozenset(
     {
         "tolerant_reduced_safety_risk",
-        # (mutant-selective mismatch downgrades RETIRED 2026-08-24 — see _MECHANISM_MISMATCH_VERDICTS)
     }
 )
 
@@ -322,29 +318,13 @@ _SAFETY_REASSURING_VERDICTS = frozenset(
 def _safety_verdict_polarity(v) -> str:
     """The skill's OWN reading of the resolved verdict (colours the hero badge; never a gate). Polarity
     encodes DESIRABILITY for a drug program, not raw signal direction (these are inverse-valence liability
-    axes): a LoF-intolerant HOLD is a CONCERN (negative); a tolerant read OR a mutant-selective downgrade
-    is reassuring (positive); the equivocal mid-band + coverage gaps stay neutral."""
+    axes): a LoF-intolerant HOLD is a CONCERN (negative); a tolerant read is reassuring (positive); the
+    equivocal mid-band + coverage gaps stay neutral."""
     if v in _SAFETY_CONCERN_VERDICTS:
         return "negative"
     if v in _SAFETY_REASSURING_VERDICTS:
         return "positive"
     return "neutral"
-
-
-def _safety_tension_extra(headline: dict):
-    """The sharpest safety caveat: the mutant-selective DOWNGRADE is CONDITIONAL on an allele-selective
-    modality — a pan-target degrader / WT-hitting inhibitor re-exposes the WT-loss concern. Surfaced only
-    when the verdict is a downgrade (mechanism_conditioning_note is set)."""
-    if headline.get("mechanism_conditioning_note"):
-        return {
-            "text": (
-                "the downgraded WT-loss safety concern is CONDITIONAL on an allele-selective "
-                "modality — a pan-target degrader / WT-hitting inhibitor re-exposes it"
-            ),
-            "source": "mechanism_conditioning_note",
-            "severity": 3,
-        }
-    return None
 
 
 _SAFETY_HEADLINE_SPEC = HeadlineSpec(
@@ -372,7 +352,6 @@ _SAFETY_HEADLINE_SPEC = HeadlineSpec(
     # gene, the same dishonesty in the opposite direction).
     critical_axes=("CONSTRAINT", "BURDEN", "DOSAGE", "CLINVAR", "MOUSE_KO", "PAN_ESSENTIAL", "NORMAL_TISSUE"),
     verdict_label=lambda v: _SAFETY_VERDICT_PHRASE.get(v, str(v).replace("_", " ").strip().capitalize()),
-    tension_extra=_safety_tension_extra,
 )
 
 
@@ -542,10 +521,11 @@ def _pharmacovigilance_scope_caveat(hl: dict) -> str | None:
 
 def _headline(cards, fired, verdict_pair):
     v, drv = verdict_pair or ("insufficient", None)
-    # Mechanism-conditioning context: when the verdict is the mutant-selective downgrade, surface WHY
-    # (the activating driver role) + the conditionality caveat so a consumer isn't left guessing.
+    # alteration-role mechanism context (GoF/LoF direction) — surfaced below as
+    # alteration_functional_direction. The scalar mutant-selective mismatch DOWNGRADE this fed was
+    # RETIRED 2026-08-24 (see _MECHANISM_MISMATCH_VERDICTS above); functional_direction now only
+    # feeds the per-modality safety verdict + claim_vector, never a scalar note.
     functional_direction = get_card_field(cards, "alteration-role", "functional_direction")
-    is_mismatch = v in _MECHANISM_MISMATCH_VERDICTS
 
     # TPHP card summary via the graceful lookup (#1793): the card is OPTIONAL (applies_when gates on
     # tphp_normal_proteome_available), so a missing card must degrade every read to None, never abort
@@ -684,16 +664,13 @@ def _headline(cards, fired, verdict_pair):
         "onsides_example_boxed_warning_terms": get_card_field(
             cards, "onsides-adverse-event-safety", "example_boxed_warning_terms"
         ),
-        # mutant-selective conditioning (2026-07-23)
+        # mutant-selective conditioning (2026-07-23). mechanism_conditioning_note's scalar-downgrade
+        # trigger was RETIRED 2026-08-24 (_MECHANISM_MISMATCH_VERDICTS is permanently empty) — the note
+        # can never fire, so it is hardcoded None rather than computed. Kept as a field (not deleted)
+        # for output shape stability; consumers (_safety_tension_extra, tests) that read it as the
+        # downgrade signal were removed alongside it.
         "alteration_functional_direction": functional_direction,
-        "mechanism_conditioning_note": (
-            "gnomAD constraint reflects WILD-TYPE LoF-intolerance; this target is an ACTIVATING (GoF) "
-            "driver typically drugged MUTANT-SELECTIVELY, so the WT-constraint safety concern is "
-            "largely nullified (the therapy spares WT protein in normal tissue). CONDITIONAL on an "
-            "allele-selective modality — a pan-target degrader / WT-hitting inhibitor re-exposes it."
-        )
-        if is_mismatch
-        else None,
+        "mechanism_conditioning_note": None,
     }
     # verdict-INERT claim-vector projection (5th concrete over claim_vector_core) — the SIGNAL
     # decomposition + citable liability atoms the composed target-profile fan-out surfaces to the
