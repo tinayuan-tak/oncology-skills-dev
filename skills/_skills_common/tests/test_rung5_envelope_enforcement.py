@@ -60,6 +60,36 @@ _SKILLS_COMMON_DIR = pathlib.Path(__file__).resolve().parents[1]
 # production tiers (high / moderate / single_arm / low / unmeasured / underpowered).
 VALID_CORROBORATION = frozenset(CORROBORATION_ORD.keys())
 
+# The closed `comparability_state` vocabulary (envelope v1.1, SK#2210 Wave-0c), DERIVED from the
+# governed enum rather than restated here — same discipline as VALID_CORROBORATION above, and for the
+# same reason: a second hand-written copy of a closed vocabulary drifts silently from the first.
+#
+# UNREADABLE IS FATAL, NOT PERMISSIVE. If the enum cannot be read we raise at import instead of falling
+# back to a default set. A fallback would make this conditional check pass on ANY token the moment the
+# contracts file moved — the gate would go quietly permissive exactly when its pin broke, which is the
+# fail-open shape this suite exists to prevent.
+_COMPARABILITY_ENUM = (
+    pathlib.Path(__file__).resolve().parents[3] / "contracts" / "vocabularies" / "comparability_state.enum.yaml"
+)
+
+
+def _load_comparability_states() -> frozenset:
+    import yaml  # noqa: PLC0415  (local: keeps the import cost off collection of the other clauses)
+
+    if not _COMPARABILITY_ENUM.is_file():
+        raise RuntimeError(
+            f"the governed comparability_state vocabulary is missing at {_COMPARABILITY_ENUM} — this "
+            f"check pins to it and must NOT degrade to a permissive default"
+        )
+    doc = yaml.safe_load(_COMPARABILITY_ENUM.read_text()) or {}
+    states = {e["value"] for e in (doc.get("values") or []) if isinstance(e, dict) and e.get("value")}
+    if not states:
+        raise RuntimeError(f"{_COMPARABILITY_ENUM} declared no states — an empty vocabulary admits nothing")
+    return frozenset(states)
+
+
+VALID_COMPARABILITY_STATES = _load_comparability_states()
+
 
 # ==================================================================================================
 # The concordance-family registry — the population every clause is evaluated over.
@@ -368,6 +398,20 @@ def assert_envelope_conformant(family: str, claim: dict) -> None:
         grain = claim["grain"]
         if not isinstance(grain, str) or not grain:
             raise EnvelopeViolation(f"{family}: grain, when emitted, must be a non-empty str, got {grain!r}")
+    # `comparability_state` (envelope v1.1, SK#2210 Wave-0c) — the gate PRIOR to the relation. Validated
+    # WHEN PRESENT, exactly like the slots above: 12 of 13 families are `declared_only` in the governed
+    # enum and emit nothing, and OMISSION IS CONTRACTUAL, not laxity — `single_source_only` omits the key
+    # because no comparison was attempted, so a family is never RED for declining the slot. An explicit
+    # `None` is NOT omission and IS red: a null sentinel in a governed-token slot is the shape that makes
+    # an absent value read as a present one downstream.
+    if "comparability_state" in claim:
+        state = claim["comparability_state"]
+        if state not in VALID_COMPARABILITY_STATES:
+            raise EnvelopeViolation(
+                f"{family}: comparability_state {state!r} not in the governed closed vocabulary "
+                f"{sorted(VALID_COMPARABILITY_STATES)} (contracts/vocabularies/comparability_state.enum.yaml). "
+                f"Omit the key when no comparison was attempted; never emit a null or an unregistered token"
+            )
     if "resolved_source_count" in claim and claim["resolved_source_count"] is not None:
         rsc = claim["resolved_source_count"]
         indep = claim.get("corroborating_independent_arm_count")
@@ -430,6 +474,48 @@ def test_conditional_slot_check_bites_a_malformed_optional_slot():
         )
     with pytest.raises(EnvelopeViolation):
         assert_envelope_conformant("recurrence", {**base, "source_support": []})
+
+
+@pytest.mark.parametrize(
+    "bad_state",
+    [
+        pytest.param("mostly_comparable", id="unregistered_token"),
+        pytest.param("", id="empty_string"),
+        pytest.param(None, id="explicit_null_is_not_omission"),
+        pytest.param(True, id="non_str"),
+        pytest.param("comparable ", id="trailing_whitespace"),
+        pytest.param("COMPARABLE", id="wrong_case"),
+    ],
+)
+def test_conditional_comparability_state_check_bites_an_ungoverned_token(bad_state):
+    """CLAUSE 1 mutation teeth (envelope v1.1): a family that DOES emit `comparability_state` must emit a
+    token from the governed enum. Proves the new conditional slot CAN fail — including on an explicit
+    `None`, which is the case a reader is most likely to think is equivalent to omitting the key."""
+    base = genomic_claims._recurrence_concordance_claim(ENVELOPE_FAMILIES["recurrence"]["resolving"])
+    with pytest.raises(EnvelopeViolation):
+        assert_envelope_conformant("recurrence", {**base, "comparability_state": bad_state})
+
+
+def test_comparability_state_slot_is_optional_but_not_vacuous():
+    """The other half of "validate when present": OMITTING the slot must stay green (12 of 13 families are
+    `declared_only`), while at least one family must actually EMIT it — otherwise the conditional check
+    above is never reached on the real population and the teeth prove nothing about production code.
+
+    The anti-vacuity floor is the second assert. Without it this clause would still pass on the day the
+    pilot was reverted, which is precisely the green-for-the-wrong-reason shape."""
+    base = genomic_claims._recurrence_concordance_claim(ENVELOPE_FAMILIES["recurrence"]["resolving"])
+    assert_envelope_conformant("recurrence", {k: v for k, v in base.items() if k != "comparability_state"})
+
+    emitting = {
+        family: spec["builder"](spec["resolving"]).get("comparability_state")
+        for family, spec in ENVELOPE_FAMILIES.items()
+        if "comparability_state" in (spec["builder"](spec["resolving"]) or {})
+    }
+    assert len(emitting) >= 1, (
+        "NO concordance family emits `comparability_state`, so the conditional check above never runs on "
+        "the real population — the envelope-v1.1 pilot has been reverted or lost"
+    )
+    assert set(emitting.values()) <= VALID_COMPARABILITY_STATES, emitting
 
 
 def _discover_concordance_builders() -> set[str]:

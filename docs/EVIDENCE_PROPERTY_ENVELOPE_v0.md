@@ -191,3 +191,117 @@ If recurrence had fit only after ten special-case fields, it would be a differen
 envelope should not generalize that far. It fits after promoting exactly two latent slots (grain,
 dependence structure + two counts) to first-class — so the envelope **learned something real** and
 reaches **rung 3 (provisional-conformance)**.
+
+## Envelope v1.1 — two additive fields (SK#2210 Wave-0c)
+
+**Status:** both fields **declared here**; exactly one is **implemented** in 0c. Additive only — v1.1
+renames nothing, re-keys nothing, and removes no slot. Every v0 consumer keeps reading v0 records
+unchanged, because both fields are **optional and omitted when they do not apply**.
+
+Read the two together. They are halves of one idea: *before you may relate two arms, say whether they
+were relatable, and say how each arm's value was arrived at.* v0 already carries the caveat as prose
+(`provenance.independence_note`, and an `integration.comparability` block on **all 13** families in
+`contracts/vocabularies/property_catalog/integrated_families.yaml`). v1.1 makes the first half
+machine-readable. The second half is what a fold would have to read to honestly claim the *middle*
+state — which is why the two are declared at once and implemented apart.
+
+### (i) `comparability_state` — a gate PRIOR to the relation
+
+```yaml
+comparability_state: comparable | normalized_to_compare | non_comparable   # optional; omitted, never null
+```
+
+Governed as a closed, semver-additive vocabulary in
+`contracts/vocabularies/comparability_state.enum.yaml` (validator:
+`contracts/validators/validate_comparability_state.py`, wired into `contracts/scripts/preland.sh`
+including the token-level `--additive-against` check). It answers a question **logically prior** to
+`concordance_class`: *was the comparison legal at all?* `concordance_class` reports what the fold
+**found**; `comparability_state` reports whether the fold was **entitled to look**. Conflating them is
+why this is a separate slot and not a fourth concordance token.
+
+What it is **not**: not a quality score, not a confidence, and **not a statement about independence** —
+`dependence_group` / `derived_from` already carry that, and two arms can be fully independent and still
+not comparable (that is precisely the exome-vs-panel case).
+
+**The criterion**, stated once so 13 families do not become 13 opinions:
+
+- `normalized_to_compare` requires an **explicit transformation applied to the arms' values** placing
+  them on a shared scale or vocabulary. **Narrowing the question is not a normalisation** — comparing
+  only signs, dropping to the coarsest question both arms can answer, or using a scale-free estimand is
+  `comparable`, because nothing was transformed.
+- `non_comparable` is declared where a **reachable case exists** in which the arms may not be equated.
+  It is a **per-case** value, not a verdict on the family — which is why 4 of 13 families declare both
+  `comparable` and `non_comparable`.
+- Omit the key entirely when **no comparison was attempted** (e.g. `single_source_only`). There is no
+  relation to gate, so there is no state; a default here would claim a licence never exercised.
+
+**Declaration is not emission.** All 13 L2b families declare a state, read from catalog prose. Exactly
+**one family emits** it in 0c — `recurrence_concordance`
+(`skills/_skills_common/genomic_claims.py`), keyed on the **GENIE arm's resolved direction**:
+
+| `concordance_class` | `comparability_state` |
+|---|---|
+| `recurrence_concordant` | `comparable`, or `non_comparable` where GENIE reads `not_recurrent` |
+| `panel_masks_recurrence` | `non_comparable` |
+| `exome_masks_recurrence` | `comparable` |
+| `single_source_only` | *key omitted* |
+
+The asymmetry is the point, and it is read off v0's own caveat above (lines on grain and the panel
+denominator): a panel **calling** a variant recurrent is evidence in either cohort, whereas a panel
+**failing** to call it may only mean the panel never looked. So "GENIE says not recurrent" is where the
+denominators cannot be equated. The gate keys on that **direction**, never on the class name.
+
+Enforcement: the rung-5 conformance guard
+(`skills/_skills_common/tests/test_rung5_envelope_enforcement.py`) validates the slot **when present**
+against the governed roster and rejects a null, an unregistered token or a near-miss. That check is
+structurally blind to a key that should be **absent**, so the omission contract is enforced separately
+by `skills/_skills_common/tests/test_comparability_state_coverage.py`, which drives the builder over its
+full input cross-product and reconciles emitted against declared pairs with `<OMITTED>` as a first-class
+member. Both halves were proven able to fail by planting mutants; the non-omission mutant was found to
+be a **live hole** that way.
+
+**Corrected against the 0c plan, measured:** the plan called exome-vs-panel "a genuine
+`normalized_to_compare` case". It is not — the builder normalises nothing and its `independence_note`
+explicitly **declines** to equate the denominators, so recurrence is a `comparable` / `non_comparable`
+family. But the middle token is not hypothetical either: `integrated_families.yaml` already names
+`abundance` a `normalized_to_compare` case verbatim, and under the criterion above 3 of 13 families
+instantiate it. It is therefore **declared-and-instantiated but unemitted**, recorded as such in the
+enum's `documented_not_emitted` block and pinned by a test in both directions.
+
+### (ii) `interpretation` — per-entry resolution provenance (declared only; **not** implemented in 0c)
+
+```yaml
+interpretation:            # optional, on an L2a source entry
+  function_id: <module_qualified_resolver>   # e.g. expression_properties.resolve._magnitude
+  version: <semver>                          # bumped when the resolver's disjuncts change meaning
+  disjunct_fired: <stable_token>             # WHICH branch produced the value
+```
+
+The gap it closes, concretely. `methods/methods/expression_properties/resolve.py:120` `_magnitude`
+returns `high` from a **three-way OR** (`control_target_percentile` ≥ threshold **or**
+`median_log2tpm_panel` ≥ threshold **or** `fraction_highly_expressed` ≥ threshold). Downstream sees
+`high` and cannot tell which disjunct fired — so it cannot tell whether two arms both reading `high`
+agree on anything beyond the label. Every L2a resolver of this shape loses the same information.
+
+Why it is declared but not built here: **implementation belongs to #2227**, which is filed and
+**blocked** — populating `interpretation` on tumour-presence entries changes the published artifact, and
+the tumour-presence golden is owned by #2061 and #1984 PR-B. 0c regenerates no golden, so it declares
+the shape and stops. The ownership record is in
+`contracts/vocabularies/property_catalog/tumor_presence.yaml` (`governance.ownership`).
+
+**The two fields are coupled, and that is the reason to declare them together.** A fold cannot honestly
+emit `normalized_to_compare` until it can read its inputs' `interpretation`: claiming a transformation
+placed two arms on a shared scale is a claim about *how each arm's value was produced*, and today that
+is unrecoverable from the value alone. So the state that no family emits is exactly the state the
+missing half would license — the enum is not carrying a dead token, it is carrying a token whose
+enabling field is a filed, blocked issue.
+
+### Ladder status, measured (the table above is stale)
+
+Rung 5 says *"future — DO NOT file until rung 4"*. Both have since been reached:
+`test_rung5_envelope_enforcement.py` carries `_EXPECTED_FAMILY_COUNT = 13` and asserts envelope
+conformance across all 13 structurally different families, which is rung 4 passed and rung 5 built. The
+table is left unedited because 0c renames and renumbers nothing; this note is the correction. The
+caution the table was written to express still holds and 0c obeys it — v1.1 adds **no** family, bumps
+**no** `_EXPECTED_FAMILY_COUNT`, and pilots emission in **one** family rather than declaring a universal
+registry on the strength of one pass.

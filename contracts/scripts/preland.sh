@@ -92,6 +92,7 @@ run "build_wiring_ledger --self-check"   python validators/build_wiring_ledger.p
 run "living_doc --self-check"            python validators/architecture_dashboard/living/build_living_doc.py --self-check
 run "validate_property_catalog"          python validators/validate_property_catalog.py --catalog vocabularies/property_catalog --cards cards/
 run "validate_concordance_enum"          python validators/validate_concordance_enum.py --enum vocabularies/concordance_class.enum.yaml --families vocabularies/property_catalog/integrated_families.yaml
+run "validate_comparability_state"       python validators/validate_comparability_state.py --enum vocabularies/comparability_state.enum.yaml --families vocabularies/property_catalog/integrated_families.yaml --concordance-enum vocabularies/concordance_class.enum.yaml
 
 # Drain the pool and print every gate's PASS/FAIL in launch (CI) order before the ruff/advisory
 # steps below, which stay SYNCHRONOUS (fast, and the ruff block has its own version-gate control
@@ -126,6 +127,21 @@ if git rev-parse --verify -q "$pc_base" >/dev/null; then
              --families vocabularies/property_catalog/integrated_families.yaml --additive-against "$pc_base"
 else
   echo "WARN  concordance-enum additivity SKIPPED — '$pc_base' not fetched; set PRELAND_BASE or run 'git fetch origin main'"
+fi
+
+# --- comparability-state TOKEN additivity (vocabularies/comparability_state.enum.yaml) ---
+# Third instance of the same shape, same reason. This vocabulary is YOUNG (3 tokens, 1 piloted family),
+# which is exactly when additivity is cheap to enforce and exactly when it is tempting to skip: the 44
+# concordance_class tokens above cost a 650-line retrospective registration precisely because nothing
+# governed them at birth. `comparability_state` is emitted into claim records, so a removed or renamed
+# token is a wire-name break with the same fail-open consumers.
+if git rev-parse --verify -q "$pc_base" >/dev/null; then
+  run "validate_comparability_state --additive-against $pc_base" \
+      python validators/validate_comparability_state.py --enum vocabularies/comparability_state.enum.yaml \
+             --families vocabularies/property_catalog/integrated_families.yaml \
+             --concordance-enum vocabularies/concordance_class.enum.yaml --additive-against "$pc_base"
+else
+  echo "WARN  comparability-state additivity SKIPPED — '$pc_base' not fetched; set PRELAND_BASE or run 'git fetch origin main'"
 fi
 
 # --- ruff (.github/workflows/ruff.yml) ---

@@ -919,6 +919,40 @@ def _recurrence_direction(band):
     return "not_recurrent" if sig == "absent" else "recurrent"
 
 
+def _recurrence_comparability_state(mc3_dir, genie_dir) -> "str | None":
+    """The envelope-v1.1 `comparability_state` gate for this family — SK#2210 Wave-0c pilot.
+
+    A gate that sits PRIOR to the relation: before the fold may report agreement or disagreement,
+    something must license comparing the two arms at all. Governed vocabulary:
+    `contracts/vocabularies/comparability_state.enum.yaml` (3 states); this family declares 2 and its
+    per-token map there must stay exhaustive over the family's `concordance_class` roster.
+
+    THE RULE, and it keys on the GENIE arm's DIRECTION rather than on the class name. The caveat this
+    family has always carried in `provenance.independence_note` is that a panel-restricted denominator
+    is NOT exome-comparable — panel non-recurrence can reflect coverage rather than biology. That
+    caveat is ASYMMETRIC: it makes a panel NEGATIVE uninterpretable and leaves a panel POSITIVE fully
+    informative. So whenever the comparison rests on a panel `not_recurrent` read the arms are
+    `non_comparable`; otherwise they are `comparable` as measured (same measurement type, same grain,
+    nothing transformed — so never `normalized_to_compare`, which this family cannot reach).
+
+    On the emitted tokens that means: `panel_masks_recurrence` is always `non_comparable` (the exome
+    reads recurrent and the panel's contradicting negative is exactly the suspect read);
+    `exome_masks_recurrence` is always `comparable` (the panel reads POSITIVE and the exome negative it
+    contradicts is a real measured floor); `recurrence_concordant` splits on the agreed direction, and
+    the both-`not_recurrent` case is `non_comparable` — the arms AGREE, but the agreement is not
+    licensed as replication, which is the single most useful thing this field records.
+
+    Returns None when either arm is unresolved (`single_source_only`): no comparison was attempted, so
+    there is no relation to gate, and claiming `comparable` would assert a licence never exercised.
+    The caller OMITS the key then — the envelope's byte-stable omission idiom.
+
+    VERDICT-INERT: read by nothing that routes, feeds no rule, and does not touch `corroboration`. It
+    RECORDS a property of the comparison; it does not change what the fold concluded."""
+    if mc3_dir is None or genie_dir is None:
+        return None  # no comparison attempted → key omitted (byte-stable), never a default
+    return "non_comparable" if genie_dir == "not_recurrent" else "comparable"
+
+
 def _recurrence_concordance_claim(h: dict) -> "dict | None":
     """L2b-5 CROSS-SOURCE integration claim: `recurrence_concordance` — the FIRST envelope conformance
     test (docs/EVIDENCE_PROPERTY_ENVELOPE_v0.md) from a foreign modality.
@@ -1147,7 +1181,16 @@ def _recurrence_concordance_claim(h: dict) -> "dict | None":
             "provenance_ref": _gap_arm,
         }
 
+    # ── envelope v1.1 `comparability_state` (SK#2210 Wave-0c pilot) ──────────────────────────────────
+    # FIRST in the claim because it is a gate PRIOR to the relation: it says whether comparing the arms
+    # was licensed at all, which is logically upstream of what the comparison found. OMITTED entirely
+    # on `single_source_only` — no comparison, nothing to gate. Additive and verdict-inert; it does not
+    # touch `corroboration`, so a `non_comparable` concordance still reports the corroboration it
+    # earned and a consumer decides what to do with the pair.
+    comparability_state = _recurrence_comparability_state(mc3_dir, genie_dir)
+
     return {
+        **({"comparability_state": comparability_state} if comparability_state is not None else {}),
         "concordance_class": concordance,
         "corroboration": corroboration,
         # DETERMINISTIC, reproducible-by-contract: an explicit rule over the cohort tokens, never an LLM.

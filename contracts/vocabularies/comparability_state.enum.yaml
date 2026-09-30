@@ -1,0 +1,405 @@
+# comparability_state.enum.yaml
+# Controlled vocabulary: whether an L2b concordance family's arms were COMPARABLE, and on what basis.
+# Evidence-property architecture (epic claude-oncology-skills#1507); structure arc #2210 Wave-0c.
+#
+# WHAT THIS IS. `comparability_state` is a gate that sits PRIOR to the relation. Before a fold may say
+# the arms agreed or disagreed, something must license comparing them at all — and today that licence
+# is recorded only as English. Every one of the 13 families in
+# `property_catalog/integrated_families.yaml` already carries an `integration.comparability` prose
+# block explaining why its comparison is legal (13/13, measured). That prose is good prose and it is
+# completely unreadable to a consumer: nothing can be validated against it, nothing can be keyed on
+# it, and a family added without one is indistinguishable from a family whose comparison happens to be
+# trivially legal. This file is the machine-readable half of that prose, and nothing more.
+#
+# WHAT IT IS NOT. It is NOT a quality score and it does NOT rank families. `non_comparable` is not a
+# criticism and `comparable` is not a compliment — `coverage` is `non_comparable` in one direction by
+# DESIGN, and that asymmetry is the whole reason it is a coverage check rather than a mutual
+# corroboration. Nor is it a statement about INDEPENDENCE: `expression_dependency` is `comparable`
+# while being the fleet's WEAKEST family on independence, because commensurability and independence
+# are different axes and this vocabulary governs only the first. Conflating them is the specific error
+# this file exists to make impossible.
+#
+# THE CLASSIFICATION CRITERION (stated once, applied uniformly — see `criterion` below). The judgement
+# that separates `comparable` from `normalized_to_compare` is not a matter of taste, and stating it
+# once is what keeps 13 independent readings honest.
+#
+# DECLARATION IS NOT EMISSION. 12 of the 13 families are `declared_only`: their state is READ from the
+# catalog prose and is recorded here, but no code emits it yet. Exactly ONE family — `recurrence` — is
+# `piloted`, meaning its builder actually emits the field. That distinction is load-bearing and the
+# validator enforces it: a `declared_only` family may NOT carry a `per_concordance_class` map, because
+# such a map claims a per-claim resolution that no code performs. Reading a declaration as an emission
+# would be a FALSE claim of coverage, which is worse than an absent entry.
+#
+# WHY GOVERN IT AT BIRTH. The 44 `concordance_class` tokens (Wave-0b) were minted ungoverned across 6
+# modules and took a 650-line registration and an AST cross-check to bring under control. This
+# vocabulary is 3 tokens on its first day. Governing it now costs a file; governing it later costs
+# another 0b. The arc exists to stop ungoverned token vocabularies being born.
+#
+# NO SECOND COPY OF FAMILY IDENTITY, ON PURPOSE. This file records NO `island_key`, `builder` or
+# `builder_function`. Those already live in `concordance_class.enum.yaml` and
+# `property_catalog/integrated_families.yaml`, and a third copy would be a drift surface this file
+# cannot police — the first draft of it got 5 of 13 builder paths wrong, which is the argument. The
+# family KEY is the join, clause 3 pins the key set to the catalog in both directions, and the
+# validator resolves builder identity from the sibling enum when it needs it.
+
+enum_id: comparability_state
+version: 1.0.0
+
+description: |
+  Whether the arms an L2b concordance family folds were comparable as measured, were MADE comparable
+  by an explicit normalisation, or are not comparable in some reachable case. 3 states across 13
+  families (17 family x state pairs). Every state has at least one declared family — a state no
+  family can reach would be a design problem, not a vocabulary, and clause 8 forbids it.
+
+  Read with `property_catalog/integrated_families.yaml`, which is authoritative for WHICH arms each
+  family folds and carries the `integration.comparability` prose each declaration here is read from,
+  and with `concordance_class.enum.yaml`, which is authoritative for the token vocabulary the
+  `per_concordance_class` map keys on.
+
+governance:
+  role: |
+    Authoritative for: the `comparability_state` token roster, each state's definition, the
+    classification criterion that separates them, and which state(s) each landed L2b family may
+    carry. NOT authoritative for the family roster or arm composition
+    (property_catalog/integrated_families.yaml), for the family COUNT
+    (skills/_skills_common/tests/test_rung5_envelope_enforcement.py :: _EXPECTED_FAMILY_COUNT), for
+    the `concordance_class` vocabulary (concordance_class.enum.yaml), or for the envelope schema
+    (docs/EVIDENCE_PROPERTY_ENVELOPE_v0.md).
+  versioning: |
+    Semver, additive-only. A new STATE is a MINOR bump and must land with the family declaration that
+    reaches it. Promoting a family from `declared_only` to `piloted` is also a MINOR bump: it adds a
+    `per_concordance_class` map, which is new governed surface. Removing a state from a family, or a
+    family from the roster, is BREAKING and the additivity clause rejects it against any git ref.
+  ownership: |
+    The families and their arms are owned by their epics (#1730 / #1755 / #1779 / #1812 and #1507).
+    This registration is arc #2210 Wave-0c and owns no family. The `tumor_presence` L2a half of
+    envelope v1.1 — per-source `interpretation.{function_id, version, disjunct_fired}` — is #2227,
+    deliberately BLOCKED on #2061 + #1984 PR-B because it is the one change that must regenerate the
+    tumour-presence golden. Nothing in this file may be read as implementing it.
+  change_discipline: |
+    Add -> consume -> remove, never a bare rename. These three state names are not yet load-bearing
+    wire names anywhere except the `recurrence` island, which is exactly why the vocabulary is being
+    fixed now rather than after five consumers string-match it. A rename after that point fails OPEN
+    in every consumer: the token simply stops matching and the branch silently stops being taken.
+  declaration_is_not_emission: |
+    `emission: declared_only` means a HUMAN read this family's `integration.comparability` prose and
+    recorded the state it implies. It does NOT mean any code emits the field, and it must never be
+    counted as emitted coverage. Only `emission: piloted` families emit, and clause 6 requires a
+    piloted family's declaration to be exhaustive over its `concordance_class` token set and
+    reachability-checked against the live builder by
+    skills/_skills_common/tests/test_comparability_state_coverage.py.
+
+criterion: |
+  `normalized_to_compare` requires an EXPLICIT TRANSFORMATION APPLIED TO THE ARMS' VALUES that places
+  them on a shared scale or a shared vocabulary. Two instances make this concrete: `abundance` maps
+  raw TPM and raw MS intensity to an all-gene percentile WITHIN each assay before comparing, and
+  `methylation_silencing` routes two differing class vocabularies through an explicit class -> arm
+  mapping.
+
+  Narrowing the QUESTION is NOT a normalisation of the arms. Where a family compares only the SIGN of
+  two differently-scaled contrasts (`selectivity`), or only the coarsest thing every arm can answer
+  (`tumor_presence`: is it there), or a deliberately scale-free estimand (`cis_dosage`: a slope, not a
+  level), the arms are `comparable` ON THAT ESTIMAND and nothing was transformed to make them so. The
+  narrowing is a choice of what to ask, made before any value is read.
+
+  This distinction matters because the two cases carry different obligations. A narrowed question is
+  self-documenting: the emitted `concordance_class` names the estimand. A normalisation is INVISIBLE
+  in the result — `abundance_concordant` does not record that a percentile transform is the only
+  reason the comparison was legal. Recovering that is what envelope v1.1's other field,
+  `interpretation.{function_id, version, disjunct_fired}` (#2227), is for; until it lands, a
+  `normalized_to_compare` declaration here is the only machine-readable trace that the normalisation
+  happened.
+
+  `non_comparable` is declared where a REACHABLE case exists in which the arms may not be equated. It
+  is a per-case state, not a verdict on the family: a family can be `comparable` on most inputs and
+  `non_comparable` on a named subset, and `recurrence` is exactly that (see its
+  `per_concordance_class`). Declaring it does not weaken the family; failing to declare it hides a
+  case in which agreement is not replication.
+
+values:
+
+  - value: comparable
+    definition: |
+      The arms are commensurable AS MEASURED on the estimand the fold compares. No transformation was
+      applied to place them on a common footing, either because they are the same measurement type at
+      the same grain, or because the question was narrowed to one all arms can answer natively.
+    admits: |
+      Says nothing about independence, arm count, or agreement. Two comparable arms that disagree
+      produce a discordance, which is a finding, not a comparability failure.
+    families:
+      - recurrence
+      - selectivity
+      - coverage
+      - subtype_restriction
+      - protein_presence
+      - tumor_presence
+      - essentiality
+      - normal_liability
+      - cis_dosage
+      - expression_dependency
+
+  - value: normalized_to_compare
+    definition: |
+      The arms were NOT comparable as measured and an explicit transformation of their values placed
+      them on a shared scale or vocabulary. The comparison is legal BECAUSE of that step, so the step
+      is part of the claim's provenance and not an implementation detail.
+    admits: |
+      The transformation is upstream of the fold in every present instance — the arms arrive already
+      normalised, which is why the fold itself cannot see that anything happened and why this
+      declaration is currently the only record of it.
+    families:
+      - abundance
+      - methylation_silencing
+      - isoform_splice
+
+  - value: non_comparable
+    definition: |
+      A reachable case in which the arms may NOT be equated, so an apparent agreement or disagreement
+      between them does not license the corresponding relation. The fold may still emit — the datum is
+      that the comparison was not licensed, which a consumer must be able to read.
+    admits: |
+      Declared per reachable case, never as a verdict on the family. Its presence alongside
+      `comparable` on the same family is the normal shape (see `recurrence`, `coverage`,
+      `subtype_restriction`, `normal_liability`), not a contradiction.
+    families:
+      - recurrence
+      - coverage
+      - subtype_restriction
+      - normal_liability
+
+families:
+
+  recurrence:
+    emission: piloted
+    states: [comparable, non_comparable]
+    basis: |
+      All arms are mutation recurrence at gene grain, so the measurement TYPE is shared and nothing is
+      transformed: comparable as measured. But the catalog also records that a panel's recurrence
+      denominator is the panel's own tested population, and the builder's
+      `provenance.independence_note` is blunter still — a panel-restricted denominator is NOT
+      exome-comparable, panel non-recurrence can reflect coverage rather than biology, and the two are
+      NOT equated. That caveat is ASYMMETRIC: it makes a panel NEGATIVE suspect and leaves a panel
+      POSITIVE fully informative. So comparability here resolves per case, which is why this is the
+      pilot family.
+    gate_rule: |
+      DETERMINISTIC, and it keys on the GENIE panel arm's resolved direction, not on the class name:
+      whenever the comparison rests on a panel `not_recurrent` read, the arms are `non_comparable`,
+      because that read cannot be distinguished from absent panel coverage. Otherwise `comparable`.
+      Stated on the tokens: `panel_masks_recurrence` is always `non_comparable` (the exome says
+      recurrent and the panel's contradicting negative is exactly the suspect read);
+      `recurrence_concordant` is `non_comparable` when the agreed direction is `not_recurrent` and
+      `comparable` when it is `recurrent`; `exome_masks_recurrence` is `comparable` (the panel reads
+      POSITIVE, and the exome negative it contradicts is a real measured floor).
+    per_concordance_class:
+      recurrence_concordant: [comparable, non_comparable]
+      panel_masks_recurrence: [non_comparable]
+      exome_masks_recurrence: [comparable]
+    omits_state_for:
+      - single_source_only
+    omission_basis: |
+      `single_source_only` means exactly one independent arm resolved, so NO comparison was attempted.
+      `comparability_state` gates a relation; with no relation there is nothing to gate, and asserting
+      `comparable` would claim a licence that was never exercised. The key is OMITTED — the same
+      byte-stable omission idiom the envelope uses for `integration_method` on an unresolved property.
+
+  selectivity:
+    emission: declared_only
+    states: [comparable]
+    basis: |
+      Cross-modality at one grain: transcript log-fold-change vs protein effect size, both
+      tumour-vs-normal. The catalog's licence is that both are DIRECTIONAL contrasts against a normal
+      comparator, so their SIGNS are comparable even though their magnitudes are not on one scale.
+      Under the criterion that is a narrowed question, not an arm normalisation: nothing transforms
+      either value, the fold simply compares the one thing both natively carry.
+
+  coverage:
+    emission: declared_only
+    states: [comparable, non_comparable]
+    basis: |
+      Cross-resolution: a bulk average over a mixed cellular population vs a per-cell measurement
+      restricted to the malignant compartment. The catalog records that the comparison is legal in ONE
+      DIRECTION ONLY — single-cell can explain away a bulk signal as stromal, but bulk cannot
+      adjudicate a single-cell call. Both states are therefore structural and intended: the direction
+      that licenses inference is `comparable`, the mirror is `non_comparable`. This asymmetry is why
+      the family is a coverage check and not a mutual corroboration, so `non_comparable` here records
+      the design, not a defect.
+
+  abundance:
+    emission: declared_only
+    states: [normalized_to_compare]
+    basis: |
+      The catalog states it outright: the percentile NORMALISATION is what makes this legal — an
+      all-gene percentile within each assay is comparable across assays in a way that raw TPM and raw
+      MS intensity are not — and names the family "a normalized_to_compare case, not a
+      natively-comparable one". This is the reference instance of the state, and the transformation is
+      upstream of the fold: `_abundance_concordance_class` compares an already-shared 3-level
+      magnitude ordinal and cannot see that a normalisation produced it.
+
+  subtype_restriction:
+    emission: declared_only
+    states: [comparable, non_comparable]
+    basis: |
+      The catalog calls this the family whose comparability gate is MOST EXPLICIT IN CODE: each arm's
+      stratification class is admitted only once `subtype_axis_quality` is POWERED on that arm, and an
+      underpowered axis contributes nothing rather than contributing a weak signal. A powered pair is
+      `comparable`; the reachable underpowered case is `non_comparable` — and note that this family
+      already ENFORCES its gate while recording nothing about it, which is the gap this field closes.
+
+  protein_presence:
+    emission: declared_only
+    states: [comparable]
+    basis: |
+      Truly cross-modality — antibody affinity (IHC) vs peptide detection (MS) — with genuinely
+      independent failure modes, and the catalog is explicit that BOTH ARE PROTEIN-GRAIN, SO NO
+      NORMALISATION IS NEEDED to compare presence. Comparable as measured, stated in the source.
+
+  tumor_presence:
+    emission: declared_only
+    states: [comparable]
+    basis: |
+      Three arms at three resolutions (bulk transcript / single-cell transcript / protein staining)
+      folded on the coarsest question any of them can answer: is it there. The catalog notes the
+      comparison is legal BECAUSE the question is coarse — the same three arms could not be folded on
+      a LEVEL question, since their scales do not reconcile. A narrowed question, so `comparable`.
+    note: |
+      This is the family whose per-SOURCE machine record (L2a `interpretation` provenance) is #2227,
+      blocked on #2061 + #1984 PR-B. Its declaration here is the FAMILY-level comparability state and
+      is deliberately independent of that retrofit; it regenerates nothing.
+
+  essentiality:
+    emission: declared_only
+    states: [comparable]
+    basis: |
+      The catalog's textbook case for the identifiability test: perfect CRISPR knockout and perfect
+      RNAi knockdown would agree, so these are two ESTIMATORS OF ONE PROPERTY and their disagreements
+      are measurement error, off-target activity and incomplete knockdown. Two estimators of one
+      property are commensurable by construction; nothing is transformed.
+
+  normal_liability:
+    emission: declared_only
+    states: [comparable, non_comparable]
+    basis: |
+      Bulk normal reference (GTEx) x single-cell normal atlas x curated essential-tissue call. The two
+      measurement arms are commensurable. The third arm is CURATION, NOT A MEASUREMENT, and the
+      catalog records that it is therefore not commensurable with the other two in the same way — it
+      can QUALIFY them, but agreement with it is not independent replication of a measurement. That
+      reachable case is `non_comparable`, and it is the clearest instance in the fleet of why the
+      state must be per-case rather than per-family.
+
+  cis_dosage:
+    emission: declared_only
+    states: [comparable]
+    basis: |
+      Cross-grain (SK#1781), and the catalog's licence is a choice of ESTIMAND: the coupling
+      COEFFICIENT is what replicates, not the expression level, which is what makes cell-line and
+      patient arms comparable here where they are NOT comparable on abundance. A dose-response slope
+      is a relationship, and relationships transfer across grain better than levels do. Scale-free by
+      choice, not by transformation, so `comparable` — and the explicit contrast with abundance is the
+      cleanest evidence that the criterion's `comparable` / `normalized_to_compare` line is real.
+
+  methylation_silencing:
+    emission: declared_only
+    states: [normalized_to_compare]
+    basis: |
+      Cross-grain (SK#1782). The catalog records that the two grains' class VOCABULARIES DIFFER, so
+      each token is routed through an explicit class -> arm mapping rather than compared as strings,
+      and names that mapping THE COMPARABILITY GATE: without it the family would be string-matching
+      two vocabularies that merely look similar. An explicit transformation onto a shared vocabulary
+      is `normalized_to_compare` under the criterion.
+
+  expression_dependency:
+    emission: declared_only
+    states: [comparable]
+    basis: |
+      Same-grain cross-modality (SK#1784): both arms are cell-line, so the arms are commensurable and
+      nothing is transformed. The catalog's caveat for this family is about INDEPENDENCE, not
+      comparability — independence rests on assay modality alone, the code calls it WEAKER than
+      #1781's cross-grain independence, and both arms share the same dependency screen as the
+      y-variable so only the x-variable is independent between them. That caveat is real and belongs
+      to the dependence structure; recording it as a comparability failure would put it in the wrong
+      slot and would make this vocabulary a quality score. `comparable` is the honest reading.
+
+  isoform_splice:
+    emission: declared_only
+    states: [normalized_to_compare]
+    basis: |
+      Cross-grain (SK#1785) at TRANSCRIPT rather than gene grain. As with
+      `methylation_silencing`, the two vocabularies differ and are routed through an explicit
+      class -> arm mapping, and the `balanced` intermediate and both `data_unavailable` sentinels DROP
+      rather than mapping to a weak signal. The explicit mapping onto a shared vocabulary is the
+      normalisation.
+
+population_floors:
+  families: 13
+  family_state_pairs: 17
+  distinct_states: 3
+  piloted_families: 1
+  note: |
+    Floors, not counts: they fail when the population SHRINKS, which is the failure mode a roster
+    has. `families` is pinned to EQUALITY with the catalog's family set by clause 3 (both directions),
+    so it cannot drift either way; the rest are `>=`. `piloted_families` has a floor of 1 for the
+    reason 0b's floors exist: a registration with nothing emitted anywhere is a document, and this
+    file's teeth all run through the one family that emits.
+
+coverage_dimensions:
+  - dimension: declared_only_families
+    measured: 12
+    is_a_gate: false
+    rationale: |
+      12 of 13 families declare a state that no code emits. This is a DIMENSION, never a gate: 0c
+      pilots exactly one family by design (constraint: file no new family, touch no golden), and a
+      gate on this number would either block the arc or force emission into 12 builders owned by four
+      peer epics. Report it; do not fail on it. It should fall as families adopt the field, and a
+      future session should read a RISE as drift.
+  - dimension: states_declared_but_never_emitted
+    measured: 1
+    unemitted: [normalized_to_compare]
+    is_a_gate: false
+    rationale: |
+      `normalized_to_compare` is declared by 3 families and emitted by none, because all 3 are
+      `declared_only` and the pilot family cannot reach it. Handled exactly as 0b handled
+      `contradicts`: recorded as a dimension with its candidate emitter NAMED (`abundance`, whose
+      percentile normalisation the catalog already identifies), never as a gate. The distinction that
+      matters: this state HAS declared subjects, so it is unemitted-but-instantiated, not
+      hypothetical. A state with zero declared families would be a design problem and clause 8 fails
+      on it.
+  - dimension: families_whose_gate_is_enforced_but_unrecorded
+    measured: 2
+    is_a_gate: false
+    rationale: |
+      `subtype_restriction` (the powered-axis admission gate) and `abundance` (the same-grain build
+      guard `_ABUNDANCE_GRAINS`) ENFORCE a comparability gate in code today while emitting nothing
+      about it. That gap — enforced but not represented — is the same shape the envelope doc records
+      for `grain` at n=4, and it is the strongest argument for the field. Not a gate here because
+      closing it means editing peer-owned builders.
+
+documented_not_emitted:
+  - state: normalized_to_compare
+    named_in: [abundance, methylation_silencing, isoform_splice]
+    named_where: |
+      contracts/vocabularies/property_catalog/integrated_families.yaml ::
+      families.<family>.integration.comparability — for `abundance` the prose names the state
+      VERBATIM ("The family is a normalized_to_compare case, not a natively-comparable one").
+    why_not_emitted: |
+      All three families are `declared_only`: 0c pilots one family, and it is `recurrence`, whose
+      arms are never normalised. The normalisation in all three cases happens UPSTREAM of the fold —
+      the arms arrive already on a shared percentile or a mapped vocabulary — so the builder has no
+      local evidence that it occurred and could not honestly emit the state without reading its
+      inputs' provenance. That is precisely what envelope v1.1's `interpretation` field (#2227)
+      supplies, which makes the two halves of v1.1 coupled rather than merely adjacent.
+    action: |
+      No action in 0c. When #2227 unblocks and L2a entries carry `interpretation`, `abundance` is the
+      first candidate to move from `declared_only` to `piloted`. Do not synthesise the state from the
+      class token in the meantime.
+
+related_ungoverned_vocabularies:
+  - field: integration.comparability
+    site: contracts/vocabularies/property_catalog/integrated_families.yaml
+    tokens: |
+      Free prose, 13/13 families. Not a token vocabulary and deliberately not converted to one — the
+      prose carries the REASONING, which is worth keeping and cannot be reduced to 3 tokens. This
+      file is its machine-readable projection, not its replacement, and each family's `basis` here
+      cites it.
+    why_out_of_scope: |
+      Rewriting 13 prose blocks into structured fields would be a re-key of a file owned by 0a and
+      read by the property-catalog validator. Additive-only: the prose stays, this projection is new.
