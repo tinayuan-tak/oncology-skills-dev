@@ -1,0 +1,308 @@
+{
+ "_meta": {
+  "what": "Descriptive flip matrix for #2327: reliability.powered = (n_effective >= floor) for the three calibrated property-kinds. Shows, over the framework's committed measured n_effective observations, how many move unmeasured -> true/false at the calibrated floor and under a raised counterfactual floor. powered is verdict-inert (SK#2091).",
+  "ground_truth": "MEASURED/STORED: the observed n_effective per committed unit. DERIVED (re-computed in the test, never trusted from here): powered. The floors are re-read from each method's constant both directions, never stored as the answer.",
+  "calibrated_kinds": [
+   "n_cell_lines_evaluated",
+   "n_partner_deficient",
+   "rnai_n_cell_lines_evaluated"
+  ],
+  "unmeasured_kinds": [
+   "n_compounds_evaluated",
+   "n_high_confidence",
+   "n_lineages_evaluated",
+   "n_paralogs_annotated",
+   "n_pathogenic_germline_confident",
+   "n_tissues_tested"
+  ],
+  "counterfactual_floors": {
+   "n_cell_lines_evaluated": 1600,
+   "rnai_n_cell_lines_evaluated": 800,
+   "n_partner_deficient": 10000
+  },
+  "repo_sha": "3e30bbae",
+  "captured_utc": "2026-09-30T22:40:23Z",
+  "regenerated_by": "methods/tests/calibration/powered_floor_flip_matrix/regenerate.py"
+ },
+ "kinds": {
+  "n_cell_lines_evaluated": {
+   "calibrated": true,
+   "floor": 300,
+   "source_constant": "onc_methods.depmap_chronos_distribution.cli:PAN_ESSENTIAL_MIN_PANEL_N",
+   "unmeasured_reason": null,
+   "n_observations": 16,
+   "observations": [
+    {
+     "source": "methods/tests/calibration/recomputation/anchors/ctnnb1.chronos_distribution.json",
+     "value": 1538
+    },
+    {
+     "source": "methods/tests/calibration/recomputation/anchors/epas1.chronos_distribution.json",
+     "value": 1538
+    },
+    {
+     "source": "methods/tests/calibration/recomputation/anchors/kras.chronos_distribution.json",
+     "value": 1538
+    },
+    {
+     "source": "methods/tests/calibration/recomputation/anchors/met.chronos_distribution.json",
+     "value": 1538
+    },
+    {
+     "source": "methods/tests/calibration/recomputation/anchors/rpl3.chronos_distribution.json",
+     "value": 1538
+    },
+    {
+     "source": "methods/tests/calibration/recomputation/anchors/smarca2.chronos_distribution.json",
+     "value": 1538
+    },
+    {
+     "source": "methods/tests/calibration/recomputation/anchors/tead1.chronos_distribution.json",
+     "value": 1538
+    },
+    {
+     "source": "methods/tests/calibration/recomputation/anchors/wwtr1.chronos_distribution.json",
+     "value": 1538
+    },
+    {
+     "source": "skills/functional-requirement/tests/fixtures/kras_coadread.yaml",
+     "value": 1465
+    },
+    {
+     "source": "skills/functional-requirement/tests/fixtures/kras_coadread.yaml",
+     "value": 1538
+    },
+    {
+     "source": "skills/functional-requirement/tests/fixtures/not_dependent_in_indication.yaml",
+     "value": 1538
+    },
+    {
+     "source": "skills/on-target-safety-liability/tests/fixtures/braf_coadread.yaml",
+     "value": 1589
+    },
+    {
+     "source": "skills/on-target-safety-liability/tests/fixtures/egfr_coadread.yaml",
+     "value": 1589
+    },
+    {
+     "source": "skills/on-target-safety-liability/tests/fixtures/erbb2_brca.yaml",
+     "value": 1589
+    },
+    {
+     "source": "skills/on-target-safety-liability/tests/fixtures/tp53_coadread.yaml",
+     "value": 1589
+    },
+    {
+     "source": "skills/on-target-safety-liability/tests/fixtures/vhl_coadread.yaml",
+     "value": 1589
+    }
+   ],
+   "at_floor": {
+    "true": 16,
+    "false": 0,
+    "unmeasured": 0
+   },
+   "counterfactual_floor": 1600,
+   "at_counterfactual": {
+    "true": 0,
+    "false": 16
+   }
+  },
+  "n_compounds_evaluated": {
+   "calibrated": false,
+   "floor": null,
+   "source_constant": null,
+   "unmeasured_reason": "an evidence count \u2014 the PRISM compounds that survived the per-compound cell-line-intersection minimum. The concordance class is fixed upstream at precompute time; the method exposes no minimum NUMBER of compounds, so a power floor on the count would be invented.",
+   "n_observations": 1,
+   "observations": [
+    {
+     "source": "skills/functional-requirement/tests/fixtures/kras_coadread.yaml",
+     "value": 21
+    }
+   ],
+   "at_floor": {
+    "true": 0,
+    "false": 0,
+    "unmeasured": 1
+   }
+  },
+  "n_high_confidence": {
+   "calibrated": false,
+   "floor": null,
+   "source_constant": null,
+   "unmeasured_reason": "the curated ClinGen high-confidence dosage-assertion count; the class already requires >=1 such assertion, so the count IS the evidence, not an independent power denominator.",
+   "n_observations": 4,
+   "observations": [
+    {
+     "source": "skills/on-target-safety-liability/tests/fixtures/braf_coadread.yaml",
+     "value": 1
+    },
+    {
+     "source": "skills/on-target-safety-liability/tests/fixtures/egfr_coadread.yaml",
+     "value": 1
+    },
+    {
+     "source": "skills/on-target-safety-liability/tests/fixtures/tp53_coadread.yaml",
+     "value": 1
+    },
+    {
+     "source": "skills/on-target-safety-liability/tests/fixtures/vhl_coadread.yaml",
+     "value": 1
+    }
+   ],
+   "at_floor": {
+    "true": 0,
+    "false": 0,
+    "unmeasured": 4
+   }
+  },
+  "n_lineages_evaluated": {
+   "calibrated": false,
+   "floor": null,
+   "source_constant": null,
+   "unmeasured_reason": "the near-fixed DepMap lineage panel breadth (a denominator for n_enriched_lineages), not a variable sample size; the lineage-selectivity method gates on per-lineage cell counts, not on the NUMBER of lineages, so there is no method floor to mirror.",
+   "n_observations": 2,
+   "observations": [
+    {
+     "source": "skills/functional-requirement/tests/fixtures/kras_coadread.yaml",
+     "value": 26
+    },
+    {
+     "source": "skills/functional-requirement/tests/fixtures/not_dependent_in_indication.yaml",
+     "value": 26
+    }
+   ],
+   "at_floor": {
+    "true": 0,
+    "false": 0,
+    "unmeasured": 2
+   }
+  },
+  "n_paralogs_annotated": {
+   "calibrated": false,
+   "floor": null,
+   "source_constant": null,
+   "unmeasured_reason": "a count of annotated paralogs (0 is meaningful \u2014 no paralog to buffer), not a sample size. The buffering class thresholds on the dual-KO GI effect (STRONG_DELTA/PARTIAL_DELTA), never on the count, so there is no power floor.",
+   "n_observations": 1,
+   "observations": [
+    {
+     "source": "skills/functional-requirement/tests/fixtures/kras_coadread.yaml",
+     "value": 12
+    }
+   ],
+   "at_floor": {
+    "true": 0,
+    "false": 0,
+    "unmeasured": 1
+   }
+  },
+  "n_partner_deficient": {
+   "calibrated": true,
+   "floor": 5,
+   "source_constant": "onc_methods.depmap_partner_conditional_dependency.cli:MIN_PARTNER_DEFICIENT_CELLS",
+   "unmeasured_reason": null,
+   "n_observations": 0,
+   "observations": [],
+   "at_floor": {
+    "true": 0,
+    "false": 0,
+    "unmeasured": 0
+   }
+  },
+  "n_pathogenic_germline_confident": {
+   "calibrated": false,
+   "floor": null,
+   "source_constant": null,
+   "unmeasured_reason": "the curated ClinVar review-status-filtered confident-pathogenic variant count; the class already requires >=1, so the count is the evidence itself, not a sample size a floor would gate.",
+   "n_observations": 5,
+   "observations": [
+    {
+     "source": "skills/on-target-safety-liability/tests/fixtures/braf_coadread.yaml",
+     "value": 240
+    },
+    {
+     "source": "skills/on-target-safety-liability/tests/fixtures/egfr_coadread.yaml",
+     "value": 109
+    },
+    {
+     "source": "skills/on-target-safety-liability/tests/fixtures/erbb2_brca.yaml",
+     "value": 3
+    },
+    {
+     "source": "skills/on-target-safety-liability/tests/fixtures/tp53_coadread.yaml",
+     "value": 2501
+    },
+    {
+     "source": "skills/on-target-safety-liability/tests/fixtures/vhl_coadread.yaml",
+     "value": 1213
+    }
+   ],
+   "at_floor": {
+    "true": 0,
+    "false": 0,
+    "unmeasured": 5
+   }
+  },
+  "n_tissues_tested": {
+   "calibrated": false,
+   "floor": null,
+   "source_constant": null,
+   "unmeasured_reason": "the ~fixed GTEx reference tissue panel (the breadth-fraction denominator), not a variable N; the normal-tissue method encodes no minimum-tissue-count trust floor to mirror.",
+   "n_observations": 5,
+   "observations": [
+    {
+     "source": "skills/on-target-safety-liability/tests/fixtures/braf_coadread.yaml",
+     "value": 31
+    },
+    {
+     "source": "skills/on-target-safety-liability/tests/fixtures/egfr_coadread.yaml",
+     "value": 31
+    },
+    {
+     "source": "skills/on-target-safety-liability/tests/fixtures/erbb2_brca.yaml",
+     "value": 31
+    },
+    {
+     "source": "skills/on-target-safety-liability/tests/fixtures/tp53_coadread.yaml",
+     "value": 31
+    },
+    {
+     "source": "skills/on-target-safety-liability/tests/fixtures/vhl_coadread.yaml",
+     "value": 31
+    }
+   ],
+   "at_floor": {
+    "true": 0,
+    "false": 0,
+    "unmeasured": 5
+   }
+  },
+  "rnai_n_cell_lines_evaluated": {
+   "calibrated": true,
+   "floor": 300,
+   "source_constant": "onc_methods.depmap_demeter_distribution.cli:RNAI_PAN_ESSENTIAL_MIN_PANEL_N",
+   "unmeasured_reason": null,
+   "n_observations": 2,
+   "observations": [
+    {
+     "source": "skills/functional-requirement/tests/fixtures/kras_coadread.yaml",
+     "value": 701
+    },
+    {
+     "source": "skills/functional-requirement/tests/fixtures/not_dependent_in_indication.yaml",
+     "value": 701
+    }
+   ],
+   "at_floor": {
+    "true": 2,
+    "false": 0,
+    "unmeasured": 0
+   },
+   "counterfactual_floor": 800,
+   "at_counterfactual": {
+    "true": 0,
+    "false": 2
+   }
+  }
+ }
+}

@@ -64,6 +64,7 @@ from _skills_common.dependency_claims import (  # noqa: E402
 from _skills_common.envelope import assemble_evidence_package  # noqa: E402
 from _skills_common.paths import TARGET_CONTRACTS_ROOT_DEFAULT  # noqa: E402
 from _test_support import load_run_py  # noqa: E402
+from onc_methods.reliability_calibration.powered_floors import powered_floor_for  # noqa: E402
 
 _RUN = load_run_py(SKILL_DIR, "_fr_run_sections")
 _evidence_sections = _RUN._evidence_sections
@@ -92,6 +93,10 @@ _BASE_KEYS = {
     "schema_version",
 }
 _RECIPE_NAMES = {r["name"] for r in _SOURCE_PROPERTY_RECIPES_DEPENDENCY}
+# name -> its reliability n_effective_anchor (for the #2327 powered-floor re-derivation below).
+_RECIPE_N_ANCHOR = {
+    r["name"]: (r.get("reliability") or {}).get("n_effective_anchor") for r in _SOURCE_PROPERTY_RECIPES_DEPENDENCY
+}
 _AXIS_KEYS = {spec.axis_key for spec in DEPENDENCY_CLAIM_SPEC}
 _SKILL_CARDS = set(_RUN.CARDS)
 
@@ -247,15 +252,27 @@ def test_sections_are_named_and_reconstruct_downward_to_l1(pair):
                 f"{name} anchor has an empty field/scale: {a}"
             )
         # RELIABILITY FACET (#2306 step 2): every L2a entry carries a well-formed, verdict-inert
-        # reliability object. `powered` is 'unmeasured' uniformly at this step (no calibrated floor yet —
-        # a #2219-style follow-on will flip it, and this pin reds when it does). confound/artifact flags
-        # are [] (dependency anchors carry no purity r; floor_tie deferred); detection_strength omitted
-        # (not detection-kind); n_effective is present when the property's n-anchor resolved (int).
+        # reliability object. `powered` (#2327) is the tri-state computed against the property-KIND's
+        # calibrated floor (single-sourced from onc_methods.reliability_calibration, mirroring each
+        # method's own admissibility guard): true/false where the kind carries a floor AND n_effective
+        # resolved, else the 'unmeasured' string sentinel. Re-derived here from the entry's own
+        # n_effective + the live floor so a mis-wired anchor or a dropped fallback reds. confound/artifact
+        # flags are [] (dependency anchors carry no purity r; floor_tie deferred); detection_strength
+        # omitted (not detection-kind); n_effective is present when the property's n-anchor resolved (int).
         rel = entry.get("reliability")
         assert isinstance(rel, dict), f"{name} carries no reliability object — the #2306 facet is required"
-        assert rel.get("powered") == "unmeasured", (
-            f"{name} reliability.powered must be 'unmeasured' (no calibrated floor at this step), got {rel.get('powered')!r}"
-        )
+        _floor = powered_floor_for(_RECIPE_N_ANCHOR.get(name))
+        if "n_effective" in rel and _floor is not None:
+            assert rel.get("powered") == (rel["n_effective"] >= _floor), (
+                f"{name} reliability.powered={rel.get('powered')!r} != (n_effective {rel.get('n_effective')} "
+                f">= calibrated floor {_floor})"
+            )
+            assert isinstance(rel.get("powered"), bool), f"{name} powered must be a bool where a floor resolves"
+        else:
+            assert rel.get("powered") == "unmeasured", (
+                f"{name} has no calibrated floor or no n_effective → powered must be 'unmeasured', got "
+                f"{rel.get('powered')!r}"
+            )
         assert rel.get("confound_flags") == [], f"{name} dependency anchors carry no purity confound → [] expected"
         assert rel.get("artifact_flags") == [], f"{name} artifact_flags are deferred → [] expected"
         assert "detection_strength" not in rel, f"{name} is not detection-kind — detection_strength must be omitted"

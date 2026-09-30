@@ -7,7 +7,7 @@
 # replicating the safety seed (safety.yaml, PR-1a) for the dependency domain.
 catalog_id: dependency
 kind: l2a_property
-version: 1.0.0
+version: 1.1.0
 
 description: |
   This is the DEFAULT-valence domain, and that framing is the single most important thing to carry from
@@ -187,6 +187,23 @@ properties:
           controls: null
           flip_matrix: null
           adjudication: "#2219"
+      - name: POWERED_FLOOR_N_CELL_LINES_EVALUATED
+        value: 300
+        unit: n_cell_lines
+        source: methods/onc_methods/depmap_chronos_distribution/cli.py:PAN_ESSENTIAL_MIN_PANEL_N
+        rationale: |
+          The reliability facet's `powered` floor (#2327; verdict-INERT / SK#2091) for THIS property — a
+          reliability determinant, NOT a classification cut. `reliability.powered = (n_cell_lines_evaluated
+          >= 300)`, single-sourced (never re-declared) from this method's OWN panel-coverage admissibility
+          guard PAN_ESSENTIAL_MIN_PANEL_N: below 300 lines a >=85% strongly-dependent call is routed to
+          common_essential_underpowered -> insufficient, i.e. the method itself declares a thinner Chronos
+          distribution untrustworthy. Governed here as a determinant because #2306's machine-readable
+          `reliability.powered_floor` catalog shape is not landed yet (#2330 migrates it and rebases onto
+          onc_methods/reliability_calibration/powered_floors.py, which is authoritative).
+        calibration:
+          controls: null
+          flip_matrix: methods/tests/calibration/powered_floor_flip_matrix/matrix.json
+          adjudication: "#2327"
     dependence_note: |
       THE SHARED-SCREEN non-independence a downstream fold must respect. Four of this catalog's six
       properties rest on the DepMap CRISPR Chronos screen: `crispr_essentiality` (this one, the pan-panel
@@ -308,6 +325,21 @@ properties:
           controls: null
           flip_matrix: null
           adjudication: "#2219"
+      - name: POWERED_FLOOR_RNAI_N_CELL_LINES_EVALUATED
+        value: 300
+        unit: n_cell_lines
+        source: methods/onc_methods/depmap_demeter_distribution/cli.py:RNAI_PAN_ESSENTIAL_MIN_PANEL_N
+        rationale: |
+          The reliability facet's `powered` floor (#2327; verdict-INERT / SK#2091) for THIS property — a
+          reliability determinant, NOT a classification cut. `reliability.powered = (rnai_n_cell_lines_evaluated
+          >= 300)`, single-sourced from this method's OWN admissibility guard RNAI_PAN_ESSENTIAL_MIN_PANEL_N
+          (the DEMETER2 twin of the CRISPR guard). The catalog already notes DEMETER2 panels are materially
+          smaller than CRISPR's, so this floor can bite here where it never bites CRISPR. Same governance
+          note as crispr_essentiality's POWERED_FLOOR_N_CELL_LINES_EVALUATED (#2330 migrates it).
+        calibration:
+          controls: null
+          flip_matrix: methods/tests/calibration/powered_floor_flip_matrix/matrix.json
+          adjudication: "#2327"
     dependence_note: |
       Shares NO dependence_group with `crispr_essentiality` — and that is the entire point. CRISPR
       knockout (Chronos) and RNAi knockdown (DEMETER2) are independent perturbation modalities, so their
@@ -489,6 +521,22 @@ properties:
           controls: null
           flip_matrix: null
           adjudication: "#2219"
+      - name: POWERED_FLOOR_N_PARTNER_DEFICIENT
+        value: 5
+        unit: n_cell_lines
+        source: methods/onc_methods/depmap_partner_conditional_dependency/cli.py:MIN_PARTNER_DEFICIENT_CELLS
+        rationale: |
+          The reliability facet's `powered` floor (#2327; verdict-INERT / SK#2091) for THIS property — a
+          reliability determinant, NOT a classification cut. `reliability.powered = (n_partner_deficient >=
+          5)`, single-sourced from this method's OWN guard MIN_PARTNER_DEFICIENT_CELLS: below it the class
+          is insufficient_partner_deficient_rate — the deficient-vs-neutral stratification test literally
+          rests on this stratum size, so n_effective IS that size and the floor is exactly the method's.
+          No committed observation of this anchor exists yet (the flip matrix records zero; the false side
+          is proven in the deriver teeth). Same governance note as the CRISPR floor (#2330 migrates it).
+        calibration:
+          controls: null
+          flip_matrix: methods/tests/calibration/powered_floor_flip_matrix/matrix.json
+          adjudication: "#2327"
     dependence_note: |
       Chronos-derived (shares the raw CRISPR screen with crispr_essentiality) but keyed on a SECOND data
       source — the partner's alteration status defining the deficient stratum — so it is recorded in its

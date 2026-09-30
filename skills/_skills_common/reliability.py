@@ -20,10 +20,15 @@ WHAT EMITS AT THIS STEP, HONESTLY (1a safety + 1b dependency):
   * `n_effective`        — projected from the property's designated n-anchor; OMITTED where the property
                            has no sample-N anchor (per-gene MLE / p-value / outcome-count / tissue-breadth
                            count — see the per-recipe `reliability` spec's `n_effective_absent_reason`).
-  * `powered`            — 'unmeasured' UNIFORMLY: no calibrated per-property-kind floor exists yet for
-                           ANY 1a/1b property. `true`/`false` fire only once a floor is supplied (a
-                           #2219-style calibration follow-on). This is the honest absence-discipline
-                           outcome, not a stub.
+  * `powered`            — tri-state. `true`/`false` where the property's KIND carries a calibrated floor
+                           (#2327: the CRISPR/RNAi panel size and the partner-deficient stratum size —
+                           each the property's OWN method admissibility guard, single-sourced from
+                           onc_methods.reliability_calibration.powered_floors) AND `n_effective` resolved;
+                           else the 'unmeasured' string sentinel (absence-discipline). Every safety kind
+                           and the other dependency kinds stay 'unmeasured' BY calibration decision —
+                           evidence counts / fixed reference panels are not power denominators (see
+                           powered_floors.py::POWERED_FLOOR_UNMEASURED). A spec may also pass an explicit
+                           `powered_floor`, which wins over the table.
   * `confound_flags`     — [] for every 1a/1b property: safety/dependency anchors carry no purity-confound
                            r. The `microenvironment_weighted` path is implemented and unit-tested on a
                            SYNTHETIC anchor (r <= CONFOUND_R), so it is proven though it does not fire here.
@@ -55,6 +60,26 @@ def _confound_r_cut() -> float:
     from onc_methods.expression_purity_confound.read import CONFOUND_R
 
     return CONFOUND_R
+
+
+def _powered_floor_for(n_effective_anchor: "str | None") -> "int | None":
+    """The calibrated per-property-kind `powered` floor for a spec's n-anchor, or None (-> 'unmeasured').
+
+    Single-sourced (never re-declared) from onc_methods.reliability_calibration.powered_floors (#2327),
+    which mirrors each property's OWN method admissibility guard (CRISPR/RNAi panel size, partner-deficient
+    stratum size). Imported LAZILY — exactly like `_confound_r_cut` — so the deriver's import path never
+    pulls methods unless a calibrated floor is actually resolved (an UNMEASURED kind returns None without
+    importing anything). An unavailable calibration source degrades HONESTLY to None -> 'unmeasured', never
+    a crash (governance.honest_degradation): `powered` is verdict-inert, so a missing source is an absence,
+    not a failure.
+    """
+    if not n_effective_anchor:
+        return None
+    try:
+        from onc_methods.reliability_calibration.powered_floors import powered_floor_for
+    except ImportError:
+        return None
+    return powered_floor_for(n_effective_anchor)
 
 
 # NO L2b island attachment at this step. The locked #2306 shape derives an L2b arm's reliability FROM
@@ -110,6 +135,8 @@ def _derive_reliability(anchors, spec: dict) -> dict:
     # supplied; else the 'unmeasured' STRING sentinel (absence OUTRANKS a naive "powered"). No 1a/1b
     # property supplies a floor today, so this is 'unmeasured' uniformly.
     floor = spec.get("powered_floor")
+    if floor is None:
+        floor = _powered_floor_for(spec.get("n_effective_anchor"))
     if "n_effective" in out and floor is not None:
         out["powered"] = out["n_effective"] >= floor
     else:

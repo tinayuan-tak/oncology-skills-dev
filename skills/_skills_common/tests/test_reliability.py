@@ -66,15 +66,44 @@ def test_bool_anchor_value_is_not_a_count():
     assert "n_effective" not in out
 
 
-# ── powered: tri-state; 'unmeasured' unless n present AND a calibrated floor supplied ─────────────
+# ── powered: tri-state; 'unmeasured' unless n present AND a floor resolves (explicit or table) ─────
 def test_powered_unmeasured_when_no_floor_even_with_n_present():
-    # THE 1a/1b OUTCOME: n is present but no floor exists -> 'unmeasured' (the honest sentinel), NOT true.
-    # MUTANT: `powered = True` whenever n present reds this (would be bool True, not the string).
+    # An UNCALIBRATED kind (#2327: n_tissues_tested is a fixed reference panel, deliberately no floor) with
+    # n present -> 'unmeasured' (the honest sentinel), NOT true. MUTANT: `powered = True` whenever n present
+    # reds this (would be bool True, not the string); a floor invented for this kind also reds.
+    out = _derive_reliability([_anchor("n_tissues_tested", 31)], {"n_effective_anchor": "n_tissues_tested"})
+    assert out["powered"] == "unmeasured"
+    assert not isinstance(out["powered"], bool)
+
+
+# ── powered via the #2327 calibration TABLE (no explicit floor in the spec) ───────────────────────
+def test_powered_true_via_calibration_table_when_n_clears_the_kinds_floor():
+    # crispr_essentiality's n_cell_lines_evaluated carries a table floor (PAN_ESSENTIAL_MIN_PANEL_N=300),
+    # single-sourced from the method. n=907 clears it -> True with NO explicit powered_floor in the spec.
+    # MUTANT: drop the `_powered_floor_for` fallback in reliability.py -> 'unmeasured' reds this.
     out = _derive_reliability(
         [_anchor("n_cell_lines_evaluated", 907)], {"n_effective_anchor": "n_cell_lines_evaluated"}
     )
-    assert out["powered"] == "unmeasured"
-    assert not isinstance(out["powered"], bool)
+    assert out["powered"] is True
+
+
+def test_powered_false_via_calibration_table_when_n_below_the_kinds_floor():
+    # partner_conditional_dependency's n_partner_deficient carries a table floor (MIN_PARTNER_DEFICIENT_CELLS=5).
+    # n=3 is a MEASURED underpowered read -> False (a real statement), distinct from 'unmeasured'.
+    # MUTANT: fallback removed -> 'unmeasured' reds `is False`.
+    out = _derive_reliability([_anchor("n_partner_deficient", 3)], {"n_effective_anchor": "n_partner_deficient"})
+    assert out["powered"] is False
+
+
+def test_explicit_spec_floor_wins_over_the_calibration_table():
+    # An explicit powered_floor in the spec takes precedence over the kind's table floor. n_partner_deficient
+    # table floor is 5, but an explicit floor of 100 makes n=50 read False. MUTANT: consulting the table
+    # first (ignoring the explicit floor) would read True (50>=5) and red this.
+    out = _derive_reliability(
+        [_anchor("n_partner_deficient", 50)],
+        {"n_effective_anchor": "n_partner_deficient", "powered_floor": 100},
+    )
+    assert out["powered"] is False
 
 
 def test_powered_true_when_n_clears_supplied_floor():
