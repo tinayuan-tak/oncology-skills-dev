@@ -1,10 +1,10 @@
 {
   "attribution": {
-    "per_unit_read_credits": 646,
-    "per_unit_union_pairs": 594,
+    "per_unit_read_credits": 645,
+    "per_unit_union_pairs": 593,
     "reconciled": true,
     "unattributed": [],
-    "whole_tree_pairs": 594
+    "whole_tree_pairs": 593
   },
   "note": "Reads MINUS declarations, per unit, for the target-contracts framework-health dashboard. TRENDING, never a gate: a populated queue is a review queue and this tool returns 0 however long it is. The queue is NOT split into read_of_None vs emitted_but_undeclared here \u2014 that needs observed-package evidence this producer cannot see, so the contracts side resolves emission_undetermined against the data-products root. no_reads_detected means the scraper's five shapes matched nothing, NOT that the unit is clean.",
   "rosters": {
@@ -2197,27 +2197,18 @@
   "schema_version": "1.0.0",
   "summary": {
     "attribution_reconciled": true,
-    "n_clean": 14,
-    "n_emission_undetermined": 3,
+    "n_clean": 15,
+    "n_emission_undetermined": 2,
     "n_meta_key": 3,
     "n_no_reads_detected": 7,
-    "n_reads_detected": 594,
+    "n_reads_detected": 593,
     "n_roster_cards": 150,
     "n_roster_fields": 1868,
-    "n_undeclared_pairs": 6,
+    "n_undeclared_pairs": 5,
     "n_units": 23,
-    "n_units_with_undeclared_reads": 2
+    "n_units_with_undeclared_reads": 1
   },
   "undeclared_queue": [
-    {
-      "card": "competitor-landscape",
-      "classification": "emission_undetermined",
-      "field": "n_approved",
-      "reader_kinds": [
-        "skill_code"
-      ],
-      "unit": "literature-risk-assessment"
-    },
     {
       "card": "expression-purity-confound",
       "classification": "emission_undetermined",
@@ -2360,22 +2351,13 @@
       "undeclared": []
     },
     "literature-risk-assessment": {
-      "disposition": "undeclared_reads",
+      "disposition": "clean",
       "kind": "skill",
-      "n_reads": 6,
+      "n_reads": 5,
       "reads_by_kind": {
-        "skill_code": 6
+        "skill_code": 5
       },
-      "undeclared": [
-        {
-          "card": "competitor-landscape",
-          "classification": "emission_undetermined",
-          "field": "n_approved",
-          "reader_kinds": [
-            "skill_code"
-          ]
-        }
-      ]
+      "undeclared": []
     },
     "mechanism-and-pharmacology": {
       "disposition": "clean",

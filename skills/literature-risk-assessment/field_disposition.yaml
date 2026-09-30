@@ -42,10 +42,9 @@ _meta:
     reach-confirmed exact.)
   consumed_by_this_skill: >-
     clinical-precedent {highest_clinical_stage, n_active_trials, notable_failures, approved_agents};
-    competitor-landscape {competitor_class, n_competitor_programs, approved_agents}. NOTE run.py also
-    reads competitor-landscape.n_approved, which the card does NOT declare (a phantom read that always
-    resolves None) — not ledgered here because the ledger covers only DECLARED summary_fields; filed as
-    a finding for the producing skill / target-contracts.
+    competitor-landscape {competitor_class, n_competitor_programs, approved_agents}. The former
+    competitor-landscape.n_approved phantom read (card never declared it; always resolved None) was
+    dropped from run.py — see issue #2117.
 clinical-precedent:
   highest_clinical_stage:
     role: signal

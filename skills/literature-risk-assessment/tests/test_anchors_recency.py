@@ -40,7 +40,7 @@ def test_load_card_anchors_from_clinical_and_competitor_cards(tmp_path):
             },
             {
                 "card_id": "competitor-landscape",
-                "summary": {"competitor_class": "approved_competitor", "n_competitor_programs": 5, "n_approved": 2},
+                "summary": {"competitor_class": "approved_competitor", "n_competitor_programs": 5},
             },
         ],
     )

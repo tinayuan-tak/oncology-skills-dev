@@ -218,7 +218,7 @@ def _load_card_anchors(pkg_path):
     if cl:
         out["commercial"] = (
             f"competitor-landscape: competitor_class={cl.get('competitor_class')}, "
-            f"n_competitor_programs={cl.get('n_competitor_programs')}, n_approved={cl.get('n_approved')}"
+            f"n_competitor_programs={cl.get('n_competitor_programs')}"
         )
     return out
 
