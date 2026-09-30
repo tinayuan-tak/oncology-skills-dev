@@ -512,6 +512,8 @@ jobs:
       # Install set is IDENTICAL across both contracts legs so they share one pip cache.
       - name: Install dependencies
         run: python -m pip install --upgrade pip pyyaml jsonschema pytest pytest-xdist pytest-split matplotlib
+      - name: Install the contracts package (editable — provides oncology_target_contracts.loader)
+        run: python -m pip install -e .
       - name: Validate card specs
         run: python validators/validate_cards.py cards/
       - name: Validate evidence_graph (schema + referential integrity)
@@ -609,6 +611,8 @@ jobs:
       # rendering-contract tests AT COLLECTION (measured in the old TC CI — see contracts/ git history).
       - name: Install dependencies
         run: python -m pip install --upgrade pip pyyaml jsonschema pytest pytest-xdist pytest-split matplotlib
+      - name: Install the contracts package (editable — provides oncology_target_contracts.loader)
+        run: python -m pip install -e .
 
       - name: Whole-package test suite (shard ${{ matrix.group }}/4; the contracts pytest gate)
         # -rsfE: named skip lines — a skip is "the check did not run" and must stay visible in the
