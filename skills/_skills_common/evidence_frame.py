@@ -17,15 +17,19 @@ The envelope doc §"Type-integrity invariant" states a system-wide, machine-chec
     unresolved != neutral · dependent evidence != independent corroboration · L3 != L2 fact)
 
 Until now that rule was prose. This module makes it code. A frame declares each of its inputs as one
-of four INPUT KINDS, and a checker refuses any declaration that over-claims the object's honest
+of five INPUT KINDS, and a checker refuses any declaration that over-claims the object's honest
 emitted type.
 
-The four input kinds (how a frame DECLARES it consumes an input)
+The five input kinds (how a frame DECLARES it consumes an input)
     canonical-property-claim  — an L2b integrated cross-source property (the *_concordance claims).
     local-composite-claim     — a within-skill composite classifier (bundles measurements; NOT a
                                  canonical single-fact property). This is the type-integrity teeth
                                  specimen: it must be REFUSED where a canonical property is declared.
     measurement               — a single raw observed measurement (atomic observational fact).
+    curated-prior-input       — asserted background/prior knowledge (curated vocabularies/rosters), not
+                                 measured in this run (SK#2295). May inform a frame but must never be
+                                 over-claimed as an L2 measured fact — refused wherever a canonical
+                                 property, local-composite, or measurement is declared instead.
     missing/unresolved        — a declared-but-absent input. Never silently neutral.
 
 The claim_type taxonomy (the emitted LAYER of any evidence object) — greenfield here
@@ -89,11 +93,21 @@ class InputKind:
     CANONICAL_PROPERTY_CLAIM = "canonical-property-claim"
     LOCAL_COMPOSITE_CLAIM = "local-composite-claim"
     MEASUREMENT = "measurement"
+    # A curated / background-knowledge input (SK#2295) — asserted prior, not measured in this run
+    # (e.g. a curated target->biology_axis lookup, a curated antigen roster, a disclaimed literature
+    # crosswalk). It may INFORM an L3 frame but must never be over-claimed as an L2 measured fact —
+    # R1 below refuses that the same way it refuses local-composite -> canonical.
+    CURATED_PRIOR_INPUT = "curated-prior-input"
     MISSING_UNRESOLVED = "missing/unresolved"
 
 
 _PROPERTY_INPUT_KINDS = frozenset(
-    {InputKind.CANONICAL_PROPERTY_CLAIM, InputKind.LOCAL_COMPOSITE_CLAIM, InputKind.MEASUREMENT}
+    {
+        InputKind.CANONICAL_PROPERTY_CLAIM,
+        InputKind.LOCAL_COMPOSITE_CLAIM,
+        InputKind.MEASUREMENT,
+        InputKind.CURATED_PRIOR_INPUT,
+    }
 )
 _ALL_INPUT_KINDS = _PROPERTY_INPUT_KINDS | {InputKind.MISSING_UNRESOLVED}
 
@@ -101,6 +115,11 @@ _ALL_INPUT_KINDS = _PROPERTY_INPUT_KINDS | {InputKind.MISSING_UNRESOLVED}
 class ClaimType:
     """The emitted LAYER of an evidence object (the claim_type taxonomy)."""
 
+    # LOWEST rung (SK#2295) — asserted background/prior knowledge, not measured in this run (curated
+    # vocabularies, curated rosters, curated SL/paralog relationships, the disclaimed literature
+    # crosswalk). Strictly WEAKER than observational_property: a prior may inform an L3 frame but must
+    # never be consumed as if it were a measured L2 fact (the laundering risk this rung closes).
+    CURATED_PRIOR = "curated_prior"
     OBSERVATIONAL_PROPERTY = "observational_property"
     INTEGRATED_PROPERTY = "integrated_property"
     # L3d — a WITHIN-DOMAIN interpretation that packages a domain's L2b integrated properties into a
@@ -118,7 +137,9 @@ class ClaimType:
 UNRESOLVED = "unresolved"
 
 # Strict layer order, low -> high. Used for the acyclicity monotonicity check AND the over-claim rule.
+# curated_prior sits BELOW observational_property — the lowest rung (SK#2295).
 CLAIM_TYPE_LAYER = {
+    ClaimType.CURATED_PRIOR: -1,
     ClaimType.OBSERVATIONAL_PROPERTY: 0,
     ClaimType.INTEGRATED_PROPERTY: 1,
     ClaimType.DOMAIN_INTERPRETATION: 2,
@@ -126,10 +147,12 @@ CLAIM_TYPE_LAYER = {
     ClaimType.SYNTHESIS: 4,
 }
 
-# Emitted-type strength rank (adds UNRESOLVED below everything). "Consumed as stronger than emitted"
-# means the type a KIND asserts outranks the object's honest emitted type.
+# Emitted-type strength rank (adds UNRESOLVED below everything, curated_prior one rung above that).
+# "Consumed as stronger than emitted" means the type a KIND asserts outranks the object's honest
+# emitted type.
 _EMITTED_RANK = {
-    UNRESOLVED: -1,
+    UNRESOLVED: -2,
+    ClaimType.CURATED_PRIOR: -1,
     ClaimType.OBSERVATIONAL_PROPERTY: 0,
     ClaimType.INTEGRATED_PROPERTY: 1,
     ClaimType.DOMAIN_INTERPRETATION: 2,
@@ -138,11 +161,13 @@ _EMITTED_RANK = {
 }
 
 # The emitted layer each INPUT KIND asserts the object holds. A canonical-property-claim asserts an
-# integrated_property; a measurement / local-composite assert the observational layer.
+# integrated_property; a measurement / local-composite assert the observational layer; a
+# curated-prior-input asserts only the curated_prior layer (never a measured fact — SK#2295).
 _KIND_ASSERTS_LAYER = {
     InputKind.CANONICAL_PROPERTY_CLAIM: ClaimType.INTEGRATED_PROPERTY,
     InputKind.LOCAL_COMPOSITE_CLAIM: ClaimType.OBSERVATIONAL_PROPERTY,
     InputKind.MEASUREMENT: ClaimType.OBSERVATIONAL_PROPERTY,
+    InputKind.CURATED_PRIOR_INPUT: ClaimType.CURATED_PRIOR,
 }
 
 
@@ -236,6 +261,25 @@ def from_concordance(property_id: str, claim: Optional[Mapping]) -> TypedEvidenc
         independent_arm_count=claim.get("corroborating_independent_arm_count"),
         resolved_source_count=claim.get("resolved_source_count"),
         value=dict(claim),
+    )
+
+
+def from_curated_prior(property_id: str, value, *, source: Optional[str] = None) -> TypedEvidence:
+    """Adapt a curated-vocabulary / background-knowledge input (SK#2295) into a typed curated_prior.
+
+    Mirrors ``from_concordance``: stamps the object with its HONEST (weakest) emitted layer so it can
+    never be laundered into a measured L2 fact downstream. Use for curated target rosters, the curated
+    target->biology_axis lookup, curated SL/paralog relationships, and similar asserted-not-measured
+    channels reaching a frame. ``value is None`` yields an unresolved curated_prior, same convention as
+    every other adapter in this module.
+    """
+    return TypedEvidence(
+        property_id=property_id,
+        claim_type=ClaimType.CURATED_PRIOR,
+        resolved=value is not None,
+        is_composite=False,
+        value=value,
+        source=source,
     )
 
 
