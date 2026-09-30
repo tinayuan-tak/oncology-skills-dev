@@ -91,6 +91,7 @@ run "build_wiring_reconciliation --self-check" python validators/build_wiring_re
 run "build_wiring_ledger --self-check"   python validators/build_wiring_ledger.py --self-check
 run "living_doc --self-check"            python validators/architecture_dashboard/living/build_living_doc.py --self-check
 run "validate_property_catalog"          python validators/validate_property_catalog.py --catalog vocabularies/property_catalog --cards cards/
+run "validate_concordance_enum"          python validators/validate_concordance_enum.py --enum vocabularies/concordance_class.enum.yaml --families vocabularies/property_catalog/integrated_families.yaml
 
 # Drain the pool and print every gate's PASS/FAIL in launch (CI) order before the ruff/advisory
 # steps below, which stay SYNCHRONOUS (fast, and the ruff block has its own version-gate control
@@ -115,6 +116,18 @@ else
   echo "WARN  property-catalog additivity SKIPPED — '$pc_base' not fetched; set PRELAND_BASE or run 'git fetch origin main'"
 fi
 
+# --- concordance-enum TOKEN additivity (vocabularies/concordance_class.enum.yaml) ---
+# Same shape and the same reason as the block above: the shape clauses ran in the pool, additivity
+# needs a ref. concordance_class tokens are PUBLISHED wire names, string-matched by consumers that
+# fail OPEN when a match stops happening, so a quiet removal is the failure this clause exists for.
+if git rev-parse --verify -q "$pc_base" >/dev/null; then
+  run "validate_concordance_enum --additive-against $pc_base" \
+      python validators/validate_concordance_enum.py --enum vocabularies/concordance_class.enum.yaml \
+             --families vocabularies/property_catalog/integrated_families.yaml --additive-against "$pc_base"
+else
+  echo "WARN  concordance-enum additivity SKIPPED — '$pc_base' not fetched; set PRELAND_BASE or run 'git fetch origin main'"
+fi
+
 # --- ruff (.github/workflows/ruff.yml) ---
 # 2026-09-13: this script mirrored contracts-validate.yml and NOTHING ELSE, so "ALL GATES PASS" was
 # reported on a branch whose ruff job then failed on the PR — format-only, but a red check either way.
@@ -123,6 +136,22 @@ fi
 # ruff is pinned in the workflow: a different local version formats differently, so the version is
 # asserted rather than assumed. An ABSENT/mismatched ruff is a loud WARN, never a silent skip — a gate
 # that did not run must not read as a gate that passed.
+# `ruff check`, plus the assertion that every path on the argv was actually readable. ruff exits 0
+# on a file it could not open (stderr `warning: Failed to lint <p>: No such file or directory`), and
+# `run` captures output and discards it on rc 0, so that warning was invisible AND non-fatal. rc 3
+# distinguishes "could not read" from ruff's own rc 1 "found violations" in the transcript.
+_ruff_check_readable() {
+  local out rc
+  out=$(ruff check "$@" 2>&1); rc=$?
+  printf '%s\n' "$out"
+  if printf '%s' "$out" | grep -q 'Failed to lint'; then
+    echo "ruff could not READ one or more paths above — the argv is wrong for this cwd ($PWD);" \
+         "a lint that opened no file is not a pass"
+    return 3
+  fi
+  return $rc
+}
+
 RUFF_PIN=0.16.6
 if ! command -v ruff >/dev/null 2>&1; then
   echo "WARN  ruff NOT INSTALLED — the ruff job was NOT checked locally; install with 'pipx install ruff==$RUFF_PIN'"
@@ -134,11 +163,22 @@ else
   # ref, so diffing against it yields ZERO changed files on any pushed branch — a vacuous pass.
   base="${PRELAND_BASE:-origin/main}"
   if git rev-parse --verify -q "$base" >/dev/null; then
-    changed=$(git diff --name-only --diff-filter=ACMR "$base"...HEAD -- '*.py' || true)
+    # `--relative` is LOAD-BEARING (added 2026-09-30). This script runs from contracts/, but
+    # `git diff --name-only` emits REPO-ROOT-relative paths, so the argv was `ruff check
+    # contracts/validators/x.py` evaluated from INSIDE contracts/ — resolving to nothing. ruff
+    # treats an unreadable path as a WARNING on stderr and still exits 0 with "All checks
+    # passed!", so this step reported PASS having linted ZERO files, on every branch that
+    # changed a .py under contracts/. Trunk never exposed it: trunk changes no .py and takes the
+    # honest else-branch below, so the live path was only ever reached on a branch. The first
+    # branch to actually exercise it (this one) was carrying a real I001.
+    changed=$(git diff --name-only --relative --diff-filter=ACMR "$base"...HEAD -- '*.py' || true)
     if [ -n "$changed" ]; then
       echo "      (ruff check scope vs $base: $(echo "$changed" | tr '\n' ' '))"
+      # Assert ruff READ the files rather than trusting that it was happy: `--relative` fixes
+      # today's breakage, but the failure mode is silent and the next path-shape change would
+      # reintroduce it identically. A lint of zero files must not read as a lint that passed.
       # shellcheck disable=SC2086
-      run "ruff check (changed .py)"     ruff check $changed
+      run "ruff check (changed .py)"     _ruff_check_readable $changed
     else
       echo "PASS  ruff check (changed .py) — this branch changes no .py vs $base"
     fi

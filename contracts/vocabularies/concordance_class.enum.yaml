@@ -1,0 +1,649 @@
+# concordance_class.enum.yaml
+# Controlled vocabulary: the `concordance_class` tokens the landed L2b CONCORDANCE FAMILIES emit.
+# Evidence-property architecture (epic claude-oncology-skills#1507); structure arc #2210 Wave-0b.
+#
+# WHAT THIS IS. An L2b family folds two or more INDEPENDENT arms that resolve the same biological
+# property into one island on the claim vector. The island carries a `concordance_class` token that
+# says WHAT THE FOLD FOUND: the arms agreed, they disagreed, they disagreed in a named direction, or
+# only one of them resolved at all. Those tokens were, until this file, ungoverned — 44 distinct
+# strings minted independently across 6 builder modules, string-matched by downstream consumers, with
+# no roster anywhere. This file is that roster.
+#
+# WHAT IT IS NOT. It is not a classifier and it does not rank. `concordance_class` answers "did the
+# sources agree?", never "is the target good?" — the SIGNAL/CORROBORATION ladder answers the second
+# question and these tokens are orthogonal to it. A `*_discordant` token is not a negative finding; it
+# is a statement that the cross-source comparison did not license a corroborated claim.
+#
+# WHY IT EXISTS (the honest reason). These tokens are PUBLISHED WIRE NAMES. They are matched as bare
+# strings by evidence_frame.py frozensets, presence_l3d_story.py, the dependency_claims.py token maps
+# and the question tables' hard-coded `claim_vector.<island>` provenance_ref paths. A vocabulary that
+# is load-bearing but unwritten cannot be reasoned about: you cannot tell a typo from a new member, you
+# cannot tell a token that was retired from a token that never existed, and you cannot tell whether a
+# consumer's frozenset still covers the emitters. The governance value here is the CROSS-CHECK, not the
+# list: `skills/_skills_common/tests/test_concordance_class_enum_coverage.py` re-derives the emitted
+# token set from the builders on every run and fails if it and this file disagree in EITHER direction.
+# The file is therefore a measurement that must stay true, not documentation that may rot.
+#
+# THIS FILE DESCRIBES; IT RENAMES NOTHING. Additive-only is not a style preference here. Renaming a
+# token silently breaks a string match in a consumer that has no idea the vocabulary moved, and the
+# break is a MISSING branch, not an error — it fails open. Migration is add -> consume -> remove, in
+# that order, in separate PRs, and is out of scope for this file in every direction.
+#
+# THE TWO VIEWS ARE DELIBERATE. `families[*].tokens` and `values[*].families` are the same 48
+# (family, token) pairs indexed both ways, and the validator asserts they agree exactly. The
+# redundancy is load-bearing: a token added to one view and forgotten in the other is the single most
+# likely way this file goes wrong, and the mutual check is what catches it. A one-way index would be
+# cheaper to maintain and would have no teeth.
+#
+# NO LINE NUMBERS, ON PURPOSE. Emission sites are recorded as `builder` + `builder_function`, never as
+# `path:line`. The six builder modules are 700-3000 lines and are edited by four peer epics; a line
+# number would be stale within days and its staleness would be invisible, since nothing can validate
+# that line N still holds the emission. A function name is checkable, and the coverage test checks it.
+
+enum_id: concordance_class
+version: 1.0.0
+
+description: |
+  The `concordance_class` token emitted by each landed L2b concordance-family island: what the fold
+  of that family's independent arms found. 44 distinct tokens across 13 families (48 family x token
+  pairs; `single_source_only` is shared by 5 families and is the only shared token).
+
+  Read with `property_catalog/integrated_families.yaml`, which is authoritative for WHICH arms each
+  family folds and on what comparability basis. This file is authoritative only for the token
+  vocabulary and its disposition/relation semantics.
+
+governance:
+  role: |
+    Authoritative for: the `concordance_class` token roster, each token's DISPOSITION, and the
+    mapping from disposition to the dependence-edge relation a fold would carry. NOT authoritative
+    for the family roster or arm composition (property_catalog/integrated_families.yaml), for the
+    family COUNT (skills/_skills_common/tests/test_rung5_envelope_enforcement.py
+    :: _EXPECTED_FAMILY_COUNT), for the dependence-relation vocabulary itself
+    (skills/_skills_common/dependence_edges.py :: DEPENDENCE_RELATIONS), or for the envelope schema
+    (docs/EVIDENCE_PROPERTY_ENVELOPE_v0.md).
+  versioning: |
+    Semver, additive-only. A new token is a MINOR bump and must land WITH the builder change that
+    emits it — the coverage cross-check fails in both directions, so a token registered here but not
+    emitted is as red as a token emitted but not registered. That symmetry is intentional: a false
+    claim of coverage is worse than an absent entry, and an unregistered emitter is exactly the drift
+    this file exists to catch.
+  ownership: |
+    The families and their tokens are owned by their epics (#1730 / #1755 / #1779 / #1812 and #1507).
+    This registration is arc #2210 Wave-0b and owns no token.
+  change_discipline: |
+    Tokens are published wire names, string-matched by evidence_frame.py frozensets,
+    presence_l3d_story.py, the dependency_claims.py token maps and the question tables' hard-coded
+    `claim_vector.<island>` provenance_ref paths. Add -> consume -> remove, never a bare rename. A
+    rename fails OPEN in every one of those consumers: the token simply stops matching and the branch
+    silently stops being taken.
+  naming_is_not_uniform: |
+    Recorded, not fixed. Three naming conventions coexist: bare (`single_source_only`,
+    `coverage_concordant`), family-prefixed (`essentiality_*`, `liability_*`, `cis_dosage_*`), and
+    directional-predicate (`panel_masks_recurrence`, `rna_high_protein_low`). The bare tokens are the
+    oldest. Uniforming them is a rename of published wire names and is therefore NOT in scope for a
+    describing file; it would be three add -> consume -> remove waves (cf. #2229, which is exactly
+    that shape for the tumour-presence A/B/C/D claim keys). This block exists so the non-uniformity
+    reads as a measured fact rather than an oversight.
+
+# ---------------------------------------------------------------------------------------------------
+# DISPOSITIONS — the closed set of things a fold can find. Every token has exactly one.
+# ---------------------------------------------------------------------------------------------------
+dispositions:
+  - disposition: single_arm
+    definition: |
+      Exactly one arm resolved. No cross-source comparison was performed, so the fold asserts no
+      agreement and no disagreement; it degrades to the single resolving arm. This is an ABSENCE of
+      comparison, not a weak comparison — the distinction matters because a consumer that treats
+      single_arm as "agreed" manufactures corroboration out of missing data.
+    dependence_relation: qualifies
+  - disposition: concordant
+    definition: |
+      Two or more arms resolved and agree. This is the only disposition that licenses a corroborated
+      cross-source claim. Note that agreement on a NEGATIVE is still concordance
+      (`essentiality_concordant_nondependent`, `liability_concordant_low`): the token names what the
+      arms agreed ON, and the polarity of that agreement is the consuming axis's business.
+    dependence_relation: corroborates
+  - disposition: discordant
+    definition: |
+      Two or more arms resolved and disagree, with no attribution of the disagreement to a particular
+      arm. The fold names the disagreement and stops there.
+    dependence_relation: qualifies
+  - disposition: directional_discordance
+    definition: |
+      Two or more arms resolved and disagree, and the token NAMES which arm carries which side
+      (`panel_masks_recurrence`, `rna_high_protein_low`, `antibody_detects_ms_absent`). Semantically a
+      discordance; kept separate because the extra information is what makes these tokens actionable
+      downstream — the asymmetric ones usually encode a known assay limitation rather than a
+      biological conflict.
+    dependence_relation: qualifies
+
+# ---------------------------------------------------------------------------------------------------
+# RELATIONS — how a disposition maps onto the typed dependence-edge vocabulary.
+#
+# DESIGN DECISION (#2210 Wave-0b, made deliberately after measurement; see coverage_dimensions below).
+# `dependence_edges.py` declares a closed 3-member relation set. Two of the three are reachable from a
+# family fold. The third, `contradicts`, requires `opposed=True`, and NO family fold passes it.
+#
+# The prior recorded premise — "no landed builder emits contradicts" (integrated_families.yaml, and
+# repeated in the arc ledger and in dependence_edges.py's own design note as "the shipped
+# tumor-presence L2b claims never pass opposed=True") — is FALSE AS STATED, and this file corrects it.
+# Measured 2026-09-29 by sweeping every `opposed=` call site in the repository and then DRIVING the one
+# production site: `skills/_skills_common/presence_claims.py :: _provider_call_corroboration` (called
+# from `_claim_B`) passes `opposed=(concordance == "direction_discordant")` and returns a live edge with
+# `relation: contradicts`. It is reachable, deterministic, and not dead code.
+#
+# The premise is true only under a scoping that was never written down: no L2b FAMILY FOLD emits
+# `contradicts`. `_provider_call_corroboration` is a claim-level sub-claim, not a family fold; it emits
+# a key named `concordance` over a DIFFERENT, ungoverned 5-token vocabulary (see
+# related_ungoverned_vocabularies), not a `concordance_class`, and its edge appears in no
+# `dependence_edges` list. Both facts are now recorded at both grains, because the unscoped version of
+# this claim is the kind of absence-assertion that goes vacuous without anyone noticing.
+#
+# WHY NO GATE. An assertion that the corpus never carries `contradicts` would be FALSE today at
+# repository grain and VACUOUS-PRONE at fold grain — the moment a family legitimately gains an opposed
+# arm, a gate would read as a regression rather than as the design change it is. The gap is therefore
+# recorded as a coverage DIMENSION (a count, emitted as data) and not as a gate. `contradicts` is
+# admitted here as declared-and-emitted-outside-family-folds, which is what was measured.
+# ---------------------------------------------------------------------------------------------------
+relations:
+  vocabulary_source: skills/_skills_common/dependence_edges.py
+  vocabulary_symbol: DEPENDENCE_RELATIONS
+  values:
+    - relation: corroborates
+      dispositions: [concordant]
+      emitted_by_family_folds: true
+      note: |
+        Emitted as a typed edge by the 5 presence-domain families; the other 8 families declare
+        `corroborates` in integrated_families.yaml and carry the concordant token, but emit no typed
+        `dependence_edges` list. Declaring a relation and emitting an edge are different acts.
+    - relation: qualifies
+      dispositions: [single_arm, discordant, directional_discordance]
+      emitted_by_family_folds: true
+      note: |
+        The fall-through of `concordance_relation(concordant=False, opposed=False)`, and therefore the
+        relation carried by every non-concordant disposition. The conservative value is on the
+        fall-through by construction: reaching `contradicts` requires an explicit `opposed=True`.
+    - relation: contradicts
+      dispositions: []
+      emitted_by_family_folds: false
+      admitted_as: declared_and_emitted_outside_family_folds
+      declared_in: skills/_skills_common/dependence_edges.py
+      emitted_outside_family_folds_by:
+        builder: skills/_skills_common/presence_claims.py
+        builder_function: _provider_call_corroboration
+        called_from: _claim_B
+        emits_field: concordance
+        reached_when: |
+          The re-derived expression call resolves a direction, the DE provider's own call is
+          significant, and the two directions disagree -> `direction_discordant` -> `opposed=True` ->
+          `relation: contradicts`.
+      measurement_scope: |
+        Sole production `opposed=` call site in the repository as of 2026-09-29. Verified by executing
+        the function, not by reading it. The edge it builds has no reader today — `_claim_B` consumes
+        only the sibling `concordance`, `uncorroborated_up`, `low_absolute_expression` and `base_mean`
+        keys — so this is an emitted-but-unconsumed structure, which is a third state distinct from
+        both "emitted" and "absent" and is recorded as such rather than collapsed into either.
+
+# ---------------------------------------------------------------------------------------------------
+# COVERAGE DIMENSIONS — emitted as data, deliberately NOT gates.
+#
+# A gate on any of these would assert an absence, and an absence-assertion that goes vacuous is a
+# design change disguised as a pass. The population FLOORS below are gated (they protect against this
+# file going empty or the cross-check examining nothing); the per-relation and per-disposition COUNTS
+# are not.
+# ---------------------------------------------------------------------------------------------------
+coverage_dimensions:
+  - dimension: relation_emission_by_family_folds
+    measured: 2 of the 3 declared dependence relations are reachable from a family fold
+    unemitted: [contradicts]
+    is_a_gate: false
+    rationale: |
+      See the relations block. Gating the absence of `contradicts` would be false at repository grain
+      and would invert on the day a family gains a legitimately opposed arm.
+  - dimension: typed_edge_emission
+    measured: 5 of 13 families emit a typed `dependence_edges` list; 8 declare relations without
+      emitting edges
+    is_a_gate: false
+    rationale: |
+      The 8 are not defective — the envelope does not require a typed edge list — but the gap is the
+      single biggest asymmetry in the landed L2b population and is worth a number rather than a
+      silence.
+  - dimension: disposition_distribution
+    measured: single_arm 11, concordant 19, discordant 7, directional_discordance 11 (48 pairs)
+    is_a_gate: false
+    rationale: |
+      Recorded so that a future wave can see at a glance whether new families are adding comparison
+      power or only adding degraded single-arm paths. Not a target.
+
+population_floors:
+  families: 13
+  family_token_pairs: 40
+  distinct_tokens: 35
+  note: |
+    Floors, not counts — they are what the validator gates, and they sit BELOW the measured values
+    (13 / 48 / 44) so that additive growth never reds. Their job is anti-vacuity: a file that lost its
+    `values` block, or a cross-check that examined nothing, must not read green. `families` is exact
+    at 13 because this file may not introduce a family (that belongs to the owning epics), so growth
+    here requires a deliberate edit — and because the 1:1 keying to integrated_families.yaml is what
+    makes the roster check meaningful.
+
+# ---------------------------------------------------------------------------------------------------
+# FAMILIES — 13, keyed 1:1 to property_catalog/integrated_families.yaml. `island_key`, `builder` and
+# `builder_function` are cross-checked against that file by the validator; `tokens` is cross-checked
+# against the builders themselves by the skills-side coverage test.
+# ---------------------------------------------------------------------------------------------------
+families:
+  recurrence:
+    island_key: recurrence_concordance
+    builder: skills/_skills_common/genomic_claims.py
+    builder_function: _recurrence_concordance_claim
+    tokens:
+      - single_source_only
+      - recurrence_concordant
+      - panel_masks_recurrence
+      - exome_masks_recurrence
+  selectivity:
+    island_key: selectivity_concordance
+    builder: skills/_skills_common/selectivity_claims.py
+    builder_function: _selectivity_concordance_claim
+    tokens:
+      - single_source_only
+      - selectivity_window_concordant
+      - protein_masks_selectivity_window
+      - rna_masks_selectivity_window
+  coverage:
+    island_key: bulk_vs_singlecell_coverage_concordance
+    builder: skills/_skills_common/presence_claims.py
+    builder_function: _coverage_concordance_claim
+    tokens:
+      - coverage_concordant
+      - bulk_masks_low_coverage
+    note: |
+      The only family with no single_arm token and no mirror-direction discordance. Both absences are
+      by construction, not oversight: the fold is entered only when the bulk arm reports broad
+      presence, so "single-cell masks low bulk coverage" is unreachable, and when only one arm
+      resolves the builder returns None rather than emitting a degraded token.
+  abundance:
+    island_key: abundance_concordance
+    builder: skills/_skills_common/presence_claims.py
+    builder_function: _abundance_concordance_claim
+    tokens:
+      - abundance_concordant
+      - rna_high_protein_low
+      - rna_low_protein_high
+    note: |
+      No single_arm token: when only one modality resolves, the builder OMITS the
+      `concordance_class` key rather than emitting a degraded token. See documented_not_emitted.
+  subtype_restriction:
+    island_key: subtype_restriction_concordance
+    builder: skills/_skills_common/presence_claims.py
+    builder_function: _subtype_restriction_concordance_claim
+    tokens:
+      - single_source_only
+      - subtype_restriction_concordant
+      - protein_masks_subtype_restriction
+      - rna_masks_subtype_restriction
+  protein_presence:
+    island_key: protein_presence_concordance
+    builder: skills/_skills_common/presence_claims.py
+    builder_function: _protein_presence_concordance_claim
+    tokens:
+      - single_source_only
+      - protein_presence_concordant
+      - antibody_detects_ms_absent
+      - ms_detects_antibody_negative
+  tumor_presence:
+    island_key: tumor_presence_concordance
+    builder: skills/_skills_common/presence_claims.py
+    builder_function: _tumor_presence_concordance_claim
+    tokens:
+      - single_source_only
+      - tumor_presence_concordant
+      - tumor_presence_discordant
+  essentiality:
+    island_key: crispr_rnai_essentiality_concordance
+    builder: skills/_skills_common/dependency_claims.py
+    builder_function: _essentiality_concordance_claim
+    tokens:
+      - essentiality_single_assay_only
+      - essentiality_concordant_dependent
+      - essentiality_concordant_nondependent
+      - essentiality_assay_discordant
+  normal_liability:
+    island_key: normal_liability_concordance
+    builder: skills/_skills_common/safety_claims.py
+    builder_function: _normal_liability_concordance_claim
+    tokens:
+      - liability_single_source_only
+      - liability_concordant_high
+      - liability_concordant_low
+      - liability_assay_discordant
+  cis_dosage:
+    island_key: cis_dosage_concordance
+    builder: skills/_skills_common/cis_coherence_claims.py
+    builder_function: _cis_dosage_concordance_claim
+    tokens:
+      - cis_dosage_single_grain_only
+      - cis_dosage_concordant_coupled
+      - cis_dosage_concordant_uncoupled
+      - cis_dosage_grain_discordant
+  methylation_silencing:
+    island_key: methylation_silencing_concordance
+    builder: skills/_skills_common/cis_coherence_claims.py
+    builder_function: _methylation_silencing_concordance_claim
+    tokens:
+      - methylation_silencing_single_grain_only
+      - methylation_silencing_concordant_silenced
+      - methylation_silencing_concordant_unsilenced
+      - methylation_silencing_grain_discordant
+  expression_dependency:
+    island_key: expression_dependency_concordance
+    builder: skills/_skills_common/cis_coherence_claims.py
+    builder_function: _expression_dependency_concordance_claim
+    tokens:
+      - expression_dependency_single_modality_only
+      - expression_dependency_concordant_coupled
+      - expression_dependency_concordant_uncoupled
+      - expression_dependency_modality_discordant
+  isoform_splice:
+    island_key: isoform_splice_concordance
+    builder: skills/_skills_common/cis_coherence_claims.py
+    builder_function: _isoform_splice_concordance_claim
+    tokens:
+      - isoform_splice_single_grain_only
+      - isoform_splice_concordant_complex
+      - isoform_splice_concordant_simple
+      - isoform_splice_grain_discordant
+
+# ---------------------------------------------------------------------------------------------------
+# VALUES — the 44 distinct tokens. `families` is the inverse index of families[*].tokens.
+# ---------------------------------------------------------------------------------------------------
+values:
+  # --- shared across families (the only one) ---------------------------------------------------------
+  - value: single_source_only
+    disposition: single_arm
+    definition: |
+      Exactly one of the family's arms resolved. The fold reports the single arm and claims no
+      cross-source agreement. The only token shared by more than one family, and the oldest naming
+      convention in this file — it carries no family prefix, which is why it could be shared at all.
+    families:
+      - recurrence
+      - selectivity
+      - subtype_restriction
+      - protein_presence
+      - tumor_presence
+
+  # --- recurrence -----------------------------------------------------------------------------------
+  - value: recurrence_concordant
+    disposition: concordant
+    definition: Independent mutation-calling cohorts agree on the driver-recurrence class.
+    families: [recurrence]
+  - value: panel_masks_recurrence
+    disposition: directional_discordance
+    definition: |
+      The targeted-panel cohort reports a lower recurrence class than the exome or pooled arm — panel
+      breadth limits the call, so the disagreement is an assay-coverage artefact rather than a
+      biological conflict.
+    families: [recurrence]
+  - value: exome_masks_recurrence
+    disposition: directional_discordance
+    definition: |
+      The exome cohort reports a lower recurrence class than the panel arm — the mirror direction,
+      where the deeper-but-narrower panel is the one that sees the recurrence.
+    families: [recurrence]
+
+  # --- selectivity ----------------------------------------------------------------------------------
+  - value: selectivity_window_concordant
+    disposition: concordant
+    definition: The RNA and protein arms agree on the tumour-vs-normal selectivity window.
+    families: [selectivity]
+  - value: protein_masks_selectivity_window
+    disposition: directional_discordance
+    definition: The protein arm reports a narrower selectivity window than the RNA arm.
+    families: [selectivity]
+  - value: rna_masks_selectivity_window
+    disposition: directional_discordance
+    definition: The RNA arm reports a narrower selectivity window than the protein arm.
+    families: [selectivity]
+
+  # --- coverage -------------------------------------------------------------------------------------
+  - value: coverage_concordant
+    disposition: concordant
+    definition: |
+      Bulk and single-cell agree that the target is broadly covered across malignant cells.
+    families: [coverage]
+  - value: bulk_masks_low_coverage
+    disposition: directional_discordance
+    definition: |
+      Bulk reports broad presence while single-cell resolves low malignant-cell coverage — the bulk
+      average is carried by a subpopulation or by non-malignant cells. The mirror direction is
+      unreachable by construction (see the family's note).
+    families: [coverage]
+
+  # --- abundance ------------------------------------------------------------------------------------
+  - value: abundance_concordant
+    disposition: concordant
+    definition: The RNA and protein abundance arms agree on the abundance class.
+    families: [abundance]
+  - value: rna_high_protein_low
+    disposition: directional_discordance
+    definition: |
+      RNA reports high abundance while protein reports low — the canonical post-transcriptional
+      discordance.
+    families: [abundance]
+  - value: rna_low_protein_high
+    disposition: directional_discordance
+    definition: |
+      Protein reports high abundance while RNA reports low — the mirror direction, usually a
+      stability or translation-efficiency signal.
+    families: [abundance]
+
+  # --- subtype_restriction --------------------------------------------------------------------------
+  - value: subtype_restriction_concordant
+    disposition: concordant
+    definition: The RNA and protein arms agree on how subtype-restricted the target's presence is.
+    families: [subtype_restriction]
+  - value: protein_masks_subtype_restriction
+    disposition: directional_discordance
+    definition: The protein arm reports weaker subtype restriction than the RNA arm.
+    families: [subtype_restriction]
+  - value: rna_masks_subtype_restriction
+    disposition: directional_discordance
+    definition: The RNA arm reports weaker subtype restriction than the protein arm.
+    families: [subtype_restriction]
+
+  # --- protein_presence -----------------------------------------------------------------------------
+  - value: protein_presence_concordant
+    disposition: concordant
+    definition: The antibody and mass-spectrometry arms agree on whether the protein is present.
+    families: [protein_presence]
+  - value: antibody_detects_ms_absent
+    disposition: directional_discordance
+    definition: |
+      Antibody-based detection is positive where mass spectrometry reports the protein absent —
+      commonly antibody cross-reactivity or MS detection limits, and the two have opposite
+      implications, so the fold names the direction rather than averaging it away.
+    families: [protein_presence]
+  - value: ms_detects_antibody_negative
+    disposition: directional_discordance
+    definition: |
+      Mass spectrometry detects the protein where antibody-based detection is negative — the mirror
+      direction, commonly an epitope-accessibility or antibody-sensitivity limit.
+    families: [protein_presence]
+
+  # --- tumor_presence -------------------------------------------------------------------------------
+  - value: tumor_presence_concordant
+    disposition: concordant
+    definition: The independent tumour-presence arms agree that the target is present in tumour.
+    families: [tumor_presence]
+  - value: tumor_presence_discordant
+    disposition: discordant
+    definition: |
+      The tumour-presence arms disagree, with no attribution to either arm. Symmetric by design: the
+      arms are comparable enough that neither is privileged as the masking one.
+    families: [tumor_presence]
+
+  # --- essentiality ---------------------------------------------------------------------------------
+  - value: essentiality_single_assay_only
+    disposition: single_arm
+    definition: Only one of CRISPR / RNAi resolved an essentiality call.
+    families: [essentiality]
+  - value: essentiality_concordant_dependent
+    disposition: concordant
+    definition: CRISPR and RNAi agree that the cell lines are dependent on the target.
+    families: [essentiality]
+  - value: essentiality_concordant_nondependent
+    disposition: concordant
+    definition: |
+      CRISPR and RNAi agree that the cell lines are NOT dependent on the target. Concordance on a
+      negative is still concordance — this token licenses a corroborated non-dependence claim, which
+      is a real finding and not a coverage gap.
+    families: [essentiality]
+  - value: essentiality_assay_discordant
+    disposition: discordant
+    definition: CRISPR and RNAi disagree on dependence, with no attribution to either assay.
+    families: [essentiality]
+
+  # --- normal_liability -----------------------------------------------------------------------------
+  - value: liability_single_source_only
+    disposition: single_arm
+    definition: Only one normal-tissue liability source resolved.
+    families: [normal_liability]
+  - value: liability_concordant_high
+    disposition: concordant
+    definition: The normal-tissue sources agree that normal-tissue liability is high.
+    families: [normal_liability]
+  - value: liability_concordant_low
+    disposition: concordant
+    definition: The normal-tissue sources agree that normal-tissue liability is low.
+    families: [normal_liability]
+  - value: liability_assay_discordant
+    disposition: discordant
+    definition: The normal-tissue liability sources disagree, with no attribution to either source.
+    families: [normal_liability]
+
+  # --- cis_dosage -----------------------------------------------------------------------------------
+  - value: cis_dosage_single_grain_only
+    disposition: single_arm
+    definition: Only one of the cell-line / patient grains resolved a cis-dosage call.
+    families: [cis_dosage]
+  - value: cis_dosage_concordant_coupled
+    disposition: concordant
+    definition: |
+      Both grains agree that copy number and expression are coupled — the cis-dosage relationship
+      holds in cell lines and in patient tumours.
+    families: [cis_dosage]
+  - value: cis_dosage_concordant_uncoupled
+    disposition: concordant
+    definition: Both grains agree that copy number and expression are NOT coupled.
+    families: [cis_dosage]
+  - value: cis_dosage_grain_discordant
+    disposition: discordant
+    definition: |
+      The cell-line and patient grains disagree on cis-dosage coupling. Named by GRAIN rather than by
+      assay because this family's independence is cross-grain.
+    families: [cis_dosage]
+
+  # --- methylation_silencing ------------------------------------------------------------------------
+  - value: methylation_silencing_single_grain_only
+    disposition: single_arm
+    definition: Only one grain resolved a methylation-silencing call.
+    families: [methylation_silencing]
+  - value: methylation_silencing_concordant_silenced
+    disposition: concordant
+    definition: Both grains agree that promoter methylation silences expression.
+    families: [methylation_silencing]
+  - value: methylation_silencing_concordant_unsilenced
+    disposition: concordant
+    definition: Both grains agree that promoter methylation does NOT silence expression.
+    families: [methylation_silencing]
+  - value: methylation_silencing_grain_discordant
+    disposition: discordant
+    definition: The cell-line and patient grains disagree on methylation-driven silencing.
+    families: [methylation_silencing]
+
+  # --- expression_dependency ------------------------------------------------------------------------
+  - value: expression_dependency_single_modality_only
+    disposition: single_arm
+    definition: |
+      Only one of the mRNA / protein modalities resolved an expression-dependency coupling call.
+    families: [expression_dependency]
+  - value: expression_dependency_concordant_coupled
+    disposition: concordant
+    definition: |
+      Both modalities agree that abundance is coupled to dependency. This family's independence is
+      by MODALITY only — both arms sit at cell-line grain — so its concordance is weaker evidence
+      than a cross-grain family's; the token does not encode that caveat, integrated_families.yaml's
+      independence note does.
+    families: [expression_dependency]
+  - value: expression_dependency_concordant_uncoupled
+    disposition: concordant
+    definition: Both modalities agree that abundance is NOT coupled to dependency.
+    families: [expression_dependency]
+  - value: expression_dependency_modality_discordant
+    disposition: discordant
+    definition: |
+      The mRNA and protein modalities disagree on abundance-dependency coupling. Named by MODALITY,
+      not grain, because that is this family's axis of independence.
+    families: [expression_dependency]
+
+  # --- isoform_splice -------------------------------------------------------------------------------
+  - value: isoform_splice_single_grain_only
+    disposition: single_arm
+    definition: Only one grain resolved an isoform/splice-complexity call.
+    families: [isoform_splice]
+  - value: isoform_splice_concordant_complex
+    disposition: concordant
+    definition: Both grains agree that the isoform/splice landscape is complex.
+    families: [isoform_splice]
+  - value: isoform_splice_concordant_simple
+    disposition: concordant
+    definition: Both grains agree that the isoform/splice landscape is simple.
+    families: [isoform_splice]
+  - value: isoform_splice_grain_discordant
+    disposition: discordant
+    definition: The cell-line and patient grains disagree on isoform/splice complexity.
+    families: [isoform_splice]
+
+# ---------------------------------------------------------------------------------------------------
+# DOCUMENTED BUT NOT EMITTED — named in a builder's own prose, absent from its behaviour.
+#
+# These are recorded rather than added to `values` because the coverage cross-check is symmetric: an
+# entry in `values` asserts that some builder emits it, and these do not. They are kept because a
+# token named in a docstring is a trap — the next reader reasonably believes it exists.
+# ---------------------------------------------------------------------------------------------------
+documented_not_emitted:
+  - token: single_modality_only
+    named_in: "skills/_skills_common/presence_claims.py :: _abundance_concordance_class"
+    named_where: docstring
+    why_not_emitted: |
+      The abundance fold OMITS the `concordance_class` key entirely when only one modality resolves,
+      rather than emitting a degraded token. Omission and a single_arm token are both defensible
+      designs; the defect is only that the docstring describes the one the code does not do.
+    disposition_if_ever_emitted: single_arm
+    action: |
+      None here. Correcting the docstring is a skills/ edit owned by that family's epic, and ADDING
+      the token would be a behaviour change, not a description. Recorded so the next reader does not
+      conclude the emitter set is incomplete.
+
+# ---------------------------------------------------------------------------------------------------
+# RELATED BUT UNGOVERNED — concordance-shaped vocabularies this file does NOT govern.
+#
+# Recorded so that the next wave can see the boundary of 0b rather than rediscover it. Governing them
+# is out of scope: this file governs the field `concordance_class`, and these are different fields
+# with different consumers.
+# ---------------------------------------------------------------------------------------------------
+related_ungoverned_vocabularies:
+  - field: concordance
+    site: "skills/_skills_common/presence_claims.py :: _provider_call_corroboration"
+    tokens:
+      - concordant
+      - direction_discordant
+      - provider_only_significant
+      - rederived_only_significant
+      - both_not_significant
+    why_out_of_scope: |
+      A claim-level sub-claim inside `_claim_B`, not an L2b family fold, and the field is named
+      `concordance`, not `concordance_class`. It is nonetheless the ONLY production site that reaches
+      the `contradicts` dependence relation (see the relations block), which is why it is named here
+      rather than left for a sweep to find again.
