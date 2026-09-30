@@ -26,20 +26,29 @@ def _load():
 
 def test_depmap_percentile_classifies_and_audits(monkeypatch):
     lk = _load()
-    # (allgene_percentile, allgene_rank, n_genes, panel_median_log2tpm)
-    monkeypatch.setattr(lk, "_depmap_row", lambda sym: (99.9, 17, 19215, 11.9))
+    # (allgene_percentile, allgene_rank, n_genes, panel_median_log2tpm, is_floor_tie)
+    monkeypatch.setattr(lk, "_depmap_row", lambda sym: (99.9, 17, 19215, 11.9, False))
     out = lk.depmap_allgene_percentile("GAPDH")
     assert out["allgene_percentile"] == pytest.approx(99.9)
     assert out["allgene_percentile_class"] == "top_1pct"
     assert "allgene-depmap-rank-26q3-v1" in out["allgene_percentile_context"]
     assert "17/19215" in out["allgene_percentile_context"]
+    assert out["allgene_percentile_is_floor_tie"] is False
 
 
 def test_depmap_percentile_bottom_decile(monkeypatch):
     lk = _load()
-    monkeypatch.setattr(lk, "_depmap_row", lambda sym: (8.7, 15849, 19215, 0.0))
+    monkeypatch.setattr(lk, "_depmap_row", lambda sym: (8.7, 15849, 19215, 0.0, True))
     out = lk.depmap_allgene_percentile("SFTPC")
     assert out["allgene_percentile_class"] == "bottom_decile"
+
+
+def test_depmap_percentile_projects_floor_tie_flag(monkeypatch):
+    # MUTANT: drop the `is_floor_tie` unpack/assignment -> this reds (stays False for a tied row).
+    lk = _load()
+    monkeypatch.setattr(lk, "_depmap_row", lambda sym: (8.7, 15849, 19215, 0.0, True))
+    out = lk.depmap_allgene_percentile("SUBDETECT_GENE")
+    assert out["allgene_percentile_is_floor_tie"] is True
 
 
 def test_depmap_percentile_absent_gene_is_data_unavailable(monkeypatch):
@@ -49,6 +58,7 @@ def test_depmap_percentile_absent_gene_is_data_unavailable(monkeypatch):
     assert out["allgene_percentile"] is None
     assert out["allgene_percentile_class"] == "data_unavailable"
     assert "target absent" in out["allgene_percentile_context"]
+    assert out["allgene_percentile_is_floor_tie"] is False
 
 
 # ---- Tumor per-study accessor --------------------------------------------
@@ -56,14 +66,17 @@ def test_depmap_percentile_absent_gene_is_data_unavailable(monkeypatch):
 
 def test_tumor_percentile_averages_over_studies(monkeypatch):
     lk = _load()
-    # rows = (group, allgene_percentile, allgene_rank, n_genes_in_group, median)
+    # rows = (group, allgene_percentile, allgene_rank, n_genes_in_group, median, is_floor_tie)
     monkeypatch.setattr(
-        lk, "_tumor_rows", lambda ids, source: (("COAD", 99.9, 5, 41000, 10.9), ("READ", 99.92, 4, 40000, 11.0))
+        lk,
+        "_tumor_rows",
+        lambda ids, source: (("COAD", 99.9, 5, 41000, 10.9, False), ("READ", 99.92, 4, 40000, 11.0, False)),
     )
     out = lk.tumor_allgene_percentile(["ENSG1"], ["COAD", "READ"])
     assert out["allgene_percentile"] == pytest.approx((99.9 + 99.92) / 2)
     assert out["allgene_percentile_class"] == "top_1pct"
     assert out["allgene_percentile_by_study"] == {"COAD": 99.9, "READ": 99.92}
+    assert out["allgene_percentile_is_floor_tie"] is False
     # audit string names BOTH studies + the product — the anti-pooling guard.
     ctx = out["allgene_percentile_context"]
     assert "COAD" in ctx and "READ" in ctx and "allgene-tumor-rank-v1" in ctx
@@ -76,15 +89,29 @@ def test_tumor_percentile_filters_to_requested_studies(monkeypatch):
         lk,
         "_tumor_rows",
         lambda ids, source: (
-            ("COAD", 84.97, 100, 41000, 3.9),
-            ("READ", 83.95, 110, 40000, 3.8),
-            ("LUAD", 50.0, 200, 41000, 2.0),
+            ("COAD", 84.97, 100, 41000, 3.9, False),
+            ("READ", 83.95, 110, 40000, 3.8, False),
+            ("LUAD", 50.0, 200, 41000, 2.0, True),
         ),
     )
     out = lk.tumor_allgene_percentile(["ENSG1"], ["COAD", "READ"])
     assert set(out["allgene_percentile_by_study"]) == {"COAD", "READ"}  # LUAD excluded
     assert out["allgene_percentile"] == pytest.approx((84.97 + 83.95) / 2)
     assert out["allgene_percentile_class"] == "mid"
+    # MUTANT: reading the excluded LUAD row's tie flag (rather than filtering first) reds this.
+    assert out["allgene_percentile_is_floor_tie"] is False
+
+
+def test_tumor_percentile_flags_floor_tie_when_any_study_ties(monkeypatch):
+    # MUTANT: `all(...)` instead of `any(...)` reds this — one tied study among several must still flag.
+    lk = _load()
+    monkeypatch.setattr(
+        lk,
+        "_tumor_rows",
+        lambda ids, source: (("COAD", 1.5, 40000, 41000, 0.0, True), ("READ", 1.6, 39000, 40000, 0.0, False)),
+    )
+    out = lk.tumor_allgene_percentile(["ENSG1"], ["COAD", "READ"])
+    assert out["allgene_percentile_is_floor_tie"] is True
 
 
 def test_tumor_percentile_absent_gene_is_data_unavailable(monkeypatch):
@@ -94,6 +121,7 @@ def test_tumor_percentile_absent_gene_is_data_unavailable(monkeypatch):
     assert out["allgene_percentile"] is None
     assert out["allgene_percentile_class"] == "data_unavailable"
     assert "target absent" in out["allgene_percentile_context"]
+    assert out["allgene_percentile_is_floor_tie"] is False
 
 
 def test_tumor_percentile_empty_inputs_short_circuit(monkeypatch):
@@ -108,7 +136,7 @@ def test_tumor_percentile_empty_inputs_short_circuit(monkeypatch):
 
 def test_custom_cutoffs_override_defaults(monkeypatch):
     lk = _load()
-    monkeypatch.setattr(lk, "_depmap_row", lambda sym: (92.0, 1000, 19215, 5.0))
+    monkeypatch.setattr(lk, "_depmap_row", lambda sym: (92.0, 1000, 19215, 5.0, False))
     # default: 92 >= 90 → top_decile
     assert lk.depmap_allgene_percentile("X")["allgene_percentile_class"] == "top_decile"
     # raised top_decile cutoff to 95 → 92 now merely mid

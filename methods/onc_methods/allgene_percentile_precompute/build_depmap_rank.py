@@ -50,6 +50,26 @@ def _md5_hex(path: Path) -> str:
     return h.hexdigest()
 
 
+def _rank(out):
+    """Rank each gene's panel median; pure/in-memory so it's testable without S3 or a parquet fixture
+    (#2328). Takes/returns a DataFrame with a `panel_median_log2tpm` column already populated."""
+    out["allgene_percentile"] = (out["panel_median_log2tpm"].rank(pct=True) * 100.0).astype("float32")
+    out["allgene_rank"] = out["panel_median_log2tpm"].rank(ascending=False, method="min").astype("int32")
+    out["n_genes"] = len(out)
+
+    # is_floor_tie (#2328): same rank(pct=True) tie artifact as build_tumor_rank.py:68 — every gene
+    # whose panel median sits at the pan-cancer panel's floor AND shares that floor with at least one
+    # other gene gets the SAME tie-constant percentile, not an honest rank. Single global cohort here
+    # (no (source, group) split), so the floor is the panel-wide min.
+    panel_min = out["panel_median_log2tpm"].min()
+    is_panel_min = out["panel_median_log2tpm"] == panel_min
+    out["is_floor_tie"] = is_panel_min & (int(is_panel_min.sum()) > 1)
+
+    out["panel_median_log2tpm"] = out["panel_median_log2tpm"].astype("float32")
+    out = out.sort_values("gene_symbol").reset_index(drop=True)
+    return out
+
+
 def build(matrix_uri: str):
     import pandas as pd
     import pyarrow.fs as fs
@@ -74,12 +94,7 @@ def build(matrix_uri: str):
         entrez = mo.group("entrez") if mo else None
         rows.append((sym, entrez, float(m)))
     out = pd.DataFrame(rows, columns=["gene_symbol", "entrez_gene_id", "panel_median_log2tpm"])
-    out["allgene_percentile"] = (out["panel_median_log2tpm"].rank(pct=True) * 100.0).astype("float32")
-    out["allgene_rank"] = out["panel_median_log2tpm"].rank(ascending=False, method="min").astype("int32")
-    out["n_genes"] = len(out)
-    out["panel_median_log2tpm"] = out["panel_median_log2tpm"].astype("float32")
-    out = out.sort_values("gene_symbol").reset_index(drop=True)
-    return out
+    return _rank(out)
 
 
 def write(df, out: Path, row_group_size: int = 8192) -> dict:
@@ -95,6 +110,7 @@ def write(df, out: Path, row_group_size: int = 8192) -> dict:
             pa.field("allgene_percentile", pa.float32()),
             pa.field("allgene_rank", pa.int32()),
             pa.field("n_genes", pa.int32()),
+            pa.field("is_floor_tie", pa.bool_()),
         ]
     )
     pq.write_table(

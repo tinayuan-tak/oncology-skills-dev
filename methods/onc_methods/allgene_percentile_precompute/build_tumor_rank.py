@@ -48,6 +48,34 @@ def _md5_hex(path: Path) -> str:
     return h.hexdigest()
 
 
+def _rank(df):
+    """Rank each gene's median within (source, group); pure/in-memory so it's testable without S3
+    or a parquet fixture (#2328). Mutates and returns `df`; separated from `build()`'s I/O so the
+    is_floor_tie logic has a direct unit-test seam."""
+    # Percentile rank of median WITHIN each (source, group) — the all-gene null per cohort.
+    df["allgene_percentile"] = df.groupby(["source", "group"])["median"].rank(pct=True) * 100.0
+    df["allgene_rank"] = df.groupby(["source", "group"])["median"].rank(ascending=False, method="min").astype("int32")
+    df["n_genes_in_group"] = df.groupby(["source", "group"])["median"].transform("size").astype("int32")
+
+    # is_floor_tie (#2328): rank(pct=True) default method="average" assigns every sub-detection
+    # (zero-median / below-detection) gene the SAME per-cohort percentile — a tie-constant, not a rank
+    # (the #2297 artifact; the sibling allgene_rank on the line above uses method="min" and does NOT
+    # tie). Flag every row that sits at its (source, group)'s floor median AND shares that floor with at
+    # least one other gene in the same cohort — a genuine multi-gene tie, not a merely-lowest-but-unique
+    # value (which carries its own honest unique rank/percentile, no artifact).
+    group_min = df.groupby(["source", "group"])["median"].transform("min")
+    is_group_min = df["median"] == group_min
+    group_min_count = df.groupby(["source", "group"])["median"].transform(lambda s: int((s == s.min()).sum()))
+    df["is_floor_tie"] = is_group_min & (group_min_count > 1)
+
+    # gene-sorted for pushdown (the read filter key is ensembl_gene_id, then source/group)
+    df = df.sort_values(["ensembl_gene_id", "source", "group"]).reset_index(drop=True)
+    df["allgene_percentile"] = df["allgene_percentile"].astype("float32")
+    df["median"] = df["median"].astype("float32")
+    df["is_floor_tie"] = df["is_floor_tie"].astype("bool")
+    return df
+
+
 def build(quantiles_uri: str):
     """Read the quantiles product, rank each gene's median within (source, group)."""
     import pyarrow.fs as fs
@@ -63,16 +91,7 @@ def build(quantiles_uri: str):
         table = pq.read_table(quantiles_uri, columns=["gene_symbol", "ensembl_gene_id", "source", "group", "median"])
     df = table.to_pandas()
     _log(f"[read] {len(df)} (gene,source,group) rows in {time.time() - t0:.1f}s")
-
-    # Percentile rank of median WITHIN each (source, group) — the all-gene null per cohort.
-    df["allgene_percentile"] = df.groupby(["source", "group"])["median"].rank(pct=True) * 100.0
-    df["allgene_rank"] = df.groupby(["source", "group"])["median"].rank(ascending=False, method="min").astype("int32")
-    df["n_genes_in_group"] = df.groupby(["source", "group"])["median"].transform("size").astype("int32")
-    # gene-sorted for pushdown (the read filter key is ensembl_gene_id, then source/group)
-    df = df.sort_values(["ensembl_gene_id", "source", "group"]).reset_index(drop=True)
-    df["allgene_percentile"] = df["allgene_percentile"].astype("float32")
-    df["median"] = df["median"].astype("float32")
-    return df
+    return _rank(df)
 
 
 def write(df, out: Path, row_group_size: int = 8192) -> dict:
@@ -90,6 +109,7 @@ def write(df, out: Path, row_group_size: int = 8192) -> dict:
             pa.field("allgene_percentile", pa.float32()),
             pa.field("allgene_rank", pa.int32()),
             pa.field("n_genes_in_group", pa.int32()),
+            pa.field("is_floor_tie", pa.bool_()),
         ]
     )
     pq.write_table(

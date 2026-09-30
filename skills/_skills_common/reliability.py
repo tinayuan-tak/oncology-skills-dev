@@ -27,9 +27,13 @@ WHAT EMITS AT THIS STEP, HONESTLY (1a safety + 1b dependency):
   * `confound_flags`     — [] for every 1a/1b property: safety/dependency anchors carry no purity-confound
                            r. The `microenvironment_weighted` path is implemented and unit-tested on a
                            SYNTHETIC anchor (r <= CONFOUND_R), so it is proven though it does not fire here.
-  * `artifact_flags`     — [] everywhere. `floor_tie_percentile` derivation is DEFERRED (#2306 follow-on):
-                           its upstream floor-tie flag is not emitted yet, and per
-                           governance.derivation_is_a_projection it must not be recomputed here.
+  * `artifact_flags`     — [] for every 1a/1b property: no 1a/1b anchor names a `floor_tie_anchor` (none
+                           of their properties resolve from `allgene_percentile`). The
+                           `floor_tie_percentile` path is implemented and unit-tested against a
+                           SYNTHETIC anchor (the upstream `is_floor_tie` flag now emitted at
+                           `build_tumor_rank.py`/`build_depmap_rank.py` and surfaced through
+                           `lookup.py`, #2328), so it is proven though it does not fire on any 1a/1b
+                           property today.
   * `detection_strength` — OMITTED for every 1a/1b property. DEFERRED (#2306 follow-on): its cutpoints are
                            uncalibrated and no 1a/1b property is detection/abundance-kind, so the optional
                            key is not carried (the byte-stable conditional-key idiom).
@@ -38,6 +42,7 @@ WHAT EMITS AT THIS STEP, HONESTLY (1a safety + 1b dependency):
 from __future__ import annotations
 
 _MICROENVIRONMENT_WEIGHTED = "microenvironment_weighted"
+_FLOOR_TIE_PERCENTILE = "floor_tie_percentile"
 
 
 def _confound_r_cut() -> float:
@@ -79,6 +84,13 @@ def _derive_reliability(anchors, spec: dict) -> dict:
           purity_confound_anchor : the field name of an expression-purity r. When present with a value
                                     r <= CONFOUND_R, appends `microenvironment_weighted`. None/absent for
                                     every 1a/1b property (their anchors carry no purity r) -> [].
+          floor_tie_anchor       : the field name of the upstream `is_floor_tie` boolean (#2297/#2328,
+                                    e.g. `allgene_percentile_is_floor_tie` from
+                                    `allgene_percentile_precompute.lookup`). When present and truthy,
+                                    appends `floor_tie_percentile`. A PURE PROJECTION of the upstream
+                                    flag — never recomputed here (governance.derivation_is_a_projection).
+                                    None/absent for every 1a/1b property (none resolve from
+                                    `allgene_percentile`) -> [].
 
     Returns the `reliability` dict. `powered`, `confound_flags` and `artifact_flags` are always present
     (required by the enum); `n_effective` and `detection_strength` are conditionally carried.
@@ -113,9 +125,14 @@ def _derive_reliability(anchors, spec: dict) -> dict:
             confound_flags.append(_MICROENVIRONMENT_WEIGHTED)
     out["confound_flags"] = confound_flags
 
-    # artifact_flags — default []. DEFERRED (#2306 follow-on): floor_tie_percentile needs an upstream
-    # floor-tie flag that is not emitted yet, and it must not be recomputed here.
-    out["artifact_flags"] = []
+    # artifact_flags — default []. floor_tie_percentile (#2297/#2328) PROJECTS the upstream
+    # is_floor_tie flag (never recomputed here): appended iff the spec names a floor_tie_anchor AND
+    # that anchor's value is truthy. No 1a/1b anchor names one today -> [] for all.
+    artifact_flags: list = []
+    floor_tie_anchor = spec.get("floor_tie_anchor")
+    if floor_tie_anchor and bool(by_field.get(floor_tie_anchor)):
+        artifact_flags.append(_FLOOR_TIE_PERCENTILE)
+    out["artifact_flags"] = artifact_flags
 
     # detection_strength — DEFERRED (#2306 follow-on): cutpoints uncalibrated and no 1a/1b property is
     # detection/abundance-kind, so the OPTIONAL key is OMITTED (byte-stable conditional-key idiom).

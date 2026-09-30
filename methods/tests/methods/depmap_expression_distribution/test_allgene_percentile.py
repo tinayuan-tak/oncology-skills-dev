@@ -24,7 +24,7 @@ def test_read_merges_allgene_percentile(monkeypatch):
     monkeypatch.setattr(C, "load_expression_files", _fake_load)
     import onc_methods.allgene_percentile_precompute.lookup as _lk
 
-    monkeypatch.setattr(_lk, "_depmap_row", lambda sym: (99.9, 17, 19215, 11.9))
+    monkeypatch.setattr(_lk, "_depmap_row", lambda sym: (99.9, 17, 19215, 11.9, False))
     out = R.read_expression_distribution("GAPDH")
     assert out["allgene_percentile"] == pytest.approx(99.9)
     assert out["allgene_percentile_class"] == "top_1pct"

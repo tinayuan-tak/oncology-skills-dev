@@ -130,7 +130,7 @@ def _rank_dataset(key: str):
 def _tumor_rows(ensembl_ids: tuple, source: str) -> tuple:
     """Pushdown-read every (source, group) row for the given ensembl id(s). Cached per
     (ids, source). Returns a tuple of (group, allgene_percentile, allgene_rank,
-    n_genes_in_group, median) — hashable so it can live in the lru_cache."""
+    n_genes_in_group, median, is_floor_tie) — hashable so it can live in the lru_cache."""
     if not ensembl_ids:
         return ()
     try:
@@ -140,7 +140,8 @@ def _tumor_rows(ensembl_ids: tuple, source: str) -> tuple:
         # once) — see _rank_dataset. Byte-identical rows/columns to the prior pq.read_table path.
         expr = pc.field("ensembl_gene_id").isin(list(ensembl_ids)) & (pc.field("source") == source)
         tbl = _rank_dataset(TUMOR_RANK_KEY).to_table(
-            filter=expr, columns=["group", "allgene_percentile", "allgene_rank", "n_genes_in_group", "median"]
+            filter=expr,
+            columns=["group", "allgene_percentile", "allgene_rank", "n_genes_in_group", "median", "is_floor_tie"],
         )
         df = tbl.to_pandas()
     except Exception as e:  # noqa: BLE001 — a READ failure is a typed error, NOT silent absence
@@ -148,7 +149,14 @@ def _tumor_rows(ensembl_ids: tuple, source: str) -> tuple:
     # An empty frame here means the gene(s) are genuinely absent from the product (→ () is correct);
     # a read/auth/parse failure raised above instead, so the caller can tell the two apart.
     return tuple(
-        (str(r.group), float(r.allgene_percentile), int(r.allgene_rank), int(r.n_genes_in_group), float(r.median))
+        (
+            str(r.group),
+            float(r.allgene_percentile),
+            int(r.allgene_rank),
+            int(r.n_genes_in_group),
+            float(r.median),
+            bool(r.is_floor_tie),
+        )
         for r in df.itertuples(index=False)
     )
 
@@ -164,12 +172,18 @@ def tumor_allgene_percentile(
       allgene_percentile_class  str         — top_1pct / top_decile / mid / bottom_decile / data_unavailable
       allgene_percentile_context str        — the exact source + studies the null was drawn from (audit)
       allgene_percentile_by_study {study: pct}  — per-study breakdown (multi-study transparency)
+      allgene_percentile_is_floor_tie bool  — True iff ANY contributing study's percentile is the
+                                              per-cohort sub-detection tie-constant (#2297/#2328): the
+                                              upstream `is_floor_tie` flag PROJECTED, never recomputed
+                                              here. Conservative (any, not all) — an averaged percentile
+                                              that includes even one tied study still carries the artifact.
     """
     out = {
         "allgene_percentile": None,
         "allgene_percentile_class": "data_unavailable",
         "allgene_percentile_context": None,
         "allgene_percentile_by_study": {},
+        "allgene_percentile_is_floor_tie": False,
     }
     ids = tuple(sorted({str(e) for e in (ensembl_ids or []) if e}))
     want = {str(s).upper().strip() for s in (studies or [])}
@@ -182,7 +196,8 @@ def tumor_allgene_percentile(
             f"{source}:{','.join(sorted(want))} (allgene-tumor-rank-v1) — rank read failed: {e}"
         )
         return out
-    by_study = {g: pct for (g, pct, _rank, _n, _med) in rows if g.upper() in want}
+    by_study = {g: pct for (g, pct, _rank, _n, _med, _tie) in rows if g.upper() in want}
+    tie_by_study = {g: tie for (g, _pct, _rank, _n, _med, tie) in rows if g.upper() in want}
     if not by_study:
         out["allgene_percentile_context"] = f"{source}:{','.join(sorted(want))} (allgene-tumor-rank-v1) — target absent"
         return out
@@ -190,6 +205,7 @@ def tumor_allgene_percentile(
     out["allgene_percentile"] = mean_pct
     out["allgene_percentile_class"] = classify_percentile(mean_pct, cutoffs)
     out["allgene_percentile_by_study"] = {k: round(v, 2) for k, v in sorted(by_study.items())}
+    out["allgene_percentile_is_floor_tie"] = any(tie_by_study.values())
     out["allgene_percentile_context"] = (
         f"{source}:{','.join(sorted(by_study))} all-gene median rank "
         f"(allgene-tumor-rank-v1; mean of {len(by_study)} study null(s))"
@@ -201,7 +217,7 @@ def tumor_allgene_percentile(
 def _depmap_row(gene_symbol: str) -> Optional[tuple]:
     """Pushdown-read the single panel-median rank row for a gene_symbol (the product's
     sort/filter key). Cached per symbol. Returns (allgene_percentile, allgene_rank,
-    n_genes, panel_median_log2tpm) or None."""
+    n_genes, panel_median_log2tpm, is_floor_tie) or None."""
     if not gene_symbol:
         return None
     try:
@@ -210,7 +226,7 @@ def _depmap_row(gene_symbol: str) -> Optional[tuple]:
         # Reused Dataset (footer read once) + pushdown — byte-identical to the prior read_table filter.
         tbl = _rank_dataset(DEPMAP_RANK_KEY).to_table(
             filter=pc.field("gene_symbol") == gene_symbol,
-            columns=["allgene_percentile", "allgene_rank", "n_genes", "panel_median_log2tpm"],
+            columns=["allgene_percentile", "allgene_rank", "n_genes", "panel_median_log2tpm", "is_floor_tie"],
         )
         df = tbl.to_pandas()
     except Exception as e:  # noqa: BLE001 — a READ failure is a typed error, NOT silent absence
@@ -218,7 +234,13 @@ def _depmap_row(gene_symbol: str) -> Optional[tuple]:
     if df.empty:  # genuinely absent from the product (→ None is correct)
         return None
     r = df.iloc[0]
-    return (float(r["allgene_percentile"]), int(r["allgene_rank"]), int(r["n_genes"]), float(r["panel_median_log2tpm"]))
+    return (
+        float(r["allgene_percentile"]),
+        int(r["allgene_rank"]),
+        int(r["n_genes"]),
+        float(r["panel_median_log2tpm"]),
+        bool(r["is_floor_tie"]),
+    )
 
 
 def depmap_allgene_percentile(gene_symbol: str, cutoffs: Optional[dict] = None) -> dict:
@@ -226,11 +248,13 @@ def depmap_allgene_percentile(gene_symbol: str, cutoffs: Optional[dict] = None) 
     ~19k protein-coding genes in the panel, from allgene-depmap-rank-26q3-v1.
 
     Returns a data_unavailable-safe dict (same shape as the tumor accessor, no per-study
-    breakdown — the DepMap null is a single pan-cancer panel)."""
+    breakdown — the DepMap null is a single pan-cancer panel). `allgene_percentile_is_floor_tie`
+    PROJECTS the upstream `is_floor_tie` flag (#2297/#2328) — never recomputed here."""
     out = {
         "allgene_percentile": None,
         "allgene_percentile_class": "data_unavailable",
         "allgene_percentile_context": None,
+        "allgene_percentile_is_floor_tie": False,
     }
     sym = (gene_symbol or "").strip()
     try:
@@ -241,9 +265,10 @@ def depmap_allgene_percentile(gene_symbol: str, cutoffs: Optional[dict] = None) 
     if row is None:
         out["allgene_percentile_context"] = "DepMap 26q3 panel (allgene-depmap-rank-26q3-v1) — target absent"
         return out
-    pct, rank, n_genes, _median = row
+    pct, rank, n_genes, _median, is_floor_tie = row
     out["allgene_percentile"] = pct
     out["allgene_percentile_class"] = classify_percentile(pct, cutoffs)
+    out["allgene_percentile_is_floor_tie"] = is_floor_tie
     out["allgene_percentile_context"] = (
         f"DepMap 26q3 pan-cancer panel all-gene median rank (allgene-depmap-rank-26q3-v1; rank {rank}/{n_genes})"
     )

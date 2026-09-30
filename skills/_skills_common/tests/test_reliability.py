@@ -19,6 +19,7 @@ for _p in (_HERE.parents[2], _HERE.parents[1]):  # skills/ , skills/_skills_comm
         sys.path.insert(0, str(_p))
 
 from _skills_common.reliability import (  # noqa: E402
+    _FLOOR_TIE_PERCENTILE,
     _MICROENVIRONMENT_WEIGHTED,
     _derive_reliability,
 )
@@ -132,10 +133,49 @@ def test_confound_empty_when_spec_names_no_purity_anchor():
     assert out["confound_flags"] == []
 
 
-# ── artifact_flags: DEFERRED, always [] this step ─────────────────────────────────────────────────
+# ── artifact_flags: default []; floor_tie_percentile iff a floor_tie_anchor is present AND truthy ──
 def test_artifact_flags_default_empty():
-    # MUTANT: seed `["floor_tie_percentile"]` reds this — floor_tie is deferred (needs an upstream flag).
+    # THE 1a/1b PATH: no spec floor_tie_anchor -> [] even with an unrelated numeric anchor present.
     out = _derive_reliability([_anchor("n_high_confidence", 4)], {"n_effective_anchor": "n_high_confidence"})
+    assert out["artifact_flags"] == []
+
+
+def test_artifact_flags_floor_tie_percentile_when_upstream_flag_true():
+    # SYNTHETIC pilot (#2297/#2328): proves the floor-tie projection path though no 1a/1b property
+    # names a floor_tie_anchor today. MUTANT: never append reds this.
+    out = _derive_reliability(
+        [_anchor("allgene_percentile_is_floor_tie", True)],
+        {"n_effective_anchor": None, "floor_tie_anchor": "allgene_percentile_is_floor_tie"},
+    )
+    assert out["artifact_flags"] == [_FLOOR_TIE_PERCENTILE]
+
+
+def test_artifact_flags_empty_when_upstream_flag_false():
+    # MUTANT: append unconditionally (ignoring the anchor's value) reds this.
+    out = _derive_reliability(
+        [_anchor("allgene_percentile_is_floor_tie", False)],
+        {"n_effective_anchor": None, "floor_tie_anchor": "allgene_percentile_is_floor_tie"},
+    )
+    assert out["artifact_flags"] == []
+
+
+def test_artifact_flags_empty_when_spec_names_no_floor_tie_anchor():
+    # A truthy same-named field is present in anchors, but the spec doesn't name it -> [] (the
+    # projection is opt-in per property, exactly like purity_confound_anchor above).
+    out = _derive_reliability(
+        [_anchor("allgene_percentile_is_floor_tie", True), _anchor("n_high_confidence", 4)],
+        {"n_effective_anchor": "n_high_confidence"},
+    )
+    assert out["artifact_flags"] == []
+
+
+def test_artifact_flags_floor_tie_omitted_when_named_anchor_absent():
+    # The spec names a floor_tie_anchor but no anchor with that field is in the (filtered) list ->
+    # by_field.get(...) is None -> not truthy -> [] (absence, not a fabricated flag either way).
+    out = _derive_reliability(
+        [_anchor("some_other_field", True)],
+        {"n_effective_anchor": None, "floor_tie_anchor": "allgene_percentile_is_floor_tie"},
+    )
     assert out["artifact_flags"] == []
 
 
@@ -165,5 +205,7 @@ def test_emitted_tokens_are_governed():
     by_field = {f["field"]: f for f in enum["fields"]}
     powered_tokens = {t["token"] for t in by_field["powered"]["tokens"]}
     confound_tokens = {t["token"] for t in by_field["confound_flags"]["tokens"]}
+    artifact_tokens = {t["token"] for t in by_field["artifact_flags"]["tokens"]}
     assert "unmeasured" in powered_tokens  # the sentinel this deriver emits uniformly on 1a/1b
     assert _MICROENVIRONMENT_WEIGHTED in confound_tokens
+    assert _FLOOR_TIE_PERCENTILE in artifact_tokens

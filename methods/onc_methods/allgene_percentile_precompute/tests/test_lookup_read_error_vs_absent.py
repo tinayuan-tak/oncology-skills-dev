@@ -64,7 +64,9 @@ def test_depmap_read_failure_is_not_reported_as_absent(monkeypatch):
 
 
 def test_depmap_genuine_absence_still_reported_as_absent(monkeypatch):
-    empty = pd.DataFrame(columns=["allgene_percentile", "allgene_rank", "n_genes", "panel_median_log2tpm"])
+    empty = pd.DataFrame(
+        columns=["allgene_percentile", "allgene_rank", "n_genes", "panel_median_log2tpm", "is_floor_tie"]
+    )
     _patch(monkeypatch, lambda *a, **k: _FakeTable(empty))
     out = L.depmap_allgene_percentile("NOT_A_REAL_GENE")
     assert out["allgene_percentile"] is None
@@ -75,13 +77,22 @@ def test_depmap_genuine_absence_still_reported_as_absent(monkeypatch):
 
 def test_depmap_hit_returns_percentile(monkeypatch):
     hit = pd.DataFrame(
-        [{"allgene_percentile": 29.57, "allgene_rank": 13535, "n_genes": 19215, "panel_median_log2tpm": 0.141}]
+        [
+            {
+                "allgene_percentile": 29.57,
+                "allgene_rank": 13535,
+                "n_genes": 19215,
+                "panel_median_log2tpm": 0.141,
+                "is_floor_tie": False,
+            }
+        ]
     )
     _patch(monkeypatch, lambda *a, **k: _FakeTable(hit))
     out = L.depmap_allgene_percentile("CEACAM5")
     assert out["allgene_percentile"] == pytest.approx(29.57, abs=0.01)
     assert out["allgene_percentile_class"] == "mid"
     assert "rank 13535/19215" in out["allgene_percentile_context"]
+    assert out["allgene_percentile_is_floor_tie"] is False
 
 
 # ── Tumor (ensembl-keyed, per-study) ───────────────────────────────────────────────────────────
@@ -98,7 +109,9 @@ def test_tumor_read_failure_is_not_reported_as_absent(monkeypatch):
 
 
 def test_tumor_genuine_absence_still_reported_as_absent(monkeypatch):
-    empty = pd.DataFrame(columns=["group", "allgene_percentile", "allgene_rank", "n_genes_in_group", "median"])
+    empty = pd.DataFrame(
+        columns=["group", "allgene_percentile", "allgene_rank", "n_genes_in_group", "median", "is_floor_tie"]
+    )
     _patch(monkeypatch, lambda *a, **k: _FakeTable(empty))
     out = L.tumor_allgene_percentile(["ENSG00000105388"], ["COAD", "READ"])
     assert out["allgene_percentile"] is None

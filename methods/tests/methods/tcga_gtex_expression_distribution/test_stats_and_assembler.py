@@ -357,7 +357,7 @@ def test_tumor_allgene_percentile_seam_offline(monkeypatch):
     monkeypatch.setattr(R, "_symbol_to_ensembl_ids", lambda s: ["ENSG00000105383"])
     import onc_methods.allgene_percentile_precompute.lookup as _lk
 
-    monkeypatch.setattr(_lk, "_tumor_rows", lambda ids, source: (("COAD", 88.0, 500, 41000, 4.0),))
+    monkeypatch.setattr(_lk, "_tumor_rows", lambda ids, source: (("COAD", 88.0, 500, 41000, 4.0, False),))
     out = R._tumor_allgene_percentile("CD33", ["COAD"])
     assert out["allgene_percentile"] == pytest.approx(88.0)
     assert out["allgene_percentile_class"] == "mid"
