@@ -871,7 +871,18 @@ def classify_sc_normal_expression(rows: pd.DataFrame, origin_tissues=None) -> di
     _pct_abund_col = "median_abund" if "median_abund" in reliable.columns else None
     _has_datasets = "n_datasets_reliable" in reliable.columns
     per_cell_type_top = []
-    for _, r in reliable.sort_values(det_col, ascending=False).head(15).iterrows():
+    # Deterministic TOTAL sort key: rows tied on det_col (e.g. a whole block at exactly 1.0)
+    # otherwise fall back to pandas' host/build-dependent stable-sort input order, which is
+    # NOT reproducible across environments for ties (#2099). Break ties by expressing_donor_fraction
+    # (if present) then by cell_type (always present, unique-ish) so every host emits the same order.
+    _sort_cols = [det_col]
+    _sort_asc = [False]
+    if frac_col in reliable.columns:
+        _sort_cols.append(frac_col)
+        _sort_asc.append(False)
+    _sort_cols.append("cell_type")
+    _sort_asc.append(True)
+    for _, r in reliable.sort_values(_sort_cols, ascending=_sort_asc, kind="stable").head(15).iterrows():
         per_cell_type_top.append(
             {
                 "cell_type": str(r["cell_type"]),
