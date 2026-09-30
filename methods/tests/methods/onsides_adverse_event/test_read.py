@@ -7,14 +7,7 @@ indication-independence of the summary, and the generic reader dispatch signatur
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.onsides_adverse_event.read import read_target_summary  # noqa: E402
+from onc_methods.onsides_adverse_event.read import read_target_summary
 
 
 def _row(**kw):
@@ -71,7 +64,7 @@ def test_absent_is_coverage_gap_not_safe():
     # onsides_row=None with no live read patched would hit S3; inject an explicit sentinel instead by
     # passing a row that classifies as absent is not possible (row present). Use the reader's own
     # None-handling via the injected-None path guarded by monkeypatching the live read.
-    import methods.onsides_adverse_event.read as mod
+    import onc_methods.onsides_adverse_event.read as mod
 
     orig = mod._read_onsides_row
     try:

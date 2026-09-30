@@ -21,7 +21,6 @@ Hermetic: no network, no real S3.
 from __future__ import annotations
 
 import importlib
-import sys
 from pathlib import Path
 
 import pyarrow as pa
@@ -29,12 +28,8 @@ import pyarrow.fs as pafs
 import pyarrow.parquet as pq
 import pytest
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-read = importlib.import_module("methods.dge_deseq2.read")
-from methods.subgroup_common.panorama import SUBGROUP_N_FLOOR  # noqa: E402
+read = importlib.import_module("onc_methods.dge_deseq2.read")
+from onc_methods.subgroup_common.panorama import SUBGROUP_N_FLOOR
 
 # ── unit: per-stratum projection reuses the whole-cohort classifier ──────────
 

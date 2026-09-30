@@ -7,14 +7,9 @@ tests are pure. Mirrors tests/methods/pair_selectivity_gate/test_lusc_wiring.py.
 from __future__ import annotations
 
 import sys
-from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.spatial_colocalization import read as SC  # noqa: E402
-from methods.spatial_colocalization import stats as ST  # noqa: E402
+from onc_methods.spatial_colocalization import read as SC
+from onc_methods.spatial_colocalization import stats as ST
 
 # ── wiring invariants (no S3) ────────────────────────────────────────────────
 
@@ -93,7 +88,7 @@ def test_paad_caf_variants_map_to_stromal():
 
 
 def test_products_resolve_to_catalog_s3_uris():
-    from methods.catalog_query.read import s3_uri_for
+    from onc_methods.catalog_query.read import s3_uri_for
 
     assert s3_uri_for("spatial-coloc-tumor-crc-coadread-v1").endswith(
         "spatial-coloc-tumor-crc-coadread-v1/spatial_coloc.parquet"
@@ -354,7 +349,7 @@ def test_no_immune_lane_alias_silently_loses_its_spatial_lane():
     study set is spatially covered, they ALL must be — otherwise two spellings of one cohort disagree
     about what evidence exists. (Codes with no spatial product at all are fine; the asymmetry is what
     is forbidden.)"""
-    from methods.immune_context.read import INDICATION_TO_TCGA_STUDIES as IC
+    from onc_methods.immune_context.read import INDICATION_TO_TCGA_STUDIES as IC
 
     by_studies = {}
     for code, studies in IC.items():
@@ -371,7 +366,7 @@ def test_no_immune_lane_alias_silently_loses_its_spatial_lane():
 def test_the_alias_parity_check_is_not_vacuous():
     """It must be comparing something: the immune lane has to contain at least one study set reached by
     two different codes AND at least one code the spatial map covers."""
-    from methods.immune_context.read import INDICATION_TO_TCGA_STUDIES as IC
+    from onc_methods.immune_context.read import INDICATION_TO_TCGA_STUDIES as IC
 
     by_studies = {}
     for code, studies in IC.items():

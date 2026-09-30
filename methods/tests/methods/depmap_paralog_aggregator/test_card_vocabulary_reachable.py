@@ -37,7 +37,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from methods.depmap_paralog_aggregator import read as reader
+from onc_methods.depmap_paralog_aggregator import read as reader
 
 REPO = Path(__file__).resolve().parents[3]
 # TARGET_CONTRACTS_ROOT first (CI sets it; a /tmp worktree's REPO.parent is /tmp, so the sibling

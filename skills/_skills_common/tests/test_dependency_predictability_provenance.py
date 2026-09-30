@@ -23,7 +23,7 @@ def _patch_cli(monkeypatch, captured, pin_map):
     """Put methods on path, then neutralise every emit helper except manifest,
     which we capture. Returns the real cli module for the caller to assert on."""
     _dependency._ensure_methods_path()
-    from methods.depmap_predictability import cli as realcli
+    from onc_methods.depmap_predictability import cli as realcli
 
     monkeypatch.setattr(realcli, "emit_feature_importance_bar", lambda *a, **k: None)
     monkeypatch.setattr(realcli, "emit_lineage_conditional_panel", lambda *a, **k: None)
@@ -78,7 +78,7 @@ def test_emitter_falls_back_to_reader_default_for_a_pre_stamp_summary(monkeypatc
     # than a hardcoded literal — the fallback contract is "the co-located reader's
     # default", whatever version that happens to be.
     _dependency._ensure_methods_path()
-    from methods.depmap_predictability.read import DEFAULT_RELEASE_PIN
+    from onc_methods.depmap_predictability.read import DEFAULT_RELEASE_PIN
 
     default_uri = f"s3://bucket/{DEFAULT_RELEASE_PIN}.parquet"
     captured = {}

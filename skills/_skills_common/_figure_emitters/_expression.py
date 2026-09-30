@@ -35,12 +35,12 @@ def _emit_expression_distribution(
     # OFFLINE path: render from the persisted plot_data artifact when present.
     pd_path = out_dir / "plot_data_expression.parquet"
     if pd_path.exists():
-        from methods.depmap_expression_distribution.figures import render_from_plot_data
+        from onc_methods.depmap_expression_distribution.figures import render_from_plot_data
 
         return render_from_plot_data(pd_path, summary, out_dir, target, indication)
 
     # LEGACY fallback: re-execute the method against live data (pre-migration behavior).
-    from methods.depmap_expression_distribution import cli as e3acli
+    from onc_methods.depmap_expression_distribution import cli as e3acli
 
     tpm_by_model, model_metadata, load_errors = e3acli.load_expression_files(release_pin="26q1", target_symbol=target)
     if load_errors or not tpm_by_model:
@@ -92,7 +92,7 @@ def _emit_mutation_type_counts(
     if not summary or summary.get("mutation_landscape_class") == "data_unavailable":
         return []  # honest gap — nothing to plot
     _ensure_methods_path()
-    from methods.depmap_mutation_type_counts import cli as e4cli
+    from onc_methods.depmap_mutation_type_counts import cli as e4cli
 
     out_dir.mkdir(parents=True, exist_ok=True)
     e4cli.emit_mutation_class_bar(summary, target, out_dir, TARGET_CONTRACTS)
@@ -130,12 +130,12 @@ def _emit_cn_distribution(
     # OFFLINE path: render from the persisted plot_data artifact when present.
     pd_path = out_dir / "plot_data_cn.parquet"
     if pd_path.exists():
-        from methods.depmap_cn_distribution.figures import render_from_plot_data
+        from onc_methods.depmap_cn_distribution.figures import render_from_plot_data
 
         return render_from_plot_data(pd_path, summary, out_dir, target, indication)
 
     # LEGACY fallback: re-execute the method against live data (pre-migration behavior).
-    from methods.depmap_cn_distribution import cli as e3bcli
+    from onc_methods.depmap_cn_distribution import cli as e3bcli
 
     cn_by, model_metadata, assay_used, load_errors = e3bcli.load_cn_files("26q1", target)
     if load_errors or not cn_by:
@@ -185,12 +185,12 @@ def _emit_tumor_elevation_breadth(
     # OFFLINE path: render from the persisted quantile rows when present (no S3 re-read).
     pd_path = out_dir / "plot_data_pan_cancer_by_tissue.parquet"
     if pd_path.exists():
-        from methods.tcga_gtex_tpm_quantiles.figures import render_from_plot_data
+        from onc_methods.tcga_gtex_tpm_quantiles.figures import render_from_plot_data
 
         return render_from_plot_data(pd_path, summary, out_dir, target, indication)
 
     # LEGACY fallback: re-read the quantile product live (pre-migration behavior); persist for reuse.
-    from methods.tcga_gtex_tpm_quantiles import read as tpmq
+    from onc_methods.tcga_gtex_tpm_quantiles import read as tpmq
 
     if tpmq.read_pan_cancer_by_tissue(target).empty:
         return []  # target absent from the quantile product
@@ -228,12 +228,12 @@ def _emit_tumor_expression_distribution(
     # OFFLINE path: render from the persisted per-sample plot_data when present.
     pd_path = out_dir / "plot_data_expression_distribution.parquet"
     if pd_path.exists():
-        from methods.tcga_gtex_expression_distribution.figures import render_from_plot_data
+        from onc_methods.tcga_gtex_expression_distribution.figures import render_from_plot_data
 
         return render_from_plot_data(pd_path, summary, out_dir, target, indication)
 
     # LEGACY fallback: re-execute the method against live data (pre-migration behavior).
-    from methods.tcga_gtex_expression_distribution import cli as exprdist
+    from onc_methods.tcga_gtex_expression_distribution import cli as exprdist
 
     exprdist.emit_svg(target, indication, summary, out_dir, TARGET_CONTRACTS)
     exprdist.emit_plot_data(target, indication, out_dir)
@@ -263,7 +263,7 @@ def _emit_sc_tumor_celltype_expression(
     if not summary or summary.get("sc_expression_class") == "data_unavailable":
         return []  # no product / gene absent (honest gap)
     _ensure_methods_path()
-    from methods.sc_tumor_expression_celltype import cli as sccli
+    from onc_methods.sc_tumor_expression_celltype import cli as sccli
 
     out_dir.mkdir(parents=True, exist_ok=True)
     sccli.emit_compartment_bar(summary, target, out_dir, TARGET_CONTRACTS)
@@ -297,12 +297,12 @@ def _emit_tumor_expression_distribution_subtype(
     # OFFLINE path: render from the persisted per-stratum values when present.
     pd_path = out_dir / "plot_data_subtype.parquet"
     if pd_path.exists():
-        from methods.tcga_gtex_expression_distribution.figures import render_subtype_from_plot_data
+        from onc_methods.tcga_gtex_expression_distribution.figures import render_subtype_from_plot_data
 
         return render_subtype_from_plot_data(pd_path, summary, out_dir, target, indication)
 
     # LEGACY fallback: re-execute the method against live data (pre-migration behavior).
-    from methods.tcga_gtex_expression_distribution import cli as exprdist
+    from onc_methods.tcga_gtex_expression_distribution import cli as exprdist
 
     svg = exprdist.emit_subtype_svg(target, indication, out_dir, TARGET_CONTRACTS)
     if svg is None:
@@ -339,12 +339,12 @@ def _emit_tumor_vs_normal_percentile_crossing(
     # figure as Q1 — reuses tcga_gtex_expression_distribution.figures.render_from_plot_data).
     pd_path = out_dir / "plot_data_expression_distribution.parquet"
     if pd_path.exists():
-        from methods.tcga_gtex_expression_distribution.figures import render_from_plot_data
+        from onc_methods.tcga_gtex_expression_distribution.figures import render_from_plot_data
 
         return render_from_plot_data(pd_path, summary, out_dir, target, indication)
 
     # LEGACY fallback: re-execute the method against live data (pre-migration behavior).
-    from methods.tcga_gtex_expression_distribution import cli as exprdist
+    from onc_methods.tcga_gtex_expression_distribution import cli as exprdist
 
     # emit_svg reads its own tumor/normal vectors; pass the summary through for the p95 annotation.
     exprdist.emit_svg(target, indication, summary, out_dir, TARGET_CONTRACTS)
@@ -379,12 +379,12 @@ def _emit_normal_tissue_liability_gtex(
     # OFFLINE path: render from the persisted atlas when present.
     pd_path = out_dir / "plot_data_normal_tissue_atlas.parquet"
     if pd_path.exists():
-        from methods.tcga_gtex_expression_distribution.figures import render_liability_from_plot_data
+        from onc_methods.tcga_gtex_expression_distribution.figures import render_liability_from_plot_data
 
         return render_liability_from_plot_data(pd_path, summary, out_dir, target, indication)
 
     # LEGACY fallback: re-execute the method against live data (pre-migration behavior).
-    from methods.tcga_gtex_expression_distribution import cli as exprdist
+    from onc_methods.tcga_gtex_expression_distribution import cli as exprdist
 
     svg = exprdist.emit_liability_svg(target, out_dir, TARGET_CONTRACTS)
     if svg is None:
@@ -420,12 +420,12 @@ def _emit_recommended_models(
     # OFFLINE path: render from the persisted full model rows when present.
     pd_path = out_dir / "plot_data_recommended_models.parquet"
     if pd_path.exists():
-        from methods.patient_model_expression_correspondence.figures import render_from_plot_data
+        from onc_methods.patient_model_expression_correspondence.figures import render_from_plot_data
 
         return render_from_plot_data(pd_path, summary, out_dir, target, indication)
 
     # LEGACY fallback: re-execute the method against live data (pre-migration behavior).
-    from methods.patient_model_expression_correspondence import cli as pmc
+    from onc_methods.patient_model_expression_correspondence import cli as pmc
 
     svg = pmc.emit_svg(target, indication, summary, out_dir, TARGET_CONTRACTS)
     if svg is None:
@@ -461,12 +461,12 @@ def _emit_rna_protein_concordance(
     # OFFLINE path: render from the persisted per-model scatter points when present.
     pd_path = out_dir / "plot_data_rna_protein.parquet"
     if pd_path.exists():
-        from methods.depmap_rna_protein_concordance.figures import render_from_plot_data
+        from onc_methods.depmap_rna_protein_concordance.figures import render_from_plot_data
 
         return render_from_plot_data(pd_path, summary, out_dir, target, indication)
 
     # LEGACY fallback: re-execute the method against live data (pre-migration behavior).
-    from methods.depmap_rna_protein_concordance import cli as rpc
+    from onc_methods.depmap_rna_protein_concordance import cli as rpc
 
     svg = rpc.emit_svg(target, indication, summary, out_dir, TARGET_CONTRACTS)
     if svg is None:
@@ -502,12 +502,12 @@ def _emit_rna_protein_concordance_tumor(
     # OFFLINE path: render from the persisted per-tumor scatter points when present.
     pd_path = out_dir / "plot_data_rna_protein_tumor.parquet"
     if pd_path.exists():
-        from methods.depmap_rna_protein_concordance.figures import render_tumor_from_plot_data
+        from onc_methods.depmap_rna_protein_concordance.figures import render_tumor_from_plot_data
 
         return render_tumor_from_plot_data(pd_path, summary, out_dir, target, indication)
 
     # LEGACY fallback: re-execute the method against live data (pre-migration behavior).
-    from methods.depmap_rna_protein_concordance import cli as rpc
+    from onc_methods.depmap_rna_protein_concordance import cli as rpc
 
     svg = rpc.emit_tumor_svg(target, indication, out_dir, TARGET_CONTRACTS)
     if svg is None:
@@ -550,13 +550,13 @@ def _emit_tumor_vs_normal_selectivity(
     # OFFLINE path: render from the persisted 3-group per-sample when present (no recount3 re-stream).
     pd_path = out_dir / "plot_data_dge_per_sample.parquet"
     if pd_path.exists():
-        from methods.dge_deseq2.figures import render_selectivity_from_plot_data
+        from onc_methods.dge_deseq2.figures import render_selectivity_from_plot_data
 
         return render_selectivity_from_plot_data(pd_path, summary, out_dir, target, indication)
 
     # LEGACY fallback: stream per-sample from recount3 live; persist it for reuse (offline next time).
-    from methods.dge_deseq2 import emit as dge_emit
-    from methods.dge_deseq2 import read as dge_read
+    from onc_methods.dge_deseq2 import emit as dge_emit
+    from onc_methods.dge_deseq2 import read as dge_read
 
     try:
         per_sample = dge_read.read_per_sample_expression_all_three_groups(
@@ -619,8 +619,8 @@ def _emit_expression_tumor_vs_adjacent(
     if _has_live_read_error(summary):
         return []
     _ensure_methods_path()
-    from methods.dge_deseq2 import emit as dge_emit
-    from methods.dge_deseq2 import read as dge_read
+    from onc_methods.dge_deseq2 import emit as dge_emit
+    from onc_methods.dge_deseq2 import read as dge_read
 
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -734,7 +734,7 @@ def _emit_expression_purity_confound(
     ):
         return []
     _ensure_methods_path()
-    from methods.expression_purity_confound import cli as epc
+    from onc_methods.expression_purity_confound import cli as epc
 
     out_dir.mkdir(parents=True, exist_ok=True)
     svg = epc.emit_svg(target, indication, summary, out_dir, TARGET_CONTRACTS)
@@ -767,7 +767,7 @@ def _emit_expression_clinical_association(
     if cls in (None, "data_unavailable", "insufficient_survival_data") or summary.get("logrank_p") is None:
         return []
     _ensure_methods_path()
-    from methods.expression_clinical_association import cli as eca
+    from onc_methods.expression_clinical_association import cli as eca
 
     out_dir.mkdir(parents=True, exist_ok=True)
     svg = eca.emit_svg(target, indication, summary, out_dir, TARGET_CONTRACTS)

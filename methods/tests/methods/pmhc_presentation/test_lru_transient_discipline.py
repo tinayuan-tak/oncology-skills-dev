@@ -7,19 +7,13 @@ payload failure. Both must RAISE on transient/broken-env (not memoized) and retu
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
 
 pytest.importorskip("pandas")
 pa = pytest.importorskip("pyarrow")
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
 
-from methods.pmhc_presentation import read as R  # noqa: E402
+from onc_methods.pmhc_presentation import read as R
 
 
 @pytest.fixture(autouse=True)

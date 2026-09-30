@@ -40,7 +40,7 @@ NULL_DIR = HERE / "nulls"
 # Import the REAL pipeline compute by file path — the same discipline the sibling
 # tests/methods/test_percentile_null_helper uses, robust to sys.path / package shadowing.
 # This is the code the corpus runs; re-deriving through it is what makes T3 a real test.
-_HELPER = HERE.parents[2] / "methods" / "percentile_null" / "__init__.py"
+_HELPER = HERE.parents[2] / "onc_methods" / "percentile_null" / "__init__.py"
 _spec = importlib.util.spec_from_file_location("t3_percentile_null_under_test", _HELPER)
 _pn = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_pn)

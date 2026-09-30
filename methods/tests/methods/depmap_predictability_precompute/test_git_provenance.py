@@ -10,7 +10,6 @@ capture must never fail the precompute — it degrades to None on any git error.
 from __future__ import annotations
 
 import subprocess
-import sys
 from pathlib import Path
 
 import pytest
@@ -22,8 +21,7 @@ REPO = Path(__file__).resolve().parents[3]
 def cli():
     # The module uses a package-relative import (`from . import features`), so
     # load it as a package rather than via spec_from_file_location.
-    sys.path.insert(0, str(REPO))
-    from methods.depmap_predictability_precompute import cli as _cli
+    from onc_methods.depmap_predictability_precompute import cli as _cli
 
     return _cli
 

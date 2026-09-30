@@ -45,7 +45,7 @@ import build_emission_ledger as bel  # noqa: E402
 
 #: Pinned BY NAME, not by count. This WAS a two-file contradiction: the card declared
 #: surface_density_class: [high, moderate, low, very_low, unmeasured] while
-#: analysis-methods/methods/cptac_protein_deg/read.py emits this token (the "unsupported" grade:
+#: analysis-methods/onc_methods/cptac_protein_deg/read.py emits this token (the "unsupported" grade:
 #: a whole-cell abundance estimate that is not a valid surface density) — and that repo's
 #: test_abundance_density.py ASSERTS it (test_unsupported_retains_estimate_but_flags_not_surface,
 #: test_no_transmembrane_non_gpi_stays_unsupported). The contradiction was RESOLVED deliberately by

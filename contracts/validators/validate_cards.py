@@ -137,7 +137,7 @@ _FIGURE_EMITTERS_CANDIDATES = (
 #
 #   (1) RESOLUTION. When an entry declares `module` + `entrypoint`, the skills live-reader layer
 #       (_skills_common/_live_readers.py::_generic_dispatch) resolves it as
-#       `__import__("methods." + (module or call.replace("-","_")), fromlist=["*"])` then
+#       `__import__("onc_methods." + (module or call.replace("-","_")), fromlist=["*"])` then
 #       `getattr(mod, entrypoint)`. A declaration naming a symbol the module does not EXPORT raises
 #       AttributeError at read time — and because the generic path is only a FALLBACK behind the
 #       bespoke CARD_DISPATCHERS registry, a bespoke-routed card can carry a broken declaration
@@ -410,7 +410,7 @@ def _top_level_bindings(body: list[ast.stmt]) -> tuple[set[str], bool]:
 @functools.lru_cache(maxsize=1)
 def _analysis_methods_available() -> bool:
     """True when the sibling analysis-methods checkout is on disk (else both wiring halves skip)."""
-    return (_ANALYSIS_METHODS_REPO / "methods").is_dir()
+    return (_ANALYSIS_METHODS_REPO / "onc_methods").is_dir()
 
 
 @functools.lru_cache(maxsize=None)
@@ -421,7 +421,7 @@ def _method_module_bindings(module_path: str) -> Optional[frozenset[str]]:
     _OPAQUE_MODULE when a star-import means the export set cannot be determined (→ skip)."""
     if not module_path or not _analysis_methods_available():
         return None
-    base = _ANALYSIS_METHODS_REPO / "methods" / Path(*module_path.split("."))
+    base = _ANALYSIS_METHODS_REPO / "onc_methods" / Path(*module_path.split("."))
     for candidate in (base.with_suffix(".py"), base / "__init__.py"):
         if not candidate.is_file():
             continue
@@ -1631,8 +1631,8 @@ def _method_entrypoint_check(spec: dict, report: ValidationReport) -> None:
             report.add_error(
                 f"METHOD_MODULE_MISSING [methods[{i}]]: card `{card_id}` declares "
                 f"module {module_path!r} (entrypoint {entrypoint!r}) but analysis-methods has no "
-                f"methods/{module_path.replace('.', '/')}.py or .../__init__.py. The live reader "
-                f"imports `methods.{module_path}` — this declaration cannot resolve."
+                f"onc_methods/{module_path.replace('.', '/')}.py or .../__init__.py. The live reader "
+                f"imports `onc_methods.{module_path}` — this declaration cannot resolve."
             )
             continue
         if bindings is _OPAQUE_MODULE:
@@ -1640,7 +1640,7 @@ def _method_entrypoint_check(spec: dict, report: ValidationReport) -> None:
         if entrypoint not in bindings:
             report.add_error(
                 f"METHOD_ENTRYPOINT_MISSING [methods[{i}]]: card `{card_id}` declares "
-                f"entrypoint {entrypoint!r} on module {module_path!r}, but `methods.{module_path}` "
+                f"entrypoint {entrypoint!r} on module {module_path!r}, but `onc_methods.{module_path}` "
                 f"does not export that name. `getattr` on it raises AttributeError. If the function "
                 f"lives in a submodule, point `module` at the submodule (e.g. "
                 f"'{module_path}.read') or re-export it from the package __init__."

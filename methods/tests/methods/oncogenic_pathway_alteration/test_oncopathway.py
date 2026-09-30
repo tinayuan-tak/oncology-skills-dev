@@ -2,13 +2,7 @@
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-from methods.oncogenic_pathway_alteration import read as opa  # noqa: E402
+from onc_methods.oncogenic_pathway_alteration import read as opa
 
 
 def _fake():
@@ -88,7 +82,7 @@ def test_missing_indication():
 
 
 def _patch_resolver(monkeypatch, mapping):
-    import methods.catalog_query.read as cq
+    import onc_methods.catalog_query.read as cq
 
     monkeypatch.setattr(cq, "s3_uri_for", lambda mid, **kw: mapping[mid])
 
@@ -105,7 +99,7 @@ def test_derived_uri_resolves_via_manifest(monkeypatch):
 
 
 def test_source_mmc_uris_append_filename_to_directory(monkeypatch):
-    from methods.oncogenic_pathway_alteration import cli as opc
+    from onc_methods.oncogenic_pathway_alteration import cli as opc
 
     _patch_resolver(
         monkeypatch,
@@ -121,7 +115,7 @@ def test_source_mmc_uris_append_filename_to_directory(monkeypatch):
 def test_bridge_uri_resolves_to_clinical_manifest(monkeypatch):
     """The barcode->cancer-type bridge file is documented in gdc-pancanatlas-clinical-2018
     (four gdc-pancanatlas manifests share the dir; clinical is the one that lists this file)."""
-    from methods.oncogenic_pathway_alteration import cli as opc
+    from onc_methods.oncogenic_pathway_alteration import cli as opc
 
     _patch_resolver(
         monkeypatch,
@@ -134,4 +128,4 @@ def test_bridge_uri_resolves_to_clinical_manifest(monkeypatch):
 def test_resolver_import_is_call_time(monkeypatch):
     import inspect
 
-    assert "from methods.catalog_query.read import s3_uri_for" in inspect.getsource(opa._resolve_derived_uri)
+    assert "from onc_methods.catalog_query.read import s3_uri_for" in inspect.getsource(opa._resolve_derived_uri)

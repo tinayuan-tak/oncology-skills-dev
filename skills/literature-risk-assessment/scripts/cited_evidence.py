@@ -34,7 +34,7 @@ _METHODS_REPO = os.environ.get("ANALYSIS_METHODS_ROOT", _ANALYSIS_METHODS_ROOT_D
 if _METHODS_REPO not in sys.path:
     sys.path.insert(0, _METHODS_REPO)
 
-from methods.cited_literature_evidence.read import (  # noqa: E402 — path set above; single source of truth
+from onc_methods.cited_literature_evidence.read import (  # noqa: E402 — path set above; single source of truth
     CARD_VERSION,
     DEFAULT_TOP_CITED,
     build_cited_evidence_card,

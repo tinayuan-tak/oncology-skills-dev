@@ -44,7 +44,6 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 VECTORS = HERE / "protein_vectors"
 ANCHORS = HERE / "anchors"
-AM_ROOT = HERE.parents[2]
 
 NULL_FIXTURE_NAME = "depmap_gygi_allgene_median_null.parquet"
 
@@ -71,11 +70,10 @@ def _write_null_fixture(all_protein_medians: tuple) -> str:
 
 
 def capture(target: str) -> None:
-    sys.path.insert(0, str(AM_ROOT))
     import pyarrow as pa
     import pyarrow.parquet as pq
 
-    from methods.depmap_protein_abundance import cli as pa_cli
+    from onc_methods.depmap_protein_abundance import cli as pa_cli
 
     acc = pa_cli.resolve_accession(target)
     if acc is None:

@@ -8,19 +8,13 @@ ladder + data_unavailable safety.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
 
 np = pytest.importorskip("numpy")
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
 
-from methods.tcga_gtex_expression_distribution import read as R  # noqa: E402
-from methods.tcga_gtex_expression_distribution import stats as S  # noqa: E402
+from onc_methods.tcga_gtex_expression_distribution import read as R
+from onc_methods.tcga_gtex_expression_distribution import stats as S
 
 
 # ---- stats primitives ----
@@ -187,7 +181,7 @@ def test_read_all_normal_tissues_repoints_marrow_off_k562(monkeypatch):
 
     import pandas as pd
 
-    from methods.tcga_gtex_tpm_quantiles import marrow
+    from onc_methods.tcga_gtex_tpm_quantiles import marrow
 
     # recount3 GTEx `BONE_MARROW` group is K-562 (myeloid markers ~0). Fake the gtex long-product read.
     fake = pd.DataFrame(
@@ -213,7 +207,7 @@ def test_read_all_normal_tissues_repoints_marrow_off_k562(monkeypatch):
 def test_marrow_repoint_makes_myeloid_gene_fire_critical_organ_liability(monkeypatch):
     import pandas as pd
 
-    from methods.tcga_gtex_tpm_quantiles import marrow
+    from onc_methods.tcga_gtex_tpm_quantiles import marrow
 
     fake = pd.DataFrame({"tissue": ["SKIN"] * 5 + ["BONE_MARROW"] * 5, "log2_tpm": [0.1] * 5 + [0.05] * 5})
     monkeypatch.setattr(R, "_read_gene", lambda which, target: fake)
@@ -233,7 +227,7 @@ def test_marrow_repoint_makes_myeloid_gene_fire_critical_organ_liability(monkeyp
 def test_marrow_absent_is_not_fabricated_clean_marrow(monkeypatch):
     import pandas as pd
 
-    from methods.tcga_gtex_tpm_quantiles import marrow
+    from onc_methods.tcga_gtex_tpm_quantiles import marrow
 
     fake = pd.DataFrame({"tissue": ["SKIN"] * 5 + ["BONE_MARROW"] * 5, "log2_tpm": [0.1] * 5 + [0.05] * 5})
     monkeypatch.setattr(R, "_read_gene", lambda which, target: fake)
@@ -255,7 +249,7 @@ def test_q2_q3_cli_build_and_liability_figure(tmp_path, monkeypatch):
     import importlib
 
     pytest.importorskip("matplotlib")
-    cli = importlib.import_module("methods.tcga_gtex_expression_distribution.cli")
+    cli = importlib.import_module("onc_methods.tcga_gtex_expression_distribution.cli")
     monkeypatch.setattr(R, "read_tumor_samples", lambda t, i: [6.0, 6.5, 7.0] * 10)
     monkeypatch.setattr(R, "read_normal_samples", lambda t, i: ([1.0, 1.2] * 10, "COLON"))
     q2 = cli.build_selectivity_crossing_summary("CEACAM5", "COADREAD")
@@ -281,7 +275,7 @@ def test_build_antigen_prevalence_projects_card_fractions(monkeypatch):
     clinical = 15/20, high = 9/20, and the median sample (2.0 log2) is 3.0 linear TPM."""
     import importlib
 
-    cli = importlib.import_module("methods.tcga_gtex_expression_distribution.cli")
+    cli = importlib.import_module("onc_methods.tcga_gtex_expression_distribution.cli")
     monkeypatch.setattr(R, "read_tumor_samples", lambda t, i: [0.1] * 5 + [2.0] * 6 + [6.0] * 9)
     out = cli.build_antigen_prevalence("CEACAM5", "COADREAD")
     assert out["n_samples"] == 20
@@ -297,7 +291,7 @@ def test_build_antigen_prevalence_data_unavailable(monkeypatch):
     prevalence (absence must read as unmeasured, not as 'expressed in 0% of tumors')."""
     import importlib
 
-    cli = importlib.import_module("methods.tcga_gtex_expression_distribution.cli")
+    cli = importlib.import_module("onc_methods.tcga_gtex_expression_distribution.cli")
     monkeypatch.setattr(R, "read_tumor_samples", lambda t, i: [])
     out = cli.build_antigen_prevalence("GHOST", "COADREAD")
     assert out["n_samples"] == 0
@@ -361,7 +355,7 @@ def test_tumor_allgene_percentile_seam_offline(monkeypatch):
     """The _tumor_allgene_percentile seam resolves symbol→ensembl + delegates to the lookup,
     both patched — proves the reader wires the accessor without touching S3."""
     monkeypatch.setattr(R, "_symbol_to_ensembl_ids", lambda s: ["ENSG00000105383"])
-    import methods.allgene_percentile_precompute.lookup as _lk
+    import onc_methods.allgene_percentile_precompute.lookup as _lk
 
     monkeypatch.setattr(_lk, "_tumor_rows", lambda ids, source: (("COAD", 88.0, 500, 41000, 4.0),))
     out = R._tumor_allgene_percentile("CD33", ["COAD"])
@@ -370,7 +364,7 @@ def test_tumor_allgene_percentile_seam_offline(monkeypatch):
 
 
 # ---- subtype layer (synthetic shard + bridged reader; no S3) ----
-import pandas as pd  # noqa: E402
+import pandas as pd
 
 
 def _fake_assignments(rows):
@@ -391,8 +385,8 @@ def _wire_subtype(monkeypatch, *, pooled_vals, bridged_rows, assignment_rows):
     # was removed, so the read now propagates and the offline test must mock it explicitly.)
     monkeypatch.setattr(R, "read_normal_samples", lambda t, i: ([], None))
     # patch load_assignments + compute_join_coverage where the assembler imports them
-    import methods.subgroup_common.loaders as _loaders
-    import methods.subgroup_common.scoping as _scoping
+    import onc_methods.subgroup_common.loaders as _loaders
+    import onc_methods.subgroup_common.scoping as _scoping
 
     monkeypatch.setattr(_loaders, "load_assignments", lambda mid, **kw: _fake_assignments(assignment_rows))
     monkeypatch.setattr(_scoping, "load_assignments", lambda mid, **kw: _fake_assignments(assignment_rows))
@@ -542,7 +536,7 @@ def test_cli_emits_full_bar(tmp_path, monkeypatch):
 
     pytest.importorskip("matplotlib")
     pytest.importorskip("pyarrow")
-    cli = importlib.import_module("methods.tcga_gtex_expression_distribution.cli")
+    cli = importlib.import_module("onc_methods.tcga_gtex_expression_distribution.cli")
     monkeypatch.setattr(R, "read_tumor_samples", lambda t, i: [6.0, 6.5, 7.0, 5.8] * 5)
     monkeypatch.setattr(R, "read_normal_samples", lambda t, i: ([1.0, 1.2, 0.8] * 5, "COLON"))
     # build_summary also computes the subtype landscape (read_tumor_samples_with_case → GTEx/TCGA
@@ -569,7 +563,7 @@ def test_cli_pooled_carries_rollup_not_full_landscape(monkeypatch):
     Cramming all strata into the pooled card overflows the synthesis prompt char-cap (measured)."""
     import importlib
 
-    cli = importlib.import_module("methods.tcga_gtex_expression_distribution.cli")
+    cli = importlib.import_module("onc_methods.tcga_gtex_expression_distribution.cli")
     # HI enriched (~4.0) vs LO depleted (~0.5) vs MID uniform (~2.0); pooled median ~2.0.
     _wire_subtype(
         monkeypatch,
@@ -602,7 +596,7 @@ def test_cli_subtype_svg_and_plotly_emit(tmp_path, monkeypatch):
     import importlib
 
     pytest.importorskip("matplotlib")
-    cli = importlib.import_module("methods.tcga_gtex_expression_distribution.cli")
+    cli = importlib.import_module("onc_methods.tcga_gtex_expression_distribution.cli")
     # wire read_tumor_subtype_values directly (the emitters' substrate)
     monkeypatch.setattr(
         R,
@@ -652,7 +646,7 @@ def test_cli_subtype_panorama_carries_full_per_subgroup_metrics(monkeypatch):
     shape the tumor-rna-distribution-by-subtype card declares."""
     import importlib
 
-    cli = importlib.import_module("methods.tcga_gtex_expression_distribution.cli")
+    cli = importlib.import_module("onc_methods.tcga_gtex_expression_distribution.cli")
     _wire_subtype(
         monkeypatch,
         pooled_vals=[4.0] * 40 + [2.0] * 40,
@@ -665,7 +659,7 @@ def test_cli_subtype_panorama_carries_full_per_subgroup_metrics(monkeypatch):
 
 
 # ---- Phase B: crossing-by-subtype panorama (monkeypatched landscape, no S3) ----
-from methods.tcga_gtex_expression_distribution import cli as C  # noqa: E402
+from onc_methods.tcga_gtex_expression_distribution import cli as C
 
 
 def _fake_landscape(**over):

@@ -6,17 +6,10 @@ well-formed read (null-strata guard against a silent join-collapse to "no sample
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
 from botocore.exceptions import ClientError
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.tcga_aneuploidy_burden import read as anu  # noqa: E402
+from onc_methods.tcga_aneuploidy_burden import read as anu
 
 
 def _nosuchkey():

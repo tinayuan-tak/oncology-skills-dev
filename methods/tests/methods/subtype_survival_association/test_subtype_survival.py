@@ -2,18 +2,11 @@
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.expression_clinical_association import read as _eca  # noqa: E402
-from methods.subtype_survival_association import read as _R  # noqa: E402
-from methods.subtype_survival_association.read import (  # noqa: E402
+from onc_methods.expression_clinical_association import read as _eca
+from onc_methods.subtype_survival_association import read as _R
+from onc_methods.subtype_survival_association.read import (
     MIN_EVENTS,
     classify_subtype_survival_association,
     multivariate_logrank,

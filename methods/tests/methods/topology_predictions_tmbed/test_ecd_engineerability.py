@@ -8,14 +8,7 @@ measured-vs-data_unavailable discipline are pinned here.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.topology_predictions_tmbed.classify import (  # noqa: E402
+from onc_methods.topology_predictions_tmbed.classify import (
     ECD_AMPLE_EPITOPE_AREA,
     ECD_ENGINEERABLE_FLOOR,
     classify_ecd_engineerability,

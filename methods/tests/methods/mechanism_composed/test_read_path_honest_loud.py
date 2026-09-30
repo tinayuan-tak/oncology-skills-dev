@@ -18,16 +18,11 @@ discriminator, mirroring #783/#797/#712/#800/#715) cannot over- or under-correct
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
-REPO = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(REPO))
-
-import methods.mechanism_composed.read as mc_read
+import onc_methods.mechanism_composed.read as mc_read
 
 # ---------------------------------------------------------------------------
 # Error fixtures
@@ -92,11 +87,11 @@ def _ok_coess(target, top_n=25, **kwargs):
 
 def _run(*, signor, collectri=_empty_edges, coess=_ok_coess):
     with (
-        patch("methods.mechanism_composed.read.signor_read.read_target_summary", side_effect=signor),
-        patch("methods.mechanism_composed.read.collectri_read.read_target_summary", side_effect=collectri),
-        patch("methods.mechanism_composed.read.reactome_read.read_target_summary", side_effect=_empty_reactome),
-        patch("methods.mechanism_composed.read.kinome_atlas_read.read_target_summary", side_effect=_empty_edges),
-        patch("methods.mechanism_composed.read.coessentiality_read.read_coessential_partners", side_effect=coess),
+        patch("onc_methods.mechanism_composed.read.signor_read.read_target_summary", side_effect=signor),
+        patch("onc_methods.mechanism_composed.read.collectri_read.read_target_summary", side_effect=collectri),
+        patch("onc_methods.mechanism_composed.read.reactome_read.read_target_summary", side_effect=_empty_reactome),
+        patch("onc_methods.mechanism_composed.read.kinome_atlas_read.read_target_summary", side_effect=_empty_edges),
+        patch("onc_methods.mechanism_composed.read.coessentiality_read.read_coessential_partners", side_effect=coess),
     ):
         return mc_read.read_target_summary("UBA3")
 

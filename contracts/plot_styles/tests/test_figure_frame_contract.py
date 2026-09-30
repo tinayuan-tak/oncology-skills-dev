@@ -6,15 +6,13 @@ synthetic figure through the real helpers (no analysis-methods dependency) and a
 annotation slots + the verdict-status binding behave. Skips cleanly where matplotlib is absent
 (bare-python contracts CI)."""
 
-import sys
 from pathlib import Path
 
 import pytest
 
 pytest.importorskip("matplotlib")  # rendering test — only where matplotlib is installed
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # plot_styles/ on path
-import takeda_palette as pal  # noqa: E402
+from oncology_target_contracts.plot_styles import takeda_palette as pal  # noqa: E402
 
 # ---- verdict-status binding (status_for_card): the figure↔verdict source of truth ----------------
 

@@ -13,14 +13,7 @@ tell (35 without the fix, 45 with it)."""
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.depmap_cn_dependency import read as _r  # noqa: E402
+from onc_methods.depmap_cn_dependency import read as _r
 
 
 def _synthetic_panel():
@@ -58,8 +51,8 @@ def _synthetic_panel():
 def test_shallow_gain_stays_in_pan_wt_arm(monkeypatch):
     chronos, cn, meta = _synthetic_panel()
 
-    from methods.depmap_chronos_distribution import cli as c1cli
-    from methods.depmap_cn_distribution import cli as cncli
+    from onc_methods.depmap_chronos_distribution import cli as c1cli
+    from onc_methods.depmap_cn_distribution import cli as cncli
 
     monkeypatch.setattr(c1cli, "load_depmap_files", lambda release_pin, target_symbol: (chronos, meta, []))
     monkeypatch.setattr(cncli, "load_cn_files", lambda release_pin, target_symbol: (cn, {}, "WES", []))

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 
-from methods.surface_localization_concordance import cli, read
+from onc_methods.surface_localization_concordance import cli, read
 
 
 # ── canned child-reader summaries (the fields the joiner reads) ──────────────────────────────────

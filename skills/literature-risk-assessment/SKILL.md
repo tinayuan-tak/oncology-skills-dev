@@ -153,7 +153,7 @@ clinical and commercial are ENGINE-BLIND — no deterministic card measures them
 The verdict-INERT gene×indication cited-literature composer that used to live here as a sibling
 entrypoint was PROMOTED (2026-09-02) to a first-class card, `cited-literature-evidence` (target-
 contracts), with its compose logic moved to analysis-methods
-(`methods/cited_literature_evidence/read.py`, the single source of truth) and its home skill the new
+(`onc_methods/cited_literature_evidence/read.py`, the single source of truth) and its home skill the new
 verdict-inert `literature-context` fan-out member. This is because the compose logic joins two
 analysis-methods readers (so it belongs in the method layer) and the promotion makes it visible to the
 card/skill validators + the emission guard — replacing the former `cited_literature_evidence.json`

@@ -11,14 +11,11 @@ so a family can no longer self-disagree. Hermetic — pure dict inputs, no S3.
 from __future__ import annotations
 
 import importlib
-import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
 
-read = importlib.import_module("methods.dge_deseq2.read")
+read = importlib.import_module("onc_methods.dge_deseq2.read")
 cc = read._comparator_concordance
 
 
@@ -66,7 +63,7 @@ def test_empty_or_none_row_is_single_comparator():
 def test_field_wired_into_selectivity_summary_shape():
     """The reader's summary dict must carry comparator_concordance (both v3 + v2 paths add it).
     We can't hit S3 here, but we can assert the classifier is referenced in the return assembly."""
-    src = (REPO / "methods" / "dge_deseq2" / "read" / "__init__.py").read_text()
+    src = (REPO / "onc_methods" / "dge_deseq2" / "read" / "__init__.py").read_text()
     assert src.count('"comparator_concordance"') >= 2, (
         "comparator_concordance must be emitted in BOTH the v3 primary and v2 fallback returns"
     )

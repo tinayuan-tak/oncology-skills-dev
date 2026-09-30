@@ -9,19 +9,15 @@ CARD_FIGURE_EMITTERS, _plotly_from, _dge_cell_contrasts).
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path  # noqa: F401
 
-from _skills_common.paths import analysis_methods_root, target_contracts_root
+from _skills_common.paths import target_contracts_root
 
-METHODS_REPO = analysis_methods_root()
 TARGET_CONTRACTS = target_contracts_root()
 
 
 def _ensure_methods_path() -> None:
     """Idempotent: put methods repo on sys.path so `methods.<x>.cli` resolves."""
-    if str(METHODS_REPO) not in sys.path:
-        sys.path.insert(0, str(METHODS_REPO))
 
 
 def _has_live_read_error(summary: dict) -> bool:

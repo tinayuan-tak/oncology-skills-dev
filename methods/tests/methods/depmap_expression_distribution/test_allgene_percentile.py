@@ -7,17 +7,10 @@ merges the allgene_* fields WITHOUT disturbing expression_class (one-directional
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.depmap_expression_distribution import cli as C  # noqa: E402
-from methods.depmap_expression_distribution import read as R  # noqa: E402
+from onc_methods.depmap_expression_distribution import cli as C
+from onc_methods.depmap_expression_distribution import read as R
 
 
 def _fake_load(release_pin, target_symbol):
@@ -29,7 +22,7 @@ def _fake_load(release_pin, target_symbol):
 
 def test_read_merges_allgene_percentile(monkeypatch):
     monkeypatch.setattr(C, "load_expression_files", _fake_load)
-    import methods.allgene_percentile_precompute.lookup as _lk
+    import onc_methods.allgene_percentile_precompute.lookup as _lk
 
     monkeypatch.setattr(_lk, "_depmap_row", lambda sym: (99.9, 17, 19215, 11.9))
     out = R.read_expression_distribution("GAPDH")
@@ -43,7 +36,7 @@ def test_read_merges_allgene_percentile(monkeypatch):
 
 def test_read_allgene_absent_gene_data_unavailable(monkeypatch):
     monkeypatch.setattr(C, "load_expression_files", _fake_load)
-    import methods.allgene_percentile_precompute.lookup as _lk
+    import onc_methods.allgene_percentile_precompute.lookup as _lk
 
     monkeypatch.setattr(_lk, "_depmap_row", lambda sym: None)
     out = R.read_expression_distribution("MADE_UP")
@@ -55,7 +48,7 @@ def test_read_lookup_failure_is_nonfatal(monkeypatch):
     """If the lookup raises (e.g. S3 down), the core summary must still return with
     null allgene fields — the enrichment is best-effort, never fatal to the read."""
     monkeypatch.setattr(C, "load_expression_files", _fake_load)
-    import methods.allgene_percentile_precompute.lookup as _lk
+    import onc_methods.allgene_percentile_precompute.lookup as _lk
 
     def _boom(sym):
         raise RuntimeError("s3 unreachable")

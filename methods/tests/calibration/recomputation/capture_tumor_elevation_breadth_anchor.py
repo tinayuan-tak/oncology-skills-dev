@@ -45,12 +45,9 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 
 HERE = Path(__file__).resolve().parent
-AM_ROOT = HERE.parents[2]
-if str(AM_ROOT) not in sys.path:
-    sys.path.insert(0, str(AM_ROOT))
 
-import methods.cptac_protein_deg.read as cp  # noqa: E402
-import methods.dge_deseq2.derive_pancan_stack as ps  # noqa: E402
+import onc_methods.cptac_protein_deg.read as cp
+import onc_methods.dge_deseq2.derive_pancan_stack as ps
 
 ANCHOR_DIR = HERE / "anchors"
 FIXTURE_DIR = HERE / "dge_rows"
@@ -189,8 +186,8 @@ def main() -> None:
             "expected_protein": {f: live_protein.get(f) for f in _PROTEIN_FIELDS},
             "expected_rna": {f: live_rna.get(f) for f in _RNA_FIELDS},
             "_source": {
-                "protein_reader": "methods.cptac_protein_deg.read.read_tumor_elevation_breadth (on read_all_cohorts)",
-                "rna_reader": "methods.dge_deseq2.derive_pancan_stack.read_rna_tumor_elevation_breadth",
+                "protein_reader": "onc_methods.cptac_protein_deg.read.read_tumor_elevation_breadth (on read_all_cohorts)",
+                "rna_reader": "onc_methods.dge_deseq2.derive_pancan_stack.read_rna_tumor_elevation_breadth",
                 "captured_utc": datetime.now(timezone.utc).isoformat(),
                 "boundary": (
                     "validates the read/aggregation path (elevated-cohort counting + pan-cohort BH/FDR "

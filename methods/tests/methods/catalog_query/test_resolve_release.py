@@ -9,15 +9,9 @@ supersedes graph. These tests run against the REAL catalog (families with coexis
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
 
-_METHODS = Path(__file__).resolve().parents[3] / "methods"
-sys.path.insert(0, str(_METHODS))
-
-from catalog_query.read import (  # noqa: E402
+from onc_methods.catalog_query.read import (
     ReleaseResolutionError,
     _family_of,
     load_catalog,

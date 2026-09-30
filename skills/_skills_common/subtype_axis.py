@@ -2,7 +2,7 @@
 whether a molecular-subtype axis is strong enough to read as a real cross-subtype differential.
 
 The methods reader rolls per-stratum `evidence_state` up to one honest `subtype_axis_quality` grade
-(`analysis-methods/methods/subgroup_common/panorama.py:axis_quality`, most→least usable):
+(`analysis-methods/onc_methods/subgroup_common/panorama.py:axis_quality`, most→least usable):
 
     powered      >= 2 strata clear the n-floor (evidence_state == "measured"): comparative subtype
                  claims ("enriched in A vs B") are SUPPORTABLE.

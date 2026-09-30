@@ -23,8 +23,8 @@ import pytest
 
 pd = pytest.importorskip("pandas")
 
-from methods.depmap_common import model_metadata_by_id  # noqa: E402
-from methods.depmap_crispr_rnai_concordance.cli import compute_concordance  # noqa: E402
+from onc_methods.depmap_common import model_metadata_by_id  # noqa: E402
+from onc_methods.depmap_crispr_rnai_concordance.cli import compute_concordance  # noqa: E402
 
 # ACH-000009 is the real shape: CCLEName is a legacy field genuinely absent for newer DepMap models, so a
 # missing name sits beside a present lineage. ACH-000010 lacks both.

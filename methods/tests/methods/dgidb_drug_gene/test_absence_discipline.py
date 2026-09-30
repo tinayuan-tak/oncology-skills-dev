@@ -6,21 +6,14 @@ _live_read_error instead of a false "no known drug" for a live gene).
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.dgidb_drug_gene import read as dgidb  # noqa: E402
+from onc_methods.dgidb_drug_gene import read as dgidb
 
 
 def _stub_s3(monkeypatch):
     """Neutralize catalog + S3FileSystem so read_table is the only thing that (mock-)raises."""
-    import methods.catalog_query.read as cq
+    import onc_methods.catalog_query.read as cq
 
     monkeypatch.setattr(cq, "bucket_key_for", lambda mid: ("bucket", "key"))
     import pyarrow.fs as pafs

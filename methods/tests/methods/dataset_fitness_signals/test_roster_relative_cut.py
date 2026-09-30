@@ -7,24 +7,17 @@ no disk) runs in CI. Only the tests that re-measure the real frozen roster are g
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import numpy as np
 import pytest
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.dataset_fitness_signals import (  # noqa: E402
+from onc_methods.dataset_fitness_signals import (
     conditioned_values,
     load_contract,
     percentile_cut,
     reanchor,
     roster_relative_cut,
 )
-from methods.dataset_fitness_signals.resolve import ContractInvalid, contract_path  # noqa: E402
+from onc_methods.dataset_fitness_signals.resolve import ContractInvalid, contract_path
 
 CONTRACT = contract_path()
 needs_contract = pytest.mark.skipif(

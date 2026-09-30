@@ -40,7 +40,7 @@ Two constraints shaped this file:
     HOME is also set to a directory that is neither the staged root nor the real checkout, so a
     future "fix" spelled `$HOME/rnd-...` fails here too rather than passing by coincidence.
 
-  * IT MUST NOT LAUNCH THE REAL DAEMON. `python -m methods.depmap_predictability_precompute.cli`
+  * IT MUST NOT LAUNCH THE REAL DAEMON. `python -m onc_methods.depmap_predictability_precompute.cli`
     is a multi-day, multi-worker DepMap precompute that reads S3. A stub `python` on a PREPENDED
     PATH stands in for it (prepended, never a replacement: the launcher needs real setsid/nohup/
     env/mkdir, and a replaced PATH would fail for the wrong reason). The child's environment is
@@ -54,7 +54,7 @@ import subprocess
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-LAUNCHER = REPO / "methods" / "depmap_predictability_precompute" / "launch_daemon.sh"
+LAUNCHER = REPO / "onc_methods" / "depmap_predictability_precompute" / "launch_daemon.sh"
 
 # PREPENDED to, never substituted for, the tools the launcher genuinely needs.
 BASE_PATH = "/usr/bin:/bin"
@@ -66,7 +66,7 @@ def _stage_launcher(root: Path) -> Path:
     The depth is the whole point: the derivation walks up exactly two directories, so staging it
     at the wrong depth would make a correct launcher look broken.
     """
-    pkg_dir = root / "methods" / "depmap_predictability_precompute"
+    pkg_dir = root / "onc_methods" / "depmap_predictability_precompute"
     pkg_dir.mkdir(parents=True)
     staged = pkg_dir / LAUNCHER.name
     shutil.copy2(LAUNCHER, staged)
@@ -76,7 +76,7 @@ def _stage_launcher(root: Path) -> Path:
 # The stub answers the launcher's TWO distinct invocations, which is why it has to branch on -c:
 #   1. `$PYBIN -c 'import shap, xgboost'` -- the pre-flight dependency probe. `deps_ok` chooses
 #      its exit status, which is the whole lever for the refusal test.
-#   2. `$PYBIN -u -m methods...cli` -- the real child, whose env is the thing under test.
+#   2. `$PYBIN -u -m onc_methods...cli` -- the real child, whose env is the thing under test.
 # It reports `$0` as well as PYTHONPATH so a test can tell WHICH interpreter ran, not merely that
 # one did. Without that line, pinning the interpreter to the wrong file is indistinguishable from
 # pinning it to the right one.

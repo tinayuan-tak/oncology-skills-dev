@@ -4,7 +4,7 @@ Synthetic cube + monkeypatched _read_normal_cube (the repo idiom); no S3."""
 
 import pandas as pd
 
-import methods.pair_selectivity_gate.normal as N
+import onc_methods.pair_selectivity_gate.normal as N
 
 
 def _cube(rows):
@@ -98,7 +98,7 @@ def test_cube_unreadable_is_data_unavailable(monkeypatch):
 
 def test_normal_manifest_resolves_in_catalog():
     # wiring smoke (offline — reads local data-catalog YAML): the manifest id resolves to its parquet.
-    from methods.catalog_query.read import s3_uri_for
+    from onc_methods.catalog_query.read import s3_uri_for
 
     uri = s3_uri_for(N.NORMAL_SAMECELL_MANIFEST)
     assert uri.startswith("s3://") and uri.endswith("sc_samecell_coexpr.parquet")

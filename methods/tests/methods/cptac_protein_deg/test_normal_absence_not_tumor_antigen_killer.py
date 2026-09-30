@@ -10,13 +10,13 @@ fires the surface `ihc-not-detected-killer` rung → the composed modality verdi
 No S3: `load_and_classify` is monkeypatched to a synthetic HPA summary.
 """
 
-from methods.cptac_protein_deg import read as r
+from onc_methods.cptac_protein_deg import read as r
 
 
 def _patch_hpa(monkeypatch, breadth_class, specific_tissues=None):
     """Point _hpa_ihc_anchor's HPA load at a synthetic summary with the given normal-tissue breadth
     class and (optionally) tissue-of-origin enriched intensities."""
-    import methods.hpa_normal_tissue_liability.cli as hpa_cli
+    import onc_methods.hpa_normal_tissue_liability.cli as hpa_cli
 
     def _fake_load_and_classify(target):
         return {

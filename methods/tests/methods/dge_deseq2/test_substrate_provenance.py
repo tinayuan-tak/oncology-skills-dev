@@ -39,16 +39,10 @@ this file is the only thing standing between them and silent rot.
 from __future__ import annotations
 
 import itertools
-import sys
-from pathlib import Path
 
 import pytest
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.dge_deseq2 import read as dge  # noqa: E402
+from onc_methods.dge_deseq2 import read as dge
 
 # The documented vocabulary of `selectivity_substrate_basis`. ONE place, so a value added to the
 # reader without being added here fails test_substrate_basis_vocabulary_is_closed.
@@ -100,7 +94,7 @@ def stub_manifest(monkeypatch):
         `methods.catalog_query.read` at call time — patching `methods.dge_deseq2.read` would not
         intercept it (the resolving-namespace rule).
     """
-    import methods.catalog_query.read as cq
+    import onc_methods.catalog_query.read as cq
 
     dge._substrate_provenance.cache_clear()
     counter = itertools.count()

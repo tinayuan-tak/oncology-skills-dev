@@ -374,9 +374,7 @@ def test_the_coarse_lineage_badge_is_reachable_for_a_confounded_indication():
     the badge was near-unreachable in a healthy run — it needed a `_sublineage_read` FAILURE. The Q3
     block is fed from the REAL FR producer here rather than a hand-written `indication` dict: a
     hand-set flag would render the badge under the old predicate too and measure nothing."""
-    import sys
 
-    sys.path.insert(0, str(SKILL_DIR.parents[1]))
     from _skills_common.dependency_question_table import dependency_question_table
 
     cards = _cards(

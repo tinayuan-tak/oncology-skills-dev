@@ -12,14 +12,7 @@ Two guarantees:
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-r = __import__("methods.dge_deseq2.read", fromlist=["read"])
+r = __import__("onc_methods.dge_deseq2.read", fromlist=["read"])
 
 
 def test_target_independent_helpers_are_lru_cached():

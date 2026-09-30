@@ -29,7 +29,7 @@ import boto3
 import pyarrow.fs as pafs
 import pyarrow.parquet as pq
 
-from methods.sc_normal_expression import read as rd
+from onc_methods.sc_normal_expression import read as rd
 
 SNAPSHOT = pathlib.Path(__file__).with_name("sc_normal_cell_type_vocabulary_20260918.json")
 

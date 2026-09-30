@@ -12,17 +12,12 @@ They verify:
 
 from __future__ import annotations
 
-import sys
 from contextlib import contextmanager
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
-REPO = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(REPO))
-
-import methods.mechanism_composed.read as mc_read
+import onc_methods.mechanism_composed.read as mc_read
 
 # ---------------------------------------------------------------------------
 # Stubs for every sub-reader
@@ -116,11 +111,15 @@ def _stub_coessentiality_unavailable(target, top_n=25, **kwargs):
 @contextmanager
 def _all_mocked(coess_stub):
     with (
-        patch("methods.mechanism_composed.read.signor_read.read_target_summary", side_effect=_stub_signor),
-        patch("methods.mechanism_composed.read.collectri_read.read_target_summary", side_effect=_stub_collectri),
-        patch("methods.mechanism_composed.read.reactome_read.read_target_summary", side_effect=_stub_reactome),
-        patch("methods.mechanism_composed.read.kinome_atlas_read.read_target_summary", side_effect=_stub_kinome_atlas),
-        patch("methods.mechanism_composed.read.coessentiality_read.read_coessential_partners", side_effect=coess_stub),
+        patch("onc_methods.mechanism_composed.read.signor_read.read_target_summary", side_effect=_stub_signor),
+        patch("onc_methods.mechanism_composed.read.collectri_read.read_target_summary", side_effect=_stub_collectri),
+        patch("onc_methods.mechanism_composed.read.reactome_read.read_target_summary", side_effect=_stub_reactome),
+        patch(
+            "onc_methods.mechanism_composed.read.kinome_atlas_read.read_target_summary", side_effect=_stub_kinome_atlas
+        ),
+        patch(
+            "onc_methods.mechanism_composed.read.coessentiality_read.read_coessential_partners", side_effect=coess_stub
+        ),
     ):
         yield
 

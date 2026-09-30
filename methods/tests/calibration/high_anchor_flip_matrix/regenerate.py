@@ -43,7 +43,6 @@ import argparse
 import datetime as _dt
 import json
 import subprocess
-import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -138,9 +137,8 @@ def _windowed(values: list[float]) -> dict:
 
 
 def measure(root: Path) -> dict:
-    sys.path.insert(0, str(root / "methods"))
-    from methods.depmap_expression_distribution.cli import load_expression_files
-    from methods.tcga_gtex_expression_distribution.read import read_tumor_samples
+    from onc_methods.depmap_expression_distribution.cli import load_expression_files
+    from onc_methods.tcga_gtex_expression_distribution.read import read_tumor_samples
 
     pairs = _panel(root)
     tumour, cellline, excluded = [], [], []

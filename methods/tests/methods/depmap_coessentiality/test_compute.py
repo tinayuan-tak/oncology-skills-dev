@@ -20,7 +20,7 @@ import numpy as np
 import pandas as pd
 
 REPO = Path(__file__).resolve().parents[3]
-COMPUTE_PY = REPO / "methods" / "depmap_coessentiality" / "compute.py"
+COMPUTE_PY = REPO / "onc_methods" / "depmap_coessentiality" / "compute.py"
 
 
 def _load():

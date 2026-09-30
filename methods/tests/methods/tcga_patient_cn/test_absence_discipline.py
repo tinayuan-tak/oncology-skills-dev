@@ -8,17 +8,10 @@ guard) so a silent join-collapse to "no samples" can't happen.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
 from botocore.exceptions import ClientError
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.tcga_patient_cn import read as pcn  # noqa: E402
+from onc_methods.tcga_patient_cn import read as pcn
 
 
 def _nosuchkey():

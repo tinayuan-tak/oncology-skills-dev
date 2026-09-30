@@ -25,7 +25,6 @@ from __future__ import annotations
 
 import importlib.util
 import json
-import sys
 from pathlib import Path
 
 import pyarrow.parquet as pq
@@ -36,12 +35,10 @@ ANCHOR_DIR = HERE / "anchors"
 
 # Import the REAL pipeline compute by file path — robust to package shadowing under
 # --import-mode=importlib. This is the code the corpus runs; re-deriving through it is what makes
-# T3 a real test. cli.py has package-relative imports (`from methods.catalog_query...`), so the
-# repo root must be importable before the module executes.
+# T3 a real test. cli.py imports its siblings as `from onc_methods.catalog_query...`, which resolve
+# through the editable install (skills#2237 deleted the insert this used to need).
 _AM_ROOT = HERE.parents[2]
-if str(_AM_ROOT) not in sys.path:
-    sys.path.insert(0, str(_AM_ROOT))
-_CLI = _AM_ROOT / "methods" / "depmap_expression_distribution" / "cli.py"
+_CLI = _AM_ROOT / "onc_methods" / "depmap_expression_distribution" / "cli.py"
 _spec = importlib.util.spec_from_file_location("t3_expression_distribution_under_test", _CLI)
 _ed = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_ed)

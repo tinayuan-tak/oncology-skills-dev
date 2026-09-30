@@ -14,7 +14,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from methods.sc_normal_expression import read as r
+from onc_methods.sc_normal_expression import read as r
 
 
 class _FakeTable:

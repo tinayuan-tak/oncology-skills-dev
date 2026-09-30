@@ -8,23 +8,17 @@ id-keyed join fixes exactly what the symbol join broke.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pandas as pd
 import pytest
 
-REPO = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(REPO))
-
-from methods.gene_id_authority.build import build_authority  # noqa: E402
-from methods.gene_id_authority.harmonize import (  # noqa: E402
+from onc_methods.gene_id_authority.build import build_authority
+from onc_methods.gene_id_authority.harmonize import (
     coverage,
     join_on_authority,
     resolve_to_authority,
 )
 
-from ._fixtures import write_sources  # noqa: E402
+from ._fixtures import write_sources
 
 
 @pytest.fixture

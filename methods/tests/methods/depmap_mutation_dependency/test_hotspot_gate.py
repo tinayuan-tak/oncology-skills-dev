@@ -9,19 +9,13 @@ underpowered (< min_mutant) while the damaging tier shows a strong directional s
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
 
 pytest.importorskip("numpy")
 pytest.importorskip("scipy")
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
 
-from methods.depmap_mutation_dependency.cli import compute_mutation_stratification as C  # noqa: E402
+from onc_methods.depmap_mutation_dependency.cli import compute_mutation_stratification as C
 
 
 def _dicts(n_hot_mut, n_dam_mut, n_wt, mut_chronos, wt_chronos):

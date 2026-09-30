@@ -17,7 +17,7 @@ import pytest
 pytest.importorskip("pandas")
 import numpy as np  # noqa: E402
 
-_STEP = Path(__file__).resolve().parents[3] / "methods" / "cptac_protein_deg" / "steps" / "03_pool_and_write.py"
+_STEP = Path(__file__).resolve().parents[3] / "onc_methods" / "cptac_protein_deg" / "steps" / "03_pool_and_write.py"
 
 
 def _load():

@@ -24,7 +24,7 @@ composition:
   synthesis: [none]
   output_shape: [text_report]
   delegates_to:
-    - methods/catalog_query/cli.py
+    - onc_methods/catalog_query/cli.py
 ---
 
 # Catalog Query (read-only)
@@ -33,14 +33,14 @@ composition:
 
 This skill **reads** the data-catalog to help you find and understand datasets.
 It does not compute evidence, and it does not touch the catalog. The reusable
-query engine lives in `analysis-methods` as `methods/catalog_query/` (per the
+query engine lives in `analysis-methods` as `onc_methods/catalog_query/` (per the
 framework rule: *skills call methods; methods don't know about skills*); this
 skill is a thin front end that subprocess-invokes that method's CLI.
 
 ```
 data-catalog repo  →  AUTHOR: pull_*/scaffold_*/validate_catalog add & verify
                       manifests.                          (NOT this skill)
-methods/catalog_query → READ: parse manifest YAML, answer queries.  (compute)
+onc_methods/catalog_query → READ: parse manifest YAML, answer queries.  (compute)
 skills/ (here)       → INVOKE: run the method CLI for a question.   (this skill)
 ```
 
@@ -85,7 +85,7 @@ python skills/catalog-query/scripts/run.py lineage tcga-gdc-dr45-0 --direction d
 python skills/catalog-query/scripts/run.py audit --coverage-gaps
 ```
 
-`run.py` forwards all arguments verbatim to `methods/catalog_query/cli.py`.
+`run.py` forwards all arguments verbatim to `onc_methods/catalog_query/cli.py`.
 
 ## What it returns
 
@@ -103,8 +103,8 @@ products/subgroup-catalogs consume it. `lineage` renders an ASCII tree.
 
 ## Related
 
-- `methods/catalog_query/` (analysis-methods) — the query engine this wraps;
-  also importable as a library (`from methods.catalog_query import load_catalog,
+- `onc_methods/catalog_query/` (analysis-methods) — the query engine this wraps;
+  also importable as a library (`from onc_methods.catalog_query import load_catalog,
   s3_uri_for`) and **resolver-ready** (the seam for a shared manifest_id → s3_uri
   resolver that could retire the ~57 hard-coded S3 keys across methods/).
 - The data-catalog repo's `scripts/{pull_*,scaffold_*,validate_catalog}.py` —

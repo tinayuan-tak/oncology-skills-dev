@@ -55,11 +55,8 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 
 HERE = Path(__file__).resolve().parent
-AM_ROOT = HERE.parents[2]
-if str(AM_ROOT) not in sys.path:
-    sys.path.insert(0, str(AM_ROOT))
 
-import methods.sc_normal_expression.read as rd  # noqa: E402
+import onc_methods.sc_normal_expression.read as rd
 
 ROWS_DIR = HERE / "sc_normal_celltype_rows"
 ANCHOR_DIR = HERE / "anchors"
@@ -172,7 +169,7 @@ def capture(target: str, indication: str) -> None:
             f"live cbg read of sc-normal-celltype-expression-{{tissue}}-v1 (methods.sc_normal_expression."
             f"read), gene_symbol=={target.upper()!r} pushdown over tissues {tissues}; fixture = the "
             "concatenated per-(tissue, cell_type) Tier-1 rows; re-derive with "
-            "methods.sc_normal_expression.read.read_target_summary (mock read_gene_celltype_rows)."
+            "onc_methods.sc_normal_expression.read.read_target_summary (mock read_gene_celltype_rows)."
         ),
     }
     anchor_name = f"{target.lower()}_{indication.lower()}.sc_normal_celltype.json"

@@ -18,16 +18,10 @@ DepMap lineage — the confirmed gap that silently forced pancreatic targets to 
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pandas as pd
 import pytest
 
-REPO = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(REPO))
-
-import methods.pathway_node_leverage.cli as C  # noqa: E402
+import onc_methods.pathway_node_leverage.cli as C
 
 
 def _stats(rows):
@@ -97,7 +91,7 @@ def test_target_not_screenable_when_absent():
 
 
 def test_paad_maps_to_pancreas_lineage():
-    from methods.depmap_chronos.cli import INDICATION_LINEAGE
+    from onc_methods.depmap_chronos.cli import INDICATION_LINEAGE
 
     assert INDICATION_LINEAGE.get("PAAD") == "Pancreas"
     assert INDICATION_LINEAGE.get("PDAC") == "Pancreas"  # disease-abbrev alias still present

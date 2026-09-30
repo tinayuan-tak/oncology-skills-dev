@@ -7,14 +7,7 @@ non-epitope), and the exact summary shape the DISPLAY card contracts against.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.iedb_epitope.classify import (  # noqa: E402
+from onc_methods.iedb_epitope.classify import (
     classify_epitope_evidence,
     summarize_epitope,
 )

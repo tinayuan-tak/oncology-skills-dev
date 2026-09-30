@@ -12,17 +12,11 @@ Also checks '(entrez)' symbol stripping and the read failure → data_unavailabl
 
 from __future__ import annotations
 
-import sys
 from io import BytesIO
-from pathlib import Path
 
 import pandas as pd
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.depmap_fusion_dependency import read as fread  # noqa: E402
+from onc_methods.depmap_fusion_dependency import read as fread
 
 
 class _FakeS3:

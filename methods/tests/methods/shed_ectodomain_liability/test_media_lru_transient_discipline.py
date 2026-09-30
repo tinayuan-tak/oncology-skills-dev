@@ -6,18 +6,12 @@ memoized); a genuine object-absence (S3 404/NoSuchKey or a missing local id map)
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
 
 pd = pytest.importorskip("pandas")
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
 
-from methods.shed_ectodomain_liability import media as M  # noqa: E402
+from onc_methods.shed_ectodomain_liability import media as M
 
 
 @pytest.fixture(autouse=True)

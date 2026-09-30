@@ -625,10 +625,10 @@ def test_blind_spot_precedes_conditional_when_owner_opaque_in_all_runs():
 # ── partial blind spots (reader references the id; 0-read = warm-cache capture artifact) ─────────────
 def _make_methods_pkg(root: Path, modules: dict[str, str]) -> None:
     """Write a fake importable ``methods`` package under ``root`` — ``{module_name: read.py source}``."""
-    (root / "methods").mkdir(parents=True, exist_ok=True)
-    (root / "methods" / "__init__.py").write_text("")
+    (root / "onc_methods").mkdir(parents=True, exist_ok=True)
+    (root / "onc_methods" / "__init__.py").write_text("")
     for name, src in modules.items():
-        pkg = root / "methods" / name
+        pkg = root / "onc_methods" / name
         pkg.mkdir(parents=True, exist_ok=True)
         (pkg / "__init__.py").write_text("")
         (pkg / "read.py").write_text(src)
@@ -642,7 +642,7 @@ def _reader_source_env(monkeypatch, tmp_path):
     prior test's tmp dir, so a later ``find_spec`` would look in the wrong place)."""
 
     def _purge():
-        for name in [m for m in sys.modules if m == "methods" or m.startswith("methods.")]:
+        for name in [m for m in sys.modules if m == "onc_methods" or m.startswith("onc_methods.")]:
             del sys.modules[name]
         importlib.invalidate_caches()
         cca._reader_source_for_call.cache_clear()
@@ -665,7 +665,7 @@ def test_reader_references_follows_one_hop_import_to_sibling(_reader_source_env)
     _make_methods_pkg(
         _reader_source_env,
         {
-            "pkg_root": "from methods.pkg_sib.read import load as _load\n",
+            "pkg_root": "from onc_methods.pkg_sib.read import load as _load\n",
             "pkg_sib": 'DERIVED = "buffering-per-gene-v1"\n',
         },
     )

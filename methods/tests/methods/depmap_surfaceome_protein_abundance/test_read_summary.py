@@ -18,18 +18,13 @@ No S3: a synthetic local long/tidy parquet (the derived product's schema) is rea
 from __future__ import annotations
 
 import importlib
-import sys
 from pathlib import Path
 
 import pandas as pd
 import pytest
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-cli = importlib.import_module("methods.depmap_surfaceome_protein_abundance.cli")
-read = importlib.import_module("methods.depmap_surfaceome_protein_abundance.read")
+cli = importlib.import_module("onc_methods.depmap_surfaceome_protein_abundance.cli")
+read = importlib.import_module("onc_methods.depmap_surfaceome_protein_abundance.read")
 
 # The fields the cellline-protein-abundance card declares — the reader MUST emit all of them.
 _CARD_SUMMARY_FIELDS = {
@@ -288,7 +283,7 @@ def test_missing_panel_size_is_data_unavailable_not_full_panel(tmp_path, monkeyp
 
 
 def test_pct_cutoffs_track_default_cutoffs():
-    from methods.percentile_null import DEFAULT_CUTOFFS
+    from onc_methods.percentile_null import DEFAULT_CUTOFFS
 
     assert cli._PCT_CUTOFFS == DEFAULT_CUTOFFS
 

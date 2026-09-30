@@ -6,15 +6,9 @@ every assertion is against freshly computed output, not a stored blob.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
+from onc_methods.gene_id_authority.build import _strip_version, build_authority
 
-REPO = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(REPO))
-
-from methods.gene_id_authority.build import _strip_version, build_authority  # noqa: E402
-
-from ._fixtures import write_sources  # noqa: E402
+from ._fixtures import write_sources
 
 
 def _authority(tmp_path):

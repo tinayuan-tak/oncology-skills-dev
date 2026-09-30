@@ -14,17 +14,12 @@ These tests need no S3 — resolution + the guard short-circuit happen before an
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import pytest
 
 # methods repo root on sys.path
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.depmap_common import parquet as P  # noqa: E402
+from onc_methods.depmap_common import parquet as P
 
 # Every public loader that accepts release_pin, with a minimal arg tuple (before release_pin).
 _LOADERS = [

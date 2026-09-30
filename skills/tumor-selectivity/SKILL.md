@@ -223,7 +223,7 @@ composition:
 - Does NOT synthesize a full evidence package. That is `compose-dashboard`.
 - Does NOT render a figure by default. If a caller wants the 4-panel figure
   they can either invoke `compose-dashboard` with a filtered spec or use
-  the emitter directly via `methods.dge_deseq2.emit`.
+  the emitter directly via `onc_methods.dge_deseq2.emit`.
 
 ## Invocation
 

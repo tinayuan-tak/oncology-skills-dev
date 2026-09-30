@@ -11,16 +11,9 @@ and must NEVER return 0.0 for either absence.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.tcga_gtex_tpm_quantiles import marrow  # noqa: E402
+from onc_methods.tcga_gtex_tpm_quantiles import marrow
 
 
 @pytest.fixture(autouse=True)

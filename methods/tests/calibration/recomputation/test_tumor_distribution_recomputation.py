@@ -22,7 +22,6 @@ OFFLINE — reads only committed fixtures, monkeypatches read_tumor_samples, no 
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 
 import pyarrow.parquet as pq
@@ -31,11 +30,8 @@ import pytest
 HERE = Path(__file__).resolve().parent
 ANCHOR_DIR = HERE / "anchors"
 
-_AM_ROOT = HERE.parents[2]
-if str(_AM_ROOT) not in sys.path:
-    sys.path.insert(0, str(_AM_ROOT))
 
-import methods.tcga_gtex_expression_distribution.read as rd  # noqa: E402
+import onc_methods.tcga_gtex_expression_distribution.read as rd
 
 MIN_ANCHORS = 2  # anti-vacuity floor (EPCAM/COADREAD flagship + >=1 other panel target)
 MIN_DISTINCT_CLASSES = 2

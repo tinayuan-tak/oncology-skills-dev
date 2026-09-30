@@ -4,15 +4,12 @@ verdict-inert 2nd/3rd-opinion (Dede zdLFC + in4mer normZ) on the DepMap ParalogV
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
-_METHODS = Path(__file__).resolve().parents[3] / "methods"
-if str(_METHODS.parent) not in sys.path:
-    sys.path.insert(0, str(_METHODS.parent))
+_METHODS = Path(__file__).resolve().parents[3] / "onc_methods"
 
-from methods.paralog_genetic_interaction import read as pgi  # noqa: E402
-from methods.paralog_genetic_interaction.read import cross_consortium_paralog_gi_for_gene  # noqa: E402
+from onc_methods.paralog_genetic_interaction import read as pgi
+from onc_methods.paralog_genetic_interaction.read import cross_consortium_paralog_gi_for_gene
 
 
 def _row(partner, klass):

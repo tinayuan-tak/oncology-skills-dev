@@ -139,7 +139,7 @@ def _referenced_in_code(candidates: set[str]) -> set[str]:
     hermetic self-check can neither compute nor verify it, so `referenced_only` is a committed list the
     live half re-derives. Reads every source once into a single blob and substring-tests each candidate;
     manifest ids are long hyphenated slugs, so substring collision with unrelated code is negligible."""
-    roots = [wr.AM / "methods", wr.vc._SKILLS_REPO / "skills"]
+    roots = [wr.AM / "onc_methods", wr.vc._SKILLS_REPO / "skills"]
     blobs: list[str] = []
     for root in roots:
         if not root.is_dir():

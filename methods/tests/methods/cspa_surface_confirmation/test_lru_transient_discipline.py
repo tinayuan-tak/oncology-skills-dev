@@ -5,18 +5,12 @@ not poison the whole process) and return None ONLY on a genuine object-absence (
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
 
 pd = pytest.importorskip("pandas")
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
 
-from methods.cspa_surface_confirmation import read as R  # noqa: E402
+from onc_methods.cspa_surface_confirmation import read as R
 
 
 @pytest.fixture(autouse=True)

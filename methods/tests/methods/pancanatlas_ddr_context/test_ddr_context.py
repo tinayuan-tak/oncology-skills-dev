@@ -6,15 +6,8 @@ not here (hermetic = no network)."""
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.pancanatlas_ddr_context import read as ddr_read  # noqa: E402
-from methods.pancanatlas_ddr_context.cli import MIN_COHORT_N, _classify  # noqa: E402
+from onc_methods.pancanatlas_ddr_context import read as ddr_read
+from onc_methods.pancanatlas_ddr_context.cli import MIN_COHORT_N, _classify
 
 
 def test_classify_tiers():
@@ -98,7 +91,7 @@ def test_missing_indication_arg_is_data_unavailable():
 
 
 def test_derived_uri_resolves_via_manifest(monkeypatch):
-    import methods.catalog_query.read as cq
+    import onc_methods.catalog_query.read as cq
 
     monkeypatch.setattr(
         cq,
@@ -114,4 +107,4 @@ def test_derived_uri_resolves_via_manifest(monkeypatch):
 def test_resolver_import_is_call_time():
     import inspect
 
-    assert "from methods.catalog_query.read import s3_uri_for" in inspect.getsource(ddr_read._resolve_derived_uri)
+    assert "from onc_methods.catalog_query.read import s3_uri_for" in inspect.getsource(ddr_read._resolve_derived_uri)

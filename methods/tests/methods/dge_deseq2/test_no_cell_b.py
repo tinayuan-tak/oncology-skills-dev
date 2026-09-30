@@ -11,17 +11,14 @@ the pan-cancer union schema, and the R driver's active cell list.
 from __future__ import annotations
 
 import importlib
-import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
 
-dge = importlib.import_module("methods.dge_deseq2.read")
-dps = importlib.import_module("methods.dge_deseq2.derive_pancan_stack")
+dge = importlib.import_module("onc_methods.dge_deseq2.read")
+dps = importlib.import_module("onc_methods.dge_deseq2.derive_pancan_stack")
 
-R_LIVE = REPO / "methods" / "dge_deseq2" / "r" / "live"
+R_LIVE = REPO / "onc_methods" / "dge_deseq2" / "r" / "live"
 
 
 def test_only_two_comparator_families_and_neither_is_cell_b():

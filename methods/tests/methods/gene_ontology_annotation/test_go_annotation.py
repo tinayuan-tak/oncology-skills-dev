@@ -5,16 +5,10 @@ Two S3-free unit tests (fixture GAF/OBO/sidecar) + one live smoke (skips without
 from __future__ import annotations
 
 import gzip
-import sys
-from pathlib import Path
 
 import pytest
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.gene_ontology_annotation import read as _go  # noqa: E402
+from onc_methods.gene_ontology_annotation import read as _go
 
 _GAF = (
     "\t".join(["UniProtKB", "P00001", "TESTG", "enables", "GO:0004672", "PMID:1", "IDA", "", "F"])
@@ -83,7 +77,7 @@ def test_live_egfr_well_annotated():
 def test_product_path_reconstructs_terms_and_names(tmp_path):
     import pandas as pd
 
-    import methods.gene_ontology_annotation.read as GO
+    import onc_methods.gene_ontology_annotation.read as GO
 
     p = tmp_path / "go.parquet"
     pd.DataFrame(

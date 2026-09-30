@@ -8,17 +8,10 @@ try, and is covered by test_pharos_tdl.py::test_unmapped.)
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
 from botocore.exceptions import ClientError
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.pharos_tdl import cli as pt  # noqa: E402
+from onc_methods.pharos_tdl import cli as pt
 
 
 def test_genuine_object_absence_is_data_unavailable(monkeypatch):

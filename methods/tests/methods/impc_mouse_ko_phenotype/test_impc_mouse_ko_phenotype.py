@@ -8,15 +8,9 @@ from __future__ import annotations
 
 import importlib
 import json
-import sys
-from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-r = importlib.import_module("methods.impc_mouse_ko_phenotype.read")
-_ot = importlib.import_module("methods.opentargets_mouse_phenotype.read")
+r = importlib.import_module("onc_methods.impc_mouse_ko_phenotype.read")
+_ot = importlib.import_module("onc_methods.opentargets_mouse_phenotype.read")
 classify = _ot.classify_ko_phenotype
 
 

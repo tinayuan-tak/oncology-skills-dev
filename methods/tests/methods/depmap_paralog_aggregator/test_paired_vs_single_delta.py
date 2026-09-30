@@ -21,7 +21,6 @@ Hermetic: monkeypatches _ensure_paralog_cached to a synthetic CSV in tmp — the
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import pytest
@@ -29,10 +28,7 @@ import pytest
 # Resolve the repo root from THIS test file's location (parents[3] = repo root) so the test
 # imports the reader from the SAME checkout it lives in — not a hardcoded absolute path that
 # would silently import a DIFFERENT checkout (e.g. the primary tree while editing in a worktree).
-REPO = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(REPO))
-
-import methods.depmap_paralog_aggregator.read as R  # noqa: E402
+import onc_methods.depmap_paralog_aggregator.read as R
 
 
 def _write_csv(tmp_path: Path, header: list[str], rows: list[list]) -> Path:

@@ -3,7 +3,7 @@
 WHY (2026-09-11): cards resolve on a ThreadPoolExecutor, and target-profile nests a second
 pool over its 15 sub-skills, so several threads reach a FIRST `methods.*` import at once.
 CPython's per-module import lock then raised
-`_DeadlockError: deadlock detected by _ModuleLock('methods.depmap_common.loaders')` whenever
+`_DeadlockError: deadlock detected by _ModuleLock('onc_methods.depmap_common.loaders')` whenever
 two threads held each other's in-flight module. The reader caught it and the card was emitted
 `availability_state: read_error` — an operational failure that reads like a coverage gap in
 every rollup. Four cards (14 interpretation rules) died on EVERY composed run this way,
@@ -65,7 +65,7 @@ def test_import_method_holds_the_lock_while_importing(monkeypatch):
     monkeypatch.setattr(builtins, "__import__", fake_import)
     lr._import_method("depmap_chronos.cli")
 
-    assert observed["name"] == "methods.depmap_chronos.cli"
+    assert observed["name"] == "onc_methods.depmap_chronos.cli"
     assert observed["locked_out"], "another thread could enter __import__ concurrently"
 
 
@@ -86,16 +86,24 @@ def test_import_data_catalog_lib_holds_the_lock(monkeypatch):
 
 
 def test_no_unlocked_methods_import_remains():
-    """Every `methods.*` import in the reader must route through _import_method.
+    """Every `onc_methods.*` import in the reader must route through _import_method.
 
-    A bare `from methods.x.y import z` inside a dispatcher bypasses the lock and reopens the
+    A bare `from onc_methods.x.y import z` inside a dispatcher bypasses the lock and reopens the
     deadlock — including when only the PARENT was pre-imported, because the submodule import
     still happens unlocked on the worker thread.
     """
-    src = (SKILL_DIR / "_live_readers.py").read_text().splitlines()
+    text = (SKILL_DIR / "_live_readers.py").read_text()
+    # VACUITY CHECK: this is an ABSENCE assertion, so it is only evidence if the subject is real.
+    # skills#2237 renamed the import package `methods` -> `onc_methods`; a scan left on the dead
+    # token would pass forever while watching nothing.
+    assert "_import_method" in text, (
+        "_live_readers.py no longer defines/uses _import_method — this scan's subject moved and the "
+        "absence assertion below is vacuous"
+    )
+    src = text.splitlines()
     offenders = [
         (i + 1, line.strip())
         for i, line in enumerate(src)
-        if line.lstrip().startswith(("from methods.", "import methods"))
+        if line.lstrip().startswith(("from onc_methods.", "import onc_methods"))
     ]
-    assert not offenders, f"unlocked methods imports: {offenders}"
+    assert not offenders, f"unlocked onc_methods imports: {offenders}"

@@ -22,14 +22,7 @@ the omission load-bearing and surfaced it. Take fixture values from shapes the p
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.dge_deseq2.read import _classify_selectivity_from_sensitivity as classify  # noqa: E402
+from onc_methods.dge_deseq2.read import _classify_selectivity_from_sensitivity as classify
 
 
 def _row(**kw):

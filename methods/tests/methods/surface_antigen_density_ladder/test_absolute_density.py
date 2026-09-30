@@ -18,16 +18,11 @@ domain-expert curated). These tests pin the reader/validator contract against BO
 from __future__ import annotations
 
 import importlib
-import sys
 from pathlib import Path
 
 import pytest
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-r = importlib.import_module("methods.surface_antigen_density_ladder.read")
+r = importlib.import_module("onc_methods.surface_antigen_density_ladder.read")
 COLS = r.SCHEMA_V3_COLUMNS
 
 

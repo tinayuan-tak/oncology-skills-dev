@@ -6,14 +6,7 @@ HPA; (2) the surface_multimodal_support corroboration call across agree/disagree
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.cspa_surface_confirmation.read import _hpa_corroboration  # noqa: E402
+from onc_methods.cspa_surface_confirmation.read import _hpa_corroboration
 
 
 def _hpa(cls, pm):

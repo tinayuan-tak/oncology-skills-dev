@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from methods.tcga_cis_coherence_patient import cli, read
+from onc_methods.tcga_cis_coherence_patient import cli, read
 
 
 def _stub(monkeypatch, expr, cn, meth):
@@ -102,17 +102,17 @@ def test_methylation_reader_scopes_to_indication(monkeypatch):
     # pan-cohort methylation dict spanning STAD + HNSC + ESCA cases; GC -> only STAD kept.
     pan = {"TCGA-ST-001": True, "TCGA-ST-002": False, "TCGA-HN-001": True, "TCGA-ES-001": True}
     ct = {"TCGA-ST-001": "STAD", "TCGA-ST-002": "STAD", "TCGA-HN-001": "HNSC", "TCGA-ES-001": "ESCA"}
-    monkeypatch.setattr("methods.functional_gene_state.read._read_patient_methylation", lambda t, i: pan)
-    monkeypatch.setattr("methods.functional_gene_state.read._load_sample_cancer_types", lambda: ct)
+    monkeypatch.setattr("onc_methods.functional_gene_state.read._read_patient_methylation", lambda t, i: pan)
+    monkeypatch.setattr("onc_methods.functional_gene_state.read._load_sample_cancer_types", lambda: ct)
     out = read.read_patient_methylation_by_case("CDKN2A", "GC")  # GC -> ("STAD",)
     assert out == {"TCGA-ST-001": True, "TCGA-ST-002": False}  # HNSC/ESCA dropped
 
 
 def test_methylation_reader_unknown_indication_returns_pan(monkeypatch):
     pan = {"TCGA-ST-001": True}
-    monkeypatch.setattr("methods.functional_gene_state.read._read_patient_methylation", lambda t, i: pan)
+    monkeypatch.setattr("onc_methods.functional_gene_state.read._read_patient_methylation", lambda t, i: pan)
     monkeypatch.setattr(
-        "methods.functional_gene_state.read._load_sample_cancer_types",
+        "onc_methods.functional_gene_state.read._load_sample_cancer_types",
         lambda: (_ for _ in ()).throw(AssertionError("must not load ct for unknown ind")),
     )
     out = read.read_patient_methylation_by_case("GENE", "NOT_A_REAL_INDICATION")
@@ -121,8 +121,8 @@ def test_methylation_reader_unknown_indication_returns_pan(monkeypatch):
 
 def test_methylation_reader_absent_annotation_falls_back_to_pan(monkeypatch):
     pan = {"TCGA-ST-001": True}
-    monkeypatch.setattr("methods.functional_gene_state.read._read_patient_methylation", lambda t, i: pan)
-    monkeypatch.setattr("methods.functional_gene_state.read._load_sample_cancer_types", lambda: {})
+    monkeypatch.setattr("onc_methods.functional_gene_state.read._read_patient_methylation", lambda t, i: pan)
+    monkeypatch.setattr("onc_methods.functional_gene_state.read._load_sample_cancer_types", lambda: {})
     out = read.read_patient_methylation_by_case("GENE", "GC")
     assert out == pan  # annotation genuinely absent -> don't zero out the leg
 
@@ -133,7 +133,7 @@ def test_readers_are_thin_case_keyed_wrappers(monkeypatch):
 
     fake = pd.DataFrame({"case": ["TCGA-A-1", "TCGA-A-1", "TCGA-B-2"], "log2_tpm": [2.0, 4.0, 7.0]})
     monkeypatch.setattr(
-        "methods.tcga_gtex_expression_distribution.read.read_tumor_samples_with_case", lambda t, i: fake
+        "onc_methods.tcga_gtex_expression_distribution.read.read_tumor_samples_with_case", lambda t, i: fake
     )
     out = read.read_patient_expression_by_case("GENE", "BRCA")
     assert out == {"TCGA-A-1": 3.0, "TCGA-B-2": 7.0}

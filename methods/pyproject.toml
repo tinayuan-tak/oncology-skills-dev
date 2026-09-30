@@ -10,7 +10,7 @@ description = "Deterministic analytical methods for the Takeda v2 oncology targe
 
 # Runtime dependencies are managed by pixi.toml for the canonical environment (it
 # carries the full R/Bioconductor + scipy/plotly stack). The list here is the minimal
-# pip-installable subset so `pip install -e .` makes `methods.*` importable in a plain
+# pip-installable subset so `pip install -e .` makes `onc_methods.*` importable in a plain
 # venv — downstream consumers (skills, notebooks, batch jobs) import without sys.path
 # manipulation. Heavy/optional deps (scipy, R) are pulled per-method by the pixi env,
 # not declared here, so a lightweight consumer that only imports read-path modules
@@ -22,9 +22,9 @@ dependencies = [
     "s3fs",
 ]
 
-# Optional extras. The base install covers read-path modules (methods.*.read); the
+# Optional extras. The base install covers read-path modules (onc_methods.*.read); the
 # `compute` extra adds the deps needed to run the CLI/figure-emitting methods in-process
-# (the compose-dashboard dispatcher imports methods.*.cli). Install with:
+# (the compose-dashboard dispatcher imports onc_methods.*.cli). Install with:
 #     pip install -e ".[compute]"
 # R/Bioconductor deps (DESeq2, ComBat-seq, MSstatsTMT) remain pixi-only — they are not
 # pip-installable and are required only by the R-driven methods (dge_deseq2, cptac_protein_deg,
@@ -41,15 +41,20 @@ compute = [
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["methods*"]
-# Numbered step/script dirs (methods/*/steps, methods/*/scripts) hold standalone
+# The import package is `onc_methods` (renamed from `methods` in skills#2237): the
+# distribution DIRECTORY is still `methods/`, so a package dir named `methods` inside it
+# would be shadowed by the monorepo-root `methods/` directory on sys.path (PathFinder
+# precedes the editable finder on sys.meta_path — skills#2196). The names now differ, so
+# `import onc_methods` can only resolve through the install.
+include = ["onc_methods*"]
+# Numbered step/script dirs (onc_methods/*/steps, onc_methods/*/scripts) hold standalone
 # stage scripts run as subprocesses (e.g. 01_panel_intersect.py) — they are NOT
 # importable packages (no __init__.py, digit-leading names) and are auto-excluded
 # by find_packages. Listed here defensively so intent is explicit.
-exclude = ["methods.*.steps", "methods.*.scripts"]
+exclude = ["onc_methods.*.steps", "onc_methods.*.scripts"]
 
 [tool.pytest.ini_options]
-# Declarative defaults for `pytest methods/ tests/` (run from THIS dir — see
+# Declarative defaults for `pytest onc_methods/ tests/` (run from THIS dir — see
 # scripts/preland.sh / skills-validate.yml, the former methods-validate.yml). --import-mode=importlib is REQUIRED: several
 # method test files share a basename and collide under the default import mode. -q/-rsfE/--tb=short
 # match the skills-repo root default (SK#2093, skills#2236) so a direct `pixi run pytest` an agent

@@ -2,15 +2,8 @@
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.spatial_surface_protein import read as SP  # noqa: E402
-from methods.spatial_surface_protein import stats as ST  # noqa: E402
+from onc_methods.spatial_surface_protein import read as SP
+from onc_methods.spatial_surface_protein import stats as ST
 
 
 def test_hnsc_fallback_chain_order():
@@ -30,7 +23,7 @@ def test_nsclc_histologies_wired_to_geomx_protein():
 
 
 def test_product_resolves_to_catalog_s3_uri():
-    from methods.catalog_query.read import s3_uri_for
+    from onc_methods.catalog_query.read import s3_uri_for
 
     for pid in (
         "spatial-surface-protein-hnsc-v1",

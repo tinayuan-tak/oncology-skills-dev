@@ -6,14 +6,8 @@ serine) IS. S3-free — build_payload reads a local DAT-format fixture."""
 from __future__ import annotations
 
 import gzip
-import sys
-from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.uniprot_gpi_anchor.derive import build_payload  # noqa: E402
+from onc_methods.uniprot_gpi_anchor.derive import build_payload
 
 # Two synthetic SwissProt DAT entries: one GPI (MSLN-like), one cytoplasmic lipid-anchor (NRAS-like).
 _FIXTURE = """\

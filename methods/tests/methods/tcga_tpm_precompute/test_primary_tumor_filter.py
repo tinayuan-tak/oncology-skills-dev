@@ -8,7 +8,7 @@ import importlib
 
 import pandas as pd
 
-cli = importlib.import_module("methods.tcga_tpm_precompute.cli")
+cli = importlib.import_module("onc_methods.tcga_tpm_precompute.cli")
 
 
 def test_primary_tumor_ids_keeps_only_primary_tumor():

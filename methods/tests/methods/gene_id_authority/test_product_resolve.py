@@ -11,22 +11,16 @@ authority via build_authority (a pre-computed authority blob could never fail).
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pandas as pd
 import pytest
 
-REPO = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(REPO))
-
-from methods.gene_id_authority.build import build_authority  # noqa: E402
-from methods.gene_id_authority.product import (  # noqa: E402
+from onc_methods.gene_id_authority.build import build_authority
+from onc_methods.gene_id_authority.product import (
     annotate_product_with_gene_id,
     resolve_symbols_to_gene_ids,
 )
 
-from ._fixtures import write_sources  # noqa: E402
+from ._fixtures import write_sources
 
 
 @pytest.fixture

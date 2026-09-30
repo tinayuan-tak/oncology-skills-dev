@@ -6,14 +6,7 @@ Pins combination_opportunity_class precedence, the no_anchor_screen coverage-gap
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.combo_drug_anchor.read import combination_opportunities_for_gene  # noqa: E402
+from onc_methods.combo_drug_anchor.read import combination_opportunities_for_gene
 
 
 def _co(gene, shift, klass, **kw):
@@ -63,7 +56,7 @@ def test_read_failure_is_data_unavailable(monkeypatch):
     # (A transient/creds read failure now RE-RAISES instead of masking — see
     # tests/methods/combo_drug_anchor/test_read_rows_absence.py.) rows=None here means "read live",
     # so monkeypatch the reader to the genuine-absence result to keep this test hermetic.
-    import methods.combo_drug_anchor.read as _m
+    import onc_methods.combo_drug_anchor.read as _m
 
     monkeypatch.setattr(_m, "_read_rows", lambda target: None)
     r = combination_opportunities_for_gene("KRAS", rows=None)

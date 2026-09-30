@@ -47,7 +47,7 @@ _METHODS_ROOT = HERE.parents[2]
 # ONE import path for both the generator and this module — the counterfactual ladders must be THE
 # ONES THE FIXTURE WAS GENERATED WITH and must see THE SAME code objects as the production
 # classifiers, or the parity clause below proves nothing about arm B. The generator owns the
-# `methods.*` binding shim (see its `_worktree_methods_first` docstring: a `/tmp` worktree otherwise
+# `onc_methods.*` binding shim (see its `_worktree_methods_first` docstring: a `/tmp` worktree otherwise
 # resolves these modules to the PRIMARY CHECKOUT via the editable install, and every mutation
 # survives). Loaded by path because this file is a script, not an importable package module.
 _spec = importlib.util.spec_from_file_location("adj2222_regen", HERE / "regenerate_broadly_low_flip_matrix.py")
@@ -127,8 +127,8 @@ def test_the_code_under_test_is_the_code_in_this_tree():
     """FIRST clause, because every other clause in this file is worthless without it.
 
     `oncology-analysis-methods` is installed EDITABLE against the PRIMARY CHECKOUT, and
-    `methods/conftest.py` imports `methods._common.live_data_skip` during COLLECTION — binding the
-    `methods` package (with `__path__` on the primary checkout) into `sys.modules` before any test
+    `methods/conftest.py` imports `onc_methods._common.live_data_skip` during COLLECTION — binding the
+    `onc_methods` package (with `__path__` on the primary checkout) into `sys.modules` before any test
     module runs. A later `sys.path.insert` cannot dislodge it. Result: run this suite from a `/tmp`
     worktree and it exercises TRUNK while reporting green for the branch.
 

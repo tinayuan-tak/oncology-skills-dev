@@ -7,17 +7,10 @@ transient / creds fault now PROPAGATES instead of being masked.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
 from botocore.exceptions import ClientError
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-import methods.pathway_node_leverage.cli as C  # noqa: E402
+import onc_methods.pathway_node_leverage.cli as C
 
 
 def test_genuine_object_absence_is_data_unavailable(monkeypatch):

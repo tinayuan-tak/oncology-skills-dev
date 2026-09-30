@@ -9,13 +9,9 @@ the composite-indication rollup (COAD+READ -> COADREAD), and gene-sorted output.
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(REPO))
-
-from methods.tcga_spliceseq_psi import read as r  # noqa: E402
+from onc_methods.tcga_spliceseq_psi import read as r
 
 
 def _write_tissue(dirpath: Path, tissue: str, sample_names, events):

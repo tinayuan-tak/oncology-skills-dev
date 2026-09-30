@@ -277,7 +277,7 @@ interpretation:            # optional, on an L2a source entry
   disjunct_fired: <stable_token>             # WHICH branch produced the value
 ```
 
-The gap it closes, concretely. `methods/methods/expression_properties/resolve.py:120` `_magnitude`
+The gap it closes, concretely. `methods/onc_methods/expression_properties/resolve.py:120` `_magnitude`
 returns `high` from a **three-way OR** (`control_target_percentile` ≥ threshold **or**
 `median_log2tpm_panel` ≥ threshold **or** `fraction_highly_expressed` ≥ threshold). Downstream sees
 `high` and cannot tell which disjunct fired — so it cannot tell whether two arms both reading `high`

@@ -5,17 +5,11 @@ S3-free fixture test (synthetic DAT: a kinase w/ domain, a keyword-only TF) + li
 from __future__ import annotations
 
 import gzip
-import sys
-from pathlib import Path
 
 import pytest
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.uniprot_protein_features import derive as _d  # noqa: E402
-from methods.uniprot_protein_features import read as _r
+from onc_methods.uniprot_protein_features import derive as _d
+from onc_methods.uniprot_protein_features import read as _r
 
 _DAT = (
     "AC   P00001;\nGN   Name=KIN1;\n"

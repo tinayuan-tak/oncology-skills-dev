@@ -20,16 +20,11 @@ over- or under-correct:
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
-REPO = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(REPO))
-
-import methods.signor_mechanism_network.read as signor_read
+import onc_methods.signor_mechanism_network.read as signor_read
 
 
 def _nosuchkey():

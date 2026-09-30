@@ -21,7 +21,7 @@ import os
 
 import pytest
 
-from methods._common.live_data_skip import is_live_data_exception
+from onc_methods._common.live_data_skip import is_live_data_exception
 
 # Exploratory method-development scripts (methods/<pkg>/method_development/<YYYY-MM>_<slug>/...) are
 # NOT unit tests: they invoke R and read live S3, and run on demand (see a package's method_development

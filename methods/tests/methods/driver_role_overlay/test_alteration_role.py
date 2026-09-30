@@ -3,7 +3,6 @@ are monkeypatched with synthetic OncoKB dict + IntOGen DataFrame)."""
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import pytest
@@ -11,10 +10,8 @@ import pytest
 pd = pytest.importorskip("pandas")
 
 REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
 
-from methods.driver_role_overlay import read as R  # noqa: E402
+from onc_methods.driver_role_overlay import read as R
 
 
 def _wire(monkeypatch, oncokb: dict, intogen_rows: list):
@@ -132,7 +129,7 @@ def test_cli_build_and_figure(tmp_path, monkeypatch):
     import importlib
 
     pytest.importorskip("matplotlib")
-    cli = importlib.import_module("methods.driver_role_overlay.cli")
+    cli = importlib.import_module("onc_methods.driver_role_overlay.cli")
     _wire(
         monkeypatch,
         {"KRAS": "ONCOGENE"},

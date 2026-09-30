@@ -36,14 +36,13 @@ METHODS_REPO = Path(
 
 
 def main() -> int:
-    if not (METHODS_REPO / "methods" / "catalog_query" / "cli.py").exists():
+    if not (METHODS_REPO / "onc_methods" / "catalog_query" / "cli.py").exists():
         sys.stderr.write(
             f"error: analysis-methods checkout not found at {METHODS_REPO}.\n"
             f"set ANALYSIS_METHODS_ROOT to your analysis-methods repo path.\n"
         )
         return 2
-    sys.path.insert(0, str(METHODS_REPO))
-    from methods.catalog_query.cli import main as cli_main
+    from onc_methods.catalog_query.cli import main as cli_main
 
     return cli_main(sys.argv[1:])
 

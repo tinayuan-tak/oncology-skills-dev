@@ -7,16 +7,10 @@ rollup-direction class, the significance flag, the melanoma-scope ceiling, and d
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import numpy as np
 import pandas as pd
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-from methods.ici_response import read as R  # noqa: E402
+from onc_methods.ici_response import read as R
 
 _COLS = [
     "gene_symbol",

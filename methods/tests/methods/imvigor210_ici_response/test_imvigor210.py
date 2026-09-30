@@ -1,10 +1,7 @@
-import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-from methods.imvigor210_ici_response.read import (  # noqa: E402
+from onc_methods.imvigor210_ici_response.read import (
     _UROTHELIAL_INDICATIONS,
     _gene_candidates,
     read_target_summary,
@@ -44,7 +41,7 @@ def test_null_class_is_folded_onto_the_shared_vocabulary(monkeypatch):
     R derive script mints `no_association` and this reader passed it through verbatim. One
     measurement_type must mean one vocabulary, or the first rule author's `equals:` is permanently dead
     on one card while looking authored."""
-    import methods.imvigor210_ici_response.read as R
+    import onc_methods.imvigor210_ici_response.read as R
 
     monkeypatch.setattr(
         R,
@@ -55,7 +52,7 @@ def test_null_class_is_folded_onto_the_shared_vocabulary(monkeypatch):
 
 
 def test_the_fold_leaves_the_real_classes_alone(monkeypatch):
-    import methods.imvigor210_ici_response.read as R
+    import onc_methods.imvigor210_ici_response.read as R
 
     for tok in ("higher_in_responders", "higher_in_nonresponders", "data_unavailable"):
         monkeypatch.setattr(
@@ -66,8 +63,8 @@ def test_the_fold_leaves_the_real_classes_alone(monkeypatch):
 
 def test_the_fold_target_matches_the_sibling_reader():
     """Anti-drift: the folded token must be the one the sibling actually mints, not a third spelling."""
-    from methods.imvigor210_ici_response.read import _CLASS_ALIASES
+    from onc_methods.imvigor210_ici_response.read import _CLASS_ALIASES
 
-    sibling = Path(REPO) / "methods" / "ici_response" / "read.py"
+    sibling = Path(REPO) / "onc_methods" / "ici_response" / "read.py"
     assert set(_CLASS_ALIASES.values()) == {"no_ici_association"}
     assert '"no_ici_association"' in sibling.read_text()

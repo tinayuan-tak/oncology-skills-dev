@@ -7,16 +7,9 @@ memoized); a genuine object-absence (S3 404/NoSuchKey or a missing local members
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.cd_antigen_backbone import read as R  # noqa: E402
+from onc_methods.cd_antigen_backbone import read as R
 
 
 @pytest.fixture(autouse=True)

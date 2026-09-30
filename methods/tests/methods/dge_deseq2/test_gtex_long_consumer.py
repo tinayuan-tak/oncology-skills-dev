@@ -46,7 +46,7 @@ def test_gtex_branch_reads_from_long_product(
     expected_median,
     expected_n,
 ):
-    from methods.dge_deseq2.read import read_per_sample_expression_all_three_groups
+    from onc_methods.dge_deseq2.read import read_per_sample_expression_all_three_groups
 
     res = read_per_sample_expression_all_three_groups(target, indication)
     assert res is not None, f"reader returned None for {target}/{indication}"
@@ -72,7 +72,7 @@ def test_gtex_branch_returns_empty_for_indication_without_gtex_mapping():
     """HNSC has no canonical GTEx tissue (INDICATION_TO_GTEX_TISSUE[HNSC] is None
     per the mapping in dge_tcga_gtex_precompute). The reader must return
     gtex_samples=[] + gtex_tissue=None, NOT raise."""
-    from methods.dge_deseq2.read import (
+    from onc_methods.dge_deseq2.read import (
         INDICATION_TO_GTEX_TISSUE,
         read_per_sample_expression_all_three_groups,
     )

@@ -3,19 +3,12 @@ sc-cite-rna-protein-concordance-v1. No S3: the parquet reader (read_gene_rows) i
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
-
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
 
 pd = pytest.importorskip("pandas")
 
-from methods.sc_surface_concordance import cli as C  # noqa: E402
-from methods.sc_surface_concordance import read as R  # noqa: E402
+from onc_methods.sc_surface_concordance import cli as C
+from onc_methods.sc_surface_concordance import read as R
 
 
 def _row(gene, pear, spear, cls, n_cells=5000, ds="hao-2021-pbmc-3p"):

@@ -15,18 +15,13 @@ stubbed (pyarrow monkeypatched to synthetic per-indication tables):
 from __future__ import annotations
 
 import importlib
-import sys
-from pathlib import Path
 
 import pytest
 
 pd = pytest.importorskip("pandas")
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
 
-d = importlib.import_module("methods.dge_deseq2.derive_pancan_stack")
+d = importlib.import_module("onc_methods.dge_deseq2.derive_pancan_stack")
 
 
 @pytest.fixture(autouse=True)

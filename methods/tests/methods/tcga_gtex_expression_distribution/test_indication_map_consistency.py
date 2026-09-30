@@ -9,14 +9,7 @@ studies AND a normal tissue, so all three axes are available together.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.tcga_gtex_expression_distribution import read as R  # noqa: E402
+from onc_methods.tcga_gtex_expression_distribution import read as R
 
 
 def test_nsclc_resolves_both_lung_studies_and_tissue():

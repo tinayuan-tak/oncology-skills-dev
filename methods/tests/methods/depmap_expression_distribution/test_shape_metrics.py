@@ -8,18 +8,12 @@ dependency-light gap heuristic (mirrors the dependency side, no KDE/dip test) + 
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
 
 np = pytest.importorskip("numpy")
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
 
-cli = __import__("methods.depmap_expression_distribution.cli", fromlist=["cli"])
+cli = __import__("onc_methods.depmap_expression_distribution.cli", fromlist=["cli"])
 
 
 def test_distribution_pattern_bimodal():

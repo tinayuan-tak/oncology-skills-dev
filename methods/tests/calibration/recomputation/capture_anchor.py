@@ -103,12 +103,11 @@ def _snapshot_class(target: str, indication: str) -> str | None:
 
 
 def capture(target: str, indication: str) -> None:
-    sys.path.insert(0, str(AM_ROOT))
     import pyarrow as pa
     import pyarrow.parquet as pq
 
-    from methods.dge_deseq2 import read as dge
-    from methods.percentile_null import classify_percentile, percentile_rank
+    from onc_methods.dge_deseq2 import read as dge
+    from onc_methods.percentile_null import classify_percentile, percentile_rank
 
     manifest_id = f"{indication.lower()}-dge-tumor-vs-normal-sensitivity-v1"
     row = dge.read_tumor_vs_normal_sensitivity_gene_row(target, indication)

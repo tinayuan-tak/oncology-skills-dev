@@ -10,7 +10,7 @@ import importlib.util
 import os
 from pathlib import Path
 
-READ = Path(__file__).resolve().parents[3] / "methods" / "dge_deseq2" / "read" / "__init__.py"
+READ = Path(__file__).resolve().parents[3] / "onc_methods" / "dge_deseq2" / "read" / "__init__.py"
 
 
 def _load():
@@ -76,7 +76,7 @@ def test_selectivity_4panel_tolerates_none_log2cpm(tmp_path):
     )
     if not (CONTRACTS / "plot_styles" / "takeda_palette.py").exists():
         pytest.skip("target-contracts plot_styles not available in this env")
-    E = importlib.import_module("methods.dge_deseq2.emit")  # package-context import (see test_plotly_spec)
+    E = importlib.import_module("onc_methods.dge_deseq2.emit")  # package-context import (see test_plotly_spec)
     # per-sample data with SOME None log2_cpm mixed in (the failure shape)
     per_sample = {
         "tumor_samples": [{"log2_cpm": 5.6}, {"log2_cpm": None}, {"log2_cpm": 6.1}],
@@ -120,7 +120,7 @@ def test_selectivity_4panel_renders_gtex_from_tpm_only(tmp_path):
     )
     if not (CONTRACTS / "plot_styles" / "takeda_palette.py").exists():
         pytest.skip("target-contracts plot_styles not available in this env")
-    E = importlib.import_module("methods.dge_deseq2.emit")
+    E = importlib.import_module("onc_methods.dge_deseq2.emit")
     # the REAL failure shape: tumor/adj carry both units; GTEx (long product) has ONLY log2_tpm
     per_sample = {
         "tumor_samples": [{"log2_cpm": 5.6, "log2_tpm": 4.9}, {"log2_cpm": 6.1, "log2_tpm": 5.4}],

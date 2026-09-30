@@ -8,19 +8,13 @@ version-stable. This test proves byte-identity to the unset-default call across 
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
 
 np = pytest.importorskip("numpy")
 scipy_stats = pytest.importorskip("scipy.stats")
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
 
-from methods.depmap_mutation_dependency.cli import _mannwhitney_stratification  # noqa: E402
+from onc_methods.depmap_mutation_dependency.cli import _mannwhitney_stratification
 
 
 @pytest.mark.parametrize("n_mut", [5, 6, 8, 9, 20, 60])

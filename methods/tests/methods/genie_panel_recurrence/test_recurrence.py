@@ -8,16 +8,10 @@ GENIE MAF + coverage maps (no S3) and pin: coverage-correct frequency, the cover
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pandas as pd
 
-REPO = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(REPO))
-
-from methods.genie_panel_coverage import read as COV  # noqa: E402
-from methods.genie_panel_recurrence import read as R  # noqa: E402
+from onc_methods.genie_panel_coverage import read as COV
+from onc_methods.genie_panel_recurrence import read as R
 
 # 3 panels: BIG covers KRAS+TP53+EGFR (many samples), SMALL covers only TP53.
 _PANEL_GENES = {"BIG": frozenset({"KRAS", "TP53", "EGFR"}), "SMALL": frozenset({"TP53"})}

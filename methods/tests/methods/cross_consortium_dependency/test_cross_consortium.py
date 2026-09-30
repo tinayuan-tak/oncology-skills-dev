@@ -1,12 +1,6 @@
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-from methods.cross_consortium_dependency import cli as cc  # noqa: E402
+from onc_methods.cross_consortium_dependency import cli as cc
 
 
 # _consortium_frac signature is (parquet_name, uri, gene) — Broad vs Sanger discriminated by the

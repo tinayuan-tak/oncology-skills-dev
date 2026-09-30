@@ -13,7 +13,6 @@ on the pre-fix (unsorted-melt) path and passes after.
 
 from __future__ import annotations
 
-import sys
 import tempfile
 from pathlib import Path
 
@@ -23,10 +22,6 @@ pd = pytest.importorskip("pandas")
 np = pytest.importorskip("numpy")
 pa = pytest.importorskip("pyarrow")
 pq = pytest.importorskip("pyarrow.parquet")
-
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
 
 
 def _wide(n_genes: int, n_samples: int) -> pd.DataFrame:

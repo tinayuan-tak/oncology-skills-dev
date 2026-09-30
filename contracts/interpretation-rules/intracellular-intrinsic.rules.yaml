@@ -1062,7 +1062,7 @@ rules:
       (ERBB2 focal 0.053 < KRAS 0.111). The real amp-driver signal belongs to
       patient_focal_cn_class + the copy-number-stratified-dependency card, NOT this
       classifier — see the backtest note in
-      analysis-methods/methods/depmap_cn_distribution/cli.py. Do NOT re-tune these bands.
+      analysis-methods/onc_methods/depmap_cn_distribution/cli.py. Do NOT re-tune these bands.
 
   - rule_id: cn-recurrently-deleted-supportive
     when:

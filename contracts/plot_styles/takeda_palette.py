@@ -10,9 +10,14 @@ Usage in a method CLI:
     import sys
 
     contracts_root = Path("/path/to/target-contracts")
-    plt.style.use(contracts_root / "plot_styles" / "takeda_oncology.mplstyle")
-    sys.path.insert(0, str(contracts_root / "plot_styles"))
-    from takeda_palette import LINEAGE_COLORS, get_lineage_color, REFLINE_NEUTRAL
+    from oncology_target_contracts.plot_styles import mplstyle_path
+    from oncology_target_contracts.plot_styles.takeda_palette import (
+        LINEAGE_COLORS,
+        REFLINE_NEUTRAL,
+        get_lineage_color,
+    )
+
+    plt.style.use(mplstyle_path())
 """
 
 from __future__ import annotations

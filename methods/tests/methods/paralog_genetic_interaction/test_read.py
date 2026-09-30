@@ -13,14 +13,7 @@ real-data regression at the bottom.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.paralog_genetic_interaction.read import (  # noqa: E402
+from onc_methods.paralog_genetic_interaction.read import (
     combinatorial_dependency_for_gene,
 )
 
@@ -94,7 +87,7 @@ def test_read_failure_is_data_unavailable_not_negative(monkeypatch):
     # interaction; distinct from empty = screened-but-absent -> no_paralog_screened). A transient/creds
     # read failure now RE-RAISES instead of masking — see test_absence_discipline.py. summary_rows=None
     # means "read live", so monkeypatch the reader to the genuine-absence result to stay hermetic.
-    import methods.paralog_genetic_interaction.read as _m
+    import onc_methods.paralog_genetic_interaction.read as _m
 
     monkeypatch.setattr(_m, "_read_summary_rows", lambda target: None)
     r = combinatorial_dependency_for_gene("SOMEGENE", summary_rows=None)

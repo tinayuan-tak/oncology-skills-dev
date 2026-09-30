@@ -48,7 +48,6 @@ from unittest import mock
 HERE = Path(__file__).resolve().parent
 VECTORS = HERE / "purity_confound_vectors"
 ANCHORS = HERE / "anchors"
-AM_ROOT = HERE.parents[2]
 
 _FIELDS = (
     "purity_confound_class",
@@ -78,10 +77,8 @@ def _md5(path: Path) -> str:
 
 
 def _read_modules():
-    if str(AM_ROOT) not in sys.path:
-        sys.path.insert(0, str(AM_ROOT))
-    import methods.expression_purity_confound.read as epc  # noqa: PLC0415
-    import methods.tcga_gtex_expression_distribution.read as exprmod  # noqa: PLC0415
+    import onc_methods.expression_purity_confound.read as epc  # noqa: PLC0415
+    import onc_methods.tcga_gtex_expression_distribution.read as exprmod  # noqa: PLC0415
 
     return epc, exprmod
 
@@ -158,7 +155,7 @@ def capture(target: str, indication: str) -> None:
             f"live cbg read via read_tumor_samples_with_case({target!r}, {indication!r}) (recount3 tumor, "
             "case-bridged) + _load_purity_by_case() (ABSOLUTE pancanatlas static snapshot); fixtures = the "
             "per-sample [case, log2_tpm] rows + the per-case ABSOLUTE purity for those cases; re-derive with "
-            "methods.expression_purity_confound.read.read_expression_purity_confound (mock the two loaders)."
+            "onc_methods.expression_purity_confound.read.read_expression_purity_confound (mock the two loaders)."
         ),
     }
     anchor_name = f"{target.lower()}_{indication.lower()}.expression_purity_confound.json"

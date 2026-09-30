@@ -251,7 +251,7 @@ def test_teeth_determinant_missing_unit(tmp_path):
 def test_teeth_determinant_source_path_moved(tmp_path):
     """Defends against a moved/renamed resolver module leaving every rationale pointing at nothing."""
     doc = _l2a_doc()
-    doc["properties"]["patient_tumor_abundance"]["determinants"][0]["source"] = "methods/methods/gone/stats.py:24"
+    doc["properties"]["patient_tumor_abundance"]["determinants"][0]["source"] = "methods/onc_methods/gone/stats.py:24"
     errs = _run(tmp_path, "tumor_presence.yaml", doc)
     assert any("does not exist" in e for e in errs), errs
 
@@ -261,7 +261,7 @@ def test_teeth_determinant_line_drift_is_tolerated(tmp_path):
     validator would be unmaintainable and would get disabled, which is worse than line rot."""
     doc = _l2a_doc()
     doc["properties"]["patient_tumor_abundance"]["determinants"][0]["source"] = (
-        "methods/methods/tcga_gtex_expression_distribution/stats.py:999999"
+        "methods/onc_methods/tcga_gtex_expression_distribution/stats.py:999999"
     )
     assert _run(tmp_path, "tumor_presence.yaml", doc) == []
 
@@ -283,7 +283,7 @@ def test_teeth_calibration_controls_path_moved(tmp_path):
     green on the strength of the other."""
     doc = _l2a_doc()
     det = doc["properties"]["patient_tumor_abundance"]["determinants"][0]
-    det["calibration"]["controls"] = "methods/methods/gone_controls/read.py"
+    det["calibration"]["controls"] = "methods/onc_methods/gone_controls/read.py"
     errs = _run(tmp_path, "tumor_presence.yaml", doc)
     assert any("controls" in e and "does not exist" in e for e in errs), errs
 
@@ -303,7 +303,7 @@ def test_teeth_calibration_line_suffix_is_tolerated(tmp_path):
     does, and line numbers drift on every unrelated edit."""
     doc = _l2a_doc()
     det = doc["properties"]["patient_tumor_abundance"]["determinants"][0]
-    det["calibration"]["controls"] = "methods/methods/tumor_presence_controls/read.py:999999"
+    det["calibration"]["controls"] = "methods/onc_methods/tumor_presence_controls/read.py:999999"
     assert _run(tmp_path, "tumor_presence.yaml", doc) == []
 
 

@@ -18,19 +18,15 @@ DISCIPLINE (from the SK#1507 prototype, load-bearing):
 from __future__ import annotations
 
 import copy
-import sys
 from pathlib import Path
 
 import pytest
 
 np = pytest.importorskip("numpy")
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
 
-cli = __import__("methods.depmap_expression_distribution.cli", fromlist=["cli"])
-resolve_mod = __import__("methods.expression_properties.resolve", fromlist=["resolve"])
+cli = __import__("onc_methods.depmap_expression_distribution.cli", fromlist=["cli"])
+resolve_mod = __import__("onc_methods.expression_properties.resolve", fromlist=["resolve"])
 resolve_expression_properties = resolve_mod.resolve_expression_properties
 VALID_VALUES = resolve_mod.VALID_VALUES
 

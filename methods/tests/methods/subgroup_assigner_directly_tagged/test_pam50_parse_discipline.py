@@ -6,16 +6,11 @@ still returns None (strata self-degrade to null), unchanged.
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import pytest
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.subgroup_assigner_directly_tagged import cli as sub  # noqa: E402
+from onc_methods.subgroup_assigner_directly_tagged import cli as sub
 
 
 def _curated_path(root: Path) -> Path:

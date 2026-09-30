@@ -7,15 +7,10 @@ flip them True. All sub-readers are mocked — no S3 / file access.
 
 from __future__ import annotations
 
-import sys
 from contextlib import contextmanager
-from pathlib import Path
 from unittest.mock import patch
 
-REPO = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(REPO))
-
-import methods.mechanism_composed.read as mc_read
+import onc_methods.mechanism_composed.read as mc_read
 
 
 def _stub_reactome(target, indication=None):
@@ -38,12 +33,12 @@ def _stub_coess_unavailable(target, top_n=25, **kwargs):
 @contextmanager
 def _mocked(signor_stub):
     with (
-        patch("methods.mechanism_composed.read.signor_read.read_target_summary", side_effect=signor_stub),
-        patch("methods.mechanism_composed.read.collectri_read.read_target_summary", side_effect=_stub_empty),
-        patch("methods.mechanism_composed.read.reactome_read.read_target_summary", side_effect=_stub_reactome),
-        patch("methods.mechanism_composed.read.kinome_atlas_read.read_target_summary", side_effect=_stub_empty),
+        patch("onc_methods.mechanism_composed.read.signor_read.read_target_summary", side_effect=signor_stub),
+        patch("onc_methods.mechanism_composed.read.collectri_read.read_target_summary", side_effect=_stub_empty),
+        patch("onc_methods.mechanism_composed.read.reactome_read.read_target_summary", side_effect=_stub_reactome),
+        patch("onc_methods.mechanism_composed.read.kinome_atlas_read.read_target_summary", side_effect=_stub_empty),
         patch(
-            "methods.mechanism_composed.read.coessentiality_read.read_coessential_partners",
+            "onc_methods.mechanism_composed.read.coessentiality_read.read_coessential_partners",
             side_effect=_stub_coess_unavailable,
         ),
     ):

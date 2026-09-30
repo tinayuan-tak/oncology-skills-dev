@@ -39,7 +39,7 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-_METHODS = Path(__file__).resolve().parents[1] / "methods"
+_METHODS = Path(__file__).resolve().parents[1] / "onc_methods"
 
 
 # --- PERMANENTLY legitimate full-file download_file sites (keyed <module>/<file>::<function>) ---

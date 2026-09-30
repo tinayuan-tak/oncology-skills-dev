@@ -32,7 +32,7 @@
 #   call. The focal-vs-arm distinction lives in the ADDITIVE patient_focal_cn_class
 #   (GISTIC, indication-specific); the biallelic-LoF signal lives in
 #   cn_homozygous_deletion_recurrent / the deep-del fraction. Do NOT re-tune these
-#   bands (see analysis-methods/methods/depmap_cn_distribution/cli.py).
+#   bands (see analysis-methods/onc_methods/depmap_cn_distribution/cli.py).
 #
 #   MEASURED NULL RATE (2026-09-12) — the asymmetry's PRICE, and why the DELETION arm
 #   is no longer a driver-establishing resolver conjunct. Over 1433 gene columns sampled

@@ -10,13 +10,7 @@ so the heuristic declines to guess rather than mislabel them removal_favored), n
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(REPO))
-
-from methods.domain_modality_relevance import read as r  # noqa: E402
+from onc_methods.domain_modality_relevance import read as r
 
 # --- curated override (highest precedence) --------------------------------
 

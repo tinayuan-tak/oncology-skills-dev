@@ -78,8 +78,8 @@ def test_the_window_strictly_contains_both_candidate_bars_with_margin():
     measuring a bar the fixture cannot see. That must be a RED with an explanation, not a pass.
     """
     assert len(ALL_ROWS) >= 117, f"matrix has only {len(ALL_ROWS)} rows — too thin to adjudicate"
-    from methods.expression_properties import resolve as R
-    from methods.tcga_gtex_expression_distribution import stats as S
+    from onc_methods.expression_properties import resolve as R
+    from onc_methods.tcga_gtex_expression_distribution import stats as S
 
     live = (R._HIGHLY_EXPRESSED_LOG2TPM, S.HIGH_LOG2TPM)
     for row in ALL_ROWS:
@@ -187,7 +187,7 @@ def test_the_reconstruction_agrees_with_the_independently_captured_panel_fixture
     and arm B together (measured: mutating `distribution_pattern`'s bimodal off-fraction from 0.20 to
     0.30 leaves every flip clause green). This clause is what makes that mutant red.
     """
-    from methods.tcga_gtex_expression_distribution import stats as S
+    from onc_methods.tcga_gtex_expression_distribution import stats as S
 
     panel = {(p["target"], p["code"]): p for p in _load(REPO_ROOT / MATRIX["_meta"]["panel"])["pairs"]}
     checked_pat = checked_cls = checked_high = 0
@@ -207,8 +207,8 @@ def test_the_reconstruction_agrees_with_the_independently_captured_panel_fixture
 
 
 def _tumor_arm(row, bar: float) -> dict:
-    from methods.tcga_gtex_expression_distribution import stats as S
-    from methods.tcga_gtex_expression_distribution.read import _classify_tumor_expression
+    from onc_methods.tcga_gtex_expression_distribution import stats as S
+    from onc_methods.tcga_gtex_expression_distribution.read import _classify_tumor_expression
 
     v = _band_equivalent_vector(row)
     f = S.expression_fractions(v, detectable=DETECTABLE, moderate=MODERATE, high=bar)
@@ -230,8 +230,8 @@ def _cellline_arm(row, bar: float) -> dict:
     agree. A unit whose class depends on the unmeasured input yields `None` and is excluded from the
     class-flip population instead of being decided by a fabricated input.
     """
-    from methods.depmap_expression_distribution import cli as DC
-    from methods.expression_properties import resolve as R
+    from onc_methods.depmap_expression_distribution import cli as DC
+    from onc_methods.expression_properties import resolve as R
 
     v = _band_equivalent_vector(row)
     n = len(v)
@@ -342,9 +342,9 @@ def test_the_fraction_bar_on_the_same_quantity_diverges_three_ways():
     is the measured reason #2221 lands as evidence rather than as a threshold move. If a peer
     harmonises any of these three, this clause reds and the adjudication must be re-read.
     """
-    from methods.depmap_expression_distribution import cli as DC
-    from methods.expression_properties import resolve as R
-    from methods.tcga_gtex_expression_distribution.read import _classify_tumor_expression
+    from onc_methods.depmap_expression_distribution import cli as DC
+    from onc_methods.expression_properties import resolve as R
+    from onc_methods.tcga_gtex_expression_distribution.read import _classify_tumor_expression
 
     # cell-line CARD: 0.30 on frac_highly (inside the frac_expressed >= 0.70 branch)
     assert DC._classify_expression(1.0, 0.30, 0) == "broadly_high"
@@ -408,10 +408,10 @@ def test_both_anchors_are_still_the_values_this_matrix_adjudicated():
     """
     import inspect
 
-    from methods.depmap_expression_distribution import cli as DC
-    from methods.depmap_expression_distribution import read as DR
-    from methods.expression_properties import resolve as R
-    from methods.tcga_gtex_expression_distribution import stats as S
+    from onc_methods.depmap_expression_distribution import cli as DC
+    from onc_methods.depmap_expression_distribution import read as DR
+    from onc_methods.expression_properties import resolve as R
+    from onc_methods.tcga_gtex_expression_distribution import stats as S
 
     assert S.HIGH_LOG2TPM == BAR_LINEAR_ROUND
     assert R._HIGHLY_EXPRESSED_LOG2TPM == BAR_LOG_ROUND
@@ -518,7 +518,7 @@ def test_the_moderate_count_has_no_one_sample_tooth_and_the_margin_is_measured()
     perturbation IS caught (by the cross-fixture agreement clause). If a re-capture lands a reaching
     unit near the bar, this clause reds and a per-sample tooth becomes necessary.
     """
-    from methods.tcga_gtex_expression_distribution.read import BROADLY_DETECTED_MODERATE_FRACTION_MIN as BAR
+    from onc_methods.tcga_gtex_expression_distribution.read import BROADLY_DETECTED_MODERATE_FRACTION_MIN as BAR
 
     reaching = []
     for row in TUMOR_ROWS:

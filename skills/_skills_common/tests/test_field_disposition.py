@@ -434,7 +434,7 @@ def test_resolver_input_reach_is_live_from_the_methods_tree():
         for module in modules:
             assert (root / module).exists(), (
                 f"bound resolver module {module} is absent under {root} — the binding is stale or "
-                f"methods/ is not in-tree; update RESOLVER_INPUT_BINDINGS"
+                f"methods/onc_methods/ is not in-tree; update RESOLVER_INPUT_BINDINGS"
             )
 
     reach = fd.resolver_input_readers()
@@ -451,7 +451,7 @@ def test_resolver_input_reach_is_live_from_the_methods_tree():
             "narrowing is broken"
         )
     assert ("cellline-rna-distribution", "expression_class") in reach, (
-        "cellline-rna-distribution.expression_class is read by methods/expression_properties/resolve.py "
+        "cellline-rna-distribution.expression_class is read by methods/onc_methods/expression_properties/resolve.py "
         "and is a declared field, so it must be credited resolver_input reach"
     )
 

@@ -8,16 +8,9 @@ removed) instead of being laundered into data_unavailable.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.imvigor210_ici_response import read as R  # noqa: E402
+from onc_methods.imvigor210_ici_response import read as R
 
 
 def test_genuine_absence_is_data_unavailable(monkeypatch):

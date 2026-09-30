@@ -46,7 +46,7 @@ for _p in (str(SKILLS_ROOT),):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from _skills_common.paths import analysis_methods_root  # noqa: E402
+from _skills_common.paths import analysis_methods_root
 
 AM_ROOT = analysis_methods_root()
 RECOMPUTATION_DIR = AM_ROOT / "tests" / "calibration" / "recomputation"
@@ -91,9 +91,7 @@ def _golden_card(card_id: str) -> dict:
 
 
 def _load_cptac_module():
-    if str(AM_ROOT) not in sys.path:
-        sys.path.insert(0, str(AM_ROOT))
-    import methods.cptac_protein_deg.read as mod  # noqa: PLC0415
+    import onc_methods.cptac_protein_deg.read as mod  # noqa: PLC0415
 
     return mod
 

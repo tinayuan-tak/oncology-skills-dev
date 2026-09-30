@@ -18,7 +18,6 @@ OFFLINE — reads only committed fixtures, no S3, no creds. Runs in CI.
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 
 import pyarrow.parquet as pq
@@ -27,11 +26,8 @@ import pytest
 HERE = Path(__file__).resolve().parent
 ANCHOR_DIR = HERE / "anchors"
 
-_AM_ROOT = HERE.parents[2]
-if str(_AM_ROOT) not in sys.path:
-    sys.path.insert(0, str(_AM_ROOT))
 
-from methods.depmap_protein_abundance import cli as pa_cli  # noqa: E402
+from onc_methods.depmap_protein_abundance import cli as pa_cli
 
 compute_summary = pa_cli.compute_summary
 

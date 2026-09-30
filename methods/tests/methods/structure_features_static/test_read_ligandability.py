@@ -10,17 +10,10 @@ of the (unmaterialized) hotspot product; (2) gene-symbol AND uniprot lookup both
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pandas as pd
 import pytest
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.structure_features_static import read as R  # noqa: E402
+from onc_methods.structure_features_static import read as R
 
 
 @pytest.fixture

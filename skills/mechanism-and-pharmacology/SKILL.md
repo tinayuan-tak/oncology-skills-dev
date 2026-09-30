@@ -7,7 +7,7 @@ description: |
   (SIGNOR + CollecTRI edges, with Reactome layered as pathway context — not
   counted in the edge total) and classified into a 31-class MoA ontology.
 
-  The network is composed on-read (methods/mechanism_composed) from the SIGNOR
+  The network is composed on-read (onc_methods/mechanism_composed) from the SIGNOR
   Jul2026 source release plus the CollecTRI curated edge set; the `network_class`
   edge COUNT is SIGNOR + CollecTRI only — Reactome is layered as pathway CONTEXT
   (membership/MoA), NOT counted in the edge total. Lower-weighted kinome-atlas
@@ -76,10 +76,10 @@ composition:
 
 Given a target + indication:
   1. Loads the target's composed signaling network (SIGNOR + CollecTRI +
-     Reactome) on-read via methods/mechanism_composed, keyed on the target's
+     Reactome) on-read via onc_methods/mechanism_composed, keyed on the target's
      UniProt-AC.
   2. Classifies each edge under the 31-class MoA ontology
-     (methods/signor_mechanism_network/moa_ontology.py v1.0.0).
+     (onc_methods/signor_mechanism_network/moa_ontology.py v1.0.0).
   3. Emits a MoA opportunities table (upstream regulators, per-edge
      mechanism, MoA class, modality relevance) + a PD-marker opportunities
      table (downstream effectors, per-edge mechanism, PD-marker relevance).
@@ -112,7 +112,7 @@ Given a target + indication:
 Every emitted decision.json + summary.yaml stamps:
   - `data_provenance`: the composed sources' manifest pins (the SIGNOR Jul2026
     source release + the CollecTRI / Reactome edge sets)
-  - `moa_ontology_version`: from methods/signor_mechanism_network/moa_ontology.py
+  - `moa_ontology_version`: from onc_methods/signor_mechanism_network/moa_ontology.py
   - `moa_ontology_unmapped_fraction`: fraction of curated edges that fell
     to 'unmapped' class (target <5%; CI test enforces)
   - `method_version`: the composing method version

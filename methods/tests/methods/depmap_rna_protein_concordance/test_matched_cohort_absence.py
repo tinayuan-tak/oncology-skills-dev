@@ -8,15 +8,10 @@ from __future__ import annotations
 
 import sys
 import types
-from pathlib import Path
 
 import pytest
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.depmap_rna_protein_concordance import read as conc  # noqa: E402
+from onc_methods.depmap_rna_protein_concordance import read as conc
 
 _COLS = ["patient_id", "gene", "rna_log2tpm", "protein_log2abundance"]
 

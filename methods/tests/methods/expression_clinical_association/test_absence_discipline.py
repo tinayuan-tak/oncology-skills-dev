@@ -8,19 +8,12 @@ The broad masking except was removed, so a transient fault now PROPAGATES.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pandas as pd
 import pytest
 from botocore.exceptions import ClientError
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-import methods.tcga_gtex_expression_distribution.read as tg  # noqa: E402
-from methods.expression_clinical_association import read as R  # noqa: E402
+import onc_methods.tcga_gtex_expression_distribution.read as tg
+from onc_methods.expression_clinical_association import read as R
 
 
 def test_genuine_absence_empty_frame_is_data_unavailable(monkeypatch):

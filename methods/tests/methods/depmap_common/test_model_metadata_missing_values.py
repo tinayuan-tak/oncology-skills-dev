@@ -22,7 +22,7 @@ import pytest
 
 pd = pytest.importorskip("pandas")
 
-from methods.depmap_common import model_metadata_by_id  # noqa: E402
+from onc_methods.depmap_common import model_metadata_by_id  # noqa: E402
 
 # A missing CCLEName (legacy field, genuinely absent for newer models) and a missing OncotreeLineage —
 # the exact two columns behind 119,536 non-finite corpus leaves. ACH-9 carries neither.

@@ -15,18 +15,13 @@ Tests monkeypatch _load_consensus to a synthetic consensus DataFrame (no S3), pi
 from __future__ import annotations
 
 import importlib
-import sys
-from pathlib import Path
 
 import pytest
 
 pd = pytest.importorskip("pandas")
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
 
-r = importlib.import_module("methods.tcga_fusion_consensus.read")
+r = importlib.import_module("onc_methods.tcga_fusion_consensus.read")
 
 
 def _row(sample, gene, tissue, caller_count, partners_tf=(), n_tf=0, n_gao=0, n_cb=0):

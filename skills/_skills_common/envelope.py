@@ -32,8 +32,6 @@ from __future__ import annotations
 import re
 from datetime import datetime, timezone
 
-from _skills_common.paths import analysis_methods_root
-
 
 def build_governance(data_mode: str, release_pin: str, validation_summary: dict) -> dict:
     """The single source of the evidence-package `governance` block.
@@ -55,13 +53,9 @@ def _load_catalog_resolver():
     """Lazily import catalog_query.resolve_release + _family_of from the analysis-methods repo.
     Returns (resolve_release, _family_of) or (None, None) if unavailable — governance enrichment is
     best-effort and must NEVER block evidence-package emission."""
-    import sys
 
-    mrepo = str(analysis_methods_root())
-    if mrepo not in sys.path:
-        sys.path.insert(0, mrepo)
     try:
-        from methods.catalog_query.read import _family_of, resolve_release
+        from onc_methods.catalog_query.read import _family_of, resolve_release
 
         return resolve_release, _family_of
     except Exception:  # noqa: BLE001 — no catalog helper → skip head/stale enrichment (digest still emits)
@@ -71,13 +65,9 @@ def _load_catalog_resolver():
 def _load_manifest_loader():
     """Lazily import catalog_query.load_manifest (analysis-methods) for md5 content-fingerprinting.
     (None) when unavailable — the content digest is best-effort and never blocks emission."""
-    import sys
 
-    mrepo = str(analysis_methods_root())
-    if mrepo not in sys.path:
-        sys.path.insert(0, mrepo)
     try:
-        from methods.catalog_query.read import load_manifest
+        from onc_methods.catalog_query.read import load_manifest
 
         return load_manifest
     except Exception:  # noqa: BLE001 — no loader → content digest omitted (id digest still emits)
@@ -96,15 +86,11 @@ def _known_manifest_ids() -> "set | None":
     catalog TWICE (~15s each: once in resolved_release_governance, once here). Passing the canonical
     roots explicitly makes this a cache HIT on the entry resolved_release_governance already populated.
     Result is byte-identical (same catalog); it just stops re-parsing it."""
-    import sys
 
-    mrepo = str(analysis_methods_root())
-    if mrepo not in sys.path:
-        sys.path.insert(0, mrepo)
     try:
         # Import the module's canonical DATA_CATALOG / TARGET_CONTRACTS Paths so the lru_cache key
         # matches resolve_release's `load_catalog(root=root, contracts_root=contracts_root)` exactly.
-        from methods.catalog_query.read import DATA_CATALOG, TARGET_CONTRACTS, load_catalog
+        from onc_methods.catalog_query.read import DATA_CATALOG, TARGET_CONTRACTS, load_catalog
 
         return set(load_catalog(root=DATA_CATALOG, contracts_root=TARGET_CONTRACTS).manifests)
     except Exception:  # noqa: BLE001 — no catalog → skip the indeterminate-staleness refinement

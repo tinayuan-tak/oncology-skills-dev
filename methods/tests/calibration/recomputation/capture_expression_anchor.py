@@ -124,11 +124,10 @@ def _snapshot_class(target: str) -> str | None:
 
 
 def capture(target: str) -> None:
-    sys.path.insert(0, str(AM_ROOT))
     import pyarrow as pa
     import pyarrow.parquet as pq
 
-    from methods.depmap_expression_distribution.cli import compute_summary_stats, load_expression_files
+    from onc_methods.depmap_expression_distribution.cli import compute_summary_stats, load_expression_files
 
     tpm_by_model, model_metadata, load_errors = load_expression_files(RELEASE_PIN, target)
     if load_errors:
@@ -191,7 +190,7 @@ def capture(target: str) -> None:
         "_provenance": (
             f"live cbg read via load_expression_files({RELEASE_PIN!r}, {target!r}); fixture = gene's "
             f"log2(TPM+1) per DepMap cell line + resolved lineage ({n_models} models); re-derive with "
-            f"methods.depmap_expression_distribution.cli.compute_summary_stats."
+            f"onc_methods.depmap_expression_distribution.cli.compute_summary_stats."
         ),
     }
     anchor_name = f"{target.lower()}_{RELEASE_PIN}.cellline_rna_distribution.json"

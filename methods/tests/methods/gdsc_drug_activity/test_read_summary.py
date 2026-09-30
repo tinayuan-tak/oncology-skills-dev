@@ -12,17 +12,14 @@ helpers at them via the product_path/sidecar_path offline seams, and verifies:
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[3]))  # repo root -> `methods` importable
-
-from methods.gdsc_drug_activity import cli as gcli  # noqa: E402
-from methods.gdsc_drug_activity import read as gread  # noqa: E402
+from onc_methods.gdsc_drug_activity import cli as gcli
+from onc_methods.gdsc_drug_activity import read as gread
 
 # The exact summary key-set the gdsc-drug-activity card declares (summary_fields must match the reader).
 _EXPECTED_KEYS = {

@@ -12,7 +12,7 @@ from __future__ import annotations
 import pytest
 from botocore.exceptions import ProfileNotFound
 
-from methods import target_id_sidecar as tis
+from onc_methods import target_id_sidecar as tis
 
 
 def test_missing_default_profile_falls_back_to_ambient(monkeypatch):

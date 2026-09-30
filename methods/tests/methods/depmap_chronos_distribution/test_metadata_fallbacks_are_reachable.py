@@ -23,8 +23,8 @@ import pytest
 pd = pytest.importorskip("pandas")
 pytest.importorskip("pyarrow")
 
-from methods.depmap_chronos_distribution.cli import emit_plot_data  # noqa: E402
-from methods.depmap_common import model_metadata_by_id  # noqa: E402
+from onc_methods.depmap_chronos_distribution.cli import emit_plot_data  # noqa: E402
+from onc_methods.depmap_common import model_metadata_by_id  # noqa: E402
 
 # 8 models so pd.qcut(q=4) has distinct edges. ACH-000007/8 are the gaps: no lineage, no name.
 MODEL_CSV = """ModelID,CellLineName,CCLEName,OncotreeLineage,OncotreeSubtype,PrimaryDisease

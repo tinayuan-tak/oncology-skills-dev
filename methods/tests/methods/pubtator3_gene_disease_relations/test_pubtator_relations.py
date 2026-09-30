@@ -2,14 +2,7 @@
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-AM = Path(__file__).resolve().parents[3]
-if str(AM) not in sys.path:
-    sys.path.insert(0, str(AM))
-
-from methods.pubtator3_gene_disease_relations.read import (  # noqa: E402
+from onc_methods.pubtator3_gene_disease_relations.read import (
     _canonical_indication,
     aggregate_relations,
 )

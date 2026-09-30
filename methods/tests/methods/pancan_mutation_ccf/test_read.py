@@ -6,7 +6,7 @@ from __future__ import annotations
 import pytest
 
 pd = pytest.importorskip("pandas")
-from methods.pancan_mutation_ccf.read import read_clonality  # noqa: E402
+from onc_methods.pancan_mutation_ccf.read import read_clonality  # noqa: E402
 
 
 def _fixture(tmp_path) -> str:

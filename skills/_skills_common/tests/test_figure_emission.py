@@ -18,18 +18,14 @@ pattern Cards 1 and 2's unit tests use.
 
 from __future__ import annotations
 
-import os
 import sys
 from pathlib import Path
 
 import pandas as pd
-from _skills_common.paths import ANALYSIS_METHODS_ROOT_DEFAULT
 
-METHODS_REPO = Path(os.environ.get("ANALYSIS_METHODS_ROOT", ANALYSIS_METHODS_ROOT_DEFAULT))
 SKILL_DIR = Path(__file__).resolve().parent.parent  # skills/_skills_common
 
 sys.path.insert(0, str(SKILL_DIR))  # _skills_common on path → `import _figure_emitters`
-sys.path.insert(0, str(METHODS_REPO))
 
 
 def _build_synthetic_depmap_dir(target_dir: Path, n_cell_lines: int = 200) -> None:
@@ -89,7 +85,7 @@ def test_card1_figure_emission(tmp_path, monkeypatch):
     _build_synthetic_depmap_dir(fake_depmap, n_cell_lines=150)
 
     # Point Card 1's CLI loader at the synthetic dir
-    import methods.depmap_chronos_distribution.cli as c1cli
+    import onc_methods.depmap_chronos_distribution.cli as c1cli
 
     monkeypatch.setattr(c1cli, "DEPMAP_LOCAL_FALLBACK_DIRS", [fake_depmap])
 
@@ -121,7 +117,7 @@ def test_card2_figure_emission(tmp_path, monkeypatch):
     fake_depmap.mkdir()
     _build_synthetic_depmap_dir(fake_depmap, n_cell_lines=200)
 
-    import methods.depmap_chronos.cli as c2cli
+    import onc_methods.depmap_chronos.cli as c2cli
 
     monkeypatch.setattr(c2cli, "DEPMAP_LOCAL_FALLBACK_DIRS", [fake_depmap])
 
@@ -210,7 +206,7 @@ def test_card4_figure_emission(tmp_path, monkeypatch):
     fake_depmap.mkdir()
     _build_synthetic_depmap_dir_with_tpm(fake_depmap, n_cell_lines=200)
 
-    import methods.depmap_expression_dependency.cli as c4cli
+    import onc_methods.depmap_expression_dependency.cli as c4cli
 
     monkeypatch.setattr(c4cli, "DEPMAP_LOCAL_FALLBACK_DIRS", [fake_depmap])
 
@@ -240,7 +236,7 @@ def test_card4_figure_emission(tmp_path, monkeypatch):
 def test_subtype_panel_figure_emission(tmp_path, monkeypatch):
     """Subtype-panel emitter: gated on subtype_axis_available, renders one row per stratum
     from the method's shared value reader (monkeypatched offline)."""
-    import methods.tcga_gtex_expression_distribution.read as exprread
+    import onc_methods.tcga_gtex_expression_distribution.read as exprread
 
     monkeypatch.setattr(
         exprread,
@@ -291,7 +287,7 @@ def test_subtype_panel_figure_emission(tmp_path, monkeypatch):
 
 def test_q2_percentile_crossing_figure_emission(tmp_path, monkeypatch):
     """Q2 selectivity emitter reuses the tumor-vs-normal box; gated on selectivity_class."""
-    import methods.tcga_gtex_expression_distribution.read as exprread
+    import onc_methods.tcga_gtex_expression_distribution.read as exprread
 
     monkeypatch.setattr(exprread, "read_tumor_samples", lambda t, i: [6.0, 6.5, 7.0] * 10)
     monkeypatch.setattr(exprread, "read_normal_samples", lambda t, i: ([1.0, 1.2] * 10, "COLON"))
@@ -328,7 +324,7 @@ def test_q2_percentile_crossing_figure_emission(tmp_path, monkeypatch):
 
 def test_q3_normal_liability_figure_emission(tmp_path, monkeypatch):
     """Q3 liability atlas emitter (target-grain); gated on liability_class."""
-    import methods.tcga_gtex_expression_distribution.read as exprread
+    import onc_methods.tcga_gtex_expression_distribution.read as exprread
 
     monkeypatch.setattr(
         exprread, "read_all_normal_tissues", lambda t: {"BRAIN": [8.0] * 20, "SKIN": [0.2] * 20, "COLON": [0.1] * 20}
@@ -361,10 +357,10 @@ def test_q3_normal_liability_figure_emission(tmp_path, monkeypatch):
 
 def test_q4_recommended_models_figure_emission(tmp_path, monkeypatch):
     """Q4 correspondence scatter; gated on correspondence_class. Monkeypatch the method readers."""
-    import methods.tcga_gtex_expression_distribution.read as pt
+    import onc_methods.tcga_gtex_expression_distribution.read as pt
 
     monkeypatch.setattr(pt, "read_tumor_samples", lambda t, i: [3.8, 4.0, 4.2] * 10)
-    import methods.depmap_expression_dependency.cli as c4
+    import onc_methods.depmap_expression_dependency.cli as c4
 
     monkeypatch.setattr(
         c4,
@@ -409,10 +405,10 @@ def test_q5_rna_protein_concordance_figure_emission(tmp_path, monkeypatch):
     """Q5 concordance scatter; gated on rna_as_biomarker. Monkeypatch the two per-model readers."""
     ids = [f"ACH-{i:04d}" for i in range(40)]
     rna = {m: float(i % 8) for i, m in enumerate(ids)}
-    import methods.depmap_expression_dependency.cli as rna_cli
+    import onc_methods.depmap_expression_dependency.cli as rna_cli
 
     monkeypatch.setattr(rna_cli, "load_depmap_files_for_card4", lambda release_pin, target_symbol: ({}, rna, {}, []))
-    import methods.depmap_protein_abundance.cli as prot_cli
+    import onc_methods.depmap_protein_abundance.cli as prot_cli
 
     monkeypatch.setattr(prot_cli, "resolve_accession", lambda t, sidecar_path=None: "P00000")
     monkeypatch.setattr(
@@ -446,7 +442,7 @@ def test_q5_rna_protein_concordance_figure_emission(tmp_path, monkeypatch):
 
 def test_q5_tumor_concordance_figure_emission(tmp_path, monkeypatch):
     """Q5 TUMOR concordance scatter; gated on rna_as_biomarker. Monkeypatch the matched-cohort reader."""
-    import methods.depmap_rna_protein_concordance.read as rpr
+    import onc_methods.depmap_rna_protein_concordance.read as rpr
     import pandas as pd
 
     rows = [
@@ -487,7 +483,7 @@ def test_q5_tumor_concordance_figure_emission(tmp_path, monkeypatch):
 
 def test_alteration_role_figure_emission(tmp_path, monkeypatch):
     """alteration-role evidence card; gated on alteration_role. Monkeypatch the overlay loaders."""
-    import methods.driver_role_overlay.read as dro
+    import onc_methods.driver_role_overlay.read as dro
 
     dro._load_oncokb_roles.cache_clear() if hasattr(dro._load_oncokb_roles, "cache_clear") else None
     monkeypatch.setattr(dro, "_load_oncokb_roles", lambda: {"KRAS": "ONCOGENE"})

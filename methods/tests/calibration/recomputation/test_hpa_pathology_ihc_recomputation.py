@@ -23,7 +23,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import sys
 from pathlib import Path
 from unittest import mock
 
@@ -35,11 +34,8 @@ import pytest
 HERE = Path(__file__).resolve().parent
 ANCHOR_DIR = HERE / "anchors"
 
-_AM_ROOT = HERE.parents[2]
-if str(_AM_ROOT) not in sys.path:
-    sys.path.insert(0, str(_AM_ROOT))
 
-import methods.hpa_pathology_cancer_ihc.read as hp  # noqa: E402
+import onc_methods.hpa_pathology_cancer_ihc.read as hp
 
 MIN_ANCHORS = 2
 

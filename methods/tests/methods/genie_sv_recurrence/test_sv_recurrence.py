@@ -8,17 +8,11 @@ are not partners. Tests inject a synthetic data_sv + SV-coverage maps (no S3).
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pandas as pd
 
-REPO = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(REPO))
-
-from methods.genie_panel_coverage import read as COV  # noqa: E402
-from methods.genie_panel_recurrence import read as REC  # noqa: E402
-from methods.genie_sv_recurrence import read as R  # noqa: E402
+from onc_methods.genie_panel_coverage import read as COV
+from onc_methods.genie_panel_recurrence import read as REC
+from onc_methods.genie_sv_recurrence import read as R
 
 # 2 panels: BIG covers ALK+EML4+TP53 (many samples), SMALL covers only TP53 (no SV-coverage of ALK).
 _PANEL_GENES = {"BIG": frozenset({"ALK", "EML4", "TP53"}), "SMALL": frozenset({"TP53"})}

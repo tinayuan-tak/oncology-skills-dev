@@ -6,13 +6,7 @@ Key byte-stability property: adding this flag must NOT change copy_number_class 
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(REPO))
-
-from methods.depmap_cn_distribution.cli import compute_summary_stats  # noqa: E402
+from onc_methods.depmap_cn_distribution.cli import compute_summary_stats
 
 
 def _cn(n_deep, n_total, deep_val=0.1, other=1.0):

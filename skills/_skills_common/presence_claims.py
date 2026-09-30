@@ -406,7 +406,7 @@ def _sc_absence_powered(n_donors, n_cells) -> bool:
     (issue #1743). Requires BOTH the donor floor (``n_donors`` >= ``MIN_RELIABLE_DONORS``) AND the
     total-malignant-cell floor (``n_cells`` >= ``MIN_MALIGNANT_CELLS_TOTAL``) — a target below EITHER
     floor is under-powered, mirroring the upstream reader
-    (analysis-methods/methods/sc_tumor_expression_celltype/stats.py) whose OR-gate emits
+    (analysis-methods/onc_methods/sc_tumor_expression_celltype/stats.py) whose OR-gate emits
     ``data_unavailable`` on the same two constants.
 
     A MISSING or NON-FINITE count (``None`` / ``nan`` / ``±Inf``) reads as UNDER-powered (``False``):
@@ -633,7 +633,7 @@ def _expression_property_atom(c):
     presence_verdict (evidence-property architecture P4, SK#1508).
 
     The cell-line RNA distribution card carries `expression_properties`, an object resolved by
-    analysis-methods/methods/expression_properties (P2/#720) from the SAME measurements that drive
+    analysis-methods/onc_methods/expression_properties (P2/#720) from the SAME measurements that drive
     `expression_class` — presence / magnitude / prevalence / heterogeneity / lineage_restriction, plus
     fleet-deferred selectivity / localization / subtype_restriction. We PASS IT THROUGH unchanged (a
     projection, not a re-derivation) so the object's own values — e.g. `heterogeneity`, `prevalence` —

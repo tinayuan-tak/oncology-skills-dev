@@ -6,7 +6,7 @@ THE HAZARD, measured 2026-09-16. derive.py::stage_03 runs
 
 as a SUBPROCESS with no PYTHONPATH and no cwd, so `sys.path[0]` is the steps/ directory and the repo
 root is absent. But every unit test loads these files with `spec_from_file_location` AFTER inserting
-the repo root on `sys.path`. So a bare `from methods import <anything>` inside a step is:
+the repo root on `sys.path`. So an import inside a step that only resolves via the repo root is:
 
   - GREEN in every unit test, because the test already put the repo root on sys.path, and
   - ModuleNotFoundError at PRODUCT-BUILD time, when derive.py actually runs the step.
@@ -15,17 +15,19 @@ And `byte-identity-live-s3` — the only job that exercises the real pipeline �
 requests (`if: github.event_name != 'pull_request'`, no OIDC token for PR-authored code). So nothing
 in the PR gate would have caught it. Measured directly before writing this file: injecting a bare
 `from methods import cell_absence` into 03_pool_and_write.py and invoking it the production way gave
-`ModuleNotFoundError: No module named 'methods'` (rc 1), while the unit tests stayed green.
+`ModuleNotFoundError: No module named 'methods'` (rc 1), while the unit tests stayed green. (`methods`
+was the import package's name then; skills#2237 renamed it `onc_methods` — see below.)
 
 This test closes that gap for EVERY step in the directory, including the two that import nothing from
 the repo today — the point is that adding such an import later must not be silently safe.
 
-⚠️ Updated for SK#2145 (one pixi workspace). The measured claim in the paragraph above — that a bare
-`from methods import ...` inside a step gives `ModuleNotFoundError` under the production launch — was
-true of the DELETED `methods/pixi.toml` env, which never installed this package into the env its own
-suite ran under. There is now one workspace, `pixi run python` resolves it, and it editable-installs
-`methods`, so that specific import is production-safe today. The hazard class is NOT gone and this
-file still guards it: anything reachable only via the REPO ROOT on `sys.path` (the `tests/` tree, a
+⚠️ Updated for SK#2145 (one pixi workspace) and skills#2237 (the rename). The measured claim in the
+paragraph above — that a bare `from methods import ...` inside a step gives `ModuleNotFoundError`
+under the production launch — was true of the DELETED `methods/pixi.toml` env, which never installed
+this package into the env its own suite ran under. There is now one workspace, `pixi run python`
+resolves it, and it editable-installs the package (named `onc_methods` since skills#2237), so
+`from onc_methods import ...` is production-safe today. The hazard class is NOT gone and this file
+still guards it: anything reachable only via the REPO ROOT on `sys.path` (the `tests/` tree, a
 scratch module beside `pyproject.toml`) is still absent at product-build time. See
 `test_the_check_can_actually_fail` for the full reconstruction.
 
@@ -44,7 +46,7 @@ from pathlib import Path
 import pytest
 
 REPO = Path(__file__).resolve().parents[3]
-STEPS_DIR = REPO / "methods" / "cptac_protein_deg" / "steps"
+STEPS_DIR = REPO / "onc_methods" / "cptac_protein_deg" / "steps"
 
 # Only .py steps — 02_msstats_deg.R is R and is invoked through Rscript.
 STEP_SCRIPTS = sorted(p.name for p in STEPS_DIR.glob("*.py") if not p.name.startswith("_"))
@@ -100,9 +102,9 @@ def test_the_check_can_actually_fail(tmp_path):
     installed into the env its OWN suite ran under. The repo-root env editable-installed it all
     along. So on `main`, same tree and same commit, this test PASSED under `methods/pixi.toml` and
     FAILED under the root `pixi.toml` — a green that was an artifact of which of two environments
-    happened to run it. With one workspace there is one answer: `methods` IS importable from a bare
-    interpreter, because `pixi run python` — exactly how `derive.py` launches every step — now
-    resolves the one env that installs it.
+    happened to run it. With one workspace there is one answer: the package (`onc_methods` since
+    skills#2237) IS importable from a bare interpreter, because `pixi run python` — exactly how
+    `derive.py` launches every step — now resolves the one env that installs it.
 
     That makes the parametrized test above STRONGER, not weaker. Production and tests now share one
     interpreter, so "this step imports cleanly here" means "it imports cleanly there" by
@@ -110,15 +112,15 @@ def test_the_check_can_actually_fail(tmp_path):
 
     The ORIGINAL hazard is untouched and is what this guard now probes: a step reaching something
     importable only because the REPO ROOT is on sys.path — the `tests/` tree, a scratch module
-    beside `pyproject.toml`, anything outside the installed `methods*` packages. Two independent
+    beside `pyproject.toml`, anything outside the installed `onc_methods*` packages. Two independent
     channels, because each catches what the other misses: an explicit assertion on the subprocess's
     own `sys.path` (catches a PYTHONPATH/`.pth` leak of this exact path, and names it), and an
     import of a repo-root-only module (catches a leak in any other spelling — a symlink, a relative
     entry — that the string comparison would miss).
     """
     probe = STEPS_DIR / "_import_path_probe.py"
-    # NOT under methods/ — the point is that this module is outside the installed `methods*`
-    # packages, so it is reachable ONLY if the repo root itself is on the subprocess's sys.path.
+    # NOT under methods/onc_methods/ — the point is that this module is outside the installed
+    # `onc_methods*` packages, so it is reachable ONLY if the repo root is on the subprocess's path.
     sentinel = REPO / "_repo_root_reachability_sentinel.py"
     probe.write_text(
         "import sys\n"

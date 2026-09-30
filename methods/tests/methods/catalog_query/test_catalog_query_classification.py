@@ -15,7 +15,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from methods.catalog_query.read import load_catalog
+from onc_methods.catalog_query.read import load_catalog
 
 
 def _write(path: Path, obj: dict) -> None:

@@ -26,7 +26,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from unittest import mock
@@ -36,11 +35,9 @@ import pyarrow.parquet as pq
 
 HERE = Path(__file__).resolve().parent
 AM_ROOT = HERE.parents[2]
-if str(AM_ROOT) not in sys.path:
-    sys.path.insert(0, str(AM_ROOT))
 
-import methods.depmap_chronos_distribution.cli as cli  # noqa: E402
-import methods.depmap_chronos_distribution.read as rd  # noqa: E402
+import onc_methods.depmap_chronos_distribution.cli as cli
+import onc_methods.depmap_chronos_distribution.read as rd
 
 RELEASE_PIN = "26q1"
 FIXTURE_REL = "chronos_vectors/depmap_26q1__chronos_panels.parquet"
@@ -113,7 +110,7 @@ def _offline_rederive(gene: str, chronos: dict, lineage: dict, curated: bool) ->
             cli, "load_depmap_files", lambda release_pin, target_symbol: (dict(chronos), dict(frozen_meta), [])
         ),
         mock.patch.object(cli, "_load_curated_common_essentials", lambda release_pin=RELEASE_PIN: curated_set),
-        mock.patch("methods.dependency_controls.control_position_dependency", lambda *a, **k: {}),
+        mock.patch("onc_methods.dependency_controls.control_position_dependency", lambda *a, **k: {}),
     ):
         return rd.read_pan_cancer_distribution(gene)
 

@@ -236,9 +236,9 @@ def _resolve_arg(a, consts):
 
 def _pkg_files(top: str) -> list[Path]:
     files: list[Path] = []
-    if (AM / "methods" / f"{top}.py").exists():
-        files.append(AM / "methods" / f"{top}.py")
-    pkg = AM / "methods" / top
+    if (AM / "onc_methods" / f"{top}.py").exists():
+        files.append(AM / "onc_methods" / f"{top}.py")
+    pkg = AM / "onc_methods" / top
     if pkg.is_dir():
         files += list(pkg.rglob("*.py"))
     return files
@@ -255,7 +255,7 @@ def _pkg_trees(top: str) -> list[ast.AST]:
 
 
 def _methods_dirs() -> set[str]:
-    return {p.name for p in (AM / "methods").iterdir() if p.is_dir()}
+    return {p.name for p in (AM / "onc_methods").iterdir() if p.is_dir()}
 
 
 def _imported_methods_pkgs(trees, dirs: set[str]) -> set[str]:
@@ -267,7 +267,7 @@ def _imported_methods_pkgs(trees, dirs: set[str]) -> set[str]:
     for t in trees:
         for node in ast.walk(t):
             if isinstance(node, ast.ImportFrom):
-                if node.module and node.module.startswith("methods."):
+                if node.module and node.module.startswith("onc_methods."):
                     out.add(node.module.split(".")[1])
                 elif node.level and node.level >= 1 and node.module:
                     seg = node.module.split(".")[0]
@@ -275,7 +275,7 @@ def _imported_methods_pkgs(trees, dirs: set[str]) -> set[str]:
                         out.add(seg)
             elif isinstance(node, ast.Import):
                 for a in node.names:
-                    if a.name.startswith("methods."):
+                    if a.name.startswith("onc_methods."):
                         out.add(a.name.split(".")[1])
     return out
 

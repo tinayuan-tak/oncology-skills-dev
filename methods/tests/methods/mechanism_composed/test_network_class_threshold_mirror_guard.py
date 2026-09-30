@@ -27,8 +27,8 @@ from pathlib import Path
 
 import pytest
 
-from methods.mechanism_composed import read as composed
-from methods.signor_mechanism_network import read as signor
+from onc_methods.mechanism_composed import read as composed
+from onc_methods.signor_mechanism_network import read as signor
 
 REPO = Path(__file__).resolve().parents[3]
 # TARGET_CONTRACTS_ROOT first (CI sets it; a /tmp worktree's REPO.parent is /tmp, so the sibling
@@ -95,7 +95,7 @@ def test_am_constants_match_the_card_thresholds():
         "AM network_class constants disagree with the CANONICAL card `thresholds:` "
         f"{{key: (card, code)}} = {mismatched}. cards/signaling-network-mechanism.card.yaml is the "
         "single source of truth; either correct the card or the mirroring constants in "
-        "methods/signor_mechanism_network/read.py so both state the same cut. (Re-valuing the cut is "
+        "onc_methods/signor_mechanism_network/read.py so both state the same cut. (Re-valuing the cut is "
         "tracked in target-contracts #971 — not a silent edit here.)"
     )
 

@@ -43,7 +43,7 @@ for _p in (str(SKILLS_ROOT),):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from _skills_common.paths import analysis_methods_root  # noqa: E402
+from _skills_common.paths import analysis_methods_root
 
 AM_ROOT = analysis_methods_root()
 RECOMPUTATION_DIR = AM_ROOT / "tests" / "calibration" / "recomputation"
@@ -71,9 +71,7 @@ def _load_tumor_distribution_module():
     # NOTE: tcga_gtex_expression_distribution/read.py does a package-relative `from . import stats`,
     # so it must be imported as a real package member (not via spec_from_file_location, which the
     # #1988 exemplar can use because depmap_expression_distribution/cli.py has no relative imports).
-    if str(AM_ROOT) not in sys.path:
-        sys.path.insert(0, str(AM_ROOT))
-    import methods.tcga_gtex_expression_distribution.read as mod  # noqa: PLC0415
+    import onc_methods.tcga_gtex_expression_distribution.read as mod  # noqa: PLC0415
 
     return mod
 
@@ -151,9 +149,7 @@ def test_tumor_rna_distribution_teeth_mutated_input_breaks_the_golden_match():
 
 
 def _load_protein_module():
-    if str(AM_ROOT) not in sys.path:
-        sys.path.insert(0, str(AM_ROOT))
-    from methods.depmap_protein_abundance import cli as pa_cli  # noqa: PLC0415
+    from onc_methods.depmap_protein_abundance import cli as pa_cli  # noqa: PLC0415
 
     return pa_cli
 

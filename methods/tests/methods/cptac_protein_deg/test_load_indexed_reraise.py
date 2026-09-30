@@ -7,16 +7,9 @@ data_unavailable, unchanged. Also guards that the raise propagates through the c
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.cptac_protein_deg import read as cptac  # noqa: E402
+from onc_methods.cptac_protein_deg import read as cptac
 
 
 @pytest.fixture(autouse=True)

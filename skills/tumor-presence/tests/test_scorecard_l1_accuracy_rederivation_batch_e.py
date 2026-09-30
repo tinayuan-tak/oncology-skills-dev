@@ -74,7 +74,7 @@ SKILLS_ROOT = SKILL_DIR.parent
 if str(SKILLS_ROOT) not in sys.path:
     sys.path.insert(0, str(SKILLS_ROOT))
 
-from _skills_common.paths import analysis_methods_root  # noqa: E402
+from _skills_common.paths import analysis_methods_root
 
 AM_ROOT = analysis_methods_root()
 RECOMPUTATION_DIR = AM_ROOT / "tests" / "calibration" / "recomputation"
@@ -103,18 +103,14 @@ def _load(path: Path) -> dict:
 
 
 def _sc_modules():
-    if str(AM_ROOT) not in sys.path:
-        sys.path.insert(0, str(AM_ROOT))
-    import methods.sc_normal_expression.cli as sc_cli  # noqa: PLC0415
-    import methods.sc_normal_expression.read as sc_rd  # noqa: PLC0415
+    import onc_methods.sc_normal_expression.cli as sc_cli  # noqa: PLC0415
+    import onc_methods.sc_normal_expression.read as sc_rd  # noqa: PLC0415
 
     return sc_rd, sc_cli
 
 
 def _hpa_module():
-    if str(AM_ROOT) not in sys.path:
-        sys.path.insert(0, str(AM_ROOT))
-    import methods.hpa_normal_tissue_liability.cli as hpa_cli  # noqa: PLC0415
+    import onc_methods.hpa_normal_tissue_liability.cli as hpa_cli  # noqa: PLC0415
 
     return hpa_cli
 

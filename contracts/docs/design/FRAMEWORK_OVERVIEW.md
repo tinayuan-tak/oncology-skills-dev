@@ -75,7 +75,7 @@ A **card** answers one evidence question. Its journey through the layers:
 1. CATALOG    data-catalog/subgroup-catalogs/COADREAD/2026-Q2.yaml
                  declares strata (MSI_H, MSS, right/left_sided, ...)
                     |
-2. METHOD     analysis-methods/methods/depmap_chronos/read.py
+2. METHOD     analysis-methods/onc_methods/depmap_chronos/read.py
                  build_dependency_panorama() reads per-ModelID Chronos,
                  groups by stratum member-set
                     |  emits per_subgroup_metrics:

@@ -342,7 +342,7 @@ def gloss_readers() -> set:
 #: is the only place that binding is recorded now that the committed ``resolver_input_pins.yaml`` + its
 #: AM-commit pin are retired (methods/ lives in this repo since SK#2063 — no sibling to pin).
 RESOLVER_INPUT_BINDINGS: dict[str, tuple[str, ...]] = {
-    "cellline-rna-distribution": ("methods/expression_properties/resolve.py",),
+    "cellline-rna-distribution": ("onc_methods/expression_properties/resolve.py",),
 }
 
 

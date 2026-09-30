@@ -14,15 +14,8 @@ local data-catalog manifest YAML (no network — mirrors depmap_common/test_rele
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.pair_selectivity_gate import samecell as SC  # noqa: E402
-from methods.sc_tumor_expression_celltype import read as TSC  # noqa: E402
+from onc_methods.pair_selectivity_gate import samecell as SC
+from onc_methods.sc_tumor_expression_celltype import read as TSC
 
 # ── value invariants (no catalog / no S3) ───────────────────────────────────
 
@@ -62,7 +55,7 @@ def test_sc_maps_agree_on_every_indication():
 
 
 def test_crc_coadread_products_resolve_to_catalog_s3_uris():
-    from methods.catalog_query.read import s3_uri_for
+    from onc_methods.catalog_query.read import s3_uri_for
 
     assert s3_uri_for("sc-pseudobulk-tumor-crc-coadread-v1").endswith(
         "sc-pseudobulk-tumor-crc-coadread-v1/sc_pseudobulk.parquet"
@@ -76,7 +69,7 @@ def test_crc_coadread_products_resolve_to_catalog_s3_uris():
 
 
 def test_lusc_products_resolve_to_catalog_s3_uris():
-    from methods.catalog_query.read import s3_uri_for
+    from onc_methods.catalog_query.read import s3_uri_for
 
     assert s3_uri_for("sc-pseudobulk-donor-celltype-lusc-v1").endswith(
         "sc-pseudobulk-donor-celltype-lusc-v1/sc_pseudobulk.parquet"

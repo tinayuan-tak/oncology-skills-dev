@@ -44,7 +44,7 @@ for _p in (str(SKILLS_ROOT),):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from _skills_common.paths import analysis_methods_root  # noqa: E402
+from _skills_common.paths import analysis_methods_root
 
 AM_ROOT = analysis_methods_root()
 RECOMPUTATION_DIR = AM_ROOT / "tests" / "calibration" / "recomputation"
@@ -69,9 +69,7 @@ def _golden_card(card_id: str) -> dict:
 
 
 def _load_expression_module():
-    if str(AM_ROOT) not in sys.path:
-        sys.path.insert(0, str(AM_ROOT))
-    cli = AM_ROOT / "methods" / "depmap_expression_distribution" / "cli.py"
+    cli = AM_ROOT / "onc_methods" / "depmap_expression_distribution" / "cli.py"
     spec = importlib.util.spec_from_file_location("t1988_expression_distribution_under_test", cli)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
@@ -151,9 +149,7 @@ _ROW_COLS = [
 
 
 def _load_sc_module():
-    if str(AM_ROOT) not in sys.path:
-        sys.path.insert(0, str(AM_ROOT))
-    import methods.sc_tumor_expression_celltype.read as rd  # noqa: PLC0415
+    import onc_methods.sc_tumor_expression_celltype.read as rd  # noqa: PLC0415
 
     return rd
 

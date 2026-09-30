@@ -2,14 +2,7 @@
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.sanger_drug_synergy.read import _classify, synergy_partners_for_gene  # noqa: E402
+from onc_methods.sanger_drug_synergy.read import _classify, synergy_partners_for_gene
 
 
 def _row(cls, drug, delta, n_syn=5, n=10, role="anchor", pt="AKT1"):

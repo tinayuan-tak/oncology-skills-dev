@@ -10,13 +10,7 @@ non-malignant compartment, so a consumer treats the tumor-cell-intrinsic attribu
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-from methods.sc_tumor_expression_celltype import stats as S  # noqa: E402
+from onc_methods.sc_tumor_expression_celltype import stats as S
 
 
 def _cs(mal_det, immune_det, n_cells=1000):

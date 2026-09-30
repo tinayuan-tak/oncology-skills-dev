@@ -18,8 +18,8 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from methods.dge_deseq2 import config as cfg
-from methods.dge_deseq2 import run_subgroup_dge_batch as rb
+from onc_methods.dge_deseq2 import config as cfg
+from onc_methods.dge_deseq2 import run_subgroup_dge_batch as rb
 
 _FIXTURE = {
     "TEST": [

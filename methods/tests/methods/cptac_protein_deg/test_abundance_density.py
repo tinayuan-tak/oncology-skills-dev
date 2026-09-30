@@ -12,17 +12,11 @@ monkeypatched to synthetic values so the calibration + band arithmetic is pinned
 from __future__ import annotations
 
 import importlib
-import sys
-from pathlib import Path
 
 import pytest
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-r = importlib.import_module("methods.cptac_protein_deg.read")
-_hpa = importlib.import_module("methods.hpa_normal_tissue_liability.cli")
+r = importlib.import_module("onc_methods.cptac_protein_deg.read")
+_hpa = importlib.import_module("onc_methods.hpa_normal_tissue_liability.cli")
 
 
 def _patch_hpa(monkeypatch, *, breadth, specific=None):
@@ -156,7 +150,7 @@ def test_normal_absence_abstains_not_tumor_absent(monkeypatch):
 # --- LADDER OVERRIDE (2026-07-23): governed measured anchor is PRIMARY over the grade-D estimate ---
 def _patch_ladder(monkeypatch, payload):
     """Stub the ladder read_absolute_density (imported inside _ladder_measurement)."""
-    import methods.surface_antigen_density_ladder as _ladder
+    import onc_methods.surface_antigen_density_ladder as _ladder
 
     monkeypatch.setattr(_ladder, "read_absolute_density", lambda target, indication=None: payload)
 
@@ -229,7 +223,7 @@ def test_committed_corpus_target_reads_grade_ab_live(monkeypatch):
 # topology to call a whole-cell number a "surface density"; whole-cell estimate ALWAYS retained.
 # Absence / ambiguity is NEVER negative evidence (→ provisional). GPI under-called (Slice 2).
 def _patch_topology(monkeypatch, *, topology_class, ecd_orientation="outside"):
-    import methods.topology_predictions_tmbed.read as _topo
+    import onc_methods.topology_predictions_tmbed.read as _topo
 
     payload = {"topology_class": topology_class, "ecd_orientation": ecd_orientation}
     monkeypatch.setattr(_topo, "read_target_summary", lambda target, indication=None: dict(payload))
@@ -238,7 +232,7 @@ def _patch_topology(monkeypatch, *, topology_class, ecd_orientation="outside"):
 def _patch_gpi(monkeypatch, *, is_gpi, note="GPI-anchor amidated serine"):
     # Patch the GPI-anchor reader the no_transmembrane branch consults (P8.1 Slice 2). Hermetic:
     # no_transmembrane tests MUST patch this or they'd hit a live S3 read.
-    import methods.uniprot_gpi_anchor.read as _gpi
+    import onc_methods.uniprot_gpi_anchor.read as _gpi
 
     payload = {
         "is_gpi_anchored": is_gpi,

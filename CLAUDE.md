@@ -84,7 +84,7 @@ Top-level scope roots: `skills/`, `methods/`, `contracts/`, `tests/`, `eval/`.
 
 Each branch's `.claude/branch-scope` should list the specific directories the
 branch is allowed to modify — e.g. `skills/tumor-presence/` for a skill change,
-`methods/depmap_chronos/` for a method change, `cards/adc-tce-modality-fit.card.yaml`
+`onc_methods/depmap_chronos/` for a method change, `cards/adc-tce-modality-fit.card.yaml`
 (relative to `contracts/`) for a card change. Cross-skill or cross-package refactors
 should either bundle the affected paths together (declared as multiple prefixes in
 branch-scope) OR — preferably — be done in stages, one skill/package per branch. A
@@ -227,7 +227,7 @@ delete it outright and name it in the PR body; never leave it collecting zero ca
   `-k` subset silently misses the fan-out. Regenerate the golden via
   `skills/_skills_common/tests/regenerate_resolver_golden.py` (manually append any NEW
   `rule_id` to the relevant `<gate>.rule_ids` first).
-- **`methods/`**: run `methods/ tests/` together under `--import-mode=importlib`
+- **`methods/`**: run `onc_methods/ tests/` together under `--import-mode=importlib`
   (several method test files share a basename); running `methods/` alone
   under-collects. Live-data tests need `AWS_PROFILE=cbg` locally.
 - **`contracts/`**: bare python, no pixi (`python validators/validate_cards.py`, …) —

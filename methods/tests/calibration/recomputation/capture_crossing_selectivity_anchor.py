@@ -27,7 +27,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from unittest import mock
@@ -37,10 +36,8 @@ import pyarrow.parquet as pq
 
 HERE = Path(__file__).resolve().parent
 AM_ROOT = HERE.parents[2]
-if str(AM_ROOT) not in sys.path:
-    sys.path.insert(0, str(AM_ROOT))
 
-import methods.tcga_gtex_expression_distribution.read as rd  # noqa: E402
+import onc_methods.tcga_gtex_expression_distribution.read as rd
 
 FIXTURE_REL = "tumor_normal_tpm/recount3_gtex__percentile_crossing_vectors.parquet"
 ANCHOR_DIR = HERE / "anchors"

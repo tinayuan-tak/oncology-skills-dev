@@ -30,13 +30,13 @@ import re
 
 import pytest
 
-from methods.sc_normal_expression.stats import (
+from onc_methods.sc_normal_expression.stats import (
     _SAFETY_ESSENTIAL_PATTERNS as PATTERNS,
 )
-from methods.sc_normal_expression.stats import (
+from onc_methods.sc_normal_expression.stats import (
     SAFETY_ESSENTIAL_CELL_TYPE_PREFIXES as ENTRIES,
 )
-from methods.sc_normal_expression.stats import (
+from onc_methods.sc_normal_expression.stats import (
     _is_safety_essential,
 )
 
@@ -102,7 +102,7 @@ def test_always_on_literal_tracks_the_crosswalk():
     still passes, because the pins are computed against the literal rather than against the code. The
     literal is kept (not replaced by an import) so the reach assertions state intent independently —
     this test is what makes keeping it safe."""
-    from methods.normal_tissue_safety_common.essential_organs import SC_NORMAL_ESSENTIAL_TISSUES
+    from onc_methods.normal_tissue_safety_common.essential_organs import SC_NORMAL_ESSENTIAL_TISSUES
 
     assert set(ALWAYS_ON_SHARDS) == set(SC_NORMAL_ESSENTIAL_TISSUES), (
         "the always-on panel and SC_NORMAL_CROSSWALK disagree; every off-origin reachability pin in "

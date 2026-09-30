@@ -32,12 +32,10 @@ import pandas as pd
 import pytest
 
 REPO = Path(__file__).resolve().parents[1]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
 
-from methods import cell_absence as ca  # noqa: E402
+from onc_methods import cell_absence as ca
 
-_STEP = REPO / "methods" / "cptac_protein_deg" / "steps" / "03_pool_and_write.py"
+_STEP = REPO / "onc_methods" / "cptac_protein_deg" / "steps" / "03_pool_and_write.py"
 
 
 def _load_step():
@@ -190,7 +188,7 @@ def test_depmap_row_normalisation_is_unchanged_by_the_swap():
 def test_depmap_metadata_frame_round_trips_identically(tmp_path):
     """The frame-level claim, on a frame built the way the real loader builds one: a MIXED-dtype
     CSV read, which is the construction path that produces float nan in an object column."""
-    from methods.depmap_common import loaders
+    from onc_methods.depmap_common import loaders
 
     csv = tmp_path / "Model.csv"
     csv.write_text("ModelID,CCLEName,OncotreeLineage,Age\nACH-1,A549_LUNG,Lung,58\nACH-2,,,\n,ORPHAN,Skin,40\n")
@@ -421,7 +419,7 @@ def test_the_batch2_methods_manufacture_no_pd_NA_which_is_WHY_the_swaps_are_no_o
     predicate handles the cast correctly and the old one did not, so the code is fine; it is the
     DOCUMENTATION of the change that has gone stale, which is the thing that silently rots.
     """
-    hits = _nullable_casts_in(REPO / "methods" / method)
+    hits = _nullable_casts_in(REPO / "onc_methods" / method)
     assert not hits, (
         f"{method} now manufactures a nullable dtype:\n  " + "\n  ".join(hits) + "\n"
         "pd.NA is therefore reachable here and the batch-2 swap at this site is a WIDENING, not a "
@@ -439,7 +437,7 @@ def test_the_nullable_cast_scan_can_actually_FAIL():
     used to rule out.
     """
     for method in ("cptac_protein_deg", "kinome_atlas_prediction"):
-        hits = _nullable_casts_in(REPO / "methods" / method)
+        hits = _nullable_casts_in(REPO / "onc_methods" / method)
         assert hits, f"{method} was expected to contain a nullable cast — the scan has gone blind"
 
 

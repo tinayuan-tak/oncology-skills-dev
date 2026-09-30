@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import importlib
 import json
-import sys
 import tempfile
 from pathlib import Path
 
@@ -22,11 +21,8 @@ import pytest
 
 pd = pytest.importorskip("pandas")
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
 
-r = importlib.import_module("methods.cptac_protein_deg.read")
+r = importlib.import_module("onc_methods.cptac_protein_deg.read")
 
 
 def _per_sample_df(spec):

@@ -21,7 +21,7 @@ Jul2026 SOURCE vocabulary — it does NOT itself detect NEW upstream vocabulary 
 against the next release). To refresh against a new SIGNOR release, re-run (with AWS_PROFILE=cbg):
 
     import json, collections
-    from methods.signor_mechanism_network.read import _load_signor_rows_indexed
+    from onc_methods.signor_mechanism_network.read import _load_signor_rows_indexed
     rows, _ = _load_signor_rows_indexed()
     t = collections.Counter()
     for row in rows:
@@ -40,13 +40,9 @@ against the next release). To refresh against a new SIGNOR release, re-run (with
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(REPO))
-
-from methods.signor_mechanism_network.moa_ontology import classify_edge  # noqa: E402
+from onc_methods.signor_mechanism_network.moa_ontology import classify_edge
 
 _FIXTURE = Path(__file__).resolve().parent / "signor_mechanism_tally_jul2026.json"
 _MAX_UNMAPPED_FRACTION = 0.05  # the documented ontology-coverage ceiling (moa_ontology.py discipline #2)

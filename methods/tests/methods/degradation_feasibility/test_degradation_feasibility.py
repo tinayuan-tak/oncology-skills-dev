@@ -7,13 +7,7 @@ plausible_untested > data_unavailable) with injected e3_row/precedent/surface_fa
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(REPO))
-
-from methods.degradation_feasibility import read as r  # noqa: E402
+from onc_methods.degradation_feasibility import read as r
 
 _PRECEDENT = {
     "BRD4": {"examples": ["dBET1", "ARV-771"], "recruited_e3": "CRBN", "modality": "PROTAC"},

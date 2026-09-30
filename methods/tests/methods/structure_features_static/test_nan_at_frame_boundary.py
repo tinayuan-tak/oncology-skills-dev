@@ -58,17 +58,12 @@ from __future__ import annotations
 
 import json
 import math
-import sys
 from pathlib import Path
 
 import pandas as pd
 import pytest
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.structure_features_static import read as R  # noqa: E402
+from onc_methods.structure_features_static import read as R
 
 # ARM1 is the well-studied shape (3 PDB IDs — the >=2 case that makes a scalar-only conversion crash).
 # GAPX is the defect: pLDDT / resolution / disorder all missing, no AlphaFold model. LOWP is the negative

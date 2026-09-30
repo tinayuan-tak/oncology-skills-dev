@@ -6,21 +6,14 @@ live gene). Mirrors methods/dgidb_drug_gene/test_absence_discipline.py.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.onsides_adverse_event import read as onsides  # noqa: E402
+from onc_methods.onsides_adverse_event import read as onsides
 
 
 def _stub_s3(monkeypatch):
     """Neutralize catalog + S3FileSystem so read_table is the only thing that (mock-)raises."""
-    import methods.catalog_query.read as cq
+    import onc_methods.catalog_query.read as cq
 
     monkeypatch.setattr(cq, "bucket_key_for", lambda mid: ("bucket", "key"))
     import pyarrow.fs as pafs

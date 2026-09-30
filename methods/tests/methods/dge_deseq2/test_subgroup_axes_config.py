@@ -19,9 +19,9 @@ from __future__ import annotations
 
 import pytest
 
-from methods.dge_deseq2 import config as cfg
-from methods.dge_deseq2 import read as dge
-from methods.dge_deseq2.build_run_ledger import expected_products
+from onc_methods.dge_deseq2 import config as cfg
+from onc_methods.dge_deseq2 import read as dge
+from onc_methods.dge_deseq2.build_run_ledger import expected_products
 
 CATALOG = dge.DATA_CATALOG  # portable sibling default, see methods.dge_deseq2.read (SK#2137)
 

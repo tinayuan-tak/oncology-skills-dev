@@ -9,16 +9,10 @@ data_unavailable-safe on both an unresolvable symbol and an absent entity.
 from __future__ import annotations
 
 import importlib
-import sys
-from pathlib import Path
 
 import pandas as pd
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-r = importlib.import_module("methods.opentargets_target_prioritisation.read")
+r = importlib.import_module("onc_methods.opentargets_target_prioritisation.read")
 
 
 def _patch(monkeypatch, *, ensg, df):

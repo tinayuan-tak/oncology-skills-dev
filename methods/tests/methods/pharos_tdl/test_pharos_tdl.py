@@ -1,12 +1,6 @@
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-from methods.pharos_tdl import cli as pt  # noqa: E402
+from onc_methods.pharos_tdl import cli as pt
 
 
 def test_tdl_lookup(monkeypatch):

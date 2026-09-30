@@ -192,7 +192,7 @@ def _invoke_assigner(shard: ShardSpec, dry_run: bool) -> tuple[Path, Path]:
             f"manifest {shard.derived_manifest_id!r} with byte-identical assignments — a "
             f"duplicate-identity product masquerading under a distinct product-id. Add a real "
             f"BeatAML / TARGET-AML MAF loader (with its own --data-source) to "
-            f"methods/subgroup_assigner_maf_filter before emitting this shard."
+            f"onc_methods/subgroup_assigner_maf_filter before emitting this shard."
         )
     method_module, data_source_arg = SOURCE_TO_ASSIGNER[shard.source]
 
@@ -201,7 +201,7 @@ def _invoke_assigner(shard: ShardSpec, dry_run: bool) -> tuple[Path, Path]:
     cmd = [
         sys.executable,
         "-m",
-        f"methods.{method_module}.cli",
+        f"onc_methods.{method_module}.cli",
         "--subgroup-catalog",
         str(shard.catalog_path),
         "--data-source",
@@ -314,7 +314,7 @@ def _emit_derived_manifest_stub(
         },
         "notes": (
             f"Phase 2b/c emission — {shard.source} × {shard.indication}. "
-            f"Consumed by Phase-3 methods via analysis-methods/methods/subgroup_common/"
+            f"Consumed by Phase-3 methods via analysis-methods/onc_methods/subgroup_common/"
             f"loaders.py:load_assignments({manifest_id!r})."
         ),
     }

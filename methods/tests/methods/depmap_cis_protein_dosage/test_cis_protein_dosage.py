@@ -12,14 +12,7 @@ directly comparable.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.depmap_cis_protein_dosage.cli import (  # noqa: E402
+from onc_methods.depmap_cis_protein_dosage.cli import (
     AMPLIFICATION_THRESHOLD,
     MIN_CELL_LINES_FOR_CORRELATION,
     compute_cis_protein_dosage,

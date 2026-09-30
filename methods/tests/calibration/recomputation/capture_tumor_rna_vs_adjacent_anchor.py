@@ -50,11 +50,8 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 
 HERE = Path(__file__).resolve().parent
-AM_ROOT = HERE.parents[2]
-if str(AM_ROOT) not in sys.path:
-    sys.path.insert(0, str(AM_ROOT))
 
-import methods.dge_deseq2.read as rd  # noqa: E402
+import onc_methods.dge_deseq2.read as rd
 
 ANCHOR_DIR = HERE / "anchors"
 FIXTURE_DIR = HERE / "dge_rows"
@@ -174,7 +171,7 @@ def main() -> None:
             "expected_allgene_percentile_context": live["allgene_percentile_context"],
             "_source": {
                 "product": f"{MANIFEST_ID} (expression-rna-tumor-vs-adjacent, TCGA tumor vs TCGA-adjacent DESeq2)",
-                "reader": "methods.dge_deseq2.read.read_dge_gene_row",
+                "reader": "onc_methods.dge_deseq2.read.read_dge_gene_row",
                 "captured_utc": datetime.now(timezone.utc).isoformat(),
                 "boundary": (
                     "validates the read/aggregation path (column normalization, expression_call_class "

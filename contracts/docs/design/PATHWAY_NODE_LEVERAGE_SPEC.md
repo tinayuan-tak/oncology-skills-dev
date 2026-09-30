@@ -121,7 +121,7 @@ Step 5 (source-release pins) satisfied by the card's release-pinned
 `required_inputs` (see §5). Directed acts-through **CLOSED as not-applicable**
 (§6) — no directional claim to ground. **WS3 is complete; no open items remain.**
 
-1. **analysis-methods** `methods/pathway_node_leverage/` — `read_node_leverage(target,
+1. **analysis-methods** `onc_methods/pathway_node_leverage/` — `read_node_leverage(target,
    indication)` returning per-lens verdicts + effect sizes + provenance; reads the
    pinned CORUM / MSigDB / Pharos / DepMap sources; lineage-scoped. `cli.py` for
    batch/derived materialization if needed.

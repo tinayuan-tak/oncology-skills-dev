@@ -16,21 +16,15 @@ Fixture population (6 rows survive the symbol_canonical restriction):
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(REPO))
-
-from methods.gene_id_authority.audit import (  # noqa: E402
+from onc_methods.gene_id_authority.audit import (
     audit_authority,
     coverage_report,
     full_report,
     symbol_join_loss,
 )
-from methods.gene_id_authority.build import build_authority  # noqa: E402
+from onc_methods.gene_id_authority.build import build_authority
 
-from ._fixtures import write_sources  # noqa: E402
+from ._fixtures import write_sources
 
 
 def _authority(tmp_path):

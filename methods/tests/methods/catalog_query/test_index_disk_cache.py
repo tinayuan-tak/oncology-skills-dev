@@ -15,7 +15,7 @@ import os
 
 import pytest
 
-from methods.catalog_query.read import (
+from onc_methods.catalog_query.read import (
     DATA_CATALOG,
     TARGET_CONTRACTS,
     _build_catalog_index,

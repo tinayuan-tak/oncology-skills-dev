@@ -35,12 +35,12 @@ def _emit_card1_pan_cancer_dependency_distribution(
     # OFFLINE path: render from the persisted plot_data artifact when present.
     pd_path = out_dir / "plot_data.parquet"
     if pd_path.exists():
-        from methods.depmap_chronos_distribution.figures import render_from_plot_data
+        from onc_methods.depmap_chronos_distribution.figures import render_from_plot_data
 
         return render_from_plot_data(pd_path, summary, out_dir, target, indication)
 
     # LEGACY fallback: re-execute the method against live data (pre-migration behavior).
-    from methods.depmap_chronos_distribution import cli as c1cli
+    from onc_methods.depmap_chronos_distribution import cli as c1cli
 
     chronos_by_model, model_metadata, load_errors = c1cli.load_depmap_files(release_pin="26q1", target_symbol=target)
     if load_errors:
@@ -110,12 +110,12 @@ def _emit_card2_dependency_lineage_selectivity(
     # OFFLINE path: render from the persisted plot_data artifact when present.
     pd_path = out_dir / "plot_data.parquet"
     if pd_path.exists():
-        from methods.depmap_chronos.figures import render_from_plot_data
+        from onc_methods.depmap_chronos.figures import render_from_plot_data
 
         return render_from_plot_data(pd_path, summary, out_dir, target, indication)
 
     # LEGACY fallback: re-execute the method against live data (pre-migration behavior).
-    from methods.depmap_chronos import cli as c2cli
+    from onc_methods.depmap_chronos import cli as c2cli
 
     chronos_by_model, model_metadata, load_errors = c2cli.load_depmap_files(release_pin="26q1", target_symbol=target)
     if load_errors:
@@ -194,12 +194,12 @@ def _emit_card4_expression_dependency_correlation(
     # OFFLINE path: render from the persisted plot_data artifact when present.
     pd_path = out_dir / "plot_data.parquet"
     if pd_path.exists():
-        from methods.depmap_expression_dependency.figures import render_from_plot_data
+        from onc_methods.depmap_expression_dependency.figures import render_from_plot_data
 
         return render_from_plot_data(pd_path, summary, out_dir, target, indication)
 
     # LEGACY fallback: re-execute the method against live data (pre-migration behavior).
-    from methods.depmap_expression_dependency import cli as c4cli
+    from onc_methods.depmap_expression_dependency import cli as c4cli
 
     out_dir.mkdir(parents=True, exist_ok=True)
     chronos_by_model, tpm_by_model, model_metadata, load_errors = c4cli.load_depmap_files_for_card4(
@@ -276,13 +276,13 @@ def _emit_cis_feature_expression_coherence(
     # OFFLINE path: render from the persisted plot_data artifact when present.
     pd_path = out_dir / "plot_data.parquet"
     if pd_path.exists():
-        from methods.depmap_cis_dosage.figures import render_from_plot_data
+        from onc_methods.depmap_cis_dosage.figures import render_from_plot_data
 
         return render_from_plot_data(pd_path, summary, out_dir, target, indication)
 
     # LEGACY fallback: re-execute the method against live data (pre-migration behavior).
-    from methods.depmap_cis_dosage import figures as F
-    from methods.depmap_cis_dosage.cli import compute_cis_dosage
+    from onc_methods.depmap_cis_dosage import figures as F
+    from onc_methods.depmap_cis_dosage.cli import compute_cis_dosage
 
     cn_by_model, tpm_by_model, model_metadata, load_errors = F.load_cn_tpm_model(target, release_pin="26q1")
     if load_errors or not cn_by_model or not tpm_by_model:
@@ -318,12 +318,12 @@ def _emit_card1b_pan_cancer_rnai_dependency_distribution(
     # OFFLINE path: render from the persisted plot_data artifact when present.
     pd_path = out_dir / "plot_data_rnai.parquet"
     if pd_path.exists():
-        from methods.depmap_demeter_distribution.figures import render_from_plot_data
+        from onc_methods.depmap_demeter_distribution.figures import render_from_plot_data
 
         return render_from_plot_data(pd_path, summary, out_dir, target, indication)
 
     # LEGACY fallback: re-execute the method against live data (pre-migration behavior).
-    from methods.depmap_demeter_distribution import cli as c1bcli
+    from onc_methods.depmap_demeter_distribution import cli as c1bcli
 
     demeter_by_model, model_metadata, load_errors = c1bcli.load_rnai_files(release_pin="26q1", target_symbol=target)
     if load_errors or not demeter_by_model:
@@ -393,12 +393,12 @@ def _emit_card1c_crispr_rnai_concordance(
     # OFFLINE path: render from the persisted plot_data artifact when present.
     pd_path = out_dir / "plot_data_concordance.parquet"
     if pd_path.exists():
-        from methods.depmap_crispr_rnai_concordance.figures import render_from_plot_data
+        from onc_methods.depmap_crispr_rnai_concordance.figures import render_from_plot_data
 
         return render_from_plot_data(pd_path, summary, out_dir, target, indication)
 
     # LEGACY fallback: re-execute the method against live data (pre-migration behavior).
-    from methods.depmap_crispr_rnai_concordance import cli as c1ccli
+    from onc_methods.depmap_crispr_rnai_concordance import cli as c1ccli
 
     chronos_by, demeter_by, model_meta, load_errors = c1ccli.load_concordance_inputs(target, "26q1")
     if load_errors:
@@ -453,13 +453,13 @@ def _emit_card3_mutation_stratified_dependency(
     # OFFLINE path: render from the persisted plot_data artifact when present.
     pd_path = out_dir / "plot_data.parquet"
     if pd_path.exists():
-        from methods.depmap_mutation_dependency.figures import render_from_plot_data
+        from onc_methods.depmap_mutation_dependency.figures import render_from_plot_data
 
         return render_from_plot_data(pd_path, summary, out_dir, target, indication)
 
     # LEGACY fallback: re-execute the method against live data (pre-migration behavior).
-    from methods.depmap_chronos_distribution import cli as c1cli
-    from methods.depmap_mutation_dependency import cli as c3cli
+    from onc_methods.depmap_chronos_distribution import cli as c1cli
+    from onc_methods.depmap_mutation_dependency import cli as c3cli
 
     chronos_by_model, model_metadata, load_errors = c1cli.load_depmap_files(release_pin="26q1", target_symbol=target)
     if load_errors or not chronos_by_model:
@@ -519,8 +519,8 @@ def _emit_dependency_predictability(
     shows an explanatory cell instead of nothing.
     """
     _ensure_methods_path()
-    from methods.depmap_predictability import cli as e5cli
-    from methods.depmap_predictability import read as e5read
+    from onc_methods.depmap_predictability import cli as e5cli
+    from onc_methods.depmap_predictability import read as e5read
 
     out_dir.mkdir(parents=True, exist_ok=True)
     e5cli.emit_feature_importance_bar(summary, target, out_dir, TARGET_CONTRACTS)
@@ -573,7 +573,7 @@ def _emit_prism_compound_activity(
     already carries the per-target row from the depmap-prism-activity-v3 parquet.
     """
     _ensure_methods_path()
-    from methods.depmap_prism_activity import cli as e6cli
+    from onc_methods.depmap_prism_activity import cli as e6cli
 
     out_dir.mkdir(parents=True, exist_ok=True)
     e6cli.emit_top_compounds_bar(summary, target, out_dir, TARGET_CONTRACTS)
@@ -623,7 +623,7 @@ def _emit_prism_crispr_concordance(
     Placeholders when concordance is thin_evidence / data_unavailable.
     """
     _ensure_methods_path()
-    from methods.depmap_prism_crispr_concordance import cli as e7cli
+    from onc_methods.depmap_prism_crispr_concordance import cli as e7cli
 
     out_dir.mkdir(parents=True, exist_ok=True)
     e7cli.emit_concordance_scatter(summary, target, out_dir, TARGET_CONTRACTS)

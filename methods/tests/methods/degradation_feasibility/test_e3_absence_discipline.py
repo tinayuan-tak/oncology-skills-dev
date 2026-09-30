@@ -6,20 +6,12 @@ re-raises and propagates through the public entrypoint (surfaced as _live_read_e
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
+import pyarrow.parquet as pq
 import pytest
 from botocore.exceptions import ClientError
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-import pyarrow.parquet as pq  # noqa: E402
-
-import methods.catalog_query.read as cqr  # noqa: E402
-from methods.degradation_feasibility import read as deg  # noqa: E402
+import onc_methods.catalog_query.read as cqr
+from onc_methods.degradation_feasibility import read as deg
 
 
 def _nosuchkey():

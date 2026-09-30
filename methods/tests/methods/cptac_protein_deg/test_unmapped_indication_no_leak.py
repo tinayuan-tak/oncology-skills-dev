@@ -9,16 +9,10 @@ reserved for the indication-FREE (target-only) call. Monkeypatches the loader so
 from __future__ import annotations
 
 import importlib
-import sys
-from pathlib import Path
 
 import pandas as pd
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-RD = importlib.import_module("methods.cptac_protein_deg.read")
+RD = importlib.import_module("onc_methods.cptac_protein_deg.read")
 
 
 def _fake_indexed():

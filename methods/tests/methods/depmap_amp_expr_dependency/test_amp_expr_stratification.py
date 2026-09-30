@@ -11,14 +11,7 @@ conjunction is never credited with a dependency it lacks.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.depmap_amp_expr_dependency.cli import (  # noqa: E402
+from onc_methods.depmap_amp_expr_dependency.cli import (
     FOCAL_AMP_HIGH,
     compute_amp_expr_stratification,
 )

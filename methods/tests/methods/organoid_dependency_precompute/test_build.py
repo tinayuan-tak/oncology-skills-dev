@@ -10,7 +10,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-BUILD = Path(__file__).resolve().parents[3] / "methods" / "organoid_dependency_precompute" / "build.py"
+BUILD = Path(__file__).resolve().parents[3] / "onc_methods" / "organoid_dependency_precompute" / "build.py"
 
 
 def _load():

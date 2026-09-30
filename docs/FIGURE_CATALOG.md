@@ -108,7 +108,7 @@ Q4) — a single `magnitude_bar`/strip showing where the target sits among all ~
 the relative ladder. Built once in the skills lane, reused by both leading tables. **Data source (confirmed):** the
 `allgene_percentile` / `allgene_percentile_class` fields already on the presence cards + the
 `selectivity_allgene_percentile(_class)` headline fields, backed by the materialized
-`allgene-depmap-rank-26q1-v1` product (`methods/allgene_percentile_precompute`). No new product needed.
+`allgene-depmap-rank-26q1-v1` product (`onc_methods/allgene_percentile_precompute`). No new product needed.
 
 ---
 

@@ -16,7 +16,7 @@ import math
 
 # ── Abundance-tier ladder (median log2TPM) ─────────────────────────────────────
 # Anchored to the upstream expression-distribution method
-# (analysis-methods/methods/tcga_gtex_expression_distribution/stats.py):
+# (analysis-methods/onc_methods/tcga_gtex_expression_distribution/stats.py):
 #   MODERATE_LOG2TPM = 3.4594  (= log2(11) ≈ TPM 10)  — the "moderate abundance" anchor.
 # The presence ladder REUSES that moderate anchor and adds its own STRONG cut at
 # log2TPM 5.0 (≈ TPM 31).
@@ -82,7 +82,7 @@ def abundance_tier_from_percentile(pct):
 #
 #   SUBGROUP_N_FLOOR = 30 — BULK sample-count grain. The n>=30 large-sample
 #       convention for a bulk cohort; mirrors upstream
-#       analysis-methods/methods/subgroup_common/panorama.py SUBGROUP_N_FLOOR
+#       analysis-methods/onc_methods/subgroup_common/panorama.py SUBGROUP_N_FLOOR
 #       (and skills/render-evidence-package copies the same 30). Governs the
 #       per-stratum `powered` gate, the per-stratum power base, and the
 #       tumor-RNA-distribution cardboard reliability (bulk tumor samples).
@@ -115,7 +115,7 @@ POWER_MODERATE_N = 20
 #
 # SINGLE-CELL malignant grain. MIN_RELIABLE_DONORS / MIN_MALIGNANT_CELLS_TOTAL
 # mirror EXACTLY the upstream reader
-#   analysis-methods/methods/sc_tumor_expression_celltype/stats.py
+#   analysis-methods/onc_methods/sc_tumor_expression_celltype/stats.py
 # which emits `data_unavailable` when malignant n_donors < 5 OR total malignant
 # cells < 100 (a cross-donor median resting on 1-2 donors, or a pooled cube with
 # single-digit cells per donor, is a false-confidence call). The claim layer

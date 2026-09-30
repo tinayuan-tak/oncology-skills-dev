@@ -19,17 +19,10 @@ classification is BYTE-IDENTICAL (the exclusion never fires, the row is never re
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.dge_deseq2 import read as dge  # noqa: E402
-from methods.dge_deseq2.read import _classify_selectivity_from_sensitivity as classify  # noqa: E402
+from onc_methods.dge_deseq2 import read as dge
+from onc_methods.dge_deseq2.read import _classify_selectivity_from_sensitivity as classify
 
 CATALOG = dge.DATA_CATALOG  # portable sibling default, see methods.dge_deseq2.read (SK#2137)
 requires_catalog = pytest.mark.skipif(

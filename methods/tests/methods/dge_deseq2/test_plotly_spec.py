@@ -21,7 +21,7 @@ import pytest
 
 pytest.importorskip("plotly", reason="plotly not installed in this env")
 
-emit = importlib.import_module("methods.dge_deseq2.emit")
+emit = importlib.import_module("onc_methods.dge_deseq2.emit")
 # Portable sibling root: was hardcoded to the author's /home/sagemaker-user checkout, so the
 # guard below reported "not available" on every CI runner -- even though the workflow checks
 # this sibling out and exports its root. `or` rather than a .get() default, so an EMPTY value

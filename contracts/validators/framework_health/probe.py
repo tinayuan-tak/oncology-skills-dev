@@ -739,7 +739,7 @@ def probe_card(
         # _import_method args may carry a submodule suffix (e.g. "opentargets_clingen.read",
         # "driver_role_overlay.cli") — the method DIR is the top-level package only.
         top_pkg = backing_module.split(".")[0]
-        mdir = methods_root / "methods" / top_pkg
+        mdir = methods_root / "onc_methods" / top_pkg
         out["method_dir_exists"] = mdir.is_dir()
         out["method_has_read"] = (mdir / "read.py").exists() if mdir.is_dir() else False
     # Stale-module hygiene flag: dispatcher routes to a different METHOD PACKAGE than the

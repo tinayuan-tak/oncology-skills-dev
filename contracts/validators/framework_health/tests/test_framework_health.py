@@ -163,8 +163,8 @@ def test_probe_card_uses_dispatcher_not_stale_label(tmp_path):
     """)
     )
     methods = tmp_path / "methods"
-    (methods / "methods" / "real_module").mkdir(parents=True)
-    (methods / "methods" / "real_module" / "read.py").write_text("def read(): pass")
+    (methods / "onc_methods" / "real_module").mkdir(parents=True)
+    (methods / "onc_methods" / "real_module" / "read.py").write_text("def read(): pass")
     out = probe.probe_card(
         "c",
         tmp_path,
@@ -184,8 +184,8 @@ def test_probe_card_flags_stale_only_on_declared_module_mismatch(tmp_path):
     for the 14 label-only false positives (clingen-dosage, spatial-*, etc., 2026-08-18)."""
     (tmp_path / "cards").mkdir()
     methods = tmp_path / "methods"
-    (methods / "methods" / "real_module").mkdir(parents=True)
-    (methods / "methods" / "real_module" / "read.py").write_text("def read(): pass")
+    (methods / "onc_methods" / "real_module").mkdir(parents=True)
+    (methods / "onc_methods" / "real_module" / "read.py").write_text("def read(): pass")
 
     # (a) friendly label differs, module: AGREES with dispatcher -> NOT stale
     (tmp_path / "cards" / "ok.card.yaml").write_text(
@@ -236,8 +236,8 @@ def test_probe_card_honors_declared_module_for_resolver_routed(tmp_path):
     """)
     )
     methods = tmp_path / "methods"
-    (methods / "methods" / "depmap_cn_dependency").mkdir(parents=True)
-    (methods / "methods" / "depmap_cn_dependency" / "read.py").write_text("def read(): pass")
+    (methods / "onc_methods" / "depmap_cn_dependency").mkdir(parents=True)
+    (methods / "onc_methods" / "depmap_cn_dependency" / "read.py").write_text("def read(): pass")
     out = probe.probe_card(
         "c",
         tmp_path,
@@ -849,7 +849,7 @@ def test_probe_card_dataset_exact_and_prefix_match(tmp_path):
         "  - product_id: exact-ds\nmethods:\n  - call: m\n"
     )
     methods = tmp_path / "methods"
-    (methods / "methods").mkdir(parents=True)
+    (methods / "onc_methods").mkdir(parents=True)
     out = probe.probe_card(
         "c", tmp_path, methods, set(), set(), {}, catalog_ids={"exact-ds", "depmap-predictability-26q1-v2"}
     )
@@ -863,7 +863,7 @@ def test_probe_card_dataset_broken_ref(tmp_path):
     (tmp_path / "cards").mkdir()
     (tmp_path / "cards" / "c.card.yaml").write_text("card_id: c\nrequired_inputs:\n  - product_id: ghost-ds\n")
     methods = tmp_path / "methods"
-    (methods / "methods").mkdir(parents=True)
+    (methods / "onc_methods").mkdir(parents=True)
     out = probe.probe_card("c", tmp_path, methods, set(), set(), {}, catalog_ids={"real-ds"})
     d = out["datasets"][0]
     assert d["product_id"] == "ghost-ds" and not d["in_catalog"] and d["matched_by"] is None
@@ -1441,7 +1441,7 @@ def test_modality_relevant_types_none_when_vocab_absent(tmp_path):
 def _routing(tmp_path, card_id, mtype, mr, vocab):
     _p4_card(tmp_path, card_id, mtype, mr)
     methods = tmp_path / "methods"
-    (methods / "methods").mkdir(parents=True, exist_ok=True)
+    (methods / "onc_methods").mkdir(parents=True, exist_ok=True)
     out = probe.probe_card(card_id, tmp_path, methods, set(), set(), {}, modality_types=vocab)
     return out["modality_routing"]
 
@@ -1462,7 +1462,7 @@ def test_probe_card_modality_routing_unknown_when_vocab_none(tmp_path):
     # modality_types=None (vocab-absent isolated checkout) → 'unknown', never a false verdict.
     _p4_card(tmp_path, "c", "routes_sm", None)
     methods = tmp_path / "methods"
-    (methods / "methods").mkdir(parents=True, exist_ok=True)
+    (methods / "onc_methods").mkdir(parents=True, exist_ok=True)
     out = probe.probe_card("c", tmp_path, methods, set(), set(), {}, modality_types=None)
     assert out["modality_routing"] == "unknown"
 
@@ -1471,7 +1471,7 @@ def test_probe_card_modality_routing_not_applicable_for_missing_yaml(tmp_path):
     # A consumed card id with NO .card.yaml on disk → not_applicable (kept out of the P4 tally's
     # real states; it's a card-existence problem, surfaced via card_health).
     methods = tmp_path / "methods"
-    (methods / "methods").mkdir(parents=True, exist_ok=True)
+    (methods / "onc_methods").mkdir(parents=True, exist_ok=True)
     (tmp_path / "cards").mkdir(exist_ok=True)
     out = probe.probe_card("ghost", tmp_path, methods, set(), set(), {}, modality_types={})
     assert out["card_yaml_exists"] is False

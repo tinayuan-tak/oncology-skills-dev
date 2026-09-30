@@ -13,7 +13,7 @@
 # ubibrowser-e3-substrate-per-gene-v1 (a PROTAC creates an INDUCED neo-substrate, so a target with
 # no natural E3 can still be a proven degrader target — e.g. BRD4).
 #
-# Consumed by analysis-methods/methods/degradation_feasibility: a curated entry drives
+# Consumed by analysis-methods/onc_methods/degradation_feasibility: a curated entry drives
 # degradability_feasibility_class = precedented_degradable (unless the surfaceome location gate
 # excludes it) and surfaces the examples. Additive; feeds the degrader lens via degrader-channel
 # rules on the degradation-feasibility card. Verdict-inert for the small-molecule spine.

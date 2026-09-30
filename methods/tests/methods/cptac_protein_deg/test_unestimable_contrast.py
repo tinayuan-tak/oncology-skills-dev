@@ -24,7 +24,6 @@ from __future__ import annotations
 
 import importlib
 import math
-import sys
 from pathlib import Path
 
 import pytest
@@ -32,13 +31,11 @@ import pytest
 pd = pytest.importorskip("pandas")
 
 REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
 
-r = importlib.import_module("methods.cptac_protein_deg.read")
+r = importlib.import_module("onc_methods.cptac_protein_deg.read")
 
 POOL = importlib.import_module("importlib.util").spec_from_file_location(
-    "_pool03", REPO / "methods" / "cptac_protein_deg" / "steps" / "03_pool_and_write.py"
+    "_pool03", REPO / "onc_methods" / "cptac_protein_deg" / "steps" / "03_pool_and_write.py"
 )
 _pool = importlib.import_module("importlib.util").module_from_spec(POOL)
 POOL.loader.exec_module(_pool)
@@ -183,7 +180,7 @@ def test_percentile_null_was_never_poisoned_by_the_inf_mass(monkeypatch):
     BRCA gene's percentile at ~84.6. They do not: percentile_null._finite drops non-finite values from
     the null before ranking. Verified by measurement — an effect of +2.0 in BRCA ranks identically with
     and without the 1,613 Inf rows present in the input list."""
-    from methods.percentile_null import percentile_rank
+    from onc_methods.percentile_null import percentile_rank
 
     rows = [_row("BRCA", f"G{i}", "small_effect", 0.0) for i in range(85)]
     rows += [_unestimable_row("BRCA", f"U{i}") for i in range(15)]
@@ -289,7 +286,7 @@ def test_r_step_issue_column_tests_finiteness_not_just_na():
     reference is.finite AND must carry MSstatsTMT's own issue column. Weaker than the Python tests
     above by construction — the authoritative guard is validate_biology.py's structural tier, which
     reads the built product."""
-    src = (REPO / "methods" / "cptac_protein_deg" / "steps" / "02_msstats_deg.R").read_text()
+    src = (REPO / "onc_methods" / "cptac_protein_deg" / "steps" / "02_msstats_deg.R").read_text()
     code = [ln for ln in src.splitlines() if not ln.lstrip().startswith("#")]
     assert not any('ifelse(is.na(res$log2FC), "no_estimate", "ok")' in ln for ln in code)
     assert any("is.finite(res$log2FC)" in ln for ln in code)

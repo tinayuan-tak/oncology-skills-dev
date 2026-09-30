@@ -1,0 +1,289 @@
+#!/usr/bin/env python3
+"""dge_deseq2 CLI — thin Python wrapper over the R DESeq2 pipeline.
+
+Invocation:
+    dge-deseq2 --indication COADREAD \
+               --contrast tumor_vs_adjacent \
+               --release-pin 2026-Q2 \
+               --out /tmp/dge_deseq2_run/
+
+--catalog-repo is omitted above because it defaults to the data-catalog sibling of THIS
+checkout, derived from this file's location (see the @click.option below). Pass it, or set
+DATA_CATALOG_ROOT, only to point at a different checkout or branch.
+
+The CLI:
+  1. Resolves --indication to a config YAML path under {catalog_repo}/subgroup-catalogs/{indication}/
+     (or, during the migration window, falls back to legacy configs/{indication}.yaml in skills repo).
+  2. Computes a git_sha for provenance.
+  3. Invokes r/live/run_pipeline.R with translated args.
+  4. Validates the emitted Parquet against target-contracts/schemas/products/<product>.result.schema.json.
+
+Contrasts / stratification:
+  - --contrast tumor_vs_adjacent and four_cell_sensitivity are wired. tumor_vs_gtex
+    and subtype_stratified are not standalone pipelines (see main()).
+  - --stratify-by <axis> (e.g. msi_status), together with --contrast four_cell_sensitivity,
+    runs the per-subgroup driver r/live/07_stratified_four_cell_driver.R. It requires
+    --subgroup-assignments-manifest (a data-catalog derived-manifest id for the
+    subgroup_assignments.parquet) and --strata. The manifest is resolved to a local
+    parquet via subgroup_common.loaders.load_assignments (session-cached); the emit-side
+    driver and the read layer read the SAME assignments product, keeping their member
+    sets identical.
+  - Byte-identity gate against legacy batch/expression_rna_COADREAD/ output:
+    methods/dge_deseq2/tests/test_byte_identity_vs_legacy_coadread.py (TBD; requires R env).
+"""
+
+from __future__ import annotations
+
+import subprocess
+import sys
+from pathlib import Path
+
+import click
+
+from onc_methods.roots import data_catalog_root
+
+METHOD_DIR = Path(__file__).resolve().parent
+RUN_PIPELINE = METHOD_DIR / "r" / "live" / "run_pipeline.R"
+
+
+def resolve_config(indication: str, catalog_repo: Path | None) -> Path:
+    """Find the indication's methods-facing config YAML.
+
+    Resolution order (preferred → fallback):
+      1. {catalog_repo}/indication-configs/{indication}.yaml        (R5 canonical location)
+      2. {catalog_repo}/manifests/sources/{indication}.yaml         (alternative catalog location)
+
+    NOTE: subgroup-catalogs/{indication}/{version}.yaml is a DIFFERENT artifact — it's the
+    card-facing subgroup catalog, consumed by --stratify-by. Don't confuse the two.
+
+    R7 cleanup (post-2026-06-26): the legacy claude-oncology-skills/configs/ fallback was
+    removed when R7 deleted the migrated directories. Configs MUST live in the data-catalog
+    repo from this point forward.
+    """
+    if not catalog_repo:
+        raise click.ClickException(
+            "--catalog-repo is required (R7: legacy fallback removed). "
+            "Point at the rnd-computational-biology-oncology-data-catalog repo."
+        )
+    candidates = [
+        catalog_repo / "indication-configs" / f"{indication}.yaml",
+        catalog_repo / "manifests" / "sources" / f"{indication}.yaml",
+    ]
+    for c in candidates:
+        if c.exists():
+            return c
+    raise click.ClickException(f"No config found for indication={indication}. Searched: {[str(c) for c in candidates]}")
+
+
+def compute_git_sha(repo_path: Path) -> str:
+    """Get the git HEAD sha of the repo (for provenance)."""
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(repo_path), "rev-parse", "HEAD"], capture_output=True, text=True, check=True
+        )
+        return result.stdout.strip()
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return "unknown"
+
+
+@click.command()
+@click.option("--indication", required=True, help="OncoTree code (e.g., COADREAD).")
+@click.option(
+    "--contrast",
+    default="tumor_vs_adjacent",
+    type=click.Choice(["tumor_vs_adjacent", "four_cell_sensitivity", "tumor_vs_gtex", "subtype_stratified"]),
+    help="DGE contrast. tumor_vs_adjacent = legacy GDC-STAR chain; "
+    "four_cell_sensitivity = recount3 four-cell discipline "
+    "(cells A/B/C/D + sensitivity.parquet).",
+)
+@click.option("--gtex-tissue", default=None, help="Override recount3 GTEx tissue code (four_cell_sensitivity only).")
+@click.option(
+    "--substrate",
+    default="recount3",
+    type=click.Choice(["recount3", "xena_toil"]),
+    help="four_cell_sensitivity count substrate: recount3 (default, GENCODE v26 — the classifier "
+    "substrate) | xena_toil (secondary/diagnostic, GENCODE v23 — S1b #694). xena_toil selects "
+    "samples by --indication and needs no recount3 config.",
+)
+@click.option("--release-pin", required=True, help="Catalog release_pin (e.g., 2026-Q2).")
+# Portable sibling default; `or` so an empty env value falls back too (Path("") is the CWD).
+@click.option(
+    "--catalog-repo",
+    type=click.Path(file_okay=False, path_type=Path),
+    default=data_catalog_root(),
+    help="Path to the data-catalog repo for config resolution.",
+)
+@click.option(
+    "--out",
+    required=True,
+    type=click.Path(file_okay=False, path_type=Path),
+    help="Output directory for intermediate .rds + final parquet + provenance.",
+)
+@click.option(
+    "--parquet-uri",
+    default=None,
+    help="Final Parquet destination URI (s3:// or local). Defaults to {out}/result.parquet.",
+)
+@click.option("--threads", type=int, default=4)
+@click.option(
+    "--stratify-by",
+    default=None,
+    help="Subgroup axis label (e.g. msi_status). When set with a four_cell_sensitivity "
+    "contrast, runs the per-subgroup DESeq2 driver (07). Requires "
+    "--subgroup-assignments-manifest + --strata.",
+)
+@click.option(
+    "--subgroup-assignments-manifest",
+    default=None,
+    help="data-catalog derived-manifest id for the subgroup_assignments.parquet "
+    "(e.g. tcga-subgroup-assignments-coadread-v1). Resolved to a local parquet "
+    "via subgroup_common.load_assignments (cached).",
+)
+@click.option("--strata", default=None, help="Comma-separated stratum_ids to emit (e.g. MSI_H,MSS).")
+@click.option(
+    "--min-subgroup-tumor", type=int, default=10, help="Minimum tumor members for a stratum to be emitted (07 only)."
+)
+@click.option(
+    "--gtex-tissue-override",
+    "gtex_tissue",
+    default=None,
+    help="Override recount3 GTEx tissue code (four_cell_sensitivity only).",
+)
+@click.option("--dry-run", is_flag=True, help="Print the Rscript invocation without running it.")
+def main(
+    indication: str,
+    contrast: str,
+    substrate: str,
+    release_pin: str,
+    catalog_repo: Path,
+    out: Path,
+    parquet_uri: str | None,
+    threads: int,
+    stratify_by: str | None,
+    subgroup_assignments_manifest: str | None,
+    strata: str | None,
+    min_subgroup_tumor: int,
+    gtex_tissue: str | None,
+    dry_run: bool,
+) -> int:
+    """Invoke the DGE DESeq2 R pipeline for an indication × contrast."""
+
+    if contrast in ("tumor_vs_gtex", "subtype_stratified"):
+        raise click.ClickException(
+            f"contrast={contrast} is not a standalone pipeline. tumor-vs-GTEx is now "
+            f"a cell WITHIN --contrast four_cell_sensitivity (cell C); subtype_stratified "
+            f"remains an iter-1 stub. Use four_cell_sensitivity or tumor_vs_adjacent."
+        )
+
+    if substrate == "xena_toil":
+        # Secondary/diagnostic Xena/Toil substrate (S1b #694): reuses the four-cell
+        # driver only, selects samples by --indication (no recount3 config), and is
+        # NOT a verdict input — its catalogued product carries the -xenatoil infix.
+        if contrast != "four_cell_sensitivity":
+            raise click.ClickException("--substrate xena_toil is only valid with --contrast four_cell_sensitivity.")
+        if stratify_by:
+            raise click.ClickException("--substrate xena_toil does not support --stratify-by.")
+
+    # --- per-subgroup DGE (07_stratified_four_cell_driver.R) ----------------
+    subgroup_parquet: str | None = None
+    if stratify_by:
+        if contrast != "four_cell_sensitivity":
+            raise click.ClickException(
+                "--stratify-by requires --contrast four_cell_sensitivity (the per-subgroup "
+                "driver reuses the four-cell recount3 substrate)."
+            )
+        if not (subgroup_assignments_manifest and strata):
+            raise click.ClickException(
+                "--stratify-by needs --subgroup-assignments-manifest and --strata "
+                "(comma-separated stratum_ids, e.g. MSI_H,MSS)."
+            )
+        # Resolve the assignments manifest → local parquet path. load_assignments
+        # downloads to the session cache and returns the DataFrame; we read the
+        # cache path it writes so the R driver reads the SAME product the read
+        # layer will. This keeps the emit-side and read-side member sets identical.
+        from onc_methods.subgroup_common.loaders import CACHE_ASSIGNMENTS, load_assignments
+
+        load_assignments(subgroup_assignments_manifest, data_catalog_repo=catalog_repo)
+        subgroup_parquet = str(CACHE_ASSIGNMENTS / subgroup_assignments_manifest / "assignments.parquet")
+        if not Path(subgroup_parquet).exists():
+            raise click.ClickException(
+                f"Assignments parquet not resolved to a local path: {subgroup_parquet}. "
+                f"Check the manifest id + AWS_PROFILE (needs onc-compbio GetObject)."
+            )
+
+    out.mkdir(parents=True, exist_ok=True)
+
+    # The xena_toil loader selects samples by --indication, so no recount3 config.
+    config_path = None if substrate == "xena_toil" else resolve_config(indication, catalog_repo)
+    if parquet_uri is None:
+        parquet_uri = str(out / "result.parquet")
+
+    git_sha = compute_git_sha(METHOD_DIR.parent.parent)
+
+    cmd = [
+        "Rscript",
+        str(RUN_PIPELINE),
+        f"--catalog-repo={catalog_repo}",
+        f"--git-sha={git_sha}",
+        f"--out-dir={out}",
+        f"--parquet-uri={parquet_uri}",
+        f"--threads={threads}",
+        f"--substrate={substrate}",
+        f"--contrast={'four_cell_sensitivity_by_subgroup' if stratify_by else contrast}",
+    ]
+    if substrate == "xena_toil":
+        cmd.append(f"--indication={indication}")
+    else:
+        cmd.append(f"--config={config_path}")
+    if stratify_by:
+        cmd += [
+            f"--subgroup-assignments={subgroup_parquet}",
+            f"--subgroup-axis={stratify_by}",
+            f"--strata={strata}",
+            f"--min-subgroup-tumor={min_subgroup_tumor}",
+        ]
+    if gtex_tissue:
+        cmd.append(f"--gtex-tissue={gtex_tissue}")
+
+    click.echo("=== dge-deseq2 invocation ===")
+    click.echo(f"  indication:   {indication}")
+    click.echo(f"  contrast:     {contrast}")
+    click.echo(f"  substrate:    {substrate}")
+    click.echo(f"  release-pin:  {release_pin}")
+    click.echo(f"  config:       {config_path if config_path else '(none — xena_toil selects by indication)'}")
+    click.echo(f"  catalog-repo: {catalog_repo}")
+    click.echo(f"  out:          {out}")
+    click.echo(f"  parquet-uri:  {parquet_uri}")
+    click.echo(f"  git-sha:      {git_sha}")
+    if contrast == "four_cell_sensitivity":
+        click.echo(f"  gtex-tissue:  {gtex_tissue or '(derived from config)'}")
+    if stratify_by:
+        click.echo(f"  stratify-by:  {stratify_by}")
+        click.echo(f"  assignments:  {subgroup_assignments_manifest}")
+        click.echo(f"  strata:       {strata}")
+        click.echo(f"  subgroup-parquet: {subgroup_parquet}")
+    click.echo()
+    click.echo(f"  Rscript cmd:  {' '.join(cmd)}")
+
+    if dry_run:
+        click.echo("(--dry-run: skipping execution)")
+        return 0
+
+    try:
+        result = subprocess.run(cmd, check=False)
+    except FileNotFoundError:
+        raise click.ClickException(
+            "Rscript not found on PATH. dge-deseq2 requires R + DESeq2 (see methods/ pixi.toml)."
+        )
+
+    # Click DISCARDS a command callback's return value in standalone mode — it calls ctx.exit() with
+    # no argument — so a bare `return result.returncode` exited 0 even when run_pipeline.R failed.
+    # Callers (framework runs, CI, `&&` chains) then read SUCCESS from a pipeline that wrote no
+    # result.parquet, and the R stderr was lost. Propagate the child's status explicitly.
+    if result.returncode != 0:
+        raise SystemExit(result.returncode)
+    return result.returncode
+
+
+if __name__ == "__main__":
+    sys.exit(main())

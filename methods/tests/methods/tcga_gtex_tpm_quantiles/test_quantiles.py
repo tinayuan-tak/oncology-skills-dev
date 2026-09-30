@@ -10,7 +10,6 @@ sort key + dtypes; that the ensembl_gene_id axis is shared across sources.
 from __future__ import annotations
 
 import importlib
-import sys
 from pathlib import Path
 
 import pytest
@@ -20,11 +19,8 @@ np = pytest.importorskip("numpy")
 pytest.importorskip("duckdb")
 pytest.importorskip("pyarrow")
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
 
-cli = importlib.import_module("methods.tcga_gtex_tpm_quantiles.cli")
+cli = importlib.import_module("onc_methods.tcga_gtex_tpm_quantiles.cli")
 
 
 def _write_long(path: Path, group_col: str, rows: list[dict]) -> None:

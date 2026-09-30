@@ -9,16 +9,10 @@ test needs no R / MSstatsTMT / S3.
 from __future__ import annotations
 
 import importlib
-import sys
-from pathlib import Path
 
 import pytest
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-derive = importlib.import_module("methods.cptac_protein_deg.derive")
+derive = importlib.import_module("onc_methods.cptac_protein_deg.derive")
 
 
 def _stub_outcomes(monkeypatch, ok_map):

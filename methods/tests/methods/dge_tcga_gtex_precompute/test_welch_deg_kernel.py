@@ -9,20 +9,13 @@ against an independent reference — the invariants a future edit could silently
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
 
 pytest.importorskip("numpy")
 pytest.importorskip("scipy")
 import numpy as np
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.dge_tcga_gtex_precompute.cli import _bh_correct, _welch_deg  # noqa: E402
+from onc_methods.dge_tcga_gtex_precompute.cli import _bh_correct, _welch_deg
 
 
 # ── sign convention: positive log2FC = arm A (tumor) higher ─────────────────

@@ -31,9 +31,8 @@ import threading
 from pathlib import Path
 from typing import Optional
 
-from _skills_common.paths import DATA_CATALOG_ROOT_DEFAULT, analysis_methods_root, target_contracts_root
+from _skills_common.paths import DATA_CATALOG_ROOT_DEFAULT, target_contracts_root
 
-METHODS_REPO = analysis_methods_root()
 DATA_CATALOG_LIBS = Path(os.environ.get("DATA_CATALOG_ROOT", DATA_CATALOG_ROOT_DEFAULT)) / "libs"
 _TARGET_CONTRACTS_ROOT = target_contracts_root()
 
@@ -166,9 +165,7 @@ def _import_method(method_name: str):
     S3/parquet work stays fully parallel — it happens outside this function.
     """
     with _IMPORT_LOCK:
-        if str(METHODS_REPO) not in sys.path:
-            sys.path.insert(0, str(METHODS_REPO))
-        return __import__(f"methods.{method_name}", fromlist=["*"])
+        return __import__(f"onc_methods.{method_name}", fromlist=["*"])
 
 
 def _import_data_catalog_lib(lib_name: str):

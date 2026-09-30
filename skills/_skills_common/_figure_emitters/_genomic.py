@@ -28,7 +28,7 @@ def _emit_alteration_role(
     if not summary or summary.get("alteration_role") in (None, "data_unavailable"):
         return []
     _ensure_methods_path()
-    from methods.driver_role_overlay import cli as dro
+    from onc_methods.driver_role_overlay import cli as dro
 
     out_dir.mkdir(parents=True, exist_ok=True)
     svg = dro.emit_svg(target, indication, summary, out_dir, TARGET_CONTRACTS)
@@ -64,7 +64,7 @@ def _emit_functional_gene_state(
     if not (patient.get("state_counts") or model.get("state_counts")):
         return []
     _ensure_methods_path()
-    from methods.functional_gene_state import cli as fgs
+    from onc_methods.functional_gene_state import cli as fgs
 
     out_dir.mkdir(parents=True, exist_ok=True)
     svg = fgs.emit_svg(target, indication, summary, out_dir, TARGET_CONTRACTS)
@@ -99,7 +99,7 @@ def _emit_genomic_event_model_match(
     if cls in (None, "data_unavailable", "no_target_event") and not matched:
         return []
     _ensure_methods_path()
-    from methods.genomic_event_model_match import cli as gemm
+    from onc_methods.genomic_event_model_match import cli as gemm
 
     out_dir.mkdir(parents=True, exist_ok=True)
     svg = gemm.emit_svg(target, indication, summary, out_dir, TARGET_CONTRACTS)
@@ -135,7 +135,7 @@ def _emit_abundance_dependency(
     ):
         return []
     _ensure_methods_path()
-    from methods.abundance_dependency import cli as ad
+    from onc_methods.abundance_dependency import cli as ad
 
     out_dir.mkdir(parents=True, exist_ok=True)
     svg = ad.emit_svg(target, indication, summary, out_dir, TARGET_CONTRACTS)
@@ -168,7 +168,7 @@ def _emit_phospho_pathway_activity(
     if cls in (None, "data_unavailable", "phospho_not_detected"):
         return []
     _ensure_methods_path()
-    from methods.phospho_pathway_activity import cli as ppa
+    from onc_methods.phospho_pathway_activity import cli as ppa
 
     out_dir.mkdir(parents=True, exist_ok=True)
     svg = ppa.emit_svg(target, indication, summary, out_dir, TARGET_CONTRACTS)

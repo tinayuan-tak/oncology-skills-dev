@@ -25,18 +25,13 @@ SKIP rather than fail — and skipping is not passing.
 from __future__ import annotations
 
 import importlib
-import sys
 import zipfile
 from pathlib import Path
 
 import polars as pl
 import pytest  # noqa: F401 — kept for fixtures/markers
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-cli = importlib.import_module("methods.hpa_normal_tissue_liability.cli")
+cli = importlib.import_module("onc_methods.hpa_normal_tissue_liability.cli")
 
 
 def _write_hpa_zip(tmp_path, rows, reliability="Enhanced"):

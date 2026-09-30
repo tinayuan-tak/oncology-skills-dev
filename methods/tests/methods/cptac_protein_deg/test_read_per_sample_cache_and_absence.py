@@ -12,14 +12,7 @@ read N+1 times per panorama.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-r = __import__("methods.cptac_protein_deg.read", fromlist=["read"])
+r = __import__("onc_methods.cptac_protein_deg.read", fromlist=["read"])
 
 
 def test_read_per_sample_is_lru_cached():

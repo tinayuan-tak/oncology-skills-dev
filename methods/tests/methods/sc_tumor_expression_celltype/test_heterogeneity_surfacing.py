@@ -10,7 +10,7 @@ import pytest
 pytest.importorskip("numpy")
 pytest.importorskip("pandas")
 
-from methods.sc_tumor_expression_celltype import read as R
+from onc_methods.sc_tumor_expression_celltype import read as R
 
 _HET_KEYS = (
     "within_tumor_coverage_class",

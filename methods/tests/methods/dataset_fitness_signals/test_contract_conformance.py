@@ -28,17 +28,11 @@ only coverage of anything.
 from __future__ import annotations
 
 import copy
-import sys
-from pathlib import Path
 
 import pytest
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.dataset_fitness_signals import load_contract, resolve_fitness  # noqa: E402
-from methods.dataset_fitness_signals.resolve import contract_path  # noqa: E402
+from onc_methods.dataset_fitness_signals import load_contract, resolve_fitness
+from onc_methods.dataset_fitness_signals.resolve import contract_path
 
 CONTRACT = contract_path()
 

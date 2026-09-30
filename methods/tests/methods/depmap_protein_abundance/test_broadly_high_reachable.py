@@ -7,14 +7,8 @@ The fix keys it on the PANEL-WIDE all-protein median null (passed in as all_prot
 from __future__ import annotations
 
 import importlib
-import sys
-from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-cli = importlib.import_module("methods.depmap_protein_abundance.cli")
+cli = importlib.import_module("onc_methods.depmap_protein_abundance.cli")
 
 
 def test_classify_broadly_high_fires_with_panel_cutoff():

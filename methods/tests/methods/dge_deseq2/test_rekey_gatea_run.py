@@ -11,7 +11,7 @@ from __future__ import annotations
 import pandas as pd
 import pyarrow.parquet as pq
 
-from methods.dge_deseq2 import rekey_gatea_run as drv
+from onc_methods.dge_deseq2 import rekey_gatea_run as drv
 
 
 def test_manifest_id_for():

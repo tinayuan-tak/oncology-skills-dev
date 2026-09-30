@@ -9,7 +9,7 @@ import importlib
 
 
 def test_module_loads_and_reuses_stage01_helpers():
-    dps = importlib.import_module("methods.cptac_protein_deg.derive_per_sample")
+    dps = importlib.import_module("onc_methods.cptac_protein_deg.derive_per_sample")
     s01 = dps._load_stage01()
     # the reused helpers must exist on stage 01
     for fn in ("parse_sample_txt", "list_proteome_keys", "find_key", "download", "canonical_aliquot"):
@@ -18,7 +18,7 @@ def test_module_loads_and_reuses_stage01_helpers():
 
 
 def test_output_prefix_and_helpers_present():
-    dps = importlib.import_module("methods.cptac_protein_deg.derive_per_sample")
+    dps = importlib.import_module("onc_methods.cptac_protein_deg.derive_per_sample")
     assert dps.OUTPUT_S3_PREFIX.endswith("cptac-protein-tumor-vs-normal-per-sample-v1")
     assert callable(dps.per_sample_cohort)
 
@@ -30,7 +30,7 @@ def test_dedup_replicates_collapses_by_mean():
     samples in the per-cohort boxplot distribution + Welch/MWU n-counts."""
     import pandas as pd
 
-    dps = importlib.import_module("methods.cptac_protein_deg.derive_per_sample")
+    dps = importlib.import_module("onc_methods.cptac_protein_deg.derive_per_sample")
     # gene G: aliquot A has TWO replicate rows (5.0, 7.0) → mean 6.0; aliquot B has one (2.0).
     # gene H: aliquot A single (1.0). Total distinct (gene,aliquot) pairs = 3.
     tmt = pd.DataFrame(

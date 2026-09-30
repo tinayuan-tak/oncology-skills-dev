@@ -51,12 +51,12 @@ A tall `(sample, stratum, is_member)` row propagates upward unchanged in shape:
 
 ## Reference implementation (built 2026-07-15, analysis-methods PR #32 + follow-on)
 
-- **`methods/subgroup_common/panorama.py`** — the substrate-agnostic composer.
+- **`onc_methods/subgroup_common/panorama.py`** — the substrate-agnostic composer.
   `build_panorama(reader, *, record_projection, reducer, …)` fans a reader across
   strata, projects per-card, reduces to cross-stratum scalars. Shared rigor
   primitives `SUBGROUP_N_FLOOR=30` + `evidence_state()` live here (single source
   of truth). Named reducers: `delta_reducer(metric_key, label)`.
-- **`methods/subgroup_common/scoping.py`** — `compute_join_coverage()` guards the
+- **`onc_methods/subgroup_common/scoping.py`** — `compute_join_coverage()` guards the
   member-set↔data join: warns on the near-zero-match signature of a sample-id
   convention mismatch (patient-barcode assignments vs full-aliquot method data),
   which otherwise silently looks like an empty stratum.

@@ -37,8 +37,8 @@ actually present and powered. **Call the existing method's own functions directl
 ```python
 # example: is TARGET's dependency conditional on PARTNER loss? (reuses depmap_partner_conditional_dependency)
 AWS_PROFILE=cbg /opt/conda/bin/python -c "
-from methods.depmap_partner_conditional_dependency import cli as pc
-from methods.depmap_chronos_distribution import cli as c1
+from onc_methods.depmap_partner_conditional_dependency import cli as pc
+from onc_methods.depmap_chronos_distribution import cli as c1
 v = pc.build_partner_deficiency_vector('26q1','PARTNER','lof_mutation')
 chr_,_,_ = c1.load_depmap_files(release_pin='26q1', target_symbol='TARGET')
 print(pc.compute_partner_stratification(chr_, v))"

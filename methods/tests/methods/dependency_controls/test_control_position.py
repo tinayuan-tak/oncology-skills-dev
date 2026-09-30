@@ -9,17 +9,11 @@ deterministically offline. Live Chronos reads are exercised end-to-end elsewhere
 
 from __future__ import annotations
 
-import sys
 import textwrap
-from pathlib import Path
 
 import pytest
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.dependency_controls import read as DC  # noqa: E402
+from onc_methods.dependency_controls import read as DC
 
 
 @pytest.fixture

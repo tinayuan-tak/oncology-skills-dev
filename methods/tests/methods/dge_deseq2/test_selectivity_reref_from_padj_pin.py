@@ -15,14 +15,8 @@ Hermetic — pure dict inputs into the classifier, no S3 / no live read.
 from __future__ import annotations
 
 import importlib
-import sys
-from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-read = importlib.import_module("methods.dge_deseq2.read")
+read = importlib.import_module("onc_methods.dge_deseq2.read")
 classify = read._classify_selectivity_from_sensitivity
 
 

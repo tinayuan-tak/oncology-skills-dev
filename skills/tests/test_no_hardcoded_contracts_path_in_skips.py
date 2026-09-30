@@ -55,6 +55,13 @@ expression is a silent no-op there and the editable install wins — CI green, l
 ``data-catalog`` is NOT in this class: it is still a genuine separate sibling repo, so
 resolving it one level above the repo root is correct.
 
+skills#2237 removed the *methods* half of that shadow at the root: the import package is now
+``onc_methods``, so the archived clone's ``methods`` package no longer shares a name with
+anything this repo imports and cannot bind it, whatever ends up on ``sys.path``. The rule
+below is unchanged and still load-bearing — ``target-contracts`` is absorbed under its own
+unchanged name, and a hardcoded path to an absorbed sibling is a defect regardless of which
+module names happen to collide today.
+
 ``test_no_absorbed_sibling_resolved_outside_this_checkout`` ratchets both blind spots
 shut across EVERY tracked ``.py`` (tests included, ``contracts/validators/`` included —
 that carve-out does not apply to this narrower absorbed-sibling rule).

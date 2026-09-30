@@ -9,19 +9,14 @@ column is sorted ascending.
 from __future__ import annotations
 
 import importlib
-import sys
-from pathlib import Path
 
 import pytest
 
 pd = pytest.importorskip("pandas")
 pytest.importorskip("pyarrow")
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
 
-derive = importlib.import_module("methods.synleth_partner_lookup.derive")
+derive = importlib.import_module("onc_methods.synleth_partner_lookup.derive")
 
 _TSV_HEADER = "x:START_ID\tx_name\ty:END_ID\ty_name\trel_source\tcell_line\tpubmed_id\tcancer"
 

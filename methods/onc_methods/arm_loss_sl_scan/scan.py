@@ -1,0 +1,328 @@
+"""arm_loss_sl_scan.scan — pure find-mode core.
+
+SL -> arm-loss -> indication discovery. The hypothesis (passenger-deletion / CYCLOPS SL
+paradigm): a target G whose curated synthetic-lethal partner P sits on a chromosome arm that
+is RECURRENTLY LOST in an indication is a candidate dependency in that indication, because the
+arm-level loss co-deletes P and unmasks the G-dependency. Two independent products ground the
+two halves of the claim:
+
+  DISCOVERY signal  -> pancan-arm-cnv-per-sample-v1: per-(arm, indication) loss frequency
+                       (which arms are recurrently lost in which indications).
+  CONFIRMATION      -> pancan-genomic-two-hit-per-gene-v1: does the SPECIFIC partner gene P
+                       actually get lost (cn_class in {homdel, loss}) in those same patients,
+                       or is the arm-level signal a spurious aggregate?
+
+This module is PURE / S3-free: `sl_arm_scan` takes already-materialized DataFrames + dicts and
+is fully offline-testable. The S3 reads (SL pairs, arm calls, two-hit, GISTIC gene->arm meta) and
+the input_manifest_ids federation sidecar live in cli.py.
+
+STATISTICS: for each (target, partner-arm, indication) the observed arm-loss frequency is tested
+one-sided against the PAN-CANCER arm-loss baseline (binomial, "is this arm lost MORE than average
+in this indication?"). p-values are Benjamini-Hochberg corrected across the full tested set. A hit
+must clear BOTH q <= fdr_alpha AND a min-frequency floor (a tiny-but-significant arm loss is not
+actionable). This is a DISCOVERY nomination scan, NOT a verdict input — it never feeds a resolver.
+
+DISCOVERY_VALUE (v0.2.0): at portfolio scale the raw q/floor set is inflated by SHARED arm-level
+signal — a broadly-lost arm co-deletes hundreds of genes, so every scanned SL partner on that arm
+gets the identical (arm, indication) evidence. To make the set rankable we emit the decomposed
+DISCOVERY components as first-class columns and one composite `discovery_value`:
+  - selectivity      = arm_loss_freq / pan-cancer baseline  (lineage-selective loss; per arm×ind)
+  - focality_ratio   = partner_twohit_loss_freq / arm_loss_freq  (TARGET-specific: is the SPECIFIC
+                       partner co-lost MORE than the arm average, or is it just a passenger? ~1 =
+                       passenger, >1 = focally co-selected. This is the only per-(target,partner)
+                       lever, so it is what actually de-duplicates same-arm nominations.)
+  - bystander_density= mean # arm genes co-lost in the loss-bearing population (per arm×ind).
+  - discovery_value  = arm_loss_freq * selectivity * focality_component / breadth_penalty.
+CONTESTED WEIGHTING (documented, not hidden): this composite DOWNWEIGHTS broad arms (breadth in the
+denominator) and rewards target-specific focality — the "sharpen the nomination set" reading. The
+user's Paradigm-B framing takes the OPPOSITE view (a rich bystander surface = MORE discovery value,
+since the true SL anchor may be any co-lost gene). Both readings are recomputable from the emitted
+components; only the composite's direction is a choice. Callers who prefer Paradigm B should rank by
+`bystander_density` (or arm_loss_freq * selectivity * bystander_density) instead.
+"""
+
+from __future__ import annotations
+
+import math
+from typing import Optional
+
+import pandas as pd
+
+from onc_methods import cell_absence as ca
+
+METHOD_VERSION = "scan-0.2.0"
+
+_FOCALITY_CAP = 5.0  # cap focality_ratio so a rare-but-deep partner homdel cannot dominate ranking
+
+# Output columns (stable; the eval-ledger row_from_scan reader keys on these).
+SCAN_COLUMNS = [
+    "target",
+    "sl_partner",
+    "partner_arm",
+    "indication",
+    "arm_loss_freq",
+    "arm_pancan_baseline",
+    "selectivity",
+    "n_samples",
+    "n_arm_lost",
+    "binom_p",
+    "q_value",
+    "partner_twohit_loss_freq",
+    "focality_ratio",
+    "bystander_density",
+    "discovery_value",
+    "coloss_concordance",
+    "evidence_tier",
+    "has_experimental",
+    "rank",
+    "method_version",
+]
+
+
+def _binom_greater_p(k: int, n: int, p0: float) -> float:
+    """One-sided binomial p (P[X >= k] under Binom(n, p0)). scipy binomtest with legacy fallback."""
+    if n <= 0:
+        return 1.0
+    p0 = min(max(p0, 1e-9), 1 - 1e-9)
+    try:
+        from scipy.stats import binomtest
+
+        return float(binomtest(k, n, p0, alternative="greater").pvalue)
+    except ImportError:  # pragma: no cover - legacy scipy
+        from scipy.stats import binom_test
+
+        return float(binom_test(k, n, p0, alternative="greater"))
+
+
+def _bh_qvalues(pvals: list) -> list:
+    """Benjamini-Hochberg q-values. statsmodels when present; self-contained fallback otherwise."""
+    if not pvals:
+        return []
+    try:
+        from statsmodels.stats.multitest import multipletests
+
+        return list(multipletests(pvals, method="fdr_bh")[1])
+    except ImportError:  # pragma: no cover
+        m = len(pvals)
+        order = sorted(range(m), key=lambda i: pvals[i])
+        q = [0.0] * m
+        prev = 1.0
+        for rank, i in enumerate(reversed(order), start=1):
+            k = m - rank + 1
+            val = min(prev, pvals[i] * m / k)
+            q[i] = prev = val
+        return q
+
+
+def _discovery_value(
+    loss_freq: float, selectivity: float, focality: Optional[float], bystander: Optional[float]
+) -> float:
+    """Composite ranking score: arm_loss_freq * selectivity * focality_component / breadth_penalty.
+
+    focality_component: min(focality_ratio, cap) when the partner has gene-level co-loss data (the
+      target-specific lever), else 1.0 (neutral — arm-level evidence only).
+    breadth_penalty: 1 + log10(bystander_density) when available (DOWNWEIGHTS broadly-lost arms),
+      else 1.0. See module docstring for the Paradigm-B alternative direction."""
+    foc = min(float(focality), _FOCALITY_CAP) if focality is not None else 1.0
+    breadth = 1.0 + math.log10(bystander) if (bystander is not None and bystander > 1) else 1.0
+    return round(loss_freq * selectivity * foc / breadth, 4)
+
+
+def sl_arm_scan(
+    sl_pairs: pd.DataFrame,
+    arm_ind_freq: pd.DataFrame,
+    arm_pancan_baseline: dict,
+    gene_to_arm: dict,
+    twohit_loss_freq: Optional[dict] = None,
+    arm_bystander: Optional[dict] = None,
+    *,
+    min_loss_freq: float = 0.20,
+    fdr_alpha: float = 0.05,
+    min_baseline_delta: float = 0.0,
+    method_version: str = METHOD_VERSION,
+) -> pd.DataFrame:
+    """Rank (target, sl_partner, partner_arm, indication) hits where the partner's arm is
+    enriched-for-loss in the indication.
+
+    sl_pairs:            DataFrame [target, partner, evidence_tier, has_experimental].
+    arm_ind_freq:        DataFrame [chromosome_arm, indication, n_samples, loss_frequency, ...]
+                         (pancan_arm_cnv.read.build_arm_indication_freq output).
+    arm_pancan_baseline: {arm: pan-cancer loss frequency} (pooled over all indications).
+    gene_to_arm:         {GENE (upper): 'chromosome_arm'} (pancan_arm_cnv.read.gene_arm_map).
+    twohit_loss_freq:    optional {(PARTNER upper, indication): gene-level loss frequency} — the
+                         per-patient co-loss CONFIRMATION column; missing -> NaN / 'no_twohit_data'.
+    min_loss_freq:       actionability floor on the observed arm-loss frequency.
+    fdr_alpha:           BH q-value cutoff.
+    arm_bystander:       optional {(arm, indication): mean # arm genes co-lost in the loss-bearing
+                         population} — the bystander_density column + breadth penalty; missing -> None.
+    min_baseline_delta:  optional floor on (arm_loss_freq - pancan_baseline) to drop hits that are
+                         significant only because n is large (default 0 = disabled).
+    """
+    twohit_loss_freq = twohit_loss_freq or {}
+    arm_bystander = arm_bystander or {}
+    freq_lookup = {
+        (r["chromosome_arm"], r["indication"]): (float(r["loss_frequency"]), int(r["n_samples"]))
+        for _, r in arm_ind_freq.iterrows()
+    }
+
+    candidates = []
+    for _, pair in sl_pairs.iterrows():
+        target = str(pair["target"]).strip().upper()
+        partner = str(pair["partner"]).strip().upper()
+        arm = gene_to_arm.get(partner)
+        if arm is None:
+            continue  # partner not on a mappable arm (acrocentric / absent from GISTIC meta)
+        baseline = arm_pancan_baseline.get(arm)
+        if baseline is None:
+            continue
+        for (a, ind), (loss_freq, n) in freq_lookup.items():
+            if a != arm:
+                continue
+            k = int(round(loss_freq * n))
+            p = _binom_greater_p(k, n, float(baseline))
+            tw = twohit_loss_freq.get((partner, ind))
+            bys = arm_bystander.get((arm, ind))
+            base = float(baseline) or 1e-9
+            selectivity = round(loss_freq / base, 3)
+            # ONE absence predicate for `tw`, shared with _concordance below. These two guards used to
+            # disagree — a bare `tw is not None` here against a 2-term nan-aware test there — on the same
+            # variable in the same function. Today that is inert (the sole producer, cli.py's
+            # `_load_twohit_universe_and_loss`, guards `if denom:` over an int nunique() numerator, so a
+            # value is either an absent key -> None or a finite float), but the weaker guard is the one
+            # that would ship a nan: float(nan)/loss_freq rounds to nan and lands straight in
+            # focality_ratio, where every downstream threshold comparison against it is silently False.
+            focality = round(float(tw) / loss_freq, 3) if (not ca.is_missing(tw) and loss_freq > 0) else None
+            candidates.append(
+                {
+                    "target": target,
+                    "sl_partner": partner,
+                    "partner_arm": arm,
+                    "indication": ind,
+                    "arm_loss_freq": round(loss_freq, 4),
+                    "arm_pancan_baseline": round(float(baseline), 4),
+                    "selectivity": selectivity,
+                    "n_samples": n,
+                    "n_arm_lost": k,
+                    "binom_p": p,
+                    "partner_twohit_loss_freq": tw,
+                    "focality_ratio": focality,
+                    "bystander_density": (round(float(bys), 1) if bys is not None else None),
+                    "discovery_value": _discovery_value(loss_freq, selectivity, focality, bys),
+                    "evidence_tier": pair.get("evidence_tier"),
+                    "has_experimental": bool(pair.get("has_experimental", False)),
+                }
+            )
+
+    if not candidates:
+        return pd.DataFrame(columns=SCAN_COLUMNS)
+
+    qvals = _bh_qvalues([c["binom_p"] for c in candidates])
+    for c, q in zip(candidates, qvals):
+        c["q_value"] = float(q)
+
+    def _concordance(row):
+        tw = row["partner_twohit_loss_freq"]
+        if ca.is_missing(tw):
+            return "no_twohit_data"
+        # partner gene-level loss confirms the arm-level inference when it also clears the floor.
+        return "confirmed" if float(tw) >= min_loss_freq else "arm_only"
+
+    hits = []
+    for c in candidates:
+        if c["q_value"] > fdr_alpha:
+            continue
+        if c["arm_loss_freq"] < min_loss_freq:
+            continue
+        if (c["arm_loss_freq"] - c["arm_pancan_baseline"]) < min_baseline_delta:
+            continue
+        c["coloss_concordance"] = _concordance(c)
+        c["method_version"] = method_version
+        hits.append(c)
+
+    if not hits:
+        return pd.DataFrame(columns=SCAN_COLUMNS)
+
+    df = pd.DataFrame(hits)
+    # rank by discovery_value (target-specificity-aware) desc; q_value breaks ties (all hits already
+    # clear the FDR + floor gates, so ranking is about PRIORITY within the surviving set).
+    df = df.sort_values(["discovery_value", "q_value"], ascending=[False, True]).reset_index(drop=True)
+    df["rank"] = df.index + 1
+    return df[SCAN_COLUMNS]
+
+
+# --- Paradigm-B BYSTANDER MAP --------------------------------------------------------------------
+
+BYSTANDER_MAP_COLUMNS = [
+    "chromosome_arm",
+    "indication",
+    "arm_loss_freq",
+    "arm_pancan_baseline",
+    "selectivity",
+    "bystander_density",
+    "n_samples",
+    "q_value",
+    "n_sl_partners",
+    "n_targets_nominated",
+    "pb_discovery_value",
+    "sl_partners",
+    "top_targets",
+    "rank",
+]
+
+_MAP_TOP_TARGETS = 25
+
+
+def bystander_map(hits: pd.DataFrame, *, top_targets: int = _MAP_TOP_TARGETS) -> pd.DataFrame:
+    """Re-grain the per-(target, partner, arm, indication) nomination set UP to per-(arm, indication)
+    DISCOVERY CONTEXTS — the Paradigm-B "bystander map" (which selectively-lost arm-context is richest
+    for SL discovery, and which known SL-partner genes sit on it as the actionable starting surface).
+
+    Inverts the scan's question from "does my target's partner sit on a lost arm?" to "this arm is
+    selectively lost in this lineage — which co-lost gene should we test?" Collapses the redundant
+    same-arm nominations (every SL partner on a hot arm shares the identical arm evidence) into ONE
+    row per context. Ranked by the PARADIGM-B discovery_value (bystander-POSITIVE):
+
+        pb_discovery_value = arm_loss_freq * selectivity * bystander_density
+
+    i.e. a frequently + selectively lost arm with a RICH co-deleted surface scores highest — the
+    opposite direction from the per-nomination discovery_value (which downweights breadth to reward
+    target focality). Both live in the framework; see the module docstring. This v1 annotates the
+    surface with the KNOWN SL-partner genes present in `hits` (the actionable bystanders); the full
+    every-arm-gene surface + novel-anchor discovery is the stratified-essentiality follow-on.
+
+    Pure: takes the sl_arm_scan output DataFrame, returns the map DataFrame (S3-free)."""
+    if hits is None or len(hits) == 0:
+        return pd.DataFrame(columns=BYSTANDER_MAP_COLUMNS)
+
+    rows = []
+    for (arm, ind), g in hits.groupby(["partner_arm", "indication"]):
+        # context metrics are constant within (arm, indication); take the first row's values.
+        first = g.iloc[0]
+        loss_freq = float(first["arm_loss_freq"])
+        selectivity = float(first["selectivity"])
+        bys = first.get("bystander_density")
+        bys = float(bys) if (bys is not None and not pd.isna(bys)) else None
+        pb = round(loss_freq * selectivity * bys, 4) if bys is not None else round(loss_freq * selectivity, 4)
+        partners = sorted(g["sl_partner"].dropna().unique().tolist())
+        targets = sorted(g["target"].dropna().unique().tolist())
+        rows.append(
+            {
+                "chromosome_arm": arm,
+                "indication": ind,
+                "arm_loss_freq": round(loss_freq, 4),
+                "arm_pancan_baseline": round(float(first["arm_pancan_baseline"]), 4),
+                "selectivity": round(selectivity, 3),
+                "bystander_density": (round(bys, 1) if bys is not None else None),
+                "n_samples": int(first["n_samples"]),
+                "q_value": float(first["q_value"]),
+                "n_sl_partners": len(partners),
+                "n_targets_nominated": len(targets),
+                "pb_discovery_value": pb,
+                "sl_partners": partners,
+                "top_targets": targets[:top_targets],
+            }
+        )
+    out = pd.DataFrame(rows)
+    out = out.sort_values(["pb_discovery_value", "q_value"], ascending=[False, True]).reset_index(drop=True)
+    out["rank"] = out.index + 1
+    return out[BYSTANDER_MAP_COLUMNS]

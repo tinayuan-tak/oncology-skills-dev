@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import pytest
 
-from methods.hcmi_model_availability import (
+from onc_methods.hcmi_model_availability import (
     read_genotype_matched_model,
     read_model_availability,
 )
-from methods.hcmi_model_availability.cli import (
+from onc_methods.hcmi_model_availability.cli import (
     _FUNCTIONAL_CODING_CLASSES,
     _availability_class,
     _model_id_from_barcode,
@@ -326,7 +326,7 @@ def test_genotype_dispatch_contract_accepts_target_and_indication(genotype_produ
 # Before this, an exact-match read MISSED common leaves (EGFR/LUAD reported 0 models though 27 NSCLC HCMI
 # models exist; ERBB2/STAD reported 0 though GC=25) — a false "no models" the organoid leg never made.
 # ══════════════════════════════════════════════════════════════════════════════════════════════════
-from methods.hcmi_model_availability.read import normalize_indication
+from onc_methods.hcmi_model_availability.read import normalize_indication
 
 
 @pytest.mark.parametrize(
@@ -380,7 +380,7 @@ def test_genotype_leaf_code_resolves_via_normalization(genotype_product):
 # #762: manifest-resolved key + pyarrow S3FS pushdown transport + schema-drift guard (replaces the
 # hardcoded s3:// constants + `aws s3 cp` whole-object subprocess read).
 # ══════════════════════════════════════════════════════════════════════════════════════════════════
-import methods.hcmi_model_availability.read as R
+import onc_methods.hcmi_model_availability.read as R
 
 
 def test_no_hardcoded_s3_uri_constants():

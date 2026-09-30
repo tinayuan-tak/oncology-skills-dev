@@ -8,15 +8,9 @@ single-variant-only scope (complex/fusion MPs excluded).
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pandas as pd
 
-REPO = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(REPO))
-
-from methods.civic_variant_interpretation import read as R  # noqa: E402
+from onc_methods.civic_variant_interpretation import read as R
 
 
 def _setup(monkeypatch, variants, evidence, assertions):

@@ -36,7 +36,7 @@ from botocore.exceptions import ClientError
 # Hardened client (adaptive retry + ProfileNotFound fallback to the ambient credential
 # chain) — the bare boto3.Session(profile_name=...) it replaces raised in any
 # environment without the `cbg` profile and had no throttling protection.
-from methods.target_id_sidecar import s3_client
+from onc_methods.target_id_sidecar import s3_client
 
 try:
     from jsonschema import Draft202012Validator
@@ -51,12 +51,12 @@ SCHEMA_PATH = Path(__file__).resolve().parents[3] / "contracts" / "schemas" / "e
 
 # Which batch job produces each dimension (for "missing artifact" guidance).
 # Eight dimensions (revised 2026-06-15). The root batch/ dir (v1-era) was retired
-# 2026-09-29 (#2138); expression-rna is now produced by methods/methods/dge_deseq2
+# 2026-09-29 (#2138); expression-rna is now produced by methods/onc_methods/dge_deseq2
 # (the carved-out, catalog-driven successor to batch/expression_rna_{indication}/).
 # The remaining "planned" rows never had a real path — batch/ never grew them —
 # so they're left as named-but-nonexistent placeholders rather than invented paths.
 DIMENSION_BATCH_JOB = {
-    "expression-rna": "methods/methods/dge_deseq2",
+    "expression-rna": "methods/onc_methods/dge_deseq2",
     "expression-protein": "batch/expression_protein_{indication}/run_pipeline.R",  # planned (CPTAC)
     "dependency": "batch/dependency/run_pipeline.py",  # planned (DepMap)
     "mutation-profile": "batch/mutation_profile_{indication}/run_pipeline.py",  # planned (GDC somatic)

@@ -9,19 +9,13 @@ including the two deliberate corrections over the source repo's shipped scorer:
 from __future__ import annotations
 
 import math
-import sys
-from pathlib import Path
 
 import pytest
 
 pytest.importorskip("pandas")
 import pandas as pd
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.tcga_gtex_tpm_quantiles.window import (  # noqa: E402
+from onc_methods.tcga_gtex_tpm_quantiles.window import (
     CLEAN_WINDOW_RATIO,
     MODALITY_TIER_THRESHOLD,
     compute_window_from_rows,
@@ -190,7 +184,7 @@ def test_multi_study_indication_takes_max_tumor():
 # The legacy window_class collapses high-ratio genes (CEACAM5 558x) into essential_tissue_liability
 # alongside housekeeping genes (0.5x); therapeutic_window_class keys on the RATIO only, so it
 # separates them (backtest-validated: housekeeping <1 = no_therapeutic_window; antigens >1 = window).
-from methods.tcga_gtex_tpm_quantiles.window import (  # noqa: E402
+from onc_methods.tcga_gtex_tpm_quantiles.window import (
     THERAPEUTIC_WINDOW_CLEAN_RATIO,
     THERAPEUTIC_WINDOW_MIN_RATIO,
 )
@@ -230,13 +224,13 @@ def test_therapeutic_window_class_not_expressed_guard():
 # scorer — the pre-existing suite could not detect either change because its synthetic frames
 # never made BONE_MARROW or TESTIS the argmax.
 # ══════════════════════════════════════════════════════════════════════════════════════════════
-from methods.tcga_gtex_tpm_quantiles.marrow import (  # noqa: E402
+from onc_methods.tcga_gtex_tpm_quantiles.marrow import (
     MARROW_ORGAN_LABEL,
     SUBSTRATE_GENE_ABSENT,
     SUBSTRATE_PRIMARY,
     SUBSTRATE_UNAVAILABLE,
 )
-from methods.tcga_gtex_tpm_quantiles.window import (  # noqa: E402
+from onc_methods.tcga_gtex_tpm_quantiles.window import (
     CELL_LINE_GTEX_GROUPS,
     ESSENTIAL_GTEX_TISSUES,
     PRIVILEGED_NORMAL_SITES,

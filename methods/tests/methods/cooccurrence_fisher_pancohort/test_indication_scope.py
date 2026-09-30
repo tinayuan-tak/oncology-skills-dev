@@ -13,14 +13,8 @@ Tests monkeypatch `_read_target_rows` — no S3.
 from __future__ import annotations
 
 import importlib
-import sys
-from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-r = importlib.import_module("methods.cooccurrence_fisher_pancohort.read")
+r = importlib.import_module("onc_methods.cooccurrence_fisher_pancohort.read")
 
 
 def _row(partner, cohort, source, log2_or, bh_q, pooled_eligible=True):

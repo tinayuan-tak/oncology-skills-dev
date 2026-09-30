@@ -3,15 +3,8 @@ Pure (synthetic in-memory cubes; no S3)."""
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 # analysis-methods repo root on path (methods/ is a top-level package dir)
-ROOT = Path(__file__).resolve().parents[3]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
-from methods.pair_selectivity_gate.derive_batch import (  # noqa: E402
+from onc_methods.pair_selectivity_gate.derive_batch import (
     best_partner_rollup,
     derive_bulk_pair_selectivity,
 )
@@ -97,7 +90,7 @@ def test_no_self_pairs_and_rollup():
 def test_cube_from_frame_assembly():
     import pandas as pd
 
-    from methods.pair_selectivity_gate.materialize import CLINICAL_SEED_ANTIGENS, cube_from_frame
+    from onc_methods.pair_selectivity_gate.materialize import CLINICAL_SEED_ANTIGENS, cube_from_frame
 
     df = pd.DataFrame(
         [
@@ -114,7 +107,7 @@ def test_cube_from_frame_assembly():
 
 
 def test_reader_data_unavailable_is_shaped_not_raised():
-    from methods.pair_selectivity_gate import bulk_read
+    from onc_methods.pair_selectivity_gate import bulk_read
 
     # force the "not published" path deterministically
     bulk_read._DERIVED_STATUS = False

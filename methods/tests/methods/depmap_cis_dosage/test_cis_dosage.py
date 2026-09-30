@@ -10,14 +10,7 @@ data_unavailable.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.depmap_cis_dosage.cli import (  # noqa: E402
+from onc_methods.depmap_cis_dosage.cli import (
     AMPLIFICATION_THRESHOLD,
     compute_cis_dosage,
 )
@@ -204,7 +197,7 @@ def test_only_jointly_measured_lines_are_evaluated():
 
 def test_build_merged_data_intersects_and_attaches_lineage():
     """figures.build_merged_data: evaluated = CN ∩ TPM; lineage from model_metadata, else 'unknown'."""
-    from methods.depmap_cis_dosage.figures import build_merged_data
+    from onc_methods.depmap_cis_dosage.figures import build_merged_data
 
     cn = {"ACH-1": 2.0, "ACH-2": 1.0, "ACH-3": 3.0}  # ACH-3 has no TPM → dropped
     tpm = {"ACH-1": 8.0, "ACH-2": 5.0, "ACH-9": 4.0}  # ACH-9 has no CN → dropped

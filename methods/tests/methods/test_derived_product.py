@@ -13,7 +13,7 @@ import types
 import pandas as pd
 import pytest
 
-from methods import derived_product as dp
+from onc_methods import derived_product as dp
 
 
 def _parquet_bytes(df: pd.DataFrame) -> bytes:

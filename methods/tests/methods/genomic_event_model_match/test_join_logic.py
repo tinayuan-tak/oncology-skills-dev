@@ -2,16 +2,9 @@
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.genomic_event_model_match.read import (  # noqa: E402
+from onc_methods.genomic_event_model_match.read import (
     _classify_event_correspondence,
     _patient_dominant_event,
     _screen_role,

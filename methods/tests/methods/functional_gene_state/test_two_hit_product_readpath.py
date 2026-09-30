@@ -12,16 +12,9 @@ per-gene pushdown scan of pancan-genomic-two-hit-per-gene-v1. Three invariants, 
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.functional_gene_state import read as fgs  # noqa: E402
+from onc_methods.functional_gene_state import read as fgs
 
 
 @pytest.fixture

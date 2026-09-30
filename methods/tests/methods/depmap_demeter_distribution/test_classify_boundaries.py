@@ -10,7 +10,7 @@ from pathlib import Path
 import numpy as np
 
 REPO = Path(__file__).resolve().parents[3]
-CLI = REPO / "methods" / "depmap_demeter_distribution" / "cli.py"
+CLI = REPO / "onc_methods" / "depmap_demeter_distribution" / "cli.py"
 
 
 def _load():

@@ -7,16 +7,10 @@ Chromosome 1 (hg19: len 249.25 Mb, centromere 125 Mb) is used throughout so the 
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pandas as pd
 
-REPO = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(REPO))
-
-from methods.tcga_aneuploidy_burden import hrd as h  # noqa: E402
-from methods.tcga_aneuploidy_burden import read as r  # noqa: E402
+from onc_methods.tcga_aneuploidy_burden import hrd as h
+from onc_methods.tcga_aneuploidy_burden import read as r
 
 CHR1_LEN = 249_250_621
 CHR1_CEN = 125_000_000

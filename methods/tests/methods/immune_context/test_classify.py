@@ -7,20 +7,13 @@ relative deconvolution (lymphoid denominator, sample floor) and the heterogeneit
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
 
 pytest.importorskip("pandas")
 import pandas as pd
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.immune_context import classify as _cl  # noqa: E402
-from methods.immune_context.classify import (  # noqa: E402
+from onc_methods.immune_context import classify as _cl
+from onc_methods.immune_context.classify import (
     CD8_FRACTION_COLD_MAX,
     CD8_FRACTION_HOT_MIN,
     LYMPHOID_DENOMINATOR_STUDIES,
@@ -115,7 +108,7 @@ def test_floor_is_exactly_inclusive_at_min_n():
 def test_floor_matches_the_corroborating_saltz_reader():
     """The two readers corroborate each other on the immune-context headline (the orthogonal-platform
     confidence ruler), so an n one calls too thin must not be an n the other scores confidently."""
-    import methods.til_fraction_saltz.read as saltz
+    import onc_methods.til_fraction_saltz.read as saltz
 
     assert MIN_N_SAMPLES == saltz.MIN_N
 

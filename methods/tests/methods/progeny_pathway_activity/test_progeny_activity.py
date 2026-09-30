@@ -6,14 +6,7 @@ Pins the relative-class thresholds (cross-indication z), the composite-indicatio
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.progeny_pathway_activity import read as prog_read  # noqa: E402
+from onc_methods.progeny_pathway_activity import read as prog_read
 
 
 def _fake_product():
@@ -124,7 +117,7 @@ def test_missing_indication_is_data_unavailable():
 
 def _patch_resolver(monkeypatch, mapping):
     """Replace catalog_query.read.s3_uri_for with a dict lookup (hermetic — no manifest files)."""
-    import methods.catalog_query.read as cq
+    import onc_methods.catalog_query.read as cq
 
     monkeypatch.setattr(cq, "s3_uri_for", lambda mid, **kw: mapping[mid])
 
@@ -141,7 +134,7 @@ def test_derived_uri_resolves_via_manifest(monkeypatch):
 
 
 def test_expr_uri_resolves_via_manifest(monkeypatch):
-    from methods.progeny_pathway_activity import cli as prog_cli
+    from onc_methods.progeny_pathway_activity import cli as prog_cli
 
     _patch_resolver(
         monkeypatch,
@@ -154,7 +147,7 @@ def test_expr_uri_resolves_via_manifest(monkeypatch):
 
 def test_model_uri_appends_filename_to_source_directory(monkeypatch):
     """The source manifest s3_uri is a DIRECTORY (trailing slash); the helper appends the filename."""
-    from methods.progeny_pathway_activity import cli as prog_cli
+    from onc_methods.progeny_pathway_activity import cli as prog_cli
 
     _patch_resolver(
         monkeypatch,
@@ -174,4 +167,4 @@ def test_resolver_import_is_call_time_not_import_time(monkeypatch):
     import inspect
 
     src = inspect.getsource(prog_read._resolve_derived_uri)
-    assert "from methods.catalog_query.read import s3_uri_for" in src  # imported INSIDE the function
+    assert "from onc_methods.catalog_query.read import s3_uri_for" in src  # imported INSIDE the function

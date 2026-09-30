@@ -61,7 +61,6 @@ from unittest import mock
 HERE = Path(__file__).resolve().parent
 VECTORS = HERE / "rna_protein_concordance_vectors"
 ANCHORS = HERE / "anchors"
-AM_ROOT = HERE.parents[2]
 
 CELLLINE_RELEASE_PIN = "26q1"
 
@@ -108,9 +107,7 @@ def _md5(path: Path) -> str:
 
 
 def _read_module():
-    if str(AM_ROOT) not in sys.path:
-        sys.path.insert(0, str(AM_ROOT))
-    import methods.depmap_rna_protein_concordance.read as mod  # noqa: PLC0415
+    import onc_methods.depmap_rna_protein_concordance.read as mod  # noqa: PLC0415
 
     return mod
 
@@ -269,7 +266,7 @@ def capture_tumor(target: str, indication: str) -> None:
             f"live cbg read via _read_matched_cohorts_map({cohorts!r}, {target!r}) over "
             "cptac-rna-protein-matched-per-sample-v1; fixture = the matched per-tumor "
             "(patient_id, gene, rna_log2tpm, protein_log2abundance, cohort) rows; re-derive with "
-            "methods.depmap_rna_protein_concordance.read.read_tumor_rna_protein_concordance "
+            "onc_methods.depmap_rna_protein_concordance.read.read_tumor_rna_protein_concordance "
             "(mock _read_matched_cohort)."
         ),
     }

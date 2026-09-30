@@ -20,8 +20,8 @@ import csv
 import pytest
 import yaml
 
-from methods.dge_deseq2 import derive_pancan_stack as dps
-from methods.dge_deseq2 import emit_subgroup_data_package as esub
+from onc_methods.dge_deseq2 import derive_pancan_stack as dps
+from onc_methods.dge_deseq2 import emit_subgroup_data_package as esub
 
 _SIX = ["COADREAD", "ESCA", "HNSC", "NSCLC", "PAAD", "STAD"]
 

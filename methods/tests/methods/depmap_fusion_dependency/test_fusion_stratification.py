@@ -9,14 +9,7 @@ guarantees a fusion is NEVER credited with a dependency it lacks (protects the s
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.depmap_fusion_dependency.cli import compute_fusion_stratification  # noqa: E402
+from onc_methods.depmap_fusion_dependency.cli import compute_fusion_stratification
 
 
 def _panel(pos_chronos, neg_chronos):
@@ -113,7 +106,7 @@ def test_fusion_negative_more_dependent_is_never_mislabeled_positive_dependent()
 
 
 # ── fusion↔alteration confound annotation (verdict-inert; mutation ∪ focal amplification overlap) ──
-from methods.depmap_fusion_dependency.read import _fusion_alteration_confound  # noqa: E402
+from onc_methods.depmap_fusion_dependency.read import _fusion_alteration_confound
 
 
 def _fusion_universe(n_pos, n_neg):
@@ -142,9 +135,9 @@ def _patch_alterations(monkeypatch, mutant_ids=(), amplified_ids=(), mut_fail=Fa
         return ({m: 3.0 for m in amplified_ids}, {}, "assay", [])
 
     monkeypatch.setattr(
-        "methods.depmap_mutation_dependency.cli.load_mutation_data", fake_load_mutation_data, raising=False
+        "onc_methods.depmap_mutation_dependency.cli.load_mutation_data", fake_load_mutation_data, raising=False
     )
-    monkeypatch.setattr("methods.depmap_cn_distribution.cli.load_cn_files", fake_load_cn_files, raising=False)
+    monkeypatch.setattr("onc_methods.depmap_cn_distribution.cli.load_cn_files", fake_load_cn_files, raising=False)
 
 
 def test_confound_flags_majority_altered_fusion_positive(monkeypatch):

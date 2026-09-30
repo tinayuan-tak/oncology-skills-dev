@@ -50,7 +50,7 @@ RUN_DIR="${RUN_DIR:-$HOME/dev/framework-runs/subgroup-emit-$(date -u +%Y-%m-%d)}
 #      would silently undo that fix for the batch path, which is how all 20 shards actually run.
 # Precedence matches the Python side: explicit CATALOG_REPO, then DATA_CATALOG_ROOT, then the sibling.
 CATALOG_REPO="${CATALOG_REPO:-${DATA_CATALOG_ROOT:-$(dirname "$REPO_ROOT")/rnd-computational-biology-oncology-data-catalog}}"
-CLASSIFIER_CONFIG_DIR="${CLASSIFIER_CONFIG_DIR:-$REPO_ROOT/methods/subgroup_assigner_classifier/example-configs}"
+CLASSIFIER_CONFIG_DIR="${CLASSIFIER_CONFIG_DIR:-$REPO_ROOT/onc_methods/subgroup_assigner_classifier/example-configs}"
 S3_BUCKET="onc-compbio"
 
 # --- helpers -----------------------------------------------------------------

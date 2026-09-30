@@ -7,15 +7,9 @@ data_unavailable paths.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pandas as pd
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-from methods.caf_compartment import read as R  # noqa: E402
+from onc_methods.caf_compartment import read as R
 
 
 def _df(rows):

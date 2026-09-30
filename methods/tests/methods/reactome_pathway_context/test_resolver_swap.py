@@ -11,17 +11,14 @@ connectivity/credential errors — a schema-drift / logic bug must SURFACE, not 
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import pytest
 from botocore.exceptions import BotoCoreError, ClientError
 
 REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
 
-from methods.reactome_pathway_context import read as _r  # noqa: E402
+from onc_methods.reactome_pathway_context import read as _r
 
 # --- S3-free fixture: synthetic sidecar + UniProt2Reactome + hierarchy --------------------------
 _U2R = (
@@ -90,7 +87,7 @@ def test_crosswalk_is_sidecar_backed_not_hardcoded():
     assert _r.REACTOME_RESOLVER_SIDECAR_S3_KEY.endswith("target_resolution.parquet"), (
         "crosswalk must read the resolver sidecar"
     )
-    src = (REPO / "methods" / "reactome_pathway_context" / "read.py").read_text()
+    src = (REPO / "onc_methods" / "reactome_pathway_context" / "read.py").read_text()
     assert '"KRAS": "P01116"' not in src, "the hardcoded inline crosswalk must be removed"
 
 
@@ -111,7 +108,7 @@ def test_non_inline_targets_now_resolve(target):
 def test_product_path_reconstructs_ordered_pathways_and_toplevels(tmp_path):
     import pandas as pd
 
-    import methods.reactome_pathway_context.read as RE
+    import onc_methods.reactome_pathway_context.read as RE
 
     p = tmp_path / "re.parquet"
     pd.DataFrame(

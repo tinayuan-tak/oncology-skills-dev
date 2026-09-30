@@ -7,16 +7,9 @@ _live_read_error by the live-read seam). The caller no longer double-tags _live_
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.phospho_pathway_activity import read as phospho  # noqa: E402
+from onc_methods.phospho_pathway_activity import read as phospho
 
 
 def test_missing_local_product_is_genuine_absence(tmp_path):

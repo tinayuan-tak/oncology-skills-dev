@@ -7,18 +7,10 @@ absence); a CORRUPT parquet / broken-env / creds / transient failure -> re-raise
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
+import pandas as pd
 import pytest
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-import pandas as pd  # noqa: E402
-
-from methods.kinome_atlas_prediction import read as kin  # noqa: E402
+from onc_methods.kinome_atlas_prediction import read as kin
 
 
 def _raise(exc):

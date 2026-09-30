@@ -11,15 +11,10 @@ product falls back to the raw-CSV path.
 from __future__ import annotations
 
 import json
-import sys
-from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(REPO))
+import pytest
 
-import pytest  # noqa: E402
-
-import methods.depmap_paralog_aggregator.read as R  # noqa: E402
+import onc_methods.depmap_paralog_aggregator.read as R
 
 
 @pytest.fixture
@@ -166,7 +161,7 @@ def test_stale_product_definition_forces_the_live_recompute(monkeypatch, tmp_pat
 def test_delta_definition_gate_matches_on_the_token_and_fails_closed(monkeypatch):
     """The gate is a substring check on the manifest's parameters.delta_definition, and ANY read
     failure fails CLOSED (unreadable manifest → cannot certify → treat as stale)."""
-    import methods.catalog_query.read as CQ
+    import onc_methods.catalog_query.read as CQ
 
     monkeypatch.setattr(
         CQ, "load_manifest", lambda mid: {"parameters": {"delta_definition": R._DELTA_DEFINITION_TOKEN + " (x)"}}
@@ -200,7 +195,7 @@ def test_fetch_derived_row_parses_s3_uri(monkeypatch):
     lookup. The old test faked only sys.modules, so once ANY earlier test in the session imported real
     pyarrow (setting pyarrow.parquet/pyarrow.fs attributes), the fake was bypassed → real S3 read →
     order-dependent failure. Patch BOTH the attribute and sys.modules, via monkeypatch (auto-reverts)."""
-    import methods.depmap_paralog_aggregator.read as RR
+    import onc_methods.depmap_paralog_aggregator.read as RR
 
     captured = {}
 

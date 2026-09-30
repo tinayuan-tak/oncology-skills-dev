@@ -8,18 +8,12 @@ an empty index → honest data_unavailable / insufficient_evidence.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
 
 pd = pytest.importorskip("pandas")
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
 
-from methods.structure_features_static import read as R  # noqa: E402
+from onc_methods.structure_features_static import read as R
 
 
 class _FlakyClient:

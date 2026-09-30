@@ -6,19 +6,12 @@ separately. Pins the enrichment→avidity-call bands + cross-donor median + data
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
 
 pytest.importorskip("pandas")
 import pandas as pd
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.pair_selectivity_gate import samecell as SC  # noqa: E402
+from onc_methods.pair_selectivity_gate import samecell as SC
 
 
 def _cube(rows):

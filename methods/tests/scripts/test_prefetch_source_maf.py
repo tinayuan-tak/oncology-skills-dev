@@ -12,9 +12,39 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
+def _load_ops_script(name: str):
+    """Load ``methods/scripts/<name>.py`` by file location.
+
+    ``methods/scripts/`` holds operational drivers, NOT package modules: pyproject's
+    ``packages.find.include`` is ``onc_methods*``, so the scripts dir is not installed and
+    there is no import path to it. These tests used to reach it as a bare top-level
+    ``scripts`` namespace package, which resolved ONLY because a ``sys.path.insert`` had put
+    the distribution root on ``sys.path`` (deleted in skills#2237). Load by location instead
+    — the same idiom the ``steps/*.py`` tests use. The script's OWN
+    ``from onc_methods... import`` lines still resolve through the editable install, so
+    identity assertions against reader-module objects hold.
+    """
+    import importlib.util
+
+    path = _OPS_SCRIPTS / f"{name}.py"
+    assert path.is_file(), f"ops script not found: {path}"
+    spec = importlib.util.spec_from_file_location(f"_ops_script_{name}", path)
+    assert spec is not None and spec.loader is not None
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
+
+_OPS_SCRIPTS = REPO_ROOT / "scripts"
+_OPS_PREFETCH_CN_GISTIC = _load_ops_script("prefetch_cn_gistic")
+_OPS_PREFETCH_MARKER_PAPER = _load_ops_script("prefetch_marker_paper")
+_OPS_PREFETCH_SOURCE_MAF = _load_ops_script("prefetch_source_maf")
+
+
 def test_source_configs_complete():
     """All 4 sources have complete SourceConfig entries."""
-    from scripts.prefetch_source_maf import SOURCE_CONFIGS
+    SOURCE_CONFIGS = _OPS_PREFETCH_SOURCE_MAF.SOURCE_CONFIGS
 
     expected = {"tcga_mc3", "genie_public_v19", "genie_bpc_crc", "depmap_somatic"}
     assert set(SOURCE_CONFIGS) == expected
@@ -25,7 +55,7 @@ def test_source_configs_complete():
 
 def test_depmap_uses_protein_change_column():
     """DepMap MAF uses Protein_Change (not HGVSp_Short like MC3/GENIE)."""
-    from scripts.prefetch_source_maf import SOURCE_CONFIGS
+    SOURCE_CONFIGS = _OPS_PREFETCH_SOURCE_MAF.SOURCE_CONFIGS
 
     assert SOURCE_CONFIGS["depmap_somatic"].protein_col == "Protein_Change"
     assert SOURCE_CONFIGS["tcga_mc3"].protein_col == "HGVSp_Short"
@@ -34,7 +64,7 @@ def test_depmap_uses_protein_change_column():
 
 def test_genie_bpc_no_filter():
     """GENIE-BPC CRC is already CRC-only → filter_strategy=none."""
-    from scripts.prefetch_source_maf import SOURCE_CONFIGS
+    SOURCE_CONFIGS = _OPS_PREFETCH_SOURCE_MAF.SOURCE_CONFIGS
 
     assert SOURCE_CONFIGS["genie_bpc_crc"].filter_strategy == "none"
 
@@ -57,7 +87,7 @@ def test_dry_run_depmap(tmp_path):
 
 def test_genie_bpc_lot_prefix_present():
     """LOT derivation is a distinct non-MAF mode with its own S3 prefix map."""
-    from scripts.prefetch_source_maf import GENIE_BPC_S3_PREFIX
+    GENIE_BPC_S3_PREFIX = _OPS_PREFETCH_SOURCE_MAF.GENIE_BPC_S3_PREFIX
 
     assert "COADREAD" in GENIE_BPC_S3_PREFIX
     assert "CRC_2.0-public_clinical_data" in GENIE_BPC_S3_PREFIX["COADREAD"]
@@ -69,7 +99,7 @@ def test_genie_bpc_lot_prefix_present():
 def test_tcga_mc3_opts_into_effect_exon_normalization():
     """MC3 config carries Exon_Number + PolyPhen + normalize_effect so the
     catalogs' effect/exon rules can evaluate."""
-    from scripts.prefetch_source_maf import SOURCE_CONFIGS
+    SOURCE_CONFIGS = _OPS_PREFETCH_SOURCE_MAF.SOURCE_CONFIGS
 
     mc3 = SOURCE_CONFIGS["tcga_mc3"]
     assert mc3.exon_col == "Exon_Number"
@@ -93,7 +123,7 @@ def test_depmap_normalizes_effect_but_declares_exon_polyphen_absent():
     polyphen_col are about columns it does not. Conflating them is what made the defect
     look like a deliberate choice for long enough to ship.
     """
-    from scripts.prefetch_source_maf import SOURCE_CONFIGS
+    SOURCE_CONFIGS = _OPS_PREFETCH_SOURCE_MAF.SOURCE_CONFIGS
 
     depmap = SOURCE_CONFIGS["depmap_somatic"]
     assert depmap.effect_col == "Variant_Classification"
@@ -108,7 +138,8 @@ def test_genie_sources_stay_raw_and_declare_the_whole_vocabulary_unavailable():
     """GENIE stays raw-passthrough (no effect rule targets it today), but that must be
     DECLARED, not assumed: every normalized token is unproducible from a raw column, so
     a future GENIE effect-rule abstains instead of silently answering False."""
-    from scripts.prefetch_source_maf import SOURCE_CONFIGS, _unavailable_effect_tokens
+    SOURCE_CONFIGS = _OPS_PREFETCH_SOURCE_MAF.SOURCE_CONFIGS
+    _unavailable_effect_tokens = _OPS_PREFETCH_SOURCE_MAF._unavailable_effect_tokens
 
     for other in ("genie_public_v19", "genie_bpc_crc"):
         cfg = SOURCE_CONFIGS[other]
@@ -126,7 +157,8 @@ def test_depmap_declares_missense_damaging_unproducible_but_not_the_rest():
     legs of the TP53 rule must stay evaluable — declaring the whole vocabulary
     unavailable would swap a false-negative defect for a false-abstention one and lose
     every real call."""
-    from scripts.prefetch_source_maf import SOURCE_CONFIGS, _unavailable_effect_tokens
+    SOURCE_CONFIGS = _OPS_PREFETCH_SOURCE_MAF.SOURCE_CONFIGS
+    _unavailable_effect_tokens = _OPS_PREFETCH_SOURCE_MAF._unavailable_effect_tokens
 
     unavailable = _unavailable_effect_tokens(SOURCE_CONFIGS["depmap_somatic"])
     assert unavailable == {"missense_damaging"}, unavailable
@@ -138,7 +170,7 @@ def test_depmap_declares_missense_damaging_unproducible_but_not_the_rest():
 def test_variant_classification_effect_map_covers_catalog_vocab():
     """The MAF v2.4 → catalog effect map must cover every token the catalogs
     author rules against (the effect/exon rules across NSCLC/HNSC/ESCA/PAAD/AML)."""
-    from scripts.prefetch_source_maf import VARIANT_CLASSIFICATION_TO_EFFECT as M
+    M = _OPS_PREFETCH_SOURCE_MAF.VARIANT_CLASSIFICATION_TO_EFFECT
 
     # Catalog effect tokens that come from a raw Variant_Classification value.
     assert M["In_Frame_Del"] == "in_frame_deletion"
@@ -157,12 +189,10 @@ def test_variant_classification_effect_map_covers_catalog_vocab():
 def test_marker_paper_hnsc_subtype_and_clinical_enrich():
     """HNSC marker-paper prefetch enriches Bass subtype (from pancan-curated) +
     HPV/site (from clinical). NSCLC composes histology from two cohort files."""
-    from scripts.prefetch_marker_paper import (
-        _HNSC_SITE_GROUPING,
-        INDICATION_CLINICAL_ENRICH,
-        INDICATION_COHORTS,
-        INDICATION_SUBTYPE_ENRICH,
-    )
+    _HNSC_SITE_GROUPING = _OPS_PREFETCH_MARKER_PAPER._HNSC_SITE_GROUPING
+    INDICATION_CLINICAL_ENRICH = _OPS_PREFETCH_MARKER_PAPER.INDICATION_CLINICAL_ENRICH
+    INDICATION_COHORTS = _OPS_PREFETCH_MARKER_PAPER.INDICATION_COHORTS
+    INDICATION_SUBTYPE_ENRICH = _OPS_PREFETCH_MARKER_PAPER.INDICATION_SUBTYPE_ENRICH
 
     # NSCLC = two cohort files with histology labels (multi-histology composition).
     assert [c[1] for c in INDICATION_COHORTS["NSCLC"]] == ["adenocarcinoma", "squamous_cell_carcinoma"]
@@ -181,7 +211,7 @@ def test_marker_paper_hnsc_subtype_and_clinical_enrich():
 
 def test_cn_gistic_amp_threshold():
     """CN GISTIC prefetch calls amp at GISTIC +2 (high-level); +1 gain is NOT amp."""
-    from scripts.prefetch_cn_gistic import AMP_THRESHOLD
+    AMP_THRESHOLD = _OPS_PREFETCH_CN_GISTIC.AMP_THRESHOLD
 
     assert AMP_THRESHOLD == 2
 
@@ -189,11 +219,9 @@ def test_cn_gistic_amp_threshold():
 def test_marker_paper_stad_esca_paad_subtype_sources():
     """STAD subtype from pancan-curated (GI. strip); PAAD Moffitt from a per-cohort
     numeric column; ESCA is pancan-only with histology-from-subtype."""
-    from scripts.prefetch_marker_paper import (
-        INDICATION_PANCAN_ONLY,
-        INDICATION_PERCOHORT_SUBTYPE,
-        INDICATION_SUBTYPE_ENRICH,
-    )
+    INDICATION_PANCAN_ONLY = _OPS_PREFETCH_MARKER_PAPER.INDICATION_PANCAN_ONLY
+    INDICATION_PERCOHORT_SUBTYPE = _OPS_PREFETCH_MARKER_PAPER.INDICATION_PERCOHORT_SUBTYPE
+    INDICATION_SUBTYPE_ENRICH = _OPS_PREFETCH_MARKER_PAPER.INDICATION_SUBTYPE_ENRICH
 
     # STAD: 'GI.CIN' -> 'CIN' via prefix strip.
     assert INDICATION_SUBTYPE_ENRICH["STAD"] == ("stad_subtype", "STAD", "GI.")
@@ -253,7 +281,7 @@ def test_all_previously_blocked_indications_resolve_a_lineage():
     """Every indication the one-entry map rejected now resolves, with the value
     DepMap's own Model.csv uses (verified against a live 26Q1 load: each of the
     six prefetches emits a non-empty parquet, 95-264 distinct models)."""
-    from scripts.prefetch_source_maf import _depmap_lineage
+    _depmap_lineage = _OPS_PREFETCH_SOURCE_MAF._depmap_lineage
 
     for ind, expected in _PREVIOUSLY_BLOCKED.items():
         assert _depmap_lineage(ind) == expected, ind
@@ -266,7 +294,7 @@ def test_unmapped_indication_raises_rather_than_scoping_pan_cancer():
     """A missing mapping must be an error, not a silent pan-lineage read."""
     import pytest
 
-    from scripts.prefetch_source_maf import _depmap_lineage
+    _depmap_lineage = _OPS_PREFETCH_SOURCE_MAF._depmap_lineage
 
     with pytest.raises(KeyError, match="No DepMap lineage mapping"):
         _depmap_lineage("THYM")

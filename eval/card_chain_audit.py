@@ -6,7 +6,7 @@ The card→method→product→column chain is *declared* across three sibling re
     skill run.py CARDS
       → target-contracts/cards/<id>.card.yaml   (methods[].call, required_inputs[].product_id,
                                                   outputs.summary_fields, thresholds)
-      → analysis-methods/methods/<mod>/read.py
+      → analysis-methods/onc_methods/<mod>/read.py
       → data-catalog/manifests/…                (s3_uri, parquet_schema, primary_filter_column)
 
 This tool joins that declared wiring against what a run *actually read* (the opt-in ``read_trace.json``
@@ -78,11 +78,7 @@ _SKILLS = Path(__file__).resolve().parents[1] / "skills"  # eval/ is repo-root; 
 if str(_SKILLS) not in sys.path:
     sys.path.insert(0, str(_SKILLS))
 
-from _skills_common.paths import analysis_methods_root, target_contracts_root  # noqa: E402
-
-_AM = analysis_methods_root()
-if str(_AM) not in sys.path:
-    sys.path.insert(0, str(_AM))
+from _skills_common.paths import target_contracts_root
 
 
 # ── catalog access (lazy; the exact lru_cache kwargs the plan pins) ────────────────────────────────
@@ -93,7 +89,7 @@ def _load_catalog() -> Any:
     re-parses ~450 files (~15s); calling with ``root=DATA_CATALOG, contracts_root=TARGET_CONTRACTS``
     reuses the framework's own cached index.
     """
-    from methods.catalog_query import read as cq
+    from onc_methods.catalog_query import read as cq
 
     return cq.load_catalog(root=cq.DATA_CATALOG, contracts_root=cq.TARGET_CONTRACTS)
 
@@ -266,7 +262,7 @@ def _call_resolvable(method: dict) -> bool:
     if not mod:
         return False
     try:
-        return importlib.util.find_spec(f"methods.{mod}") is not None
+        return importlib.util.find_spec(f"onc_methods.{mod}") is not None
     except (ModuleNotFoundError, ValueError):
         # a parent package that itself fails to import — treat as unresolved, not a crash
         return False
@@ -280,8 +276,8 @@ def _reader_source_for_call(call: str) -> str:
     that references a given product id? A declared input whose manifest id appears here yet was read 0× is
     plausibly a warm-``lru_cache`` capture artifact (a PARTIAL blind spot) — the reader demonstrably has
     code to open it — NOT demonstrated dead wiring. The one-hop follow is load-bearing: a card's own package
-    often only ``from methods.<sibling>.read import …`` the loader that holds the id literal (e.g.
-    ``pathway_node_leverage`` reads the buffering product via ``methods.depmap_paralog_aggregator``).
+    often only ``from onc_methods.<sibling>.read import …`` the loader that holds the id literal (e.g.
+    ``pathway_node_leverage`` reads the buffering product via ``onc_methods.depmap_paralog_aggregator``).
     Best-effort: an unresolvable call / missing sibling repo yields ``""`` ⇒ no reclassification ⇒ the input
     stays flagged (the honest OVER-report direction, never a mask). Source mention is a HEURISTIC that the
     product is wired into reader code, not proof this card read it on any run."""
@@ -291,7 +287,7 @@ def _reader_source_for_call(call: str) -> str:
 
     def _pkg_text(module: str) -> str:
         try:
-            spec = importlib.util.find_spec(f"methods.{module}")
+            spec = importlib.util.find_spec(f"onc_methods.{module}")
         except (ModuleNotFoundError, ValueError):
             return ""
         if spec is None or not spec.origin:
@@ -309,8 +305,8 @@ def _reader_source_for_call(call: str) -> str:
         return ""
     texts = [root]
     seen = {mod}
-    # one hop only: follow `from methods.X …` / `import methods.X` to the sibling reader package
-    for sib in sorted(set(re.findall(r"(?:from|import)\s+methods\.(\w+)", root))):
+    # one hop only: follow `from onc_methods.X …` / `import onc_methods.X` to the sibling reader package
+    for sib in sorted(set(re.findall(r"(?:from|import)\s+onc_methods\.(\w+)", root))):
         if sib not in seen:
             texts.append(_pkg_text(sib))
             seen.add(sib)

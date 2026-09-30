@@ -284,6 +284,6 @@ def test_data_absence_live_read_error_is_insufficient_not_read_error():
     assert av("live_read_error: target_absent_from_gygi_ms") == "insufficient"
     # genuine failures → read_error (could not look) — the distinction the fix must preserve
     assert av("live_read_error: S3 timeout") == "read_error"
-    assert av("live_read_error: deadlock detected by _ModuleLock('methods.x.read')") == "read_error"
+    assert av("live_read_error: deadlock detected by _ModuleLock('onc_methods.x.read')") == "read_error"
     # a wiring error carries 'not_found' but NOT a data-absence marker → stays read_error
     assert av("live_read_error: resolver_not_found") == "read_error"

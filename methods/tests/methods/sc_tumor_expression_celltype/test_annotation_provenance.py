@@ -12,13 +12,7 @@ is honestly `unspecified`).
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]  # the repo root of THIS checkout (worktree-safe)
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-from methods.sc_tumor_expression_celltype import read as R  # noqa: E402
+from onc_methods.sc_tumor_expression_celltype import read as R
 
 
 def _prov(ind):

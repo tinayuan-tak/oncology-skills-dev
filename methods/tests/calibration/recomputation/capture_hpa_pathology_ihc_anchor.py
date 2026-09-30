@@ -42,7 +42,6 @@ from unittest import mock
 HERE = Path(__file__).resolve().parent
 ROWS_DIR = HERE / "hpa_ihc_rows"
 ANCHORS = HERE / "anchors"
-AM_ROOT = HERE.parents[2]
 
 _FIELDS = (
     "protein_presence_class",
@@ -66,9 +65,7 @@ def _md5(path: Path) -> str:
 
 
 def _read_module():
-    if str(AM_ROOT) not in sys.path:
-        sys.path.insert(0, str(AM_ROOT))
-    import methods.hpa_pathology_cancer_ihc.read as hp  # noqa: PLC0415
+    import onc_methods.hpa_pathology_cancer_ihc.read as hp  # noqa: PLC0415
 
     return hp
 
@@ -141,7 +138,7 @@ def capture(target: str, indication: str) -> None:
         "_provenance": (
             f"live cbg read of hpa-pathology-cancer-ihc-per-gene-v1 filtered to gene_symbol=={sym!r}; fixture = "
             "the per-cancer-type rows for the gene; re-derive with "
-            "methods.hpa_pathology_cancer_ihc.read.read_target_summary (mock the pyarrow read_table seam)."
+            "onc_methods.hpa_pathology_cancer_ihc.read.read_target_summary (mock the pyarrow read_table seam)."
         ),
     }
     anchor_name = f"{target.lower()}_{indication.lower()}.hpa_pathology_cancer_ihc.json"

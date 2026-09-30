@@ -7,7 +7,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-_MOD = Path(__file__).resolve().parents[3] / "methods" / "organoid_dependency_precompute"
+_MOD = Path(__file__).resolve().parents[3] / "onc_methods" / "organoid_dependency_precompute"
 
 
 def _load(name):

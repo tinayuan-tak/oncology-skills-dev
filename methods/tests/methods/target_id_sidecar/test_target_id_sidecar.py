@@ -7,15 +7,9 @@ returns {} — an empty crosswalk fails every target (the bare-except dead-axis 
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
 
-REPO = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(REPO))
-
-from methods.target_id_sidecar import (  # noqa: E402
+from onc_methods.target_id_sidecar import (
     is_definitively_absent,
     read_resolver_sidecar_map,
 )

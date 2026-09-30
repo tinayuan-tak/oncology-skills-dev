@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-LOOKUP = Path(__file__).resolve().parents[3] / "methods" / "organoid_dependency_precompute" / "lookup.py"
+LOOKUP = Path(__file__).resolve().parents[3] / "onc_methods" / "organoid_dependency_precompute" / "lookup.py"
 
 
 def _load():

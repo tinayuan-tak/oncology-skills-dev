@@ -43,7 +43,6 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 ROWS_DIR = HERE / "hpa_normal_liability_rows"
 ANCHORS = HERE / "anchors"
-AM_ROOT = HERE.parents[2]
 
 # The fields compute_summary(gene, row) returns — captured verbatim as the anchor's `expected`.
 _FIELDS = (
@@ -67,9 +66,7 @@ def _md5_of(obj) -> str:
 
 
 def _read_module():
-    if str(AM_ROOT) not in sys.path:
-        sys.path.insert(0, str(AM_ROOT))
-    import methods.hpa_normal_tissue_liability.cli as cli  # noqa: PLC0415
+    import onc_methods.hpa_normal_tissue_liability.cli as cli  # noqa: PLC0415
 
     return cli
 
@@ -124,7 +121,7 @@ def capture(target: str, indication: str) -> None:
         "_provenance": (
             f"live cbg read of hpa-v25-1 (methods.hpa_normal_tissue_liability.cli), gene index row for "
             f"{key!r}; fixture = the single raw HPA row; re-derive with "
-            "methods.hpa_normal_tissue_liability.cli.compute_summary(gene, row) directly — no seam mock "
+            "onc_methods.hpa_normal_tissue_liability.cli.compute_summary(gene, row) directly — no seam mock "
             "needed, compute_summary is pure."
         ),
     }

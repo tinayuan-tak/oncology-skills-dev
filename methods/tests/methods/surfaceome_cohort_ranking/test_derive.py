@@ -3,7 +3,7 @@
 import numpy as np
 import pandas as pd
 
-from methods.surfaceome_cohort_ranking.derive import (
+from onc_methods.surfaceome_cohort_ranking.derive import (
     CPTAC_COHORT_MAP,
     INDICATION_NORMAL_CAVEAT,
     OUTPUT_COLUMNS,

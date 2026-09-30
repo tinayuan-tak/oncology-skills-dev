@@ -14,7 +14,6 @@ The category→class mapping (build_payload) is checked on the raw Table_B categ
 from __future__ import annotations
 
 import importlib
-import sys
 import tempfile
 from pathlib import Path
 
@@ -22,12 +21,9 @@ import pytest
 
 pd = pytest.importorskip("pandas")
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
 
-read_mod = importlib.import_module("methods.cspa_surface_confirmation.read")
-derive_mod = importlib.import_module("methods.cspa_surface_confirmation.derive")
+read_mod = importlib.import_module("onc_methods.cspa_surface_confirmation.read")
+derive_mod = importlib.import_module("onc_methods.cspa_surface_confirmation.derive")
 
 
 def _fixtures(tmp: Path):

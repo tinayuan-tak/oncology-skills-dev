@@ -61,7 +61,7 @@ SKILLS_ROOT = SKILL_DIR.parent
 if str(SKILLS_ROOT) not in sys.path:
     sys.path.insert(0, str(SKILLS_ROOT))
 
-from _skills_common.paths import analysis_methods_root  # noqa: E402
+from _skills_common.paths import analysis_methods_root
 
 AM_ROOT = analysis_methods_root()
 RECOMPUTATION_DIR = AM_ROOT / "tests" / "calibration" / "recomputation"
@@ -92,9 +92,7 @@ def _load(path: Path) -> dict:
 
 
 def _rd_module():
-    if str(AM_ROOT) not in sys.path:
-        sys.path.insert(0, str(AM_ROOT))
-    import methods.depmap_rna_protein_concordance.read as rd  # noqa: PLC0415
+    import onc_methods.depmap_rna_protein_concordance.read as rd  # noqa: PLC0415
 
     return rd
 
@@ -217,10 +215,8 @@ _PURITY_DRIFT_TOL = 0.002
 
 
 def _rederive_purity():
-    if str(AM_ROOT) not in sys.path:
-        sys.path.insert(0, str(AM_ROOT))
-    import methods.expression_purity_confound.read as epc  # noqa: PLC0415
-    import methods.tcga_gtex_expression_distribution.read as exprmod  # noqa: PLC0415
+    import onc_methods.expression_purity_confound.read as epc  # noqa: PLC0415
+    import onc_methods.tcga_gtex_expression_distribution.read as exprmod  # noqa: PLC0415
 
     anchor = _load(PURITY_ANCHOR)
     expr = pd.read_parquet(RECOMPUTATION_DIR / anchor["expr_fixture"])
@@ -277,9 +273,7 @@ _IHC_FIELDS = (
 
 
 def _rederive_ihc():
-    if str(AM_ROOT) not in sys.path:
-        sys.path.insert(0, str(AM_ROOT))
-    import methods.hpa_pathology_cancer_ihc.read as hp  # noqa: PLC0415
+    import onc_methods.hpa_pathology_cancer_ihc.read as hp  # noqa: PLC0415
 
     anchor = _load(IHC_ANCHOR)
     tbl = pq.read_table(RECOMPUTATION_DIR / anchor["rows_fixture"])
@@ -309,9 +303,7 @@ def test_hpa_ihc_teeth_dropping_the_matched_row_breaks_the_golden_match():
     """Teeth: dropping the resolved HPA cancer-type row collapses the read to data_unavailable, no
     longer matching the golden's ihc_detected_high — proving the selection is a live function of the
     substrate, not a self-echo."""
-    if str(AM_ROOT) not in sys.path:
-        sys.path.insert(0, str(AM_ROOT))
-    import methods.hpa_pathology_cancer_ihc.read as hp  # noqa: PLC0415
+    import onc_methods.hpa_pathology_cancer_ihc.read as hp  # noqa: PLC0415
 
     _, anchor, tbl = _rederive_ihc()
     kept = tbl.filter(pc.not_equal(tbl["cancer_type"], anchor["hpa_cancer_type"]))

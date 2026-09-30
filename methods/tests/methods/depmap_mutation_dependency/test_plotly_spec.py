@@ -18,7 +18,7 @@ from pathlib import Path
 import pytest
 
 REPO = Path(__file__).resolve().parents[3]
-CLI = REPO / "methods" / "depmap_mutation_dependency" / "cli.py"
+CLI = REPO / "onc_methods" / "depmap_mutation_dependency" / "cli.py"
 # Portable sibling root: was hardcoded to the author's /home/sagemaker-user checkout, so the
 # guard below reported "not available" on every CI runner -- even though the workflow checks
 # this sibling out and exports its root. `or` rather than a .get() default, so an EMPTY value

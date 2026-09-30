@@ -10,23 +10,17 @@ hoist — computed via the OLD full-column-scan method vs. the NEW precomputed-d
 from __future__ import annotations
 
 import random
-import sys
-from pathlib import Path
 
 import pandas as pd
 import pytest
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.cptac_protein_deg import read as cptac  # noqa: E402
+from onc_methods.cptac_protein_deg import read as cptac
 
 
 def _old_allgene_effect_percentile(df, cohort, effect_size):
     """The pre-#715 implementation (full-column `.str.upper()` scan every call), kept here only to
     prove the hoisted version is numerically identical."""
-    from methods.percentile_null import classify_percentile, percentile_rank
+    from onc_methods.percentile_null import classify_percentile, percentile_rank
 
     try:
         null_vals = df.loc[df["cohort"].str.upper() == cohort, "protein_effect_size"].tolist()

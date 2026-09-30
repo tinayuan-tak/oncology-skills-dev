@@ -87,7 +87,7 @@ properties:
       - name: DETECTABLE_LOG2TPM
         value: 1.0
         unit: log2_tpm_plus_1
-        source: methods/methods/tcga_gtex_expression_distribution/stats.py:22
+        source: methods/onc_methods/tcga_gtex_expression_distribution/stats.py:22
         rationale: |
           TPM ~= 1, the tumour-side detection floor feeding `detectable_fraction` (the input to
           `broadly_low_detectable_fraction` and `BROADLY_DETECTED_MODERATE_FRACTION_MIN` below).
@@ -102,7 +102,7 @@ properties:
       - name: HIGH_LOG2TPM
         value: 5.6724
         unit: log2_tpm_plus_1
-        source: methods/methods/tcga_gtex_expression_distribution/stats.py:24
+        source: methods/onc_methods/tcga_gtex_expression_distribution/stats.py:24
         rationale: |
           log2(51), i.e. a round TPM 50 in LINEAR space. Diverges from the cell-line twin's 5.0
           (round in LOG space, TPM ~31) — see expression.yaml::magnitude and #2221.
@@ -127,13 +127,13 @@ properties:
           width. It IS populated at per-sample grain (7 values), so the note is a live
           display-precision hazard for fractions, not a hidden class flip.
         calibration:
-          controls: methods/methods/tumor_presence_controls/read.py
+          controls: methods/onc_methods/tumor_presence_controls/read.py
           flip_matrix: methods/tests/calibration/high_anchor_flip_matrix/matrix.json
           adjudication: "#2221"
       - name: MODERATE_LOG2TPM
         value: 3.4594
         unit: log2_tpm_plus_1
-        source: methods/methods/tcga_gtex_expression_distribution/stats.py:23
+        source: methods/onc_methods/tcga_gtex_expression_distribution/stats.py:23
         rationale: |
           log2(11) ~ TPM 10. Same linear-TPM rounding convention as HIGH_LOG2TPM, internally
           consistent with it.
@@ -144,7 +144,7 @@ properties:
       - name: BROADLY_DETECTED_MODERATE_FRACTION_MIN
         value: 0.5
         unit: fraction_of_tumors_above_moderate
-        source: methods/methods/tcga_gtex_expression_distribution/read.py:884
+        source: methods/onc_methods/tcga_gtex_expression_distribution/read.py:884
         rationale: |
           (Citation re-pointed 898 -> 884 by #2221: the cited line had drifted off the constant.
           Nothing in the gates checks a `:line` suffix — deliberately, see
@@ -163,7 +163,7 @@ properties:
       - name: broadly_low_detectable_fraction
         value: 0.3
         unit: fraction_of_tumors_above_detection_floor
-        source: methods/methods/tcga_gtex_expression_distribution/read.py:927
+        source: methods/onc_methods/tcga_gtex_expression_distribution/read.py:927
         rationale: |
           UNKNOWN as a value. Recorded here because it is the number #2220 mistakes for a
           `broadly_high` divergence: it is the `broadly_low` bar on DETECTABLE fraction, not a
@@ -264,7 +264,7 @@ properties:
       - name: _cohens_d_class.small
         value: 0.2
         unit: cohens_d_standardized_effect_size
-        source: methods/methods/cptac_protein_deg/read.py:93
+        source: methods/onc_methods/cptac_protein_deg/read.py:93
         rationale: |
           Cohen's (1988) canonical small/medium/large convention for a standardized effect size —
           a textbook cut, not a value tuned against this framework's data. Standardizes the raw
@@ -278,7 +278,7 @@ properties:
       - name: _cohens_d_class.medium
         value: 0.5
         unit: cohens_d_standardized_effect_size
-        source: methods/methods/cptac_protein_deg/read.py:91
+        source: methods/onc_methods/cptac_protein_deg/read.py:91
         rationale: |
           Cohen's (1988) canonical convention; see `_cohens_d_class.small` above for the shared
           standardization context.
@@ -289,7 +289,7 @@ properties:
       - name: _cohens_d_class.large
         value: 0.8
         unit: cohens_d_standardized_effect_size
-        source: methods/methods/cptac_protein_deg/read.py:89
+        source: methods/onc_methods/cptac_protein_deg/read.py:89
         rationale: |
           Cohen's (1988) canonical convention; see `_cohens_d_class.small` above for the shared
           standardization context.
@@ -344,7 +344,7 @@ properties:
       - name: MALIGNANT_BROADLY_DETECTED_MIN
         value: 0.5
         unit: fraction_of_malignant_cells_detected
-        source: methods/methods/sc_tumor_expression_celltype/stats.py:23
+        source: methods/onc_methods/sc_tumor_expression_celltype/stats.py:23
         rationale: |
           Anchored to the single-cell convention: ~0.5 detection reads as "expressed in most cells
           of the compartment" (cross-donor median `malignant_detection_fraction`).
@@ -360,7 +360,7 @@ properties:
       - name: MALIGNANT_SUBSET_DETECTED_MIN
         value: 0.10
         unit: fraction_of_malignant_cells_detected
-        source: methods/methods/sc_tumor_expression_celltype/stats.py:24
+        source: methods/onc_methods/sc_tumor_expression_celltype/stats.py:24
         rationale: |
           Anchored to the single-cell convention: ~0.1 detection reads as "a real expressing subset"
           (dropout-aware — scRNA under-detects, so a lower bar than the broadly-detected rung is
@@ -436,7 +436,7 @@ properties:
       - name: broadly_high_fraction
         value: 0.30
         unit: fraction_of_panel_highly_expressing
-        source: methods/methods/depmap_expression_distribution/cli.py:244
+        source: methods/onc_methods/depmap_expression_distribution/cli.py:244
         rationale: |
           UNKNOWN as a calibrated value, and a FLAGGED, currently-unadjudicated three-way fraction
           divergence found while sweeping this issue: this `_classify_expression`/`expression_class`
@@ -455,7 +455,7 @@ properties:
       - name: lineage_restricted_min_fraction
         value: 0.10
         unit: fraction_of_panel_above_detection_floor
-        source: methods/methods/depmap_expression_distribution/cli.py:245
+        source: methods/onc_methods/depmap_expression_distribution/cli.py:245
         rationale: |
           UNKNOWN. The lower edge of the `expression_class` band that reads as `lineage_restricted`
           (given >=1 enriched lineage) vs `broadly_low` below it. Shares a numeral with several
@@ -472,7 +472,7 @@ properties:
       - name: lineage_restricted_max_fraction
         value: 0.70
         unit: fraction_of_panel_above_detection_floor
-        source: methods/methods/depmap_expression_distribution/cli.py:246
+        source: methods/onc_methods/depmap_expression_distribution/cli.py:246
         rationale: |
           UNKNOWN. The upper edge of the same band as `lineage_restricted_min_fraction` above;
           numerically identical to `_BROAD_EXPRESSED_FRACTION` (expression.yaml, same unit) but that

@@ -10,22 +10,16 @@ Pure-dict (no S3): synthetic chronos + hotspot/damaging + model_metadata (Oncotr
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
 
 pytest.importorskip("numpy")
 pytest.importorskip("scipy")
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
 
-from methods.depmap_mutation_dependency.cli import (  # noqa: E402
+from onc_methods.depmap_mutation_dependency.cli import (
     compute_mutation_stratification as C,
 )
-from methods.depmap_mutation_dependency.cli import (
+from onc_methods.depmap_mutation_dependency.cli import (
     compute_mutation_stratification_conditioned as CC,
 )
 

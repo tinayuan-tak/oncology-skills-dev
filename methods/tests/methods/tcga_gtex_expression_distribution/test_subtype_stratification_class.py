@@ -6,14 +6,7 @@ it's pinned here. Imports the REAL classifier (no mirror) so there is zero drift
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.tcga_gtex_expression_distribution.read import (  # noqa: E402
+from onc_methods.tcga_gtex_expression_distribution.read import (
     classify_subtype_stratification as _classify,
 )
 

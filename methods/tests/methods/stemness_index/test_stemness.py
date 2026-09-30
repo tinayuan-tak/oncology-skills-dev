@@ -2,13 +2,7 @@
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-from methods.stemness_index import read as sr  # noqa: E402
+from onc_methods.stemness_index import read as sr
 
 
 def _fake():
@@ -86,7 +80,7 @@ def test_unmapped_and_missing(monkeypatch):
 
 
 def _patch_resolver(monkeypatch, mapping):
-    import methods.catalog_query.read as cq
+    import onc_methods.catalog_query.read as cq
 
     monkeypatch.setattr(cq, "s3_uri_for", lambda mid, **kw: mapping[mid])
 
@@ -105,7 +99,7 @@ def test_derived_uri_resolves_via_manifest(monkeypatch):
 def test_sig_uri_appends_filename_to_companions_manifest(monkeypatch):
     """The mRNAsi signature xlsx is documented in gdc-pancanatlas-companions-2018 (its files: block
     lists it; sibling gdc-pancanatlas manifests share the same directory s3_uri)."""
-    from methods.stemness_index import cli as sc
+    from onc_methods.stemness_index import cli as sc
 
     _patch_resolver(
         monkeypatch,
@@ -118,7 +112,7 @@ def test_sig_uri_appends_filename_to_companions_manifest(monkeypatch):
 
 
 def test_expr_uri_resolves_via_manifest(monkeypatch):
-    from methods.stemness_index import cli as sc
+    from onc_methods.stemness_index import cli as sc
 
     _patch_resolver(
         monkeypatch,
@@ -132,4 +126,4 @@ def test_expr_uri_resolves_via_manifest(monkeypatch):
 def test_resolver_import_is_call_time():
     import inspect
 
-    assert "from methods.catalog_query.read import s3_uri_for" in inspect.getsource(sr._resolve_derived_uri)
+    assert "from onc_methods.catalog_query.read import s3_uri_for" in inspect.getsource(sr._resolve_derived_uri)

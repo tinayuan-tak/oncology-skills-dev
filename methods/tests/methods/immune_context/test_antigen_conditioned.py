@@ -6,19 +6,12 @@ escape flag, and the small-n / empty guards. The S3 barcode↔UUID join is live-
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
 
 pytest.importorskip("pandas")
 import pandas as pd
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.immune_context.antigen_conditioned import (  # noqa: E402
+from onc_methods.immune_context.antigen_conditioned import (
     COLD_IN_HIGH_DELTA,
     antigen_conditioned_summary,
 )

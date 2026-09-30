@@ -19,10 +19,10 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-CLI = REPO / "methods" / "depmap_chronos_distribution" / "cli.py"
-# cli.py itself does `from methods.catalog_query.read import ...` — the repo root must be on
-# sys.path BEFORE exec, or this module cannot be collected standalone (order-dependent green).
-sys.path.insert(0, str(REPO))
+CLI = REPO / "onc_methods" / "depmap_chronos_distribution" / "cli.py"
+# cli.py itself does `from onc_methods.catalog_query.read import ...`, which resolves through the
+# editable install from any cwd — so exec'ing it here no longer depends on what is on sys.path
+# (that dependence is exactly what made a standalone collection order-dependent; skills#2237).
 
 
 def _load():

@@ -7,13 +7,7 @@ mirroring the DepMap vocabulary, the indication scoping, and honest amplificatio
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(REPO))
-
-from methods.tcga_patient_cn import read as r  # noqa: E402
+from onc_methods.tcga_patient_cn import read as r
 
 
 def _setup(monkeypatch, gistic_by_aliquot, cancer_map):

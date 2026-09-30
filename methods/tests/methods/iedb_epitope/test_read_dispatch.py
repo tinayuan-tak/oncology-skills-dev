@@ -6,19 +6,13 @@ object-absence. read_target_summary must assemble the full DISPLAY-card summary 
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
 
 pytest.importorskip("pandas")
 pa = pytest.importorskip("pyarrow")
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
 
-from methods.iedb_epitope import read as R  # noqa: E402
+from onc_methods.iedb_epitope import read as R
 
 
 @pytest.fixture(autouse=True)

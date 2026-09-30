@@ -9,14 +9,7 @@ conservative guarantee that a hotspot in a disordered region is NEVER called 'ad
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.structure_features_static.compute import (  # noqa: E402
+from onc_methods.structure_features_static.compute import (
     aggregate_plddt,
     build_row,
     parse_cif_plddt,
@@ -247,7 +240,7 @@ def test_coerce_id_list_handles_ndarray_list_str_none():
     This bug shipped in read.py (never hit until the derived product existed) — B0 publish caught it."""
     import numpy as np
 
-    from methods.structure_features_static.read import _coerce_id_list
+    from onc_methods.structure_features_static.read import _coerce_id_list
 
     assert _coerce_id_list(np.array(["1ABC", "2DEF"])) == ["1ABC", "2DEF"]  # the failing case
     assert _coerce_id_list(["1ABC", "2DEF"]) == ["1ABC", "2DEF"]

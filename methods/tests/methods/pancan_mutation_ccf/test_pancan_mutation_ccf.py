@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from methods.pancan_mutation_ccf.read import read_clonality
+from onc_methods.pancan_mutation_ccf.read import read_clonality
 
 
 def _write_product(tmp_path: Path) -> Path:
@@ -81,7 +81,7 @@ def test_coadread_truncal_founders_are_clonal_biology_gate():
     """BIOLOGY GATE: the CRC truncal founders (APC, TP53, KRAS — the Vogelstein adenoma→carcinoma
     sequence) must resolve predominantly_clonal with a high clonal fraction. Guards the ccf pipeline
     against an inversion/units bug that would make the durability signal artifactual."""
-    from methods.pancan_mutation_ccf.cli import aggregate_clonality
+    from onc_methods.pancan_mutation_ccf.cli import aggregate_clonality
 
     try:
         rows = {r["gene_symbol"]: r for r in aggregate_clonality("COADREAD")}

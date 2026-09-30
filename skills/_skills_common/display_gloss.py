@@ -469,7 +469,7 @@ def humanize(s) -> str:
 # reach (residual card-panel / salience-band / metric-reading renders). Recoverability-preserving sugar:
 # callers keep the raw token/number alongside the phrase. Invents NO thresholds — the r² band reuses the
 # producer's OWN cuts, mirrored here from
-# analysis-methods/methods/depmap_predictability_precompute/cli.py:86-87 (whose comment reads "See card
+# analysis-methods/onc_methods/depmap_predictability_precompute/cli.py:86-87 (whose comment reads "See card
 # YAML for the authoritative copy"), same values as the dependency-predictability card's classifier notes.
 PREDICTABILITY_CLASS_GLOSS: dict = {
     "own_omics_driven": "own-omics predictable",

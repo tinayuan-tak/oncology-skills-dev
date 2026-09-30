@@ -307,7 +307,7 @@ gap that never shows up field-by-field.
 Probes 1–9 trust the datum and ask whether it is *used* correctly. Probe 10
 interrogates the layer *below* the card — the `analysis-methods` reader that
 queries the S3 dataset and materializes the card summary. Run it **once per
-dispatched card-method** (read `analysis-methods/methods/<method>/read.py`, not
+dispatched card-method** (read `analysis-methods/onc_methods/<method>/read.py`, not
 the card). Two failure classes: extraction is **unsound** (a guardrail gap that
 corrupts or mis-classifies the datum — `DEFECT`, because it can reach the
 verdict) or **wasteful** (an optimization gap that scales badly over the

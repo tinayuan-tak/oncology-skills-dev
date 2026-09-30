@@ -20,14 +20,8 @@ to assert restriction and stays `broadly_low`.
 from __future__ import annotations
 
 import importlib
-import sys
-from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-cli = importlib.import_module("methods.depmap_protein_abundance.cli")
+cli = importlib.import_module("onc_methods.depmap_protein_abundance.cli")
 
 
 def test_low_band_concentrated_is_lineage_restricted_not_broadly_low():

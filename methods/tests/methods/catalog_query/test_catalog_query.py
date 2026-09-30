@@ -24,7 +24,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from methods.catalog_query.read import (
+from onc_methods.catalog_query.read import (
     bucket_key_for,
     bucket_prefix_for,
     load_catalog,
@@ -405,7 +405,7 @@ def test_module_has_no_write_or_network_ops():
     the atomic, self-invalidating memoization of the *built index* to a temp cache dir (a derived
     artifact, NOT a catalog file) — each such line is tagged `# index-cache-write` and exempted here;
     an UNMARKED write-mode open still trips the guard, and the no-network checks are absolute."""
-    src_dir = Path(__file__).resolve().parents[3] / "methods" / "catalog_query"
+    src_dir = Path(__file__).resolve().parents[3] / "onc_methods" / "catalog_query"
     for py in src_dir.glob("*.py"):
         text = py.read_text()
         # strip comment-only lines (prose) AND lines carrying the sanctioned index-cache-write marker

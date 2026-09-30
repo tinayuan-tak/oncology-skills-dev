@@ -5,27 +5,21 @@ No S3: the two per-model readers (RNA card4 loader, protein Gygi loader) are mon
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
 
 np = pytest.importorskip("numpy")
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
 
-from methods.depmap_rna_protein_concordance import read as R  # noqa: E402
+from onc_methods.depmap_rna_protein_concordance import read as R
 
 
 def _wire(monkeypatch, rna_by_model, prot_by_model, accession="P00000", errs=None):
-    import methods.depmap_expression_dependency.cli as rna_cli
+    import onc_methods.depmap_expression_dependency.cli as rna_cli
 
     monkeypatch.setattr(
         rna_cli, "load_depmap_files_for_card4", lambda release_pin, target_symbol: ({}, rna_by_model, {}, errs or [])
     )
-    import methods.depmap_protein_abundance.cli as prot_cli
+    import onc_methods.depmap_protein_abundance.cli as prot_cli
 
     monkeypatch.setattr(prot_cli, "resolve_accession", lambda t, sidecar_path=None: accession)
     monkeypatch.setattr(
@@ -76,7 +70,7 @@ def test_boundary_ci_fragility_flag_G10():
     """G10 refinement: the Fisher-z 95% CI of the classifying r + a verdict-inert boundary-fragility flag.
     A near-boundary r at small n straddles a class boundary (fragile=True); a value far from any boundary
     is not; a wider n narrows the CI. The flag never changes the class (rna_as_biomarker unaffected)."""
-    from methods.depmap_rna_protein_concordance import read as R
+    from onc_methods.depmap_rna_protein_concordance import read as R
 
     # r=0.45 at n=20: sits just above the 0.4 partial/poor boundary, wide CI → straddles 0.4 → fragile
     near = R._proxy_boundary_ci(0.45, 20)
@@ -232,7 +226,7 @@ def test_tumor_emitter(tmp_path, monkeypatch):
     import pandas as pd
 
     pytest.importorskip("matplotlib")
-    cli = importlib.import_module("methods.depmap_rna_protein_concordance.cli")
+    cli = importlib.import_module("onc_methods.depmap_rna_protein_concordance.cli")
     n = 40
     rows = [
         {
@@ -362,7 +356,7 @@ def test_cli_build_and_figure(tmp_path, monkeypatch):
     import importlib
 
     pytest.importorskip("matplotlib")
-    cli = importlib.import_module("methods.depmap_rna_protein_concordance.cli")
+    cli = importlib.import_module("onc_methods.depmap_rna_protein_concordance.cli")
     ids = [f"ACH-{i:04d}" for i in range(40)]
     rna = {m: float(i % 8) for i, m in enumerate(ids)}
     _wire(monkeypatch, rna, {m: rna[m] + 0.1 for m in ids})

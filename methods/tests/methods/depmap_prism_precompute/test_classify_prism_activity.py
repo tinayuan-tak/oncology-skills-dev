@@ -8,20 +8,13 @@ measured Log2AUC below the clinically-active threshold. Hermetic (pure function,
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.depmap_prism_precompute.cli import (
+from onc_methods.depmap_prism_precompute.cli import (
     CLINICALLY_ACTIVE_LOG2AUC_THRESHOLD as CA_THR,
 )
-from methods.depmap_prism_precompute.cli import (
+from onc_methods.depmap_prism_precompute.cli import (
     WEAKLY_ACTIVE_LOG2AUC_THRESHOLD as WA_THR,
 )
-from methods.depmap_prism_precompute.cli import (  # noqa: E402
+from onc_methods.depmap_prism_precompute.cli import (
     classify_prism_activity,
 )
 

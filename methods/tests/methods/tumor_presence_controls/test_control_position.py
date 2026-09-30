@@ -7,17 +7,11 @@ exclusion + assembly logic is tested deterministically offline.
 
 from __future__ import annotations
 
-import sys
 import textwrap
-from pathlib import Path
 
 import pytest
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.tumor_presence_controls import read as CP  # noqa: E402
+from onc_methods.tumor_presence_controls import read as CP
 
 
 @pytest.fixture
@@ -106,7 +100,7 @@ def test_classify_data_unavailable_when_target_none():
 # ---- end-to-end assembly (mocked percentiles) ----
 def _wire_percentiles(monkeypatch, pct_map):
     """Patch the tumor lookup so each symbol returns a fixed percentile."""
-    import methods.allgene_percentile_precompute.lookup as _lk
+    import onc_methods.allgene_percentile_precompute.lookup as _lk
 
     def _fake(ensembl_ids, studies, cutoffs=None, source="tcga_tumor"):
         # the method calls _symbol_to_ensembl_ids first; we instead key on a sentinel the
@@ -117,7 +111,7 @@ def _wire_percentiles(monkeypatch, pct_map):
 
     monkeypatch.setattr(_lk, "tumor_allgene_percentile", _fake)
     # make _symbol_to_ensembl_ids return [SYMBOL] so the fake keys on the symbol
-    from methods.tcga_gtex_expression_distribution import read as _R
+    from onc_methods.tcga_gtex_expression_distribution import read as _R
 
     monkeypatch.setattr(_R, "_symbol_to_ensembl_ids", lambda s: [s])
     monkeypatch.setattr(_R, "INDICATION_TO_TCGA_STUDIES", {"COADREAD": ["COAD", "READ"]})
@@ -145,7 +139,7 @@ def test_assembly_excludes_lineage_negative_in_lung(contracts, monkeypatch):
     )
     monkeypatch.setattr(CP, "_INDICATION_CANONICAL_ALIAS", {"LUAD": "NSCLC"})
     # add LUAD studies so the target ranks
-    from methods.tcga_gtex_expression_distribution import read as _R
+    from onc_methods.tcga_gtex_expression_distribution import read as _R
 
     monkeypatch.setattr(_R, "INDICATION_TO_TCGA_STUDIES", {"LUAD": ["LUAD"]})
     out = CP.control_position_tumor("TARGET", "LUAD", contracts_dir=contracts)

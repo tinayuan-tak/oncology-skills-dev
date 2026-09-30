@@ -3,20 +3,13 @@ monkeypatched with a synthetic per-(donor,pair) cube."""
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
-
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
 
 pd = pytest.importorskip("pandas")
 
-from methods.pair_selectivity_gate import cli as C  # noqa: E402
-from methods.pair_selectivity_gate import normal as N  # noqa: E402
-from methods.pair_selectivity_gate import samecell as S  # noqa: E402
+from onc_methods.pair_selectivity_gate import cli as C
+from onc_methods.pair_selectivity_gate import normal as N
+from onc_methods.pair_selectivity_gate import samecell as S
 
 
 def _normal_cube_clean():

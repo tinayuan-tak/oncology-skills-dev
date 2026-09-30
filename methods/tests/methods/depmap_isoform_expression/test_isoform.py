@@ -9,13 +9,9 @@ tested via a forced product-read.
 from __future__ import annotations
 
 import math
-import sys
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(REPO))
-
-from methods.depmap_isoform_expression import read as r  # noqa: E402
+from onc_methods.depmap_isoform_expression import read as r
 
 
 def _log1p(tpm):

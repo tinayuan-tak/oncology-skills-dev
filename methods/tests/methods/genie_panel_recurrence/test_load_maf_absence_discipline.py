@@ -7,18 +7,12 @@ unchanged. (The pq read below already carries its own discriminant.)
 from __future__ import annotations
 
 import functools
-import sys
-from pathlib import Path
 
 import pytest
 from botocore.exceptions import ClientError
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-import methods.catalog_query.read as cq  # noqa: E402
-from methods.genie_panel_recurrence import read as gen  # noqa: E402
+import onc_methods.catalog_query.read as cq
+from onc_methods.genie_panel_recurrence import read as gen
 
 
 @pytest.fixture(autouse=True)

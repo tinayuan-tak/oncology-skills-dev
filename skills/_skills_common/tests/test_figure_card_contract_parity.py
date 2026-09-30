@@ -19,18 +19,16 @@ import yaml
 
 SKILL_DIR = Path(__file__).resolve().parent.parent  # skills/_skills_common
 sys.path.insert(0, str(SKILL_DIR))  # _skills_common on path → _figure_emitters
-from _skills_common.paths import ANALYSIS_METHODS_ROOT_DEFAULT, TARGET_CONTRACTS_ROOT_DEFAULT  # noqa: E402
+from _skills_common.paths import TARGET_CONTRACTS_ROOT_DEFAULT
 
-_AM = os.environ.get("ANALYSIS_METHODS_ROOT", ANALYSIS_METHODS_ROOT_DEFAULT)
-sys.path.insert(0, _AM)
 _TC = Path(os.environ.get("TARGET_CONTRACTS_ROOT", TARGET_CONTRACTS_ROOT_DEFAULT))
 
-import _figure_emitters as fe  # noqa: E402
-from methods.depmap_chronos_distribution import cli as chr_cli  # noqa: E402
-from methods.depmap_cn_distribution import cli as cn_cli  # noqa: E402
-from methods.depmap_demeter_distribution import cli as rnai_cli  # noqa: E402
-from methods.depmap_expression_distribution import cli as e3cli  # noqa: E402
-from methods.depmap_protein_abundance import cli as prot_cli  # noqa: E402
+import _figure_emitters as fe
+from onc_methods.depmap_chronos_distribution import cli as chr_cli
+from onc_methods.depmap_cn_distribution import cli as cn_cli
+from onc_methods.depmap_demeter_distribution import cli as rnai_cli
+from onc_methods.depmap_expression_distribution import cli as e3cli
+from onc_methods.depmap_protein_abundance import cli as prot_cli
 
 
 def _find_figures(node) -> list:

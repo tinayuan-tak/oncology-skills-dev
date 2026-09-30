@@ -14,7 +14,7 @@ so the test exercises read.py's own control flow, not the data platform.
 
 from __future__ import annotations
 
-import methods.depmap_predictability.read as rd
+import onc_methods.depmap_predictability.read as rd
 
 
 def _no_aws(monkeypatch):

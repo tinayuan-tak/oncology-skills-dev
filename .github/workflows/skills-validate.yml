@@ -451,7 +451,9 @@ jobs:
         # The same redundant `-q`, and the same `-rs`-without-`fE`, that remained at the contracts
         # leg and at the skills sites in scripts/preland.sh (left alone here to keep this PR
         # scoped to the env change; both reported on #2145) were fixed separately in skills#2236.
-        run: pixi run pytest methods/ tests/ -rsfE --import-mode=importlib -n auto
+        # skills#2237: the import package is `onc_methods` (was `methods`); this leg's cwd IS
+        # `methods/`, so the first path arg is the PACKAGE dir and had to be renamed with it.
+        run: pixi run pytest onc_methods/ tests/ -rsfE --import-mode=importlib -n auto
 
   # ── CONTRACTS GATES (ported from target-contracts' contracts-validate.yml at the SK#2063
   # consolidation; target-contracts now lives in-tree at contracts/) ───────────────────────

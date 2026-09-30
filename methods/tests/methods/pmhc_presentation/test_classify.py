@@ -6,16 +6,9 @@ and the MS-asymmetry rule (absent = weak-negative not_observed, never a confirme
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
+import pytest
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-import pytest  # noqa: E402
-
-from methods.pmhc_presentation.classify import (  # noqa: E402
+from onc_methods.pmhc_presentation.classify import (
     _ATLAS_N_TISSUES_QUARTILES,
     BROAD_MIN_TISSUES,
     RESTRICTED_MAX_TISSUES,
@@ -106,7 +99,7 @@ def test_quartile_provenance_matches_atlas():
     import pyarrow.fs as pafs
     import pyarrow.parquet as pq
 
-    from methods.pmhc_presentation.read import PAYLOAD_KEY, S3_BUCKET
+    from onc_methods.pmhc_presentation.read import PAYLOAD_KEY, S3_BUCKET
 
     s3 = pafs.S3FileSystem(region="us-east-1")
     n = (

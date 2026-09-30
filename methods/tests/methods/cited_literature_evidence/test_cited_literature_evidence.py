@@ -9,14 +9,7 @@ Two contracts:
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-AM = Path(__file__).resolve().parents[3]
-if str(AM) not in sys.path:
-    sys.path.insert(0, str(AM))
-
-from methods.cited_literature_evidence.read import (  # noqa: E402
+from onc_methods.cited_literature_evidence.read import (
     _flatten_for_card,
     build_cited_evidence_card,
     read_cited_literature_evidence,
@@ -160,9 +153,9 @@ def test_data_unavailable_flattens_to_status_field():
 def test_compose_transient_faults_become_data_unavailable_never_raises(monkeypatch):
     from botocore.exceptions import ClientError
 
-    import methods.opentargets_europepmc_evidence.read as EP
-    import methods.pubtator3_gene_disease_relations.read as PT
-    from methods.cited_literature_evidence.read import _compose_nested
+    import onc_methods.opentargets_europepmc_evidence.read as EP
+    import onc_methods.pubtator3_gene_disease_relations.read as PT
+    from onc_methods.cited_literature_evidence.read import _compose_nested
 
     def _throttle(*a, **k):
         raise ClientError({"Error": {"Code": "SlowDown", "Message": "throttle"}}, "GetObject")
@@ -178,9 +171,9 @@ def test_compose_transient_faults_become_data_unavailable_never_raises(monkeypat
 def test_compose_one_infra_one_clean_zero_is_data_unavailable(monkeypatch):
     from botocore.exceptions import ClientError
 
-    import methods.opentargets_europepmc_evidence.read as EP
-    import methods.pubtator3_gene_disease_relations.read as PT
-    from methods.cited_literature_evidence.read import _compose_nested
+    import onc_methods.opentargets_europepmc_evidence.read as EP
+    import onc_methods.pubtator3_gene_disease_relations.read as PT
+    from onc_methods.cited_literature_evidence.read import _compose_nested
 
     def _expired(*a, **k):
         raise ClientError({"Error": {"Code": "ExpiredToken", "Message": "creds"}}, "GetObject")
@@ -192,9 +185,9 @@ def test_compose_one_infra_one_clean_zero_is_data_unavailable(monkeypatch):
 
 
 def test_compose_both_clean_zero_still_no_evidence(monkeypatch):
-    import methods.opentargets_europepmc_evidence.read as EP
-    import methods.pubtator3_gene_disease_relations.read as PT
-    from methods.cited_literature_evidence.read import _compose_nested
+    import onc_methods.opentargets_europepmc_evidence.read as EP
+    import onc_methods.pubtator3_gene_disease_relations.read as PT
+    from onc_methods.cited_literature_evidence.read import _compose_nested
 
     monkeypatch.setattr(EP, "read_europepmc_evidence", lambda *a, **k: _epmc(status="no_evidence"))
     monkeypatch.setattr(PT, "read_gene_disease_relations", lambda *a, **k: _rel(status="no_relations"))
@@ -237,7 +230,7 @@ def test_reader_emits_every_declared_summary_field_top_level(monkeypatch):
     """The card entrypoint must emit every declared summary_field as a TOP-LEVEL key (emission guard),
     stay verdict-inert, and never raise when a lane is unavailable — exercised by monkeypatching the
     two underlying readers so the test is hermetic (no S3)."""
-    import methods.cited_literature_evidence.read as R
+    import onc_methods.cited_literature_evidence.read as R
 
     monkeypatch.setattr(
         R,
@@ -255,7 +248,7 @@ def test_reader_emits_every_declared_summary_field_top_level(monkeypatch):
 
 
 def test_reader_absent_lanes_still_shape_stable(monkeypatch):
-    import methods.cited_literature_evidence.read as R
+    import onc_methods.cited_literature_evidence.read as R
 
     monkeypatch.setattr(R, "_compose_nested", lambda t, i, top_cited=8: build_cited_evidence_card(t, i, None, None))
     out = read_cited_literature_evidence("X", "Y")

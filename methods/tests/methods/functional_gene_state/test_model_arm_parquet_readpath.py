@@ -15,18 +15,11 @@ Invariants:
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
-
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
 
 pd = pytest.importorskip("pandas")
 
-from methods.functional_gene_state import read as fgs  # noqa: E402
+from onc_methods.functional_gene_state import read as fgs
 
 
 def test_mut_matrix_prefers_parquet_column(monkeypatch):

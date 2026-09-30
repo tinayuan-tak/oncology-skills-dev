@@ -174,7 +174,7 @@ def _ot_floor_pmids(target: str, indication: str, per_cat: int, axis_terms: str 
     and collision-free where the live keyword lane starves/mis-retrieves; if analysis-methods is
     unavailable it contributes nothing. `axis_terms` re-ranks the floor's rows by axis relevance."""
     try:
-        from methods.opentargets_literature_floor.read import read_literature_floor
+        from onc_methods.opentargets_literature_floor.read import read_literature_floor
 
         return list(
             read_literature_floor(target, indication, top_n=per_cat, axis_terms=axis_terms or None).get("pmids", [])
@@ -182,7 +182,7 @@ def _ot_floor_pmids(target: str, indication: str, per_cat: int, axis_terms: str 
         )
     except TypeError:  # older reader without axis_terms — degrade gracefully
         try:
-            from methods.opentargets_literature_floor.read import read_literature_floor
+            from onc_methods.opentargets_literature_floor.read import read_literature_floor
 
             return list(read_literature_floor(target, indication, top_n=per_cat).get("pmids", []) or [])
         except Exception:  # noqa: BLE001

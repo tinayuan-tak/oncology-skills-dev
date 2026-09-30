@@ -13,8 +13,8 @@ import pytest
 pytest.importorskip("numpy")
 pytest.importorskip("pandas")
 
-from methods.sc_tumor_expression_celltype import read as R
-from methods.sc_tumor_expression_celltype import stats as S
+from onc_methods.sc_tumor_expression_celltype import read as R
+from onc_methods.sc_tumor_expression_celltype import stats as S
 
 _ENTRY_KEYS = (
     "compartment",

@@ -9,7 +9,7 @@ each has its own consumers:
                   product_id is a WARNING (PRODUCT_ID_UNRESOLVED :1180), never an
                   error; tests/schemas/{test_product_path_templates.py:20,
                   test_indication_sentinel.py:30, test_result_schema_constraints.py:143};
-                  and methods/methods/catalog_query/read.py:863 (_load_products —
+                  and methods/onc_methods/catalog_query/read.py:863 (_load_products —
                   manifest -> product reverse index; unseen ids are opaque, a missing
                   or unparseable file returns {} SILENTLY) plus read.py:966, a
                   stat-only read feeding the catalog-index cache digest

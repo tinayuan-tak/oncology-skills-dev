@@ -191,8 +191,7 @@ def test_signor_moa_ontology_classification():
     # ARCHIVED $HOME clone whose per-module dirs survive only as untracked __pycache__ shells after
     # the AM re-founding, making `methods.signor_mechanism_network` an empty namespace portion
     # (SK#2196). Absent on a CI runner, hence green there and red only locally.
-    sys.path.insert(0, str(ANALYSIS_METHODS_ROOT))
-    from methods.signor_mechanism_network.moa_ontology import (
+    from onc_methods.signor_mechanism_network.moa_ontology import (
         ONTOLOGY_VERSION,
         classify_edge,
         known_moa_classes,
@@ -236,7 +235,7 @@ def test_tmbed_license_attestation():
     license posture is attested beside the wrapper in LICENSE_ATTRIBUTION.yaml, which this
     test verifies.
     """
-    attestation = ANALYSIS_METHODS_ROOT / "methods/topology_predictions_tmbed/LICENSE_ATTRIBUTION.yaml"
+    attestation = ANALYSIS_METHODS_ROOT / "onc_methods/topology_predictions_tmbed/LICENSE_ATTRIBUTION.yaml"
     assert attestation.exists(), (
         f"TMbed license attestation missing at {attestation} — the tool license must be "
         f"attested in analysis-methods (data-catalog #111->#113: TMbed is a tool, not a source)."

@@ -42,24 +42,24 @@ _METHODS_ROOT = HERE.parents[2]
 _REPO_ROOT = _METHODS_ROOT.parent
 
 MODULE_NAMES = {
-    "DEP_READ": "methods.depmap_expression_distribution.read",
-    "DEP_CLI": "methods.depmap_expression_distribution.cli",
-    "TUM_READ": "methods.tcga_gtex_expression_distribution.read",
-    "TUM_STATS": "methods.tcga_gtex_expression_distribution.stats",
-    "RESOLVE": "methods.expression_properties.resolve",
+    "DEP_READ": "onc_methods.depmap_expression_distribution.read",
+    "DEP_CLI": "onc_methods.depmap_expression_distribution.cli",
+    "TUM_READ": "onc_methods.tcga_gtex_expression_distribution.read",
+    "TUM_STATS": "onc_methods.tcga_gtex_expression_distribution.stats",
+    "RESOLVE": "onc_methods.expression_properties.resolve",
 }
 
 
 @contextlib.contextmanager
 def _worktree_methods_first():
-    """Bind `methods.*` to THIS tree for the duration of the block, then restore.
+    """Bind `onc_methods.*` to THIS tree for the duration of the block, then restore.
 
     ⚠️ Why this is not just `sys.path.insert`. `oncology-analysis-methods` is installed EDITABLE,
-    and its finder points at the PRIMARY CHECKOUT (`~/rnd-.../methods/methods`), not at the tree the
-    test file lives in. `methods/conftest.py` imports `methods._common.live_data_skip` during
-    COLLECTION, which binds the `methods` package object — with its `__path__` on the primary
+    and its finder points at the PRIMARY CHECKOUT (`~/rnd-.../methods/onc_methods`), not at the tree
+    the test file lives in. `methods/conftest.py` imports `onc_methods._common.live_data_skip` during
+    COLLECTION, which binds the `onc_methods` package object — with its `__path__` on the primary
     checkout — into `sys.modules` before any test module executes. From that point a
-    `sys.path.insert(0, ...)` is INERT: `import methods.x` is served out of `sys.modules`. So a
+    `sys.path.insert(0, ...)` is INERT: `import onc_methods.x` is served out of `sys.modules`. So a
     `methods/` test run from a `/tmp` worktree silently exercises TRUNK, and a suite that is green
     on the branch proves nothing about the branch. (CI is unaffected — there the checkout IS the
     primary tree — so this is a LOCAL-GATE blindness, invisible from CI in either direction.)
@@ -68,7 +68,7 @@ def _worktree_methods_first():
     in `test_broadly_low_threshold_adjudication.py` ALL SURVIVED at 42/42 green. `_loaded_from()`
     below turns that failure mode into a red instead of a silent pass.
     """
-    saved_mods = {k: v for k, v in sys.modules.items() if k == "methods" or k.startswith("methods.")}
+    saved_mods = {k: v for k, v in sys.modules.items() if k == "onc_methods" or k.startswith("onc_methods.")}
     saved_path = list(sys.path)
     for key in saved_mods:
         del sys.modules[key]
@@ -76,7 +76,7 @@ def _worktree_methods_first():
     try:
         yield
     finally:
-        for key in [k for k in sys.modules if k == "methods" or k.startswith("methods.")]:
+        for key in [k for k in sys.modules if k == "onc_methods" or k.startswith("onc_methods.")]:
             del sys.modules[key]
         sys.modules.update(saved_mods)
         sys.path[:] = saved_path
@@ -460,7 +460,7 @@ def SITES() -> list[dict]:
     return [
         {
             "site_id": "site1_tumour_detectable_fraction",
-            "source": "methods/methods/tcga_gtex_expression_distribution/read.py::_classify_tumor_expression",
+            "source": "methods/onc_methods/tcga_gtex_expression_distribution/read.py::_classify_tumor_expression",
             "token": "broadly_low",
             "constant": 0.3,
             "constant_form": "inline literal (no module-level name)",
@@ -478,7 +478,7 @@ def SITES() -> list[dict]:
         },
         {
             "site_id": "site2_cellline_stratum_median",
-            "source": "methods/methods/depmap_expression_distribution/read.py::_expression_class",
+            "source": "methods/onc_methods/depmap_expression_distribution/read.py::_expression_class",
             "token": "broadly_low",
             "constant": DEP_READ._EXPRESSED,
             "constant_form": "module constant `_EXPRESSED`",
@@ -495,7 +495,7 @@ def SITES() -> list[dict]:
         },
         {
             "site_id": "site3_cellline_pancancer_fraction",
-            "source": "methods/methods/depmap_expression_distribution/cli.py::_classify_expression",
+            "source": "methods/onc_methods/depmap_expression_distribution/cli.py::_classify_expression",
             "token": "broadly_low",
             "constant": sig["lineage_restricted_min_fraction"].default,
             "constant_form": "keyword default `lineage_restricted_min_fraction`",
@@ -517,7 +517,7 @@ def SITES() -> list[dict]:
         },
         {
             "site_id": "site4_expression_property_presence_floor",
-            "source": "methods/methods/expression_properties/resolve.py::_presence",
+            "source": "methods/onc_methods/expression_properties/resolve.py::_presence",
             "token": "presence=absent   (NOT broadly_low)",
             "constant": RESOLVE._PRESENCE_FLOOR_FRACTION,
             "constant_form": "module constant `_PRESENCE_FLOOR_FRACTION`",
@@ -533,7 +533,7 @@ def SITES() -> list[dict]:
         },
         {
             "site_id": "not_a_broadly_low_cut__broadly_high_fraction",
-            "source": "methods/methods/depmap_expression_distribution/cli.py::_classify_expression",
+            "source": "methods/onc_methods/depmap_expression_distribution/cli.py::_classify_expression",
             "token": "broadly_high",
             "constant": sig["broadly_high_fraction"].default,
             "quantity": "fraction_highly_expressed",
@@ -545,7 +545,7 @@ def SITES() -> list[dict]:
         },
         {
             "site_id": "not_a_broadly_low_cut__presence_supported_median_fraction",
-            "source": "methods/methods/expression_properties/resolve.py",
+            "source": "methods/onc_methods/expression_properties/resolve.py",
             "token": "presence=supported",
             "constant": RESOLVE._PRESENCE_SUPPORTED_MEDIAN_FRACTION,
             "quantity": "fraction_expressed (conditional on an expressing median)",

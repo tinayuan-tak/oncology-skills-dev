@@ -6,10 +6,11 @@ Makes the Takeda oncology figure palette importable from the installed package:
     from oncology_target_contracts.plot_styles import mplstyle_path
 
 The palette module (`takeda_palette.py`) physically lives at the contracts-repo root
-`plot_styles/` dir so that methods' existing `sys.path.insert(contracts_root/"plot_styles")`
-+ `from takeda_palette import ...` keeps working unchanged (ADDITIVE packaging). Rather
-than duplicate 178 lines, this subpackage loads that canonical file by location and
-re-exports its public names — one source of truth, two import paths.
+`plot_styles/` dir (it predates the installable package). Rather than duplicate 178
+lines, this subpackage loads that canonical file by location and re-exports its public
+names — one source of truth, one import path. skills#2237 removed the last
+`sys.path.insert(contracts_root/"plot_styles")` + bare `from takeda_palette import ...`
+call site, so THIS is now the only supported way in.
 """
 
 from __future__ import annotations

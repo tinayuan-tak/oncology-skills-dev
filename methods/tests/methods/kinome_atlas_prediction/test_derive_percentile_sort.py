@@ -10,7 +10,6 @@ frames (no Excel), writes a real parquet, and asserts the on-disk percentile col
 from __future__ import annotations
 
 import importlib
-import sys
 from pathlib import Path
 
 import pytest
@@ -18,11 +17,8 @@ import pytest
 pd = pytest.importorskip("pandas")
 pytest.importorskip("pyarrow")
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
 
-derive = importlib.import_module("methods.kinome_atlas_prediction.derive")
+derive = importlib.import_module("onc_methods.kinome_atlas_prediction.derive")
 
 
 def _synth_frame(kinome_label, percentiles):

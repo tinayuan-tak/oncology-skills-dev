@@ -9,20 +9,14 @@ the five distant MET splice sites — the exact discrimination that splice-class
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(REPO))
-
-from methods.exon_skip_carrier import (  # noqa: E402
+from onc_methods.exon_skip_carrier import (
     EXON_SKIP_EVENTS,
     VariantObs,
     carriers_for_event,
     carriers_from_observations,
     exon_skip_landscape_summary,
 )
-from methods.exon_skip_carrier.read import _observations_from_maf  # noqa: E402
+from onc_methods.exon_skip_carrier.read import _observations_from_maf
 
 # Real DepMap 26Q1 MET splice-site variants (chr7, hg38): (ModelID, Start_Position, VariantInfo).
 # The first three are the exon-14 cluster (donor @116,771,990 = EBC-1/Hs746T; acceptor-side
@@ -138,7 +132,7 @@ def _maf(rows):
 
 
 def test_builder_retains_only_splice_and_sorts():
-    from methods.exon_skip_carrier.build import splice_rows_from_maf
+    from onc_methods.exon_skip_carrier.build import splice_rows_from_maf
 
     rows = _maf(
         [
@@ -157,14 +151,14 @@ def test_builder_retains_only_splice_and_sorts():
 
 
 def test_builder_unparseable_position_dropped():
-    from methods.exon_skip_carrier.build import splice_rows_from_maf
+    from onc_methods.exon_skip_carrier.build import splice_rows_from_maf
 
     rows = _maf([["MET", "chr7", "", "", "Splice_Site", "ACH-NOPOS", "SNV"]])
     assert splice_rows_from_maf(rows) == []
 
 
 def test_builder_table_schema():
-    from methods.exon_skip_carrier.build import build_table
+    from onc_methods.exon_skip_carrier.build import build_table
 
     rows = _maf([["MET", "chr7", "116771990", "116771990", "Splice_Site", "ACH-000616", "SNV"]])
     tbl = build_table(rows)
@@ -183,7 +177,7 @@ def test_builder_table_schema():
 def test_builder_missing_column_raises():
     import pytest
 
-    from methods.exon_skip_carrier.build import splice_rows_from_maf
+    from onc_methods.exon_skip_carrier.build import splice_rows_from_maf
 
     bad = [["Hugo_Symbol", "Start_Position", "Variant_Classification", "ModelID"]]  # no Chromosome
     with pytest.raises(ValueError):

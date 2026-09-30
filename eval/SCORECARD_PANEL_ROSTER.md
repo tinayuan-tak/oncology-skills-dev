@@ -54,7 +54,7 @@ note: "Correctly-declined negative (VERIFIED live 2026-09-02, PLK1/COADREAD SM �
 =veto). ... Framework CAPTURES the liability: dependency=pan_essential_killer (PLK1 is genuinely
 pan-essential — the mitotic kinase) ..."}`. PLK1 is a real, DepMap-curated core-essential gene
 (`AchillesCommonEssentialControls` = Hart2015 ∩ Blomen2014 anchor set consumed by
-`methods/depmap_chronos_distribution/cli.py::_load_curated_common_essentials`) — chosen over other
+`onc_methods/depmap_chronos_distribution/cli.py::_load_curated_common_essentials`) — chosen over other
 pan-essential anchors in the same file (WEE1, CHEK1, KIF11) because it has the most explicit,
 already-live-verified `pan_essential_killer` capture note, giving the highest confidence the panel
 run will actually exercise the #1794 broad-tox arm rather than silently landing on a NULL/NOT_BUILT

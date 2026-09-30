@@ -5,19 +5,11 @@ re-raises a transient/broken-env failure (-> _live_read_error) instead of maskin
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
+import pyarrow.parquet as pq
 import pytest
 from botocore.exceptions import ClientError
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-import pyarrow.parquet as pq  # noqa: E402
-
-from methods.sc_surface_concordance import read as scc  # noqa: E402
+from onc_methods.sc_surface_concordance import read as scc
 
 
 def _nosuchkey():

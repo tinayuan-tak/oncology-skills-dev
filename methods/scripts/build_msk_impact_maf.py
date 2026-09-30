@@ -23,9 +23,7 @@ import os
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # methods/ importable
-
-from methods.msk_panel_coverage.read import MSK_CANCER_TYPE  # framework indication → MSK CANCER_TYPE
+from onc_methods.msk_panel_coverage.read import MSK_CANCER_TYPE  # framework indication → MSK CANCER_TYPE
 
 S3_BUCKET = "onc-compbio"
 MSK_PREFIX = "data-catalog/sources/cbioportal/msk_impact_50k_2026"
@@ -75,7 +73,7 @@ def _sample_to_indication() -> dict:
 def build() -> "pandas.DataFrame":
     import pandas as pd
 
-    from methods.hgnc_entrez_crosswalk.read import load_entrez_to_symbol
+    from onc_methods.hgnc_entrez_crosswalk.read import load_entrez_to_symbol
 
     entrez_to_symbol = load_entrez_to_symbol()
     sample_ind = _sample_to_indication()

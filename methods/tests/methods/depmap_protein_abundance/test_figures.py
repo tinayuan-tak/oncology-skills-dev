@@ -13,17 +13,14 @@ import base64
 import importlib
 import json
 import os
-import sys
 import tempfile
 from pathlib import Path
 
 import pytest
 
 REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
 
-cli = importlib.import_module("methods.depmap_protein_abundance.cli")
+cli = importlib.import_module("onc_methods.depmap_protein_abundance.cli")
 # Portable sibling root: was hardcoded to the author's /home/sagemaker-user checkout, so the
 # guard below reported "not available" on every CI runner -- even though the workflow checks
 # this sibling out and exports its root. `or` rather than a .get() default, so an EMPTY value

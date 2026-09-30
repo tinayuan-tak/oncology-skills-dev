@@ -7,16 +7,10 @@ responder-fraction-driven class, the indication-ignored target-grain, and the da
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import numpy as np
 import pandas as pd
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-from methods.pdxe_drug_response import read as R  # noqa: E402
+from onc_methods.pdxe_drug_response import read as R
 
 _COLS = [
     "gene_symbol",

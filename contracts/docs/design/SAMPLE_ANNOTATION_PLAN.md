@@ -29,7 +29,7 @@ supplement).
 4. Emit `is_member=true` for matches, `is_member=false` for evaluated-not-matching, `is_member=null` for evaluated-but-missing-value (blank source cell)
 5. For samples not in the source table at all, do NOT emit a row (rules layer treats row-absent as `insufficient`)
 
-**Assigner method**: `analysis-methods/methods/subgroup_assigner_directly_tagged/`
+**Assigner method**: `analysis-methods/onc_methods/subgroup_assigner_directly_tagged/`
 (scaffolded, needs wiring per Phase 2). Consumes:
 - Subgroup catalog YAML (stratum id → source column value)
 - Source manifest (which table + column to read)
@@ -65,7 +65,7 @@ by a per-sample filter — hotspot mutation, gene-level LoF, mutation burden.
    - Aggregate to sample level (any-hit vs all-hit; specified in catalog)
 3. Emit rows: `is_member=true` for samples matching filter; `is_member=false` for samples in the MAF cohort not matching; row-absent for samples not in MAF cohort
 
-**Assigner method**: `analysis-methods/methods/subgroup_assigner_maf_filter/`
+**Assigner method**: `analysis-methods/onc_methods/subgroup_assigner_maf_filter/`
 (scaffolded, needs wiring per Phase 2).
 
 **Strata that use this modality**:
@@ -105,7 +105,7 @@ marker RNA level).
 3. Emit rows
 
 **Assigner method**: **DOES NOT EXIST YET** — new
-`analysis-methods/methods/subgroup_assigner_classifier/` scaffold needed in Phase 2.
+`analysis-methods/onc_methods/subgroup_assigner_classifier/` scaffold needed in Phase 2.
 
 **Strata that use this modality**:
 
@@ -182,7 +182,7 @@ that flag; synthesis-layer down-weights.
 Three assigner methods, each with a defined interface:
 
 ```python
-# analysis-methods/methods/subgroup_assigner_directly_tagged/
+# analysis-methods/onc_methods/subgroup_assigner_directly_tagged/
 def emit_assignments(
     catalog_path: str,             # subgroup catalog YAML
     source_manifest_id: str,       # source data manifest
@@ -190,7 +190,7 @@ def emit_assignments(
     release_pin: str,
 ) -> None: ...
 
-# analysis-methods/methods/subgroup_assigner_maf_filter/
+# analysis-methods/onc_methods/subgroup_assigner_maf_filter/
 def emit_assignments(
     catalog_path: str,
     maf_manifest_id: str,          # MC3, GDC pancohort, BeatAML, etc.
@@ -198,7 +198,7 @@ def emit_assignments(
     release_pin: str,
 ) -> None: ...
 
-# analysis-methods/methods/subgroup_assigner_classifier/  (NEW in Phase 2)
+# analysis-methods/onc_methods/subgroup_assigner_classifier/  (NEW in Phase 2)
 def emit_assignments(
     catalog_path: str,
     expression_manifest_id: str,   # recount3 for TCGA, DepMap Expression for cell lines

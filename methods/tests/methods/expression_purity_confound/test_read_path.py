@@ -7,15 +7,8 @@ expected value, so a derived fixture cannot silently pass a regressed collapse.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.expression_purity_confound import read as purity_read  # noqa: E402
-from methods.expression_purity_confound.read import collapse_purity_by_case  # noqa: E402
+from onc_methods.expression_purity_confound import read as purity_read
+from onc_methods.expression_purity_confound.read import collapse_purity_by_case
 
 # --- F5: per-case MEAN collapse (not last-wins dict(zip)) ------------------------------------
 

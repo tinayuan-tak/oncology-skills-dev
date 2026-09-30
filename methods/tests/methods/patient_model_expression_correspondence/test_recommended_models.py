@@ -5,23 +5,16 @@ No S3: the patient reader + the DepMap card4 loader are monkeypatched.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.patient_model_expression_correspondence import read as R  # noqa: E402
+from onc_methods.patient_model_expression_correspondence import read as R
 
 
 def _wire(monkeypatch, patient_vals, chronos, tpm, meta, errs=None):
-    import methods.tcga_gtex_expression_distribution.read as pt
+    import onc_methods.tcga_gtex_expression_distribution.read as pt
 
     monkeypatch.setattr(pt, "read_tumor_samples", lambda t, i: patient_vals)
-    import methods.depmap_expression_dependency.cli as c4
+    import onc_methods.depmap_expression_dependency.cli as c4
 
     monkeypatch.setattr(
         c4, "load_depmap_files_for_card4", lambda release_pin, target_symbol: (chronos, tpm, meta, errs or [])
@@ -97,7 +90,7 @@ def test_cli_build_and_figure(tmp_path, monkeypatch):
     import importlib
 
     pytest.importorskip("matplotlib")
-    cli = importlib.import_module("methods.patient_model_expression_correspondence.cli")
+    cli = importlib.import_module("onc_methods.patient_model_expression_correspondence.cli")
     _wire(
         monkeypatch,
         [4.0] * 20,

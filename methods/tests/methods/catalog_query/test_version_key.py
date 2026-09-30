@@ -9,13 +9,7 @@ generalization that lets multi-digit release tokens share a family.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-_METHODS = Path(__file__).resolve().parents[3] / "methods"
-sys.path.insert(0, str(_METHODS))
-
-from catalog_query.read import _family_of, _version_key  # noqa: E402
+from onc_methods.catalog_query.read import _family_of, _version_key
 
 
 def test_v_suffix_double_digit_beats_single_digit():

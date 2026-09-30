@@ -3,13 +3,13 @@
 import pandas as pd
 import pytest
 
-from methods.arm_loss_sl_scan.scan import (
+from onc_methods.arm_loss_sl_scan.scan import (
     BYSTANDER_MAP_COLUMNS,
     SCAN_COLUMNS,
     bystander_map,
     sl_arm_scan,
 )
-from methods.pancan_arm_cnv.read import gene_arm_map
+from onc_methods.pancan_arm_cnv.read import gene_arm_map
 
 # --- fixtures --------------------------------------------------------------
 

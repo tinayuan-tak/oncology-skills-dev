@@ -131,15 +131,15 @@ _EXEMPT_MARKER = "absence-discipline: exempt"
 
 def _methods_root() -> Path:
     env = os.environ.get("ANALYSIS_METHODS_ROOT")
-    if env and (Path(env) / "methods").is_dir():
-        return Path(env) / "methods"
-    return Path(__file__).resolve().parents[1] / "methods"
+    if env and (Path(env) / "onc_methods").is_dir():
+        return Path(env) / "onc_methods"
+    return Path(__file__).resolve().parents[1] / "onc_methods"
 
 
 def _repo_root() -> Path:
     """The monorepo root — parent of methods/ (which itself holds the methods PACKAGE dir).
 
-    The methods scan root is ``<repo>/methods/methods``; its ``.parent.parent`` is the repo
+    The methods scan root is ``<repo>/methods/onc_methods``; its ``.parent.parent`` is the repo
     root that also holds ``skills/`` and ``contracts/``.
     """
     return _methods_root().parent.parent
@@ -173,7 +173,7 @@ def _scan_roots() -> list[tuple[Path, Path]]:
 def _iter_source_files() -> list[tuple[Path, str]]:
     """Yield ``(abs_path, relkey)`` for every scanned ``.py`` across all scan roots (recursive).
 
-    Recursive (``rglob``) so nested reader modules (``methods/methods/<mod>/read/__init__.py``,
+    Recursive (``rglob``) so nested reader modules (``methods/onc_methods/<mod>/read/__init__.py``,
     skills-side ``_live_readers.py``) are seen — the ``*/*.py`` 2-deep glob missed them. Skips the
     ``_EXCLUDE_DIRS`` at any depth.
     """
@@ -361,7 +361,7 @@ def find_violations() -> list[str]:
     A key is emitted per offending handler that is NOT suppressed by the inline escape-hatch
     marker. (Allowlist filtering is applied by the tests, not here.)
     """
-    assert _methods_root().is_dir(), f"methods/ not found at {_methods_root()}"
+    assert _methods_root().is_dir(), f"methods/onc_methods/ not found at {_methods_root()}"
     violations: list[str] = []
     for rel, relkey in _iter_source_files():
         source = rel.read_text()
@@ -876,7 +876,7 @@ def find_class_token_violations() -> tuple[list[str], int, int]:
     The cardinality counts back the anti-vacuity floor: a guard that silently scans zero files or
     zero handlers is worse than none (see the #1648 anti-vacuity ratchet; #1639/#1640 silent-skip).
     """
-    assert _methods_root().is_dir(), f"methods/ not found at {_methods_root()}"
+    assert _methods_root().is_dir(), f"methods/onc_methods/ not found at {_methods_root()}"
     violations: list[str] = []
     n_files = 0
     n_handlers = 0

@@ -5,7 +5,7 @@ schema shape, thresholds, product ids, figures, measurement types — and nothin
 that produces it can be reached. Two gaps, in opposite directions:
 
   RESOLUTION. `module` + `entrypoint` is resolved by the skills live-reader layer as
-  `getattr(__import__("methods." + module), entrypoint)`. Because the generic dispatcher is only a
+  `getattr(__import__("onc_methods." + module), entrypoint)`. Because the generic dispatcher is only a
   FALLBACK behind the bespoke `CARD_DISPATCHERS` registry, a card with a bespoke reader can carry a
   declaration that resolves to nothing forever. Three `wired` cards did: the function existed in a
   SUBMODULE the package `__init__` never re-exported, so `grep def` found it and `getattr` did not.
@@ -93,11 +93,11 @@ def _write_cards(tmp_path: Path, specs: list[dict]) -> Path:
 def _fake_methods_tree(tmp_path: Path, modules: dict[str, str]) -> Path:
     """Build a methods/ package tree. Keys are dotted module paths, values are file source."""
     root = tmp_path / "am"
-    (root / "methods").mkdir(parents=True, exist_ok=True)
-    (root / "methods" / "__init__.py").write_text("")
+    (root / "onc_methods").mkdir(parents=True, exist_ok=True)
+    (root / "onc_methods" / "__init__.py").write_text("")
     for dotted, src in modules.items():
         parts = dotted.split(".")
-        pkg = root / "methods"
+        pkg = root / "onc_methods"
         for part in parts[:-1]:
             pkg = pkg / part
             pkg.mkdir(exist_ok=True)
@@ -150,7 +150,7 @@ def test_a_symbol_only_in_a_submodule_is_an_error(tmp_path, monkeypatch):
         tmp_path,
         {"pkg.read": "def read_the_thing(target, indication):\n    return {}\n"},
     )
-    (root / "methods" / "pkg" / "__init__.py").write_text("from methods.pkg.read import something_else\n")
+    (root / "onc_methods" / "pkg" / "__init__.py").write_text("from onc_methods.pkg.read import something_else\n")
     monkeypatch.setattr(VC, "_ANALYSIS_METHODS_REPO", root)
     VC._method_module_bindings.cache_clear()
     VC._analysis_methods_available.cache_clear()
@@ -199,7 +199,7 @@ def test_a_star_import_module_is_skipped_not_failed(tmp_path, monkeypatch):
     """AST cannot see through `from .read import *`. No method package uses one today, but a false ERROR
     on wiring that genuinely resolves is worse than the gap, so an opaque module must ABSTAIN."""
     root = _fake_methods_tree(tmp_path, {"pkg.read": "def read_the_thing():\n    pass\n"})
-    (root / "methods" / "pkg" / "__init__.py").write_text("from methods.pkg.read import *\n")
+    (root / "onc_methods" / "pkg" / "__init__.py").write_text("from onc_methods.pkg.read import *\n")
     monkeypatch.setattr(VC, "_ANALYSIS_METHODS_REPO", root)
     VC._method_module_bindings.cache_clear()
     VC._analysis_methods_available.cache_clear()
@@ -212,7 +212,7 @@ def test_conditionally_bound_names_count_as_exported():
     bare top-level defs as exports would false-fail that shape."""
     src = (
         "try:\n"
-        "    from methods.other import read_it\n"
+        "    from onc_methods.other import read_it\n"
         "except ImportError:\n"
         "    def read_it():\n"
         "        pass\n"

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pytest
-from methods._common.live_data_skip import is_live_data_exception
+from onc_methods._common.live_data_skip import is_live_data_exception
 
 
 def _scrub_volatile(pkg: dict) -> dict:

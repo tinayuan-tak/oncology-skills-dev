@@ -129,7 +129,7 @@ outputs:
     # reader is a claim atom, not a capsule (a capsule cannot credit an object), and the census credits
     # the passthrough field, so declaring it here closes the SK ledger (test_ledger_matches_emitted_
     # fields) and keeps the aperture ratchet balanced (domain +1, reached +1). Neither moves
-    # expression_class. The P2 resolver (analysis-methods/methods/expression_properties, #720) emits it.
+    # expression_class. The P2 resolver (analysis-methods/onc_methods/expression_properties, #720) emits it.
     - expression_properties                         # object {presence, magnitude, prevalence, heterogeneity, lineage_restriction, selectivity, localization, subtype_restriction} — the shared L2 expression-property facet (P1 vocab expression_property.enum.yaml v1.0.0). Surfaced by the SK claim layer, verdict-inert.
     - coefficient_of_variation                     # float — CoV of linear TPM across the panel (dispersion qualifier); capsule numeric_anchor
     - distribution_pattern                          # categorical — shape of the log2(TPM+1) distribution (unimodal/bimodal/long_tail); capsule categorical. The P2 property resolver (methods/expression_properties, separate PR) will additionally read this into heterogeneity/prevalence.

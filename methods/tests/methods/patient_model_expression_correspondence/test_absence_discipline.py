@@ -9,18 +9,11 @@ honest _live_read_error at the compose seam) instead of being laundered into dat
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-import methods.depmap_expression_dependency.cli as c4  # noqa: E402
-import methods.tcga_gtex_expression_distribution.read as pt  # noqa: E402
-from methods.patient_model_expression_correspondence import read as R  # noqa: E402
+import onc_methods.depmap_expression_dependency.cli as c4
+import onc_methods.tcga_gtex_expression_distribution.read as pt
+from onc_methods.patient_model_expression_correspondence import read as R
 
 
 def test_transient_load_fault_propagates(monkeypatch):

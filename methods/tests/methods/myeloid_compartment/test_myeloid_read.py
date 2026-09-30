@@ -7,15 +7,9 @@ detection-fraction class thresholds, the CSF1R-family flag, and both data_unavai
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pandas as pd
 
-REPO = Path(__file__).resolve().parents[3]  # repo root of THIS checkout (worktree-safe)
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-from methods.myeloid_compartment import read as R  # noqa: E402
+from onc_methods.myeloid_compartment import read as R
 
 
 def _df(rows):

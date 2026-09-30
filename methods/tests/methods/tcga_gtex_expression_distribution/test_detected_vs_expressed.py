@@ -15,18 +15,12 @@ caller passing moderate_fraction=None keeps the historical detection-only label.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
 
 pytest.importorskip("numpy")
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
 
-from methods.tcga_gtex_expression_distribution import read as R  # noqa: E402
+from onc_methods.tcga_gtex_expression_distribution import read as R
 
 _MIN = R.BROADLY_DETECTED_MODERATE_FRACTION_MIN
 

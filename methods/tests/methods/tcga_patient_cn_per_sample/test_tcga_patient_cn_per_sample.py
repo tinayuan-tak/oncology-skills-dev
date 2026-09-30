@@ -3,7 +3,7 @@ indication-cohort filtering + absence discipline of the reader."""
 
 from __future__ import annotations
 
-from methods.tcga_patient_cn_per_sample import build, read
+from onc_methods.tcga_patient_cn_per_sample import build, read
 
 
 def test_barcode_to_case_truncates_to_three_segments():

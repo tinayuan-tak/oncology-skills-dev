@@ -15,17 +15,12 @@ separate file, and that one is legitimately sibling-gated.
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import pytest
 import yaml
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.dataset_fitness_signals import (  # noqa: E402
+from onc_methods.dataset_fitness_signals import (
     ContractInvalid,
     ContractUnavailable,
     contract_path,

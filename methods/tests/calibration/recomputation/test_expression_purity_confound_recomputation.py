@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import sys
 from pathlib import Path
 from unittest import mock
 
@@ -30,12 +29,9 @@ import pytest
 HERE = Path(__file__).resolve().parent
 ANCHOR_DIR = HERE / "anchors"
 
-_AM_ROOT = HERE.parents[2]
-if str(_AM_ROOT) not in sys.path:
-    sys.path.insert(0, str(_AM_ROOT))
 
-import methods.expression_purity_confound.read as epc  # noqa: E402
-import methods.tcga_gtex_expression_distribution.read as exprmod  # noqa: E402
+import onc_methods.expression_purity_confound.read as epc
+import onc_methods.tcga_gtex_expression_distribution.read as exprmod
 
 MIN_ANCHORS = 2
 

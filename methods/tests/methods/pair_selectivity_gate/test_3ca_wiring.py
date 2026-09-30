@@ -12,15 +12,8 @@ Resolution tests read local manifest YAML (no network).
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.pair_selectivity_gate import samecell as SC  # noqa: E402
-from methods.sc_tumor_expression_celltype import read as TSC  # noqa: E402
+from onc_methods.pair_selectivity_gate import samecell as SC
+from onc_methods.sc_tumor_expression_celltype import read as TSC
 
 # ── value invariants (no catalog / no S3) ────────────────────────────────────
 
@@ -92,7 +85,7 @@ def test_npc_3ca_registered_but_intentionally_not_wired():
     # Registration IS complete: both NPC products resolve in the catalog (wiring is withheld, not the
     # products). If someone wires NPC, the two asserts above flip and this guard fails — the prompt to
     # do the full indication vertical (or update this rationale) rather than a silent one-line map add.
-    from methods.catalog_query.read import s3_uri_for
+    from onc_methods.catalog_query.read import s3_uri_for
 
     assert s3_uri_for("sc-pseudobulk-tumor-3ca-npc-v1").endswith("sc-pseudobulk-tumor-3ca-npc-v1/sc_pseudobulk.parquet")
     assert s3_uri_for("sc-samecell-coexpr-3ca-npc-v1").endswith(
@@ -110,7 +103,7 @@ def test_sc_maps_agree_on_all_indications():
 
 
 def test_3ca_products_resolve_to_catalog_s3_uris():
-    from methods.catalog_query.read import s3_uri_for
+    from onc_methods.catalog_query.read import s3_uri_for
 
     assert s3_uri_for("sc-pseudobulk-tumor-3ca-pancreas-v1").endswith(
         "sc-pseudobulk-tumor-3ca-pancreas-v1/sc_pseudobulk.parquet"

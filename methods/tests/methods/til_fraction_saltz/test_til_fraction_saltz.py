@@ -2,14 +2,7 @@
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.til_fraction_saltz.read import (  # noqa: E402
+from onc_methods.til_fraction_saltz.read import (
     INDICATION_TO_TCGA_STUDIES,
     MIN_N,
     _classify,

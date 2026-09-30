@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pandas as pd
 
-_R = Path(__file__).resolve().parents[3] / "methods" / "depmap_chronos" / "read.py"
+_R = Path(__file__).resolve().parents[3] / "onc_methods" / "depmap_chronos" / "read.py"
 spec = importlib.util.spec_from_file_location("depmap_chronos.read", _R)
 mod = importlib.util.module_from_spec(spec)
 sys.modules[spec.name] = mod

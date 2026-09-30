@@ -8,7 +8,7 @@ import os
 
 import pytest
 
-from methods.depmap_chronos_distribution.read import read_pan_cancer_distribution
+from onc_methods.depmap_chronos_distribution.read import read_pan_cancer_distribution
 
 
 # requires_data is NOT redundant with the skipif below, and neither is redundant with the

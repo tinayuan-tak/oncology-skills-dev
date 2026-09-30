@@ -231,7 +231,7 @@ def test_severity_ladder_agrees_with_the_method_cell_for_cell():
     data rather than evidence for it.
     """
     try:
-        from methods.sc_normal_expression.stats import _essential_severity as method_grade
+        from onc_methods.sc_normal_expression.stats import _essential_severity as method_grade
     except ImportError:  # pragma: no cover - the CI path
         pytest.skip(
             "analysis-methods is pinned in skills CI (skills-validate.yml) to a SHA that predates "

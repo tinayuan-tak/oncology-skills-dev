@@ -7,14 +7,7 @@ value) > data_unavailable (absent from both). Max-potency-wins across the two in
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.measured_potency_tractability.read import (  # noqa: E402
+from onc_methods.measured_potency_tractability.read import (
     POTENT_SERIES_MIN,
     classify_chembl_approved_engagement,
     classify_chembl_clinical_phase,
@@ -134,10 +127,10 @@ def test_series_threshold_boundary():
 
 
 # ── RD1: a TRANSIENT load failure must NOT poison the lru_cache (must be retried) ───────────────
-import pandas as pd  # noqa: E402
-import pytest  # noqa: E402
+import pandas as pd
+import pytest
 
-import methods.measured_potency_tractability.read as _R  # noqa: E402
+import onc_methods.measured_potency_tractability.read as _R
 
 
 def test_transient_load_raises_and_is_not_cached(monkeypatch):

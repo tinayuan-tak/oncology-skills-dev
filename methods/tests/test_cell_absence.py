@@ -16,20 +16,14 @@ file that pins null semantics is indistinguishable from a pass.
 from __future__ import annotations
 
 import math
-import sys
 from decimal import Decimal
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import polars as pl
 import pytest
 
-REPO = Path(__file__).resolve().parents[1]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods import cell_absence as ca  # noqa: E402
+from onc_methods import cell_absence as ca
 
 # --- is_missing: every shape a null arrives in ------------------------------
 

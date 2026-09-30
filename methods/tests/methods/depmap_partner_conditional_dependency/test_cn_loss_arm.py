@@ -4,14 +4,7 @@ stubs the CN loader (no S3)."""
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.depmap_partner_conditional_dependency import cli  # noqa: E402
+from onc_methods.depmap_partner_conditional_dependency import cli
 
 
 def test_cn_loss_thresholds_at_deep_del(monkeypatch):
@@ -19,7 +12,7 @@ def test_cn_loss_thresholds_at_deep_del(monkeypatch):
     fake_cn = {"ACH-1": 0.1, "ACH-2": 0.49, "ACH-3": 0.5, "ACH-4": 1.0, "ACH-5": float("nan")}
     monkeypatch.setattr(cli, "load_cn_files", lambda rp, gene: (fake_cn, {}, "wes", []), raising=False)
     # patch the name as imported inside the function
-    import methods.depmap_cn_distribution.cli as cn_cli
+    import onc_methods.depmap_cn_distribution.cli as cn_cli
 
     monkeypatch.setattr(cn_cli, "load_cn_files", lambda rp, gene: (fake_cn, {}, "wes", []))
     vec = cli.build_partner_deficiency_vector("26q1", "MTAP", "cn_loss")
@@ -27,7 +20,7 @@ def test_cn_loss_thresholds_at_deep_del(monkeypatch):
 
 
 def test_cn_loss_empty_on_loader_error(monkeypatch):
-    import methods.depmap_cn_distribution.cli as cn_cli
+    import onc_methods.depmap_cn_distribution.cli as cn_cli
 
     monkeypatch.setattr(
         cn_cli, "load_cn_files", lambda rp, gene: ({}, {}, "data_unavailable", [{"_live_read_error": "x"}])

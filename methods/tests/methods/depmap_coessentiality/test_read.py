@@ -7,7 +7,6 @@ S3 read is exercised by the PR-description smoke, not here.
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import pandas as pd
@@ -16,14 +15,13 @@ import pyarrow.parquet as pq
 import pytest
 
 REPO = Path(__file__).resolve().parents[3]
-READ_PY = REPO / "methods" / "depmap_coessentiality" / "read.py"
+READ_PY = REPO / "onc_methods" / "depmap_coessentiality" / "read.py"
 
 
 def _load():
     # Load as part of the package so the `from . import METHOD_VERSION` relative
     # import resolves. Insert the repo root and import via the package path.
-    sys.path.insert(0, str(REPO))
-    import methods.depmap_coessentiality.read as read_mod  # noqa: WPS433
+    import onc_methods.depmap_coessentiality.read as read_mod  # noqa: WPS433
 
     return read_mod
 

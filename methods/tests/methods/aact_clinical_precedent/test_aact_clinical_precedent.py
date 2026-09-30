@@ -6,14 +6,8 @@ the coverage-gap paths (no mesh_terms lane -> insufficient; no engaging drug -> 
 from __future__ import annotations
 
 import importlib
-import sys
-from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-r = importlib.import_module("methods.aact_clinical_precedent.read")
+r = importlib.import_module("onc_methods.aact_clinical_precedent.read")
 
 
 def _row(cond, drug, phase="PHASE2", n_trials=3, n_active=1, n_terminated=0, itype="DRUG", ncts="NCT1"):

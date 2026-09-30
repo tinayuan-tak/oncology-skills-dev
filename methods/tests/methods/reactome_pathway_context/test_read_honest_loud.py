@@ -11,16 +11,11 @@ branches, not this catch.)
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
-REPO = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(REPO))
-
-import methods.reactome_pathway_context.read as reactome_read
+import onc_methods.reactome_pathway_context.read as reactome_read
 
 
 def _nosuchkey():

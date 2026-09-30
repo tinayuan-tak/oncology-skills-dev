@@ -15,14 +15,9 @@ median/IQR; (2) abstain (data_unavailable) when the reliable malignant compartme
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 # Portable repo root: was hardcoded to the author's /home/sagemaker-user checkout, so every
 # path guard below read as "data missing" on a CI runner or in a worktree.
-REPO = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(REPO))
-from methods.sc_tumor_expression_celltype import stats as S  # noqa: E402
+from onc_methods.sc_tumor_expression_celltype import stats as S
 
 
 def _rows(spec):

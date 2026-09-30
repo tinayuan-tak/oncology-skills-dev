@@ -35,19 +35,15 @@ from __future__ import annotations
 
 import hashlib
 import json
-import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-AM_ROOT = HERE.parents[2]
-if str(AM_ROOT) not in sys.path:
-    sys.path.insert(0, str(AM_ROOT))
 
-import pyarrow as pa  # noqa: E402
-import pyarrow.parquet as pq  # noqa: E402
+import pyarrow as pa
+import pyarrow.parquet as pq
 
-import methods.pooled_snv_recurrence.read as pr  # noqa: E402
+import onc_methods.pooled_snv_recurrence.read as pr
 
 INDICATION = "COADREAD"
 # Anchors spanning the classifier's four branches, grounded in colorectal-cancer biology:
@@ -111,7 +107,7 @@ def _per_cohort_from_parquet(path: Path) -> dict[str, dict]:
 
 def _rederive_from_fixture(per_cohort: dict[str, dict], target: str, indication: str) -> dict:
     """Force the LIVE pooled path over the frozen counts — the exact code the offline test runs."""
-    import methods.pooled_snv_recurrence.read as p
+    import onc_methods.pooled_snv_recurrence.read as p
 
     orig = (p._pooled_from_product, p._mc3_gene_counts, p._genie_gene_counts, p._msk_gene_counts)
     try:

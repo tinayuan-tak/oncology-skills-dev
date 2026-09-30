@@ -3,18 +3,11 @@ antigens). Hermetic — stubs the protein + Chronos loaders (no S3)."""
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.abundance_dependency import read as ad  # noqa: E402
+from onc_methods.abundance_dependency import read as ad
 
 
 def _stub_chronos(monkeypatch, chronos):
-    import methods.depmap_expression_dependency.cli as dep
+    import onc_methods.depmap_expression_dependency.cli as dep
 
     monkeypatch.setattr(
         dep, "load_depmap_files_for_card4", lambda release_pin, target_symbol: (chronos, {}, {}, []), raising=False
@@ -22,7 +15,7 @@ def _stub_chronos(monkeypatch, chronos):
 
 
 def test_olink_fallback_used_when_absent_from_gygi(monkeypatch):
-    import methods.depmap_protein_abundance.cli as prot
+    import onc_methods.depmap_protein_abundance.cli as prot
 
     # Gygi: target not resolvable → empty; Olink: has the column
     monkeypatch.setattr(prot, "resolve_accession", lambda s: None)
@@ -44,7 +37,7 @@ def test_olink_fallback_used_when_absent_from_gygi(monkeypatch):
 
 
 def test_gygi_primary_still_wins_when_present(monkeypatch):
-    import methods.depmap_protein_abundance.cli as prot
+    import onc_methods.depmap_protein_abundance.cli as prot
 
     models = [f"ACH-{i:04d}" for i in range(40)]
     gygi = {m: float(i % 5) for i, m in enumerate(models)}
@@ -64,7 +57,7 @@ def test_gygi_primary_still_wins_when_present(monkeypatch):
 
 
 def test_data_unavailable_when_both_miss(monkeypatch):
-    import methods.depmap_protein_abundance.cli as prot
+    import onc_methods.depmap_protein_abundance.cli as prot
 
     monkeypatch.setattr(prot, "resolve_accession", lambda s: None)
     monkeypatch.setattr(prot, "load_olink_abundance_column", lambda s: (None, 500, None))

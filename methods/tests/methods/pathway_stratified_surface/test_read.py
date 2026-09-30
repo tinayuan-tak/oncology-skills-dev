@@ -2,14 +2,7 @@
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.pathway_stratified_surface.read import read_pathway_stratified_surface  # noqa: E402
+from onc_methods.pathway_stratified_surface.read import read_pathway_stratified_surface
 
 
 def _row(**kw):
@@ -46,7 +39,7 @@ def test_not_in_product_is_coverage_gap(monkeypatch):
     # GENUINE absence: the reader returns None on NoSuchKey/404 -> not_in_product (coverage gap,
     # unchanged). A transient/creds read failure now RE-RAISES instead of masking — see
     # test_read_row_absence.py. row=None means "read live", so monkeypatch the reader to stay hermetic.
-    import methods.pathway_stratified_surface.read as _m
+    import onc_methods.pathway_stratified_surface.read as _m
 
     monkeypatch.setattr(_m, "_read_row", lambda *a, **k: None)
     s = read_pathway_stratified_surface(

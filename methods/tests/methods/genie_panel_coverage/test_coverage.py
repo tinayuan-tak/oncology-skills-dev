@@ -8,13 +8,7 @@ panel→gene maps (no S3).
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(REPO))
-
-from methods.genie_panel_coverage import read as cov  # noqa: E402
+from onc_methods.genie_panel_coverage import read as cov
 
 # Two panels: BIG covers KRAS+TP53+EGFR; SMALL covers only TP53.
 _PANEL_GENES = {

@@ -12,14 +12,7 @@ load-bearing guarantees:
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.depmap_partner_conditional_dependency.cli import (  # noqa: E402
+from onc_methods.depmap_partner_conditional_dependency.cli import (
     MODERATE_EFFECT_DELTA,
     STRONG_EFFECT_DELTA,
     compute_partner_stratification,
@@ -170,7 +163,7 @@ def test_effect_size_path_recovers_modest_delta_sl():
     modest (misses the -0.2 floor) but whose rank-biserial effect size is moderate (>=0.30) and the
     forward test is significant. The effect-size path must RECOVER it as moderately_dependent — the
     2026-08-24 fix (the -0.2 floor was mis-borrowed from the oncogene mutant-vs-WT regime)."""
-    from methods.depmap_partner_conditional_dependency.cli import MODERATE_EFFECT_RB
+    from onc_methods.depmap_partner_conditional_dependency.cli import MODERATE_EFFECT_RB
 
     # Deterministic, partially-overlapping blocks: deficient shifted MORE dependent (lower Chronos),
     # median delta ~-0.16 (ABOVE the -0.2 floor) but clear stochastic dominance → moderate effect size.
@@ -193,7 +186,7 @@ def test_effect_size_path_does_not_over_admit_low_effect():
     boundary: rank-biserial ~0.28 < 0.30 stays out)."""
     import random
 
-    from methods.depmap_partner_conditional_dependency.cli import MODERATE_EFFECT_RB
+    from onc_methods.depmap_partner_conditional_dependency.cli import MODERATE_EFFECT_RB
 
     rng = random.Random(7)
     # Wide, heavily-overlapping distributions with a small median shift → low rank-biserial.

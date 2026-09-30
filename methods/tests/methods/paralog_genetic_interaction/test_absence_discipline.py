@@ -8,18 +8,10 @@ NOT permanently cached.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
+import pyarrow.parquet as pq
 from botocore.exceptions import ClientError
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-import pyarrow.parquet as pq  # noqa: E402
-
-from methods.paralog_genetic_interaction import read as para  # noqa: E402
+from onc_methods.paralog_genetic_interaction import read as para
 
 
 def _nosuchkey():

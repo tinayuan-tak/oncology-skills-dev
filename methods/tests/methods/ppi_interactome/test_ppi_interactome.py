@@ -5,16 +5,11 @@ S3-free unit test (fixture STRING info/links + CORUM + sidecar) + a live smoke (
 from __future__ import annotations
 
 import gzip
-import sys
 from pathlib import Path
 
 import pytest
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.ppi_interactome import read as _ppi  # noqa: E402
+from onc_methods.ppi_interactome import read as _ppi
 
 
 def _fixtures(tmp_path):
@@ -118,7 +113,7 @@ def test_string_edges_from_product_pushdown(tmp_path):
     pushdown filter, returning symbol-resolved HC edges (no info-map, no stream). S3-free fixture."""
     import pandas as pd
 
-    from methods.ppi_interactome import read as _ppi
+    from onc_methods.ppi_interactome import read as _ppi
 
     prod = tmp_path / "string_hc.parquet"
     pd.DataFrame(
@@ -137,6 +132,6 @@ def test_string_edges_from_product_pushdown(tmp_path):
 
 def test_string_product_missing_returns_none(tmp_path):
     """Product unreadable → None (signals the reader to fall back to the legacy stream)."""
-    from methods.ppi_interactome import read as _ppi
+    from onc_methods.ppi_interactome import read as _ppi
 
     assert _ppi._string_edges_from_product("TGT", product_path=str(tmp_path / "nope.parquet")) is None

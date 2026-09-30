@@ -17,9 +17,9 @@ import pytest
 pytest.importorskip("numpy")
 pytest.importorskip("pandas")
 
-from methods.sc_normal_expression import cli as C
-from methods.sc_normal_expression import read as R
-from methods.sc_normal_expression import stats as S
+from onc_methods.sc_normal_expression import cli as C
+from onc_methods.sc_normal_expression import read as R
+from onc_methods.sc_normal_expression import stats as S
 
 # --- fixtures ----------------------------------------------------------------
 

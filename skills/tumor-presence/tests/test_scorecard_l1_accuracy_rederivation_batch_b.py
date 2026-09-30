@@ -77,18 +77,12 @@ def _golden_card(card_id: str) -> dict:
     raise AssertionError(f"golden fixture carries no card {card_id!r}")
 
 
-def _ensure_am_on_path():
-    if str(AM_ROOT) not in sys.path:
-        sys.path.insert(0, str(AM_ROOT))
-
-
 # ── tumor-rna-vs-adjacent ──────────────────────────────────────────────────────────────────────
 
 
 def _rederive_rna_vs_adjacent(anchor: dict) -> dict:
     """Re-derive through the REAL read_dge_gene_row from the frozen raw gene row + all-gene null."""
-    _ensure_am_on_path()
-    import methods.dge_deseq2.read as rd  # noqa: PLC0415
+    import onc_methods.dge_deseq2.read as rd  # noqa: PLC0415
 
     null_table = pq.read_table(RECOMPUTATION_DIR / anchor["null_fixture"], columns=["log2FoldChange"])
     null_vec = tuple(float(v) for v in null_table.column("log2FoldChange").to_pylist())
@@ -167,8 +161,7 @@ _TEB_PROTEIN_GOLDEN_FIELDS = (
 
 
 def _rederive_teb_protein(anchor: dict) -> dict:
-    _ensure_am_on_path()
-    import methods.cptac_protein_deg.read as cp  # noqa: PLC0415
+    import onc_methods.cptac_protein_deg.read as cp  # noqa: PLC0415
 
     cohort_rows = pq.read_table(RECOMPUTATION_DIR / anchor["cptac_cohort_rows_fixture"]).to_pylist()
     with mock.patch.object(cp, "read_all_cohorts", lambda t: [dict(r) for r in cohort_rows]):
@@ -176,8 +169,7 @@ def _rederive_teb_protein(anchor: dict) -> dict:
 
 
 def _rederive_teb_rna(anchor: dict) -> dict:
-    _ensure_am_on_path()
-    import methods.dge_deseq2.derive_pancan_stack as ps  # noqa: PLC0415
+    import onc_methods.dge_deseq2.derive_pancan_stack as ps  # noqa: PLC0415
     import pyarrow.fs as pafs  # noqa: PLC0415
 
     rna_rows = pq.read_table(RECOMPUTATION_DIR / anchor["rna_stack_rows_fixture"]).to_pylist()

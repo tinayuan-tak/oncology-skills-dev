@@ -45,8 +45,8 @@ set -euo pipefail
 # --- config ------------------------------------------------------------------
 
 # Canonical 19-indication list (mirrors PAN_TISSUE_INDICATIONS in
-# methods/dge_deseq2/emit_pan_tissue.py + WIRED_INDICATIONS in
-# methods/surfaceome_cohort_ranking/cli.py — kept in sync).
+# onc_methods/dge_deseq2/emit_pan_tissue.py + WIRED_INDICATIONS in
+# onc_methods/surfaceome_cohort_ranking/cli.py — kept in sync).
 DEFAULT_INDICATIONS=(
     COAD READ COADREAD LUAD LUSC BRCA PAAD SKCM STAD PRAD
     OV KIRC GBM LGG BLCA LIHC CESC ESCA HNSC
@@ -57,7 +57,7 @@ DEFAULT_INDICATIONS=(
 #      default cannot be falsified by a local run — it is only wrong somewhere nobody looks
 #      (CI, a second checkout, another user's box, a container).
 #   2. CATALOG_REPO is passed through as --catalog-repo on EVERY indication (see run_one), so
-#      it OVERRIDES the portable default inside methods/dge_deseq2/cli.py. Leaving it
+#      it OVERRIDES the portable default inside onc_methods/dge_deseq2/cli.py. Leaving it
 #      $HOME-anchored silently undoes that fix for the batch path — which is how all 19
 #      indications actually run.
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -195,7 +195,7 @@ log "substrate: $SUBSTRATE${SUBSTRATE_INFIX:+ (product id infix ${SUBSTRATE_INFI
 # indications failed" outcome, not a usage error.
 #
 # Scope of the check is only what is UNAMBIGUOUS — the root plus the two directories
-# resolve_config() actually searches (methods/dge_deseq2/cli.py). Deliberately NOT checked
+# resolve_config() actually searches (onc_methods/dge_deseq2/cli.py). Deliberately NOT checked
 # here: RELEASE_PIN. The R stages resolve versioned inputs themselves, so re-deriving that
 # mapping in bash would put one rule in two places and let them drift.
 preflight_catalog_root() {
@@ -240,7 +240,7 @@ run_one() {
 
     log "START $ind -> $parquet_uri"
     local cmd=(
-        python -m methods.dge_deseq2.cli
+        python -m onc_methods.dge_deseq2.cli
         --indication "$ind"
         --contrast four_cell_sensitivity
         --substrate "$SUBSTRATE"
@@ -253,7 +253,7 @@ run_one() {
     if [[ -n "$DRY_RUN" ]]; then
         # A dry run that writes `ok` unconditionally CANNOT FAIL, and a check that cannot fail
         # answers nothing — it just looks like validation. Resolve the SAME two candidates
-        # resolve_config() will (methods/dge_deseq2/cli.py), so `ok` means "this would run".
+        # resolve_config() will (onc_methods/dge_deseq2/cli.py), so `ok` means "this would run".
         # Only the config is resolved: the R stages' own inputs stay their business.
         # The xena_toil substrate selects samples by --indication and needs NO config, so the
         # config-existence probe applies only to recount3.

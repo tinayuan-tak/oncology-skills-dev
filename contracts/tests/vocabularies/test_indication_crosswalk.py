@@ -285,12 +285,9 @@ def test_crosswalk_agrees_with_analysis_methods_canonical_map():
     am = REPO.parent / "rnd-computational-biology-oncology-analysis-methods"
     if not am.exists():
         pytest.skip("sibling analysis-methods repo not on disk")
-    import sys
 
-    if str(am) not in sys.path:
-        sys.path.insert(0, str(am))
     try:
-        from methods.depmap_chronos.read import INDICATION_TO_DEPMAP_LINEAGE as canon
+        from onc_methods.depmap_chronos.read import INDICATION_TO_DEPMAP_LINEAGE as canon
     except Exception:  # noqa: BLE001
         pytest.skip("analysis-methods canonical map not importable in this env")
     doc = _load()

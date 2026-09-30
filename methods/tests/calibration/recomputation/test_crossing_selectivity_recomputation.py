@@ -29,7 +29,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import sys
 from pathlib import Path
 
 import pyarrow.parquet as pq
@@ -38,14 +37,12 @@ import pytest
 HERE = Path(__file__).resolve().parent
 ANCHOR_DIR = HERE / "anchors"
 
-# The pipeline module does absolute `from methods.…` imports at module scope, so the analysis-methods root
-# must be importable. Insert it explicitly (the sibling tests/methods/… tests import the same way). We test
-# the REAL card code — re-deriving through it is what makes T3 a real test, not a self-echo.
-_AM_ROOT = HERE.parents[2]
-if str(_AM_ROOT) not in sys.path:
-    sys.path.insert(0, str(_AM_ROOT))
+# The pipeline module does absolute `from onc_methods.…` imports at module scope; they resolve through
+# the editable install from any cwd, so nothing has to be put on sys.path first (skills#2237 deleted the
+# insert this used to need). We test the REAL card code — re-deriving through it is what makes T3 a real
+# test, not a self-echo.
 
-import methods.tcga_gtex_expression_distribution.read as rd  # noqa: E402
+import onc_methods.tcga_gtex_expression_distribution.read as rd
 
 MIN_ANCHORS = 8  # anti-vacuity floor below the current 10; a zeroed dir must never read as green
 MIN_DISTINCT_CLASSES = 3  # the set must span classifier branches, not all sit in one

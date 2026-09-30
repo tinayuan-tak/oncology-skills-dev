@@ -1,7 +1,7 @@
 # expression.yaml — the shared expression-property family.
 #
 # Register (not engine) for the eight properties governed by vocabularies/expression_property.enum.yaml
-# v1.0.0 and resolved by methods/methods/expression_properties/resolve.py. See README.md for the entry
+# v1.0.0 and resolved by methods/onc_methods/expression_properties/resolve.py. See README.md for the entry
 # shape and the identifiability test that admits `role: estimator`.
 catalog_id: expression
 kind: l2a_property
@@ -69,7 +69,7 @@ properties:
       - name: _PRESENCE_SUPPORTED_FRACTION
         value: 0.50
         unit: fraction_of_panel_above_detection_floor
-        source: methods/methods/expression_properties/resolve.py:78
+        source: methods/onc_methods/expression_properties/resolve.py:78
         rationale: |
           A majority of the panel above the floor is the weakest claim that still supports
           "expressed in this lineage" without qualification. A simple majority, not a tuned
@@ -81,7 +81,7 @@ properties:
       - name: _PRESENCE_SUPPORTED_MEDIAN_FRACTION
         value: 0.30
         unit: fraction_of_panel_above_detection_floor
-        source: methods/methods/expression_properties/resolve.py:79
+        source: methods/onc_methods/expression_properties/resolve.py:79
         rationale: |
           UNKNOWN. This is the rescue arm's fraction floor, conjoined with an expressing
           median. Why 0.30 and not 0.25 or 0.40 is not recorded anywhere, and it interacts with
@@ -94,7 +94,7 @@ properties:
       - name: _PRESENCE_FLOOR_FRACTION
         value: 0.10
         unit: fraction_of_panel_above_detection_floor
-        source: methods/methods/expression_properties/resolve.py:80
+        source: methods/onc_methods/expression_properties/resolve.py:80
         rationale: |
           Below this AND with a non-expressing median, the resolver emits a MEASURED `absent`
           rather than `unmeasured`. The distinction is the point: `absent` is a negative result,
@@ -106,7 +106,7 @@ properties:
       - name: _EXPRESSED_LOG2TPM
         value: 1.0
         unit: log2_tpm_plus_1
-        source: methods/methods/expression_properties/resolve.py:62
+        source: methods/onc_methods/expression_properties/resolve.py:62
         rationale: |
           DepMap's own detection floor, mirrored so this resolver and
           methods/depmap_expression_distribution cannot drift apart. Inherited from the upstream
@@ -164,7 +164,7 @@ properties:
       - name: _MAGNITUDE_HIGH_PERCENTILE
         value: 75.0
         unit: all_gene_percentile_0_100
-        source: methods/methods/expression_properties/resolve.py:91
+        source: methods/onc_methods/expression_properties/resolve.py:91
         rationale: |
           UNKNOWN. Upper-quartile position across all genes. A quartile is a conventional cut,
           but no calibration against a curated high/low panel is recorded, and it is NOT the
@@ -176,7 +176,7 @@ properties:
       - name: _MAGNITUDE_MODERATE_PERCENTILE
         value: 25.0
         unit: all_gene_percentile_0_100
-        source: methods/methods/expression_properties/resolve.py:92
+        source: methods/onc_methods/expression_properties/resolve.py:92
         rationale: |
           UNKNOWN. Lower-quartile mirror of _MAGNITUDE_HIGH_PERCENTILE; inherits its
           adjudication.
@@ -187,7 +187,7 @@ properties:
       - name: _HIGHLY_EXPRESSED_LOG2TPM
         value: 5.0
         unit: log2_tpm_plus_1
-        source: methods/methods/expression_properties/resolve.py:63
+        source: methods/onc_methods/expression_properties/resolve.py:63
         rationale: |
           Mirrors methods/depmap_expression_distribution's `highly expressed` floor (the same 5.0
           is the `compute_summary_stats` default and `depmap_expression_distribution/read.py`'s
@@ -247,7 +247,7 @@ properties:
       - name: DEFAULT_CUTOFFS
         value: {top_1pct: 99.0, top_decile: 90.0, bottom_decile: 10.0}
         unit: all_gene_percentile_0_100
-        source: methods/methods/percentile_null/__init__.py:24
+        source: methods/onc_methods/percentile_null/__init__.py:24
         rationale: |
           A DIFFERENT percentile classifier from _MAGNITUDE_HIGH_PERCENTILE / _MODERATE_PERCENTILE
           above (75.0/25.0): this scheme bins the all-gene `allgene_percentile` field into
@@ -312,7 +312,7 @@ properties:
       - name: _BROADLY_HIGH_FRACTION_MIN
         value: 0.5
         unit: fraction_of_panel_highly_expressing
-        source: methods/methods/expression_properties/resolve.py:70
+        source: methods/onc_methods/expression_properties/resolve.py:70
         rationale: |
           A majority highly-expressing reads as `broad`. MEASURED 2026-09-29: the mirror HOLDS —
           the tumour twin's `broadly_high` bar is also `high_fraction >= 0.5`
@@ -328,7 +328,7 @@ properties:
       - name: _SUBSET_HIGH_FRACTION_MIN
         value: 0.1
         unit: fraction_of_panel_highly_expressing
-        source: methods/methods/expression_properties/resolve.py:67
+        source: methods/onc_methods/expression_properties/resolve.py:67
         rationale: |
           Mirrors methods/tcga_gtex_expression_distribution/read.py:862 (`high_fraction >= 0.1`)
           — a genuine arm-agreement mirror, applied only on a shaped (bimodal/long_tail)
@@ -340,7 +340,7 @@ properties:
       - name: _SUBSTANTIAL_SUBSET_HIGH_FRACTION
         value: 0.20
         unit: fraction_of_panel_highly_expressing
-        source: methods/methods/expression_properties/resolve.py:75
+        source: methods/onc_methods/expression_properties/resolve.py:75
         rationale: |
           UNKNOWN. The shape-independent subset-high path: a fifth of the panel highly
           expressing counts as a real subpopulation even when no bimodal/long_tail shape was
@@ -353,7 +353,7 @@ properties:
       - name: _BROAD_EXPRESSED_FRACTION
         value: 0.70
         unit: fraction_of_panel_above_detection_floor
-        source: methods/methods/expression_properties/resolve.py:73
+        source: methods/onc_methods/expression_properties/resolve.py:73
         rationale: |
           Mirrors cli._classify_expression's broadly_expressed_fraction and the tumour twin's
           `>= 0.7`. NOTE the unit differs from _BROADLY_HIGH_FRACTION_MIN: this is fraction
@@ -366,7 +366,7 @@ properties:
       - name: _RARE_FRACTION
         value: 0.10
         unit: fraction_of_panel_above_detection_floor
-        source: methods/methods/expression_properties/resolve.py:82
+        source: methods/onc_methods/expression_properties/resolve.py:82
         rationale: |
           UNKNOWN. Shares a numeric value with _PRESENCE_FLOOR_FRACTION and
           _SUBSET_HIGH_FRACTION_MIN but a different meaning and (for the latter) a different
@@ -408,7 +408,7 @@ properties:
       - name: _CV_HIGH
         value: 0.75
         unit: coefficient_of_variation_linear_tpm
-        source: methods/methods/expression_properties/resolve.py:87
+        source: methods/onc_methods/expression_properties/resolve.py:87
         rationale: |
           Anchored empirically: the shape-metric tests show called-bimodal panels sitting well
           above CoV 0.5, so 0.75 sits inside the bimodal regime rather than at its boundary.
@@ -420,7 +420,7 @@ properties:
       - name: _CV_MODERATE
         value: 0.35
         unit: coefficient_of_variation_linear_tpm
-        source: methods/methods/expression_properties/resolve.py:88
+        source: methods/onc_methods/expression_properties/resolve.py:88
         rationale: |
           UNKNOWN. The uniform/moderate boundary has no cited observation, unlike _CV_HIGH.
         calibration:
@@ -430,7 +430,7 @@ properties:
       - name: _BIMODAL_PATTERNS
         value: "bimodal|long_tail"
         unit: distribution_pattern_token_set
-        source: methods/methods/expression_properties/resolve.py:59
+        source: methods/onc_methods/expression_properties/resolve.py:59
         rationale: |
           The shape tokens that count as "not uniform". A closed set mirroring the upstream
           card's vocabulary; a new pattern token added upstream would fall through as uniform,
@@ -468,7 +468,7 @@ properties:
       - name: _LINEAGE_RESTRICTED_MAX_SHARE
         value: 0.5
         unit: share_of_evaluated_lineages
-        source: methods/methods/expression_properties/resolve.py:96
+        source: methods/onc_methods/expression_properties/resolve.py:96
         rationale: |
           A minority of evaluated lineages carrying the expression reads as `restricted`; a
           majority reads as `intermediate`. The enrichment bar per lineage (>= 0.4 above panel)

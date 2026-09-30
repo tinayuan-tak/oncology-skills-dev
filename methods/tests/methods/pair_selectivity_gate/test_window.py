@@ -3,7 +3,7 @@
 Monkeypatch the two upstream readers (confirm_pair_samecell, normal_max_both) with canned payloads
 and assert the verdict truth table + margin. No S3."""
 
-import methods.pair_selectivity_gate.window as W
+import onc_methods.pair_selectivity_gate.window as W
 
 
 def _tumor(both, call="same_cell_coordinated", n_donors=50):

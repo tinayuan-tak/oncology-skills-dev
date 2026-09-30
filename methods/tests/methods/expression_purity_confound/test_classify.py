@@ -2,14 +2,7 @@
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.expression_purity_confound.read import (  # noqa: E402
+from onc_methods.expression_purity_confound.read import (
     CONFOUND_R,
     INTRINSIC_R,
     MIN_PAIRED_SAMPLES,

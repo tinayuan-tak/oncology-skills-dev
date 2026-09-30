@@ -121,7 +121,7 @@ tumor-presence hardening). Both are ADDITIVE — no rule reads them, so the
   **pan-essential** (ceiling) + **non-essential** (floor) controls. Note the
   **inversion** vs presence: reading `as_essential_as_pan_essential` is a
   **broad-toxicity liability**, NOT a win; the therapeutic window is `between_controls`
-  (a selective dependency). Emitted by `methods/dependency_controls`.
+  (a selective dependency). Emitted by `onc_methods/dependency_controls`.
 - **Axis-3 — across-lineage omnibus** (`lineage_omnibus_effect_size_class` +
   `lineage_variance_explained` ε² on the lineage-selectivity card): the global
   variance view ("how much of the dependency variance does lineage explain?"),

@@ -8,16 +8,9 @@ is a real Model.csv lineage."""
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.depmap_chronos.read import INDICATION_TO_DEPMAP_LINEAGE  # noqa: E402
+from onc_methods.depmap_chronos.read import INDICATION_TO_DEPMAP_LINEAGE
 
 
 def test_canonical_map_gastric_is_esophagus_stomach():
@@ -29,17 +22,17 @@ def test_canonical_map_gastric_is_esophagus_stomach():
 
 def test_verdict_readers_use_single_source_map():
     # both verdict-relevant readers import (not fork) the canonical map — literally the same object
-    from methods.genomic_event_model_match import read as gemm
-    from methods.patient_model_expression_correspondence import read as pmec
+    from onc_methods.genomic_event_model_match import read as gemm
+    from onc_methods.patient_model_expression_correspondence import read as pmec
 
     assert gemm.INDICATION_TO_DEPMAP_LINEAGE is INDICATION_TO_DEPMAP_LINEAGE
     assert pmec.INDICATION_TO_DEPMAP_LINEAGE is INDICATION_TO_DEPMAP_LINEAGE
 
 
 def test_display_maps_gastric_corrected():
-    from methods.depmap_chronos.cli import INDICATION_LINEAGE as chronos_disp
-    from methods.depmap_expression_distribution.cli import INDICATION_LINEAGE as expr_dist_disp
-    from methods.depmap_protein_abundance.cli import INDICATION_LINEAGE as prot_disp
+    from onc_methods.depmap_chronos.cli import INDICATION_LINEAGE as chronos_disp
+    from onc_methods.depmap_expression_distribution.cli import INDICATION_LINEAGE as expr_dist_disp
+    from onc_methods.depmap_protein_abundance.cli import INDICATION_LINEAGE as prot_disp
 
     assert chronos_disp["GC"] == "Esophagus/Stomach"
     assert expr_dist_disp["GC"] == "Esophagus/Stomach"
@@ -51,7 +44,7 @@ def test_display_maps_gastric_corrected():
 
 def test_gastric_lineage_present_in_model_csv_live():
     # Optional live leg: the mapped lineage must be a real Model.csv OncotreeLineage.
-    from methods.depmap_protein_abundance import cli as pa
+    from onc_methods.depmap_protein_abundance import cli as pa
 
     try:
         lin_by_model = pa.load_model_lineage()

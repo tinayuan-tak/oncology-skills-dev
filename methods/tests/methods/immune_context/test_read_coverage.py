@@ -11,19 +11,12 @@ tested as a round trip, not separately.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.immune_context.classify import (  # noqa: E402
+from onc_methods.immune_context.classify import (
     LYMPHOID_DENOMINATOR_STUDIES,
     has_lymphoid_denominator,
     summarize_immune_context,
 )
-from methods.immune_context.read import INDICATION_TO_TCGA_STUDIES  # noqa: E402
+from onc_methods.immune_context.read import INDICATION_TO_TCGA_STUDIES
 
 
 def test_ucec_sarc_resolve_to_studies():

@@ -2,16 +2,9 @@
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pandas as pd
 
-AM = Path(__file__).resolve().parents[3]
-if str(AM) not in sys.path:
-    sys.path.insert(0, str(AM))
-
-from methods.pancan_arm_cnv.read import arm_of, build_arm_calls, build_arm_indication_freq  # noqa: E402
+from onc_methods.pancan_arm_cnv.read import arm_of, build_arm_calls, build_arm_indication_freq
 
 
 def test_arm_of_parsing():

@@ -6,14 +6,8 @@ no-targeted-drug path. VERDICT-INERT; these guards pin the class taxonomy, not a
 from __future__ import annotations
 
 import importlib
-import sys
-from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-r = importlib.import_module("methods.opentargets_drug_warning.read")
+r = importlib.import_module("onc_methods.opentargets_drug_warning.read")
 
 
 def _w(wtype, chembls=("CHEMBL1",), tox=None):

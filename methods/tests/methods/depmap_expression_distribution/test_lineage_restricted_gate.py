@@ -8,14 +8,8 @@ mid-band detection with no enriched lineage is broadly_moderate (diffuse presenc
 from __future__ import annotations
 
 import importlib
-import sys
-from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-cli = importlib.import_module("methods.depmap_expression_distribution.cli")
+cli = importlib.import_module("onc_methods.depmap_expression_distribution.cli")
 
 
 def test_mid_band_with_enriched_lineage_is_lineage_restricted():

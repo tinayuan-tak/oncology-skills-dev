@@ -8,13 +8,44 @@ away), and the selector precedence the MAF builder + recurrence reader share as 
 
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
 import pandas as pd
 
-from methods.genie_panel_recurrence.read import (
+from onc_methods.genie_panel_recurrence.read import (
     GENIE_CANCER_TYPE,
     GENIE_ONCOTREE_CODE,
     select_indication_sample_ids,
 )
+
+
+def _load_ops_script(name: str):
+    """Load ``methods/scripts/<name>.py`` by file location.
+
+    ``methods/scripts/`` holds operational drivers, NOT package modules: pyproject's
+    ``packages.find.include`` is ``onc_methods*``, so the scripts dir is not installed and
+    there is no import path to it. These tests used to reach it as a bare top-level
+    ``scripts`` namespace package, which resolved ONLY because a ``sys.path.insert`` had put
+    the distribution root on ``sys.path`` (deleted in skills#2237). Load by location instead
+    — the same idiom the ``steps/*.py`` tests use. The script's OWN
+    ``from onc_methods... import`` lines still resolve through the editable install, so
+    identity assertions against reader-module objects hold.
+    """
+    import importlib.util
+
+    path = _OPS_SCRIPTS / f"{name}.py"
+    assert path.is_file(), f"ops script not found: {path}"
+    spec = importlib.util.spec_from_file_location(f"_ops_script_{name}", path)
+    assert spec is not None and spec.loader is not None
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
+
+_OPS_SCRIPTS = Path(__file__).resolve().parents[3] / "scripts"
+_OPS_PREFETCH_SOURCE_MAF = _load_ops_script("prefetch_source_maf")
 
 
 def test_high_value_indications_are_mapped():
@@ -48,8 +79,8 @@ def test_oncotree_code_takes_precedence_over_cancer_type():
 def test_builder_imports_the_reader_maps_not_a_copy():
     """Producer/reader must share ONE map so the product's `indication` stamp and the denominator cohort
     select identical samples. The builder imports from the reader module rather than duplicating."""
-    import scripts.prefetch_source_maf as b
-    from methods.genie_panel_recurrence import read as r
+    b = _OPS_PREFETCH_SOURCE_MAF
+    from onc_methods.genie_panel_recurrence import read as r
 
     assert b.GENIE_CANCER_TYPE is r.GENIE_CANCER_TYPE
     assert b.GENIE_ONCOTREE_CODE is r.GENIE_ONCOTREE_CODE

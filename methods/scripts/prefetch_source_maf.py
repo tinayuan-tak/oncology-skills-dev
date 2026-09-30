@@ -53,9 +53,7 @@ import click
 # not just by module (`python -m scripts.prefetch_source_maf`) — in the PATH form sys.path[0] is
 # scripts/, so the lazy `methods.subgroup_common.lineage` import below would raise
 # ModuleNotFoundError for every DepMap indication. Same idiom as scripts/build_msk_impact_maf.py.
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
-from methods.subgroup_common import maf_vocab  # noqa: E402 — needs the sys.path bootstrap above
+from onc_methods.subgroup_common import maf_vocab
 
 # --- Source configuration table --------------------------------------------
 # Each source declares: S3 keys, the cache dir, the output-parquet tag, the
@@ -171,7 +169,7 @@ VARIANT_CLASSIFICATION_TO_EFFECT = maf_vocab.VARIANT_CLASSIFICATION_TO_EFFECT
 # copy of the caveat is the same duplication this import exists to remove.
 # read.py is pandas-free at module scope (it defers pandas into its functions), so importing it here
 # keeps `--help` fast — the same constraint that keeps _depmap_population below lazy.
-from methods.genie_panel_recurrence.read import (  # noqa: E402
+from onc_methods.genie_panel_recurrence.read import (
     GENIE_CANCER_TYPE,
     GENIE_ONCOTREE_CODE,
     select_indication_sample_ids,
@@ -205,20 +203,20 @@ def _depmap_lineage(indication: str) -> str:
     require pandas plus a Model.csv read, i.e. S3 or a skip. Keeping a lineage-only
     entry point preserves an offline wiring test.
     """
-    from methods.subgroup_common.lineage import depmap_lineage_for
+    from onc_methods.subgroup_common.lineage import depmap_lineage_for
 
     return depmap_lineage_for(indication)
 
 
 def _depmap_population(indication: str, model_df):
     """Return the narrowed DepMapPopulation for `indication`; raise KeyError if absent."""
-    from methods.subgroup_common.lineage import depmap_population_for
+    from onc_methods.subgroup_common.lineage import depmap_population_for
 
     return depmap_population_for(indication, model_df)
 
 
 def _shared_lineage_unnarrowed() -> frozenset:
-    from methods.subgroup_common.lineage import SHARED_LINEAGE_NOT_NARROWED
+    from onc_methods.subgroup_common.lineage import SHARED_LINEAGE_NOT_NARROWED
 
     return SHARED_LINEAGE_NOT_NARROWED
 

@@ -15,17 +15,12 @@ detection_rate) is read via the `product_path` offline seam. Pins:
 from __future__ import annotations
 
 import importlib
-import sys
 from pathlib import Path
 
 import pandas as pd
 import pytest
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-read = importlib.import_module("methods.tphp_normal_protein.read")
+read = importlib.import_module("onc_methods.tphp_normal_protein.read")
 
 # The fields the normal-tissue-protein-abundance-tphp card declares in outputs.summary_fields — the
 # reader MUST emit all of them (the drift guard). Kept explicit so a card/reader divergence fails HERE.

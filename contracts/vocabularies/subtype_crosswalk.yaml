@@ -557,7 +557,7 @@ reader_routing:
   # `link_3_file` is the one the liveness test re-measures. The TCGA arms' table is the sibling
   # below, and OMITTING it is exactly how the 2026-09-14 census reached a false conclusion.
   link_3_file: claude-oncology-skills/skills/_skills_common/_live_readers.py
-  link_3_file_tcga_arms: analysis-methods/methods/tcga_gtex_expression_distribution/read.py
+  link_3_file_tcga_arms: analysis-methods/onc_methods/tcga_gtex_expression_distribution/read.py
   unrouted_indications: [BRCA]
   # TWO counts, because one cannot answer both questions and the single earlier value was compared
   # against the wrong one: `declared` guards "a NEW registry appeared that might route the subject",

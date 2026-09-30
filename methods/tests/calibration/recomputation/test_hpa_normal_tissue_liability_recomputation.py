@@ -26,7 +26,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import sys
 from pathlib import Path
 
 import pytest
@@ -34,11 +33,8 @@ import pytest
 HERE = Path(__file__).resolve().parent
 ANCHOR_DIR = HERE / "anchors"
 
-_AM_ROOT = HERE.parents[2]
-if str(_AM_ROOT) not in sys.path:
-    sys.path.insert(0, str(_AM_ROOT))
 
-import methods.hpa_normal_tissue_liability.cli as cli  # noqa: E402
+import onc_methods.hpa_normal_tissue_liability.cli as cli
 
 MIN_ANCHORS = 2
 MIN_DISTINCT_FLAGS = 2  # essential_tissue_flag must span >= 2 values across the anchor set

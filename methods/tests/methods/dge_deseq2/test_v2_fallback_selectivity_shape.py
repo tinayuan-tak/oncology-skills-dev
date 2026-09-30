@@ -12,14 +12,7 @@ S3-free: read_dge_gene_row (cell A) + read_tumor_vs_gtex_gene_row (cell C) are m
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.dge_deseq2 import read as _r  # noqa: E402
+from onc_methods.dge_deseq2 import read as _r
 
 
 def _patch(monkeypatch, cell_a: dict, cell_c: dict):

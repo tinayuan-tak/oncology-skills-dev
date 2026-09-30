@@ -29,7 +29,7 @@ read as a cached source of truth.
 
 **Two competing homes are emerging.** The monolith (skills) vs. in-flight PR #387
 (`feat/sc-presence-figures`) which puts NEW single-cell figure code in
-`analysis-methods/methods/sc_tumor_expression_celltype/` + `sc_normal_expression/`, with "skills-side
+`analysis-methods/onc_methods/sc_tumor_expression_celltype/` + `sc_normal_expression/`, with "skills-side
 `_figure_emitters` wiring [as] a separate skills PR." So figure logic is starting to live in two
 places with no single convention.
 

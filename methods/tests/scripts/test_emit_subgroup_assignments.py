@@ -11,6 +11,7 @@ Test structure:
 """
 
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -19,12 +20,40 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 SHARDS_TSV = REPO_ROOT / "scripts" / "subgroup_emit_shards.tsv"
 
 
+def _load_ops_script(name: str):
+    """Load ``methods/scripts/<name>.py`` by file location.
+
+    ``methods/scripts/`` holds operational drivers, NOT package modules: pyproject's
+    ``packages.find.include`` is ``onc_methods*``, so the scripts dir is not installed and
+    there is no import path to it. These tests used to reach it as a bare top-level
+    ``scripts`` namespace package, which resolved ONLY because a ``sys.path.insert`` had put
+    the distribution root on ``sys.path`` (deleted in skills#2237). Load by location instead
+    — the same idiom the ``steps/*.py`` tests use. The script's OWN
+    ``from onc_methods... import`` lines still resolve through the editable install, so
+    identity assertions against reader-module objects hold.
+    """
+    import importlib.util
+
+    path = _OPS_SCRIPTS / f"{name}.py"
+    assert path.is_file(), f"ops script not found: {path}"
+    spec = importlib.util.spec_from_file_location(f"_ops_script_{name}", path)
+    assert spec is not None and spec.loader is not None
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
+
+_OPS_SCRIPTS = REPO_ROOT / "scripts"
+_OPS_EMIT_SUBGROUP_ASSIGNMENTS = _load_ops_script("emit_subgroup_assignments")
+
+
 # ---------- ShardSpec derivation ----------
 
 
 def test_shardspec_coadread_marker_paper():
     """COADREAD × tcga_marker_paper: paths + IDs derive correctly."""
-    from scripts.emit_subgroup_assignments import ShardSpec
+    ShardSpec = _OPS_EMIT_SUBGROUP_ASSIGNMENTS.ShardSpec
 
     shard = ShardSpec(
         source="tcga_marker_paper",
@@ -42,7 +71,7 @@ def test_shardspec_coadread_marker_paper():
 
 def test_shardspec_sclc_classifier():
     """SCLC × depmap_expression: classifier-config required."""
-    from scripts.emit_subgroup_assignments import ShardSpec
+    ShardSpec = _OPS_EMIT_SUBGROUP_ASSIGNMENTS.ShardSpec
 
     shard = ShardSpec(
         source="depmap_expression",
@@ -59,7 +88,7 @@ def test_shardspec_sclc_classifier():
 def test_shardspec_aml_multi_cohort():
     """AML has 4 source keys (tcga_marker_paper, tcga_maf, beataml_maf,
     target_aml_maf) — each produces a distinct derived-manifest id."""
-    from scripts.emit_subgroup_assignments import ShardSpec
+    ShardSpec = _OPS_EMIT_SUBGROUP_ASSIGNMENTS.ShardSpec
 
     ids = set()
     for source in ["tcga_marker_paper", "tcga_maf", "beataml_maf", "target_aml_maf"]:
@@ -81,7 +110,7 @@ def test_shardspec_aml_multi_cohort():
 
 def test_all_seven_sources_have_assigner_mapping():
     """SOURCE_TO_ASSIGNER covers all shard-matrix source keys."""
-    from scripts.emit_subgroup_assignments import SOURCE_TO_ASSIGNER
+    SOURCE_TO_ASSIGNER = _OPS_EMIT_SUBGROUP_ASSIGNMENTS.SOURCE_TO_ASSIGNER
 
     expected = {
         "tcga_marker_paper",
@@ -99,7 +128,7 @@ def test_source_maps_to_correct_assigner():
     """Directly-tagged sources → subgroup_assigner_directly_tagged;
     MAF sources → subgroup_assigner_maf_filter;
     expression source → subgroup_assigner_classifier."""
-    from scripts.emit_subgroup_assignments import SOURCE_TO_ASSIGNER
+    SOURCE_TO_ASSIGNER = _OPS_EMIT_SUBGROUP_ASSIGNMENTS.SOURCE_TO_ASSIGNER
 
     assert SOURCE_TO_ASSIGNER["tcga_marker_paper"][0] == "subgroup_assigner_directly_tagged"
     assert SOURCE_TO_ASSIGNER["depmap_omics_inferred"][0] == "subgroup_assigner_directly_tagged"
@@ -115,7 +144,7 @@ def test_source_maps_to_correct_assigner():
 
 def test_shard_matrix_parses():
     """subgroup_emit_shards.tsv has expected shape + all rows use valid sources."""
-    from scripts.emit_subgroup_assignments import SOURCE_TO_ASSIGNER
+    SOURCE_TO_ASSIGNER = _OPS_EMIT_SUBGROUP_ASSIGNMENTS.SOURCE_TO_ASSIGNER
 
     lines = [line.strip() for line in SHARDS_TSV.read_text().splitlines() if line.strip() and not line.startswith("#")]
     assert len(lines) >= 15  # at least 15 non-comment rows
@@ -158,7 +187,7 @@ def test_s3_uri_base_is_under_data_catalog_prefix():
     """Fix 1: uploads MUST live under s3://onc-compbio/data-catalog/derived/ (on-convention with
     the other 91 derived products) — NOT the off-convention s3://onc-compbio/derived/ that no
     catalog reader resolves."""
-    from scripts.emit_subgroup_assignments import ShardSpec
+    ShardSpec = _OPS_EMIT_SUBGROUP_ASSIGNMENTS.ShardSpec
 
     shard = ShardSpec(
         source="tcga_maf",
@@ -176,7 +205,8 @@ def test_aml_adjunct_sources_fail_loud(source, tmp_path):
     """Fix 2: beataml_maf / target_aml_maf have no distinct MAF loader; the assigner would load the
     SAME TCGA-AML MAF as tcga_maf and emit a duplicate-identity manifest. They must raise, not
     silently emit."""
-    from scripts.emit_subgroup_assignments import ShardSpec, _invoke_assigner
+    ShardSpec = _OPS_EMIT_SUBGROUP_ASSIGNMENTS.ShardSpec
+    _invoke_assigner = _OPS_EMIT_SUBGROUP_ASSIGNMENTS._invoke_assigner
 
     shard = ShardSpec(
         source=source,
@@ -195,10 +225,8 @@ def test_aml_adjunct_sources_fail_loud(source, tmp_path):
 def test_aml_adjunct_sources_have_no_data_source_arg():
     """Fix 2: the SOURCE_TO_ASSIGNER data_source_arg for the adjunct sources is None (not 'tcga'),
     so the mapping itself no longer misrepresents them as loadable TCGA shards."""
-    from scripts.emit_subgroup_assignments import (
-        _SOURCES_WITHOUT_DISTINCT_LOADER,
-        SOURCE_TO_ASSIGNER,
-    )
+    _SOURCES_WITHOUT_DISTINCT_LOADER = _OPS_EMIT_SUBGROUP_ASSIGNMENTS._SOURCES_WITHOUT_DISTINCT_LOADER
+    SOURCE_TO_ASSIGNER = _OPS_EMIT_SUBGROUP_ASSIGNMENTS.SOURCE_TO_ASSIGNER
 
     assert _SOURCES_WITHOUT_DISTINCT_LOADER == {"beataml_maf", "target_aml_maf"}
     for s in _SOURCES_WITHOUT_DISTINCT_LOADER:
@@ -278,7 +306,7 @@ def test_catalog_repo_option_bakes_in_no_path():
     """click evaluates decorator defaults once, at import. Any path baked into the option is
     therefore frozen before a caller's environment exists — unreachable by a test and unaffected by
     DATA_CATALOG_ROOT being exported later. The option must carry None and resolve per run."""
-    from scripts.emit_subgroup_assignments import main
+    main = _OPS_EMIT_SUBGROUP_ASSIGNMENTS.main
 
     param = next(p for p in main.params if p.name == "catalog_repo")
     assert param.default is None, (
@@ -289,7 +317,7 @@ def test_catalog_repo_option_bakes_in_no_path():
 def test_default_catalog_repo_is_derived_from_the_checkout_not_home(monkeypatch):
     """On a dev box $HOME and the checkout parent are the same directory, so only a faked $HOME can
     tell a home-anchored root from a checkout-derived one."""
-    from scripts.emit_subgroup_assignments import _default_catalog_repo
+    _default_catalog_repo = _OPS_EMIT_SUBGROUP_ASSIGNMENTS._default_catalog_repo
 
     monkeypatch.delenv("DATA_CATALOG_ROOT", raising=False)
     monkeypatch.setenv("HOME", NOT_THE_CHECKOUT_PARENT)
@@ -303,7 +331,7 @@ def test_default_catalog_repo_is_derived_from_the_checkout_not_home(monkeypatch)
 def test_default_catalog_repo_honours_the_env_override(monkeypatch, tmp_path):
     """POSITIVE CONTROL: a path that does not move under a faked $HOME is indistinguishable from a
     function that was never called, so prove this resolution does move when the env names a root."""
-    from scripts.emit_subgroup_assignments import _default_catalog_repo
+    _default_catalog_repo = _OPS_EMIT_SUBGROUP_ASSIGNMENTS._default_catalog_repo
 
     monkeypatch.setenv("DATA_CATALOG_ROOT", str(tmp_path))
 
@@ -312,7 +340,7 @@ def test_default_catalog_repo_honours_the_env_override(monkeypatch, tmp_path):
 
 def test_default_catalog_repo_falls_back_on_an_empty_env_value(monkeypatch):
     """DATA_CATALOG_ROOT="" must fall back, not yield Path("") — which is the CWD."""
-    from scripts.emit_subgroup_assignments import _default_catalog_repo
+    _default_catalog_repo = _OPS_EMIT_SUBGROUP_ASSIGNMENTS._default_catalog_repo
 
     monkeypatch.setenv("DATA_CATALOG_ROOT", "")
 

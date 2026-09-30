@@ -30,6 +30,6 @@ run() { local label="$1"; shift; local out
 # `-rsfE`, not `-rs`: pytest's default -r value is `fE`, and passing `-rs` REPLACES it, so the
 # summary would name every SKIP and no FAILURE. This `run` helper only echoes the last 30 lines on a
 # red, which is precisely where the `FAILED <nodeid>` list needs to be.
-run "methods+tests" pixi run pytest methods/ tests/ -rsfE --import-mode=importlib -n 8
+run "methods+tests" pixi run pytest onc_methods/ tests/ -rsfE --import-mode=importlib -n 8
 [ $fail -eq 0 ] && echo "ALL GATES PASS" || echo "GATES FAILED"
 exit $fail

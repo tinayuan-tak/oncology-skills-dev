@@ -4,7 +4,6 @@ gap (the bare-except-masks-broken-env bug class; genomic-alteration review T0.4)
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import pytest
@@ -12,11 +11,7 @@ import pytest
 pytest.importorskip("pyarrow")
 import pyarrow.parquet as pq
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.gdc_somatic_hotspot import read as R  # noqa: E402
+from onc_methods.gdc_somatic_hotspot import read as R
 
 _ABSENT = Path("/nonexistent/definitely-not-here.parquet")
 

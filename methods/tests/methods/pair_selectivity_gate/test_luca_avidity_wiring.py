@@ -2,13 +2,7 @@
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-from methods.pair_selectivity_gate import samecell as S  # noqa: E402
+from onc_methods.pair_selectivity_gate import samecell as S
 
 
 def test_nsclc_luad_avidity_wired_to_luca():

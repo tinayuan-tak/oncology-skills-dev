@@ -41,14 +41,8 @@ that each rung can be reached.
 from __future__ import annotations
 
 import itertools
-import sys
-from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.dge_deseq2 import read as dge  # noqa: E402
+from onc_methods.dge_deseq2 import read as dge
 
 classify = dge._classify_selectivity_from_sensitivity
 

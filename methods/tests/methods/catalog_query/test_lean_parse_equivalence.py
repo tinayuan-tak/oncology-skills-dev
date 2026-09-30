@@ -16,7 +16,7 @@ from __future__ import annotations
 import pytest
 import yaml
 
-from methods.catalog_query.read import (
+from onc_methods.catalog_query.read import (
     DATA_CATALOG,
     _lean_load_manifest,
     _SafeLoader,

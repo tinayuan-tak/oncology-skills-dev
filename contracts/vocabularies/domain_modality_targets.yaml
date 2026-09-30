@@ -12,7 +12,7 @@
 # insufficient and a DEGRADER (removal of the whole protein, scaffold included) is mechanistically
 # required. The gene-level protein_class cannot encode this; it is curated biology.
 #
-# Consumed by analysis-methods/methods/domain_modality_relevance: a curated entry OVERRIDES the
+# Consumed by analysis-methods/onc_methods/domain_modality_relevance: a curated entry OVERRIDES the
 # class-driven heuristic (curated `preferred_mechanism` becomes the modality_implication_class,
 # and mechanism_context is surfaced verbatim). Additive / verdict-inert — informs modality
 # reasoning + LLM synthesis; fires no resolver rung.

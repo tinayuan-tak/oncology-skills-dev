@@ -6,15 +6,9 @@ barcode-patient join, the median-based cohort class, and graceful data_unavailab
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pandas as pd
 
-REPO = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(REPO))
-
-from methods.tcga_aneuploidy_burden import read as r  # noqa: E402
+from onc_methods.tcga_aneuploidy_burden import read as r
 
 
 def _setup(monkeypatch, seg_rows, cancer_map):

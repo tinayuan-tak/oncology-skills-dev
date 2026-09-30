@@ -16,17 +16,10 @@ reader is asserted to route through.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pandas as pd
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.catalog_query.read import bucket_key_for  # noqa: E402
-from methods.structure_features_static import read as R  # noqa: E402
+from onc_methods.catalog_query.read import bucket_key_for
+from onc_methods.structure_features_static import read as R
 
 # Manifest-resolved (bucket, key) pairs — the single source of truth the reader must use.
 DERIVED_BK = bucket_key_for(R.DERIVED_MANIFEST_ID)

@@ -8,14 +8,8 @@ indication_leaf_codes DOWN-expands an umbrella to its member LEAF codes for leaf
 from __future__ import annotations
 
 import importlib
-import sys
-from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[2]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-IA = importlib.import_module("methods.indication_aliases")
+IA = importlib.import_module("onc_methods.indication_aliases")
 
 
 def test_up_pooling_unchanged():

@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-_HELPER = Path(__file__).resolve().parents[3] / "methods" / "percentile_null" / "__init__.py"
+_HELPER = Path(__file__).resolve().parents[3] / "onc_methods" / "percentile_null" / "__init__.py"
 _spec = importlib.util.spec_from_file_location("pn_helper_under_test", _HELPER)
 pn = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(pn)

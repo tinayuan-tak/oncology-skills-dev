@@ -13,7 +13,7 @@
  "sites": [
   {
    "site_id": "site1_tumour_detectable_fraction",
-   "source": "methods/methods/tcga_gtex_expression_distribution/read.py::_classify_tumor_expression",
+   "source": "methods/onc_methods/tcga_gtex_expression_distribution/read.py::_classify_tumor_expression",
    "token": "broadly_low",
    "constant": 0.3,
    "constant_form": "inline literal (no module-level name)",
@@ -27,7 +27,7 @@
   },
   {
    "site_id": "site2_cellline_stratum_median",
-   "source": "methods/methods/depmap_expression_distribution/read.py::_expression_class",
+   "source": "methods/onc_methods/depmap_expression_distribution/read.py::_expression_class",
    "token": "broadly_low",
    "constant": 1.0,
    "constant_form": "module constant `_EXPRESSED`",
@@ -40,7 +40,7 @@
   },
   {
    "site_id": "site3_cellline_pancancer_fraction",
-   "source": "methods/methods/depmap_expression_distribution/cli.py::_classify_expression",
+   "source": "methods/onc_methods/depmap_expression_distribution/cli.py::_classify_expression",
    "token": "broadly_low",
    "constant": 0.1,
    "constant_form": "keyword default `lineage_restricted_min_fraction`",
@@ -54,7 +54,7 @@
   },
   {
    "site_id": "site4_expression_property_presence_floor",
-   "source": "methods/methods/expression_properties/resolve.py::_presence",
+   "source": "methods/onc_methods/expression_properties/resolve.py::_presence",
    "token": "presence=absent   (NOT broadly_low)",
    "constant": 0.1,
    "constant_form": "module constant `_PRESENCE_FLOOR_FRACTION`",
@@ -67,7 +67,7 @@
   },
   {
    "site_id": "not_a_broadly_low_cut__broadly_high_fraction",
-   "source": "methods/methods/depmap_expression_distribution/cli.py::_classify_expression",
+   "source": "methods/onc_methods/depmap_expression_distribution/cli.py::_classify_expression",
    "token": "broadly_high",
    "constant": 0.3,
    "quantity": "fraction_highly_expressed",
@@ -76,7 +76,7 @@
   },
   {
    "site_id": "not_a_broadly_low_cut__presence_supported_median_fraction",
-   "source": "methods/methods/expression_properties/resolve.py",
+   "source": "methods/onc_methods/expression_properties/resolve.py",
    "token": "presence=supported",
    "constant": 0.3,
    "quantity": "fraction_expressed (conditional on an expressing median)",

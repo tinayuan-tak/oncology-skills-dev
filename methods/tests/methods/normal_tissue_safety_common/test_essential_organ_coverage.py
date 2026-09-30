@@ -12,25 +12,25 @@ Enforces:
   4. The dead `ARTERY` GTEx entry is gone; SPLEEN stays out of canonical (held for review).
 """
 
-from methods import normal_tissue_safety_common as eo
+from onc_methods import normal_tissue_safety_common as eo
 
 # --- 1. single-source: each card imports the shared set (identity / equality) ---
 
 
 def test_gtex_stats_card_uses_shared_set():
-    from methods.tcga_gtex_expression_distribution import stats
+    from onc_methods.tcga_gtex_expression_distribution import stats
 
     assert set(stats.CRITICAL_NORMAL_TISSUES) == set(eo.GTEX_ESSENTIAL_TISSUES)
 
 
 def test_hpa_card_uses_shared_set():
-    from methods.hpa_normal_tissue_liability import cli
+    from onc_methods.hpa_normal_tissue_liability import cli
 
     assert set(cli.ESSENTIAL_TISSUES) == set(eo.HPA_ESSENTIAL_TISSUES)
 
 
 def test_sc_normal_card_uses_shared_set():
-    from methods.sc_normal_expression import read
+    from onc_methods.sc_normal_expression import read
 
     assert set(read.SAFETY_ESSENTIAL_TISSUES) == set(eo.SC_NORMAL_ESSENTIAL_TISSUES)
 
@@ -191,7 +191,7 @@ def test_gtex_names_are_real_gtex_tissues():
     # promotions added COLON + SMALL_INTESTINE); every name we emit must
     # be one of them (proves real recount3/GTEx labels AND that stats.py now aligns with the window
     # card — modulo SPLEEN, which the window card keeps and canonical holds).
-    from methods.tcga_gtex_tpm_quantiles.window import ESSENTIAL_GTEX_TISSUES as WINDOW_SET
+    from onc_methods.tcga_gtex_tpm_quantiles.window import ESSENTIAL_GTEX_TISSUES as WINDOW_SET
 
     assert set(eo.GTEX_ESSENTIAL_TISSUES) <= set(WINDOW_SET)
     assert "ARTERY" not in eo.GTEX_ESSENTIAL_TISSUES  # dead entry removed
@@ -233,9 +233,9 @@ def test_every_hardcoded_gtex_copy_covers_the_canonical_set():
     # ANTI-VACUITY: if discovery finds nothing (a renamed constant, a moved tree) every assertion
     # below is skipped silently and this test becomes a green that cannot fail.
     for known in (
-        "methods.tcga_gtex_tpm_quantiles.window",
-        "methods.exon_window.classify",
-        "methods.pair_selectivity_gate.gates",
+        "onc_methods.tcga_gtex_tpm_quantiles.window",
+        "onc_methods.exon_window.classify",
+        "onc_methods.pair_selectivity_gate.gates",
     ):
         assert known in copies, (
             f"{known} no longer defines a module-level ESSENTIAL_GTEX_TISSUES; discovery found "
@@ -259,7 +259,7 @@ def test_every_hardcoded_gtex_copy_covers_the_canonical_set():
 
 def test_sc_normal_names_have_shards():
     # every always-on tissue must have a real single-cell normal shard.
-    from methods.sc_normal_expression.read import TISSUE_TO_PRODUCT
+    from onc_methods.sc_normal_expression.read import TISSUE_TO_PRODUCT
 
     assert set(eo.SC_NORMAL_ESSENTIAL_TISSUES) <= set(TISSUE_TO_PRODUCT)
 

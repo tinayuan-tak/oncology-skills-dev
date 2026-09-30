@@ -8,14 +8,7 @@ Amplified boolean = relative CN > FOCAL_AMP (1.5); neutral = everything else (br
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.depmap_cn_dependency.cli import FOCAL_AMP_HIGH, compute_cn_stratification  # noqa: E402
+from onc_methods.depmap_cn_dependency.cli import FOCAL_AMP_HIGH, compute_cn_stratification
 
 # T2.2 (2026-08-09): the DEPENDENCY amplified-arm cut is FOCAL_AMP_HIGH (2.0), not the distribution
 # card's shallow FOCAL_AMP (1.5) — a focal high-level amp, not an arm-level relative gain.

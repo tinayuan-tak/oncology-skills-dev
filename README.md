@@ -237,7 +237,7 @@ envelope via `run_wired_skill --emit-envelope` + `_skills_common/envelope.py`
 `batch/`, `configs/`, `libs/`, and `notebooks/` (the v1-era R DGE pipeline, its
 per-indication config, the stale migration note, and the empty exploration
 placeholder) were retired 2026-09-29 (#2138) — `batch/expression_rna_COADREAD/`'s
-R scripts are superseded by `methods/methods/dge_deseq2` (which carries them
+R scripts are superseded by `methods/onc_methods/dge_deseq2` (which carries them
 byte-identical under `r/legacy/`), and `libs/target_id_resolver` moved to
 `data-catalog/libs/` on 2026-06-29.
 

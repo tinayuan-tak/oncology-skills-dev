@@ -52,11 +52,8 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 
 HERE = Path(__file__).resolve().parent
-AM_ROOT = HERE.parents[2]
-if str(AM_ROOT) not in sys.path:
-    sys.path.insert(0, str(AM_ROOT))
 
-import methods.cptac_protein_deg.read as cp  # noqa: E402
+import onc_methods.cptac_protein_deg.read as cp
 
 ANCHOR_DIR = HERE / "anchors"
 FIXTURE_DIR = HERE / "dge_rows"
@@ -213,7 +210,7 @@ def main() -> None:
             "indication": indication,
             "matched_cohort": matched_cohort,
             "product_id": cp.DERIVED_MANIFEST_ID,
-            "reader": "methods.cptac_protein_deg.read.read_target_summary(target, indication)",
+            "reader": "onc_methods.cptac_protein_deg.read.read_target_summary(target, indication)",
             "target_rows_fixture": rows_rel,
             "target_rows_fixture_md5": rows_md5,
             "allgene_effect_null_fixture": null_rel,

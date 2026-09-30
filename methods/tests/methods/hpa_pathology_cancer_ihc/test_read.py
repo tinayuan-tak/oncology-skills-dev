@@ -2,15 +2,8 @@
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.hpa_pathology_cancer_ihc import read as ihc_read  # noqa: E402
-from methods.hpa_pathology_cancer_ihc.read import (  # noqa: E402
+from onc_methods.hpa_pathology_cancer_ihc import read as ihc_read
+from onc_methods.hpa_pathology_cancer_ihc.read import (
     _READ_COLUMNS,
     _SUMMARY_FIELDS,
     INDICATION_TO_HPA_CANCER,

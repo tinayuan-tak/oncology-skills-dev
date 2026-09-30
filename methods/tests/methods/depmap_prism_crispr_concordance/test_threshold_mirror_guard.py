@@ -27,8 +27,8 @@ from pathlib import Path
 
 import pytest
 
-from methods.depmap_prism_crispr_concordance import cli as reader
-from methods.depmap_prism_precompute import cli as precompute
+from onc_methods.depmap_prism_crispr_concordance import cli as reader
+from onc_methods.depmap_prism_precompute import cli as precompute
 
 REPO = Path(__file__).resolve().parents[3]
 # TARGET_CONTRACTS_ROOT first (CI sets it; a /tmp worktree's REPO.parent is /tmp, so the sibling

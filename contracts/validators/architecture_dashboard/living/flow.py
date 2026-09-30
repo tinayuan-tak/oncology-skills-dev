@@ -208,7 +208,7 @@ def _level_repos():
             "analysis-methods",
             "method",
             "Deterministic COMPUTE. fn(target,indication) → numbers/labels. Never a verdict.",
-            "methods/<name>/{read,cli}.py",
+            "onc_methods/<name>/{read,cli}.py",
             "reads catalog products → derived parquet",
         ),
         _node(

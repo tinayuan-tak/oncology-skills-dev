@@ -27,19 +27,13 @@ tests/methods/dge_deseq2/test_comparator_independence.py.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
 
 np = pytest.importorskip("numpy")
 pd = pytest.importorskip("pandas")
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
 
-cli = __import__("methods.sclc_dge_tumor_vs_gtex.cli", fromlist=["cli"])
+cli = __import__("onc_methods.sclc_dge_tumor_vs_gtex.cli", fromlist=["cli"])
 
 
 # ---------------------------------------------------------------------------
@@ -47,7 +41,7 @@ cli = __import__("methods.sclc_dge_tumor_vs_gtex.cli", fromlist=["cli"])
 # ---------------------------------------------------------------------------
 def test_welch_kernel_identical_to_sibling():
     """Our vendored _welch_deg must match dge_tcga_gtex_precompute._welch_deg exactly."""
-    sibling = __import__("methods.dge_tcga_gtex_precompute.cli", fromlist=["cli"])
+    sibling = __import__("onc_methods.dge_tcga_gtex_precompute.cli", fromlist=["cli"])
     rng = np.random.default_rng(0)
     for _ in range(20):
         a = rng.normal(3.0, 1.0, size=rng.integers(2, 40))
@@ -67,7 +61,7 @@ def test_welch_sign_is_tumor_minus_normal():
 
 
 def test_bh_correct_matches_sibling():
-    sibling = __import__("methods.dge_tcga_gtex_precompute.cli", fromlist=["cli"])
+    sibling = __import__("onc_methods.dge_tcga_gtex_precompute.cli", fromlist=["cli"])
     p = np.array([0.001, 0.5, 0.02, 0.9, 0.0001])
     np.testing.assert_allclose(cli._bh_correct(p), sibling._bh_correct(p))
 
@@ -172,7 +166,7 @@ def test_emitted_rows_classify_downstream(monkeypatch):
     """A cell-C-only up/sig row must land as MODEST (not strong — there is no adjacent arm to
     corroborate it, dge_deseq2 FIX 4b); a flat row as not_informative — via the real dge_deseq2
     classifier, in the tvn_gtex_only regime."""
-    import methods.dge_deseq2.read as read
+    import onc_methods.dge_deseq2.read as read
 
     tumor, gtex = _fixture_frames()
 

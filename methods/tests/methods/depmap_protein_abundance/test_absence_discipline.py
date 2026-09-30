@@ -9,18 +9,12 @@ being masked as protein_expression_class=data_unavailable.
 from __future__ import annotations
 
 import importlib
-import sys
-from pathlib import Path
 
 import pytest
 from botocore.exceptions import ClientError
 
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-cli = importlib.import_module("methods.depmap_protein_abundance.cli")
-read = importlib.import_module("methods.depmap_protein_abundance.read")
+cli = importlib.import_module("onc_methods.depmap_protein_abundance.cli")
+read = importlib.import_module("onc_methods.depmap_protein_abundance.read")
 
 
 def test_genuine_absence_is_data_unavailable(monkeypatch):

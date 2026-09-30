@@ -13,14 +13,7 @@ mutant-more-sensitive (forward) and a POSITIVE delta is mutant-more-resistant (r
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.depmap_mutation_drug_response.cli import (  # noqa: E402
+from onc_methods.depmap_mutation_drug_response.cli import (
     MODERATE_EFFECT_DELTA,
     STRATIFICATION_ALPHA,
     STRONG_EFFECT_DELTA,

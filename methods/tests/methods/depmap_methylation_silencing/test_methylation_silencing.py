@@ -8,14 +8,7 @@ independent → methylation_uncoupled; uniformly (un)methylated panel → methyl
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-REPO = Path(__file__).resolve().parents[3]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
-
-from methods.depmap_methylation_silencing.cli import (  # noqa: E402
+from onc_methods.depmap_methylation_silencing.cli import (
     HYPERMETHYLATION_THRESHOLD,
     MIN_HYPERMETHYLATED,
     compute_methylation_silencing,
@@ -152,7 +145,7 @@ def test_positive_correlation_not_mislabeled_silencing():
 
 
 # --- per-gene MEAN product read path (perf: pushdown vs whole-gzip stream) ---------------------------
-from methods.depmap_methylation_silencing import read as R  # noqa: E402
+from onc_methods.depmap_methylation_silencing import read as R
 
 
 def _write_product(tmp_path):

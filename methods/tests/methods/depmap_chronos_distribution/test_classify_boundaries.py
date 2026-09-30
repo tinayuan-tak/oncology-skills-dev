@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-CLI = REPO / "methods" / "depmap_chronos_distribution" / "cli.py"
+CLI = REPO / "onc_methods" / "depmap_chronos_distribution" / "cli.py"
 
 
 def _load():

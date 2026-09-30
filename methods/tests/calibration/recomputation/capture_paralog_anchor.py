@@ -32,17 +32,14 @@ from __future__ import annotations
 import csv
 import hashlib
 import json
-import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from unittest import mock
 
 HERE = Path(__file__).resolve().parent
 AM_ROOT = HERE.parents[2]
-if str(AM_ROOT) not in sys.path:
-    sys.path.insert(0, str(AM_ROOT))
 
-import methods.depmap_paralog_aggregator.read as rd  # noqa: E402
+import onc_methods.depmap_paralog_aggregator.read as rd
 
 FIXTURE_REL = "paralog_effects/depmap_26q1__paralog_gene_effect_slice.csv"
 ANCHOR_DIR = HERE / "anchors"
