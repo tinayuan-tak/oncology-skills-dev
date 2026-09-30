@@ -77,13 +77,23 @@ When invoked, it emits `decision.json` with:
     `pdx_response_unavailable` / `data_unavailable` — does the target's tractability reproduce in vivo (PDXE)?
   - `pdx_responder_fraction`: objective-response rate (mRECIST CR/PR) across PDX models + treatments
   - `pdx_most_active_treatment`: the best single agent/combo naming the target in PDXE
+  - `pdx_median_best_avg_response` / `pdx_min_best_avg_response`: the regression MAGNITUDE (signed %
+    tumour-volume change; more-negative = more shrinkage) across contributing PDXE records — the
+    decisive datum behind `pdx_drug_response_class`
+  - `pdx_n_models_tested` / `pdx_n_response_records`: PDX model / response-record breadth backing the
+    class + magnitude reads
+  - `pdx_most_active_treatment_median_best_avg_response`: the per-treatment median magnitude of
+    `pdx_most_active_treatment`
+  - `pdx_treatment_types`: `single` / `combo` / `single|combo` — the authoritative treatment-type mix
+    (vs. inferring combination from the treatment-name substring)
   - `organoid_dependency_class`: `pan_organoid_essential` / `broad_organoid_dependency` /
     `selective_organoid_dependency` / `rare_organoid_dependency` / `not_organoid_dependent` /
     `data_unavailable` — does the target's dependency reproduce EX VIVO in patient-derived 3D CRISPR organoids?
   - `organoid_frac_dependent`: pan-organoid dependent fraction (fallback context)
   - `organoid_lineage` / `organoid_lineage_frac_dependent` / `organoid_lineage_class`: the
-    indication-matched organoid lineage read (the strongest translational signal; `null` when the
-    indication has no mapped organoid lineage)
+    indication-matched organoid lineage read — the most granular ex-vivo display facet (VERDICT-INERT:
+    it feeds no verdict, risk bin, or claim-vector tier; the claim vector's ORGANOID tier keys the pan
+    `organoid_dependency_class` instead); `null` when the indication has no mapped organoid lineage
   - `organoid_lineage_n_screened` / `organoid_lineage_small_cohort`: the indication-matched lineage's
     screened-organoid count and a reliability caveat — `true` when that cohort is below the organoid
     card's `min_organoid_models` (20) floor (e.g. Prostate n=9, Breast n=16 in 26Q1), so the per-lineage
@@ -110,7 +120,9 @@ When invoked, it emits `decision.json` with:
   in-vivo leg?" Backed by `organoid-crispr-dependency-26q1-v1` (+ `-by-lineage`) — the DepMap 26Q1
   OrganoidGeneEffect Chronos run over 114 patient-derived organoid models (GI-dominated). BORROWED from
   the dependency axis (home skill: functional-requirement) and read here with a TRANSLATIONAL framing;
-  the indication-matched `organoid_lineage_frac_dependent` is the primary read. VERDICT-INERT.
+  the indication-matched `organoid_lineage_frac_dependent` is the most granular display facet, but it
+  is display-only — the claim vector's ORGANOID tier keys the pan `organoid_dependency_class`, not the
+  lineage-matched read. VERDICT-INERT.
 
 ## Still un-wired (honest coverage gaps)
 

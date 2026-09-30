@@ -380,6 +380,7 @@ def _translational_readiness_provenance(hl: dict, target=None, indication=None) 
         "n_legs_populated": len(populated),
         "model_availability_class": hl.get("model_availability_class"),
         "n_patient_derived_models": hl.get("n_patient_derived_models"),
+        "model_source": hl.get("model_source"),
         "genotype_matched_class": hl.get("genotype_matched_class"),
         "n_models_with_alteration": hl.get("n_models_with_alteration"),
         "organoid_dependency_class": hl.get("organoid_dependency_class"),
@@ -454,6 +455,17 @@ def _headline(cards, fired, verdict_pair, target=None, indication=None):
         "pdx_drug_response_class": get_card_field(cards, "target-pdx-drug-response", "pdx_drug_response_class"),
         "pdx_responder_fraction": get_card_field(cards, "target-pdx-drug-response", "responder_fraction"),
         "pdx_most_active_treatment": get_card_field(cards, "target-pdx-drug-response", "most_active_treatment"),
+        # regression MAGNITUDE (signed % tumour-volume change; more-negative = more shrinkage — the
+        # decisive datum per the card's own doc, target-pdx-drug-response.card.yaml:56-57) + cohort-size
+        # / breadth context, previously computed+emitted by the reader but read by no consumer (#1548):
+        "pdx_median_best_avg_response": get_card_field(cards, "target-pdx-drug-response", "median_best_avg_response"),
+        "pdx_min_best_avg_response": get_card_field(cards, "target-pdx-drug-response", "min_best_avg_response"),
+        "pdx_n_models_tested": get_card_field(cards, "target-pdx-drug-response", "n_models_tested"),
+        "pdx_n_response_records": get_card_field(cards, "target-pdx-drug-response", "n_response_records"),
+        "pdx_most_active_treatment_median_best_avg_response": get_card_field(
+            cards, "target-pdx-drug-response", "most_active_treatment_median_best_avg_response"
+        ),
+        "pdx_treatment_types": get_card_field(cards, "target-pdx-drug-response", "treatment_types"),
         # ex-vivo (patient-derived organoid) dependency reproduction — DepMap 3D CRISPR. BORROWED from
         # the dependency axis, read here as translational validation-readiness. The indication-matched
         # organoid_lineage_frac_dependent is the strongest translational read; the pan-organoid
@@ -547,11 +559,18 @@ _SYNTHESIS_FACET_KEYS = (
     "model_availability_class",
     "n_patient_derived_models",
     "primary_site_breakdown",
+    "model_source",
     "genotype_matched_class",
     "n_models_with_alteration",
     "pdx_drug_response_class",
     "pdx_responder_fraction",
     "pdx_most_active_treatment",
+    "pdx_median_best_avg_response",
+    "pdx_min_best_avg_response",
+    "pdx_n_models_tested",
+    "pdx_n_response_records",
+    "pdx_most_active_treatment_median_best_avg_response",
+    "pdx_treatment_types",
     "organoid_dependency_class",
     "organoid_frac_dependent",
     "organoid_lineage",
