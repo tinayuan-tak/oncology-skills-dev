@@ -93,6 +93,7 @@ run "living_doc --self-check"            python validators/architecture_dashboar
 run "validate_property_catalog"          python validators/validate_property_catalog.py --catalog vocabularies/property_catalog --cards cards/
 run "validate_concordance_enum"          python validators/validate_concordance_enum.py --enum vocabularies/concordance_class.enum.yaml --families vocabularies/property_catalog/integrated_families.yaml
 run "validate_comparability_state"       python validators/validate_comparability_state.py --enum vocabularies/comparability_state.enum.yaml --families vocabularies/property_catalog/integrated_families.yaml --concordance-enum vocabularies/concordance_class.enum.yaml
+run "validate_expression_property_enum"  python validators/validate_expression_property_enum.py --enum vocabularies/expression_property.enum.yaml --cards cards/
 
 # Drain the pool and print every gate's PASS/FAIL in launch (CI) order before the ruff/advisory
 # steps below, which stay SYNCHRONOUS (fast, and the ruff block has its own version-gate control

@@ -61,7 +61,13 @@
 #   never silently repurpose. Sibling pattern: biology_axis.enum.yaml, availability_state.enum.yaml.
 
 enum_id: expression_property
-version: 1.0.0
+version: 1.0.1
+# 1.0.1 (issue #2233): `magnitude.resolves_from.measurements` named `control_target_percentile`,
+# which no card declares (cellline-rna-distribution.card.yaml deliberately reverted that field as
+# a redundant echo of `allgene_percentile` — see that card's outputs.summary_fields comment).
+# Corrected to `allgene_percentile`, the field that actually exists. PATCH, not MINOR: this fixes a
+# stale name, it adds/removes no property, value, or SIGNAL_ORD tier. The other properties'
+# resolves_from entries were re-checked against cards/*.card.yaml at the same time and are current.
 
 description: |
   Shared cross-skill expression-property vocabulary. Orthogonal expression PROPERTIES, each a
@@ -149,7 +155,7 @@ properties:
       is `unmeasured` (there is no level to grade), NOT a zero tier.
     resolves_from:
       card: cellline-rna-distribution
-      measurements: [median_log2tpm_panel, control_target_percentile, fraction_highly_expressed]
+      measurements: [median_log2tpm_panel, allgene_percentile, fraction_highly_expressed]
     values:
       - {value: high,       signal_ord: strong,     description: "High expression level (top of the all-gene distribution / high median TPM)."}
       - {value: moderate,   signal_ord: moderate,   description: "Mid-range expression level."}
