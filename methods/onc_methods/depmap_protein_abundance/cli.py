@@ -537,6 +537,7 @@ def compute_summary(
     if abundance_by_model is None:
         return {
             "protein_expression_class": "data_unavailable",
+            "protein_high_abundance_class_cutoff": None,
             "n_cell_lines_evaluated": 0,
             "n_cell_lines_in_panel": n_panel,
             "fraction_detected": 0.0,
@@ -606,6 +607,11 @@ def compute_summary(
     klass = classify_protein_abundance(fraction_detected, median_abund, per_lineage, high_cutoff)
     return {
         "protein_expression_class": klass,
+        # The all-protein p70 cutoff that DECIDED protein_expression_class above — carried on the
+        # summary so the emitters (#2261) can draw the line that actually classified the target,
+        # not just `_panel_high_cutoff`'s within-target spread quantile. None when the all-protein
+        # null was unavailable (broadly_high was then honestly unreachable too — same condition).
+        "protein_high_abundance_class_cutoff": high_cutoff,
         "n_cell_lines_evaluated": n_eval,
         "n_cell_lines_in_panel": denom,
         "fraction_detected": round(fraction_detected, 4),
@@ -722,9 +728,10 @@ def _panel_high_cutoff(vals: list) -> Optional[float]:
     Pinned by tests/test_panel_relative_high_cut_adjudication.py.
 
     It is still worth drawing as a SPREAD annotation ("where the top ~30% of this target's lines
-    start"), which is why it is kept and relabelled rather than removed; repointing the figures at the
-    classification cutoff needs the all-protein null threaded into the emitters and is deliberately
-    NOT done here (see the follow-up filed from #2223).
+    start"), which is why it is kept and relabelled rather than removed. The classification cutoff
+    itself is now ALSO drawn alongside it (#2261): compute_summary carries it as
+    `protein_high_abundance_class_cutoff`, so the emitters can plot both lines, each labelled with
+    the population it is a quantile of.
 
     MS abundance genuinely has no absolute expressed/highly-expressed threshold like RNA's
     log2(TPM+1) 1.0/5.0 — the harmonized Gygi value is a relative TMT log2 ratio — so a relative
@@ -767,10 +774,11 @@ def emit_density_protein(
     target_contracts_dir: Path = DEFAULT_TARGET_CONTRACTS,
 ) -> Path:
     """PRIMARY figure: histogram + KDE of log2 protein abundance across detected DepMap lines, in the
-    shared grammar. Panel median + the WITHIN-TARGET p70 spread line as directly-labeled reference
-    lines (no legend); % detected — the metric behind the class — carried in provenance + at the
-    median. NOTE (#2223): neither drawn line is the cutoff that decided `protein_expression_class` —
-    that one is p70 of ALL proteins' panel medians and is not plotted. See _panel_high_cutoff."""
+    shared grammar. Draws three directly-labeled reference lines (no legend): the target's own
+    median, the WITHIN-TARGET p70 spread line (_panel_high_cutoff), and — when
+    `summary['protein_high_abundance_class_cutoff']` is available — the cross-protein cutoff that
+    actually decided `protein_expression_class` (#2261; previously omitted, #2223). % detected — the
+    metric behind the class — carried in provenance + at the median."""
     import matplotlib
 
     matplotlib.use("Agg")
@@ -800,6 +808,7 @@ def emit_density_protein(
 
     med = summary.get("median_log2_abundance_panel")
     hi = _panel_high_cutoff(list(vals))
+    class_cutoff = summary.get("protein_high_abundance_class_cutoff")
     frac = summary.get("fraction_detected")
     prov = f"DepMap 26Q1  ·  Gygi TMT MS  ·  n={vals.size} detected" + (
         f" ({frac:.0%} of panel)" if frac is not None else ""
@@ -819,15 +828,18 @@ def emit_density_protein(
             kde = gaussian_kde(vals)
             xs = np.linspace(vals.min() - 0.2, vals.max() + 0.2, 500)
             ax.plot(xs, kde(xs), color=pal.TUMOR_LINE, linewidth=2)
-        # the two reference lines can sit close together → label median to its LEFT, p70 to its RIGHT
-        # so the text never collides.
-        for xv, lab, ha, dx in (
-            (med, f"median {med:.1f}" if med is not None else None, "right", -3),
-            (hi, f"target p70 {hi:.1f}" if hi is not None else None, "left", 3),
+        # Three reference lines, each labeled with the population it is a quantile of (#2261): the
+        # target's own median/p70 sit on the top row (median left, p70 right, so the text never
+        # collides); the cross-protein CLASS cutoff — the line that actually decided
+        # protein_expression_class — is drawn in a distinct style on a row below so it never reads as
+        # a fourth within-target statistic.
+        for xv, lab, ha, dx, style in (
+            (med, f"target median {med:.1f}" if med is not None else None, "right", -3, pal.REFLINE_NEUTRAL),
+            (hi, f"target p70 {hi:.1f}" if hi is not None else None, "left", 3, pal.REFLINE_NEUTRAL),
         ):
             if xv is None:
                 continue
-            ax.axvline(xv, **pal.REFLINE_NEUTRAL)
+            ax.axvline(xv, **style)
             ax.annotate(
                 lab,
                 xy=(xv, 0.99),
@@ -835,6 +847,19 @@ def emit_density_protein(
                 ha=ha,
                 va="top",
                 xytext=(dx, -2),
+                textcoords="offset points",
+                fontsize=8,
+                color=pal.INK_MUTED,
+            )
+        if class_cutoff is not None:
+            ax.axvline(class_cutoff, **pal.REFLINE_NOMINAL)
+            ax.annotate(
+                f"class cutoff {class_cutoff:.2f} (all-protein p70)",
+                xy=(class_cutoff, 0.99),
+                xycoords=("data", "axes fraction"),
+                ha="center",
+                va="top",
+                xytext=(0, -14),
                 textcoords="offset points",
                 fontsize=8,
                 color=pal.INK_MUTED,
@@ -879,6 +904,7 @@ def emit_lineage_strip_protein(
     lm = lm[lm["count"] >= MIN_LINEAGE_SIZE].sort_values("median", ascending=False)
     ordered = list(lm.index)
     hi = _panel_high_cutoff(list(df["abund"].values))
+    class_cutoff = summary.get("protein_high_abundance_class_cutoff")
     fig_h = min(max(3.8, len(ordered) * 0.24 + 1.4), 7.6)
     with pal.figure_frame(
         target_symbol,
@@ -911,6 +937,21 @@ def emit_lineage_strip_protein(
                 fontsize=7.5,
                 color=pal.INK_MUTED,
             )  # inside top edge (clears the provenance line)
+        if class_cutoff is not None:
+            # the cross-protein cutoff that actually decided protein_expression_class (#2261) — a
+            # distinct style from the within-target p70 line above so the two are never confused.
+            ax.axvline(class_cutoff, **pal.REFLINE_NOMINAL)
+            ax.annotate(
+                f"class cutoff {class_cutoff:.2f} (all-protein p70)",
+                xy=(class_cutoff, 0.99),
+                xycoords=("data", "axes fraction"),
+                ha="center",
+                va="top",
+                xytext=(0, -12),
+                textcoords="offset points",
+                fontsize=7.5,
+                color=pal.INK_MUTED,
+            )
         ax.set_yticks(range(len(ordered)))
         ax.set_yticklabels(ordered, fontsize=7.5)
         ax.set_ylim(-0.8, len(ordered) - 0.2)
@@ -954,8 +995,10 @@ def emit_plotly_specs(
     RELATIVE scale (Gygi TMT log2-ratio), so there is correctly no absolute expressed/highly-expressed
     cutoff to shade against as RNA's 1.0/5.0 are. The buckets shade against the target's OWN median and
     its OWN p70 (_panel_high_cutoff) — WITHIN-TARGET quantiles, so every target gets the same
-    50/20/30 split of its lines by construction. They describe this target's spread; they are NOT the
-    cross-protein cutoff that decided `protein_expression_class` (#2223). Best-effort."""
+    50/20/30 split of its lines by construction; they describe this target's spread, not abundance.
+    The cross-protein cutoff that actually decided `protein_expression_class`
+    (summary['protein_high_abundance_class_cutoff']) is drawn as a fourth, distinctly-styled line
+    when available (#2261; previously omitted entirely, #2223). Best-effort."""
     try:
         import numpy as np
         import plotly.graph_objects as go
@@ -968,7 +1011,12 @@ def emit_plotly_specs(
     vals = list(abundance_by_model.values())
     hi = _panel_high_cutoff(vals)
     med = summary.get("median_log2_abundance_panel")
+    class_cutoff = summary.get("protein_high_abundance_class_cutoff")
     reflines = [(med, "#888", "dot", "target median"), (hi, "#f0a020", "dash", "target p70")]
+    # The cross-protein cutoff that actually decided protein_expression_class (#2261) — a distinct
+    # color/dash from the two within-target lines above so it never reads as a third spread statistic.
+    if class_cutoff is not None:
+        reflines.append((class_cutoff, "#1f6fdb", "solid", "class cutoff (all-protein p70)"))
     # density histogram + RELATIVE abundance buckets (item #2)
     try:
         arr = np.array(vals, dtype=float)
@@ -1007,7 +1055,9 @@ def emit_plotly_specs(
                     )
         for xv, col, dash, lab in reflines:
             if xv is not None:
-                fig.add_vline(x=xv, line=dict(color=col, dash=dash, width=1.5))
+                fig.add_vline(
+                    x=xv, line=dict(color=col, dash=dash, width=1.5), annotation_text=lab, annotation_position="top"
+                )
         fig.update_layout(
             title=dict(text=f"{target_symbol} — cell-line protein abundance (n={len(vals)} detected)", font_size=13),
             xaxis_title="log2 protein abundance (Gygi TMT MS)",
@@ -1052,6 +1102,13 @@ def emit_plotly_specs(
                 line=dict(color="#f0a020", dash="dash", width=1.5),
                 annotation_text="target p70",
                 annotation_position="top left",
+            )
+        if class_cutoff is not None:
+            fig.add_hline(
+                y=class_cutoff,
+                line=dict(color="#1f6fdb", dash="solid", width=1.5),
+                annotation_text="class cutoff (all-protein p70)",
+                annotation_position="bottom left",
             )
         fig.update_layout(
             title=f"{target_symbol} — cell-line protein abundance (ranked)",
@@ -1100,7 +1157,9 @@ def emit_plotly_specs(
             )
         for xv, col, dash, lab in reflines:
             if xv is not None:
-                fig.add_vline(x=xv, line=dict(color=col, dash=dash, width=1.2))
+                fig.add_vline(
+                    x=xv, line=dict(color=col, dash=dash, width=1.2), annotation_text=lab, annotation_position="top"
+                )
         ttl = f"{target_symbol} — per-lineage protein abundance (n≥5)"
         if target_lineage:
             ttl += f" · {target_lineage} highlighted"
