@@ -15,8 +15,11 @@ script once per leg. It parses the leg's own pytest summary line, and asserts:
 
   1. CARDINALITY FLOOR — the leg reported at least one outcome. A budget guard that
      measures nothing passes green (``no tests ran`` must never read as "0 skips, fine").
-  2. CEILING — ``skipped <= budget[label]``, the budget being a COMMITTED baseline
+  2. CEILING — ``budgeted_skipped <= budget[label]``, the budget being a COMMITTED baseline
      measured from real CI shard logs (see ``.github/skills-skip-budget.json``).
+     ``budgeted_skipped`` is the summary skip count MINUS the one narrowly-pinned benign
+     variable live-data skip class (skills#2305 — see ``count_excludable_livedata_skips``);
+     every other skip, including any guard that goes silently dark, still counts in full.
 
 An unknown label gets a ceiling of 0: a newly added leg/skill suite that skips nothing
 stays green, and one that does skip reds with instructions to record the number. There is
@@ -56,6 +59,39 @@ _SUMMARY_TAIL_RE = re.compile(r"\bin\s+[\d.]+s")
 
 # outcomes that prove tests actually ran (deselected/warnings do NOT)
 _CARDINALITY_KEYS = ("passed", "failed", "skipped", "xfailed", "xpassed", "error", "errors")
+
+# skills#2305 — one narrowly-scoped skip class is a LEGITIMATE, VARIABLE live-data skip, NOT a
+# darkened guard, and must not tip the ceiling. ``test_graduated_skills_run_wired.py`` runs each
+# skill's run.py on KRAS/COADREAD and ``pytest.skip()``s a skill when ALL its cards come back
+# ``_missing`` — a data-availability condition. In the credential-less CI runner this is
+# NONDETERMINISTIC (partial/transient S3 reads), so the number of skills that hit it varies
+# run-to-run (proven same-tree on #2305: 422d5004 green / 9860f4fe red on the IDENTICAL tree,
+# the only difference one extra such skip). Against a zero-headroom ceiling that flake tips
+# ``skills-guards`` 17->18 and ejects whatever PR sits in the merge queue, fleet-wide.
+#
+# These skips are the OPPOSITE of the darkness the ratchet guards against: they are ``-rsfE``
+# VISIBLE, self-classified "data availability, not a decision-layer bug", and identical in kind
+# to the same skip already accepted for sibling skills. So they are subtracted from the BUDGETED
+# count before the ceiling comparison — and ONLY they are: the match is pinned to BOTH the
+# emitting test file AND its reason text, so any OTHER guard going dark (any other reason, or
+# this same file growing a differently-worded skip) still counts in full and still reds. The
+# raw and excluded counts are always reported, so the exclusion can never be silent. Relies on
+# ``-rsfE`` (skills#2236) putting the per-skip reason lines in the leg log; if they are absent
+# the exclusion is 0 and the leg fails toward RED (the safe direction), never a blind pass.
+_EXCLUDABLE_LIVEDATA_SKIP_RE = re.compile(
+    r"^\s*SKIPPED\s+\[(\d+)\]\s+\S*test_graduated_skills_run_wired\.py:\d+:"
+    r".*\ball cards _missing\b.*\bdata availability\b",
+)
+
+
+def count_excludable_livedata_skips(text: str) -> int:
+    """Number of skipped tests that are the #2305 benign variable live-data skip class.
+
+    Pinned to the emitting file AND the data-availability reason so it can never mask a
+    differently-reasoned guard going dark. Sums the ``[N]`` multiplicities so an aggregated
+    ``SKIPPED [k] ...`` line counts as ``k``, matching how the summary total accounts for it.
+    """
+    return sum(int(m.group(1)) for line in text.splitlines() if (m := _EXCLUDABLE_LIVEDATA_SKIP_RE.match(line)))
 
 
 def parse_outcomes(text: str) -> dict[str, int] | None:
@@ -106,7 +142,13 @@ def check(label: str, log_text: str, budgets: dict[str, int]) -> tuple[int, str]
             f"({counts}). 'no tests ran' is not '0 skips'; a leg that collects nothing is a "
             "silent un-cover, not a pass."
         )
-    skipped = counts.get("skipped", 0)
+    raw_skipped = counts.get("skipped", 0)
+    # skills#2305: subtract ONLY the benign, variable, `-rsfE`-visible live-data skip class,
+    # clamped so a malformed log (more matched lines than the summary counted) can never drive
+    # the budgeted count below zero and pass a genuinely over-budget leg.
+    excluded = min(count_excludable_livedata_skips(log_text), raw_skipped)
+    skipped = raw_skipped - excluded
+    excl_note = f"; {excluded} excluded as #2305 live-data-availability skips, {raw_skipped} raw" if excluded else ""
     budget = budgets.get(label)
     known = budget is not None
     budget = 0 if budget is None else budget
@@ -119,12 +161,12 @@ def check(label: str, log_text: str, budgets: dict[str, int]) -> tuple[int, str]
         )
         return 1, (
             f"skip-budget[{label}]: {skipped} skipped > budget {budget} "
-            f"({ran} outcomes reported). Skips inflated — SKIP != PASS, so a guard family may "
+            f"({ran} outcomes reported{excl_note}). Skips inflated — SKIP != PASS, so a guard family may "
             f"have gone silently dark (e.g. TARGET_CONTRACTS_ROOT no longer resolving). Run the "
             f"leg with -rs to see WHICH tests skipped and why; {hint} in "
             f".github/skills-skip-budget.json."
         )
-    return 0, f"skip-budget[{label}]: {skipped} skipped <= budget {budget} ({ran} outcomes reported)"
+    return 0, f"skip-budget[{label}]: {skipped} skipped <= budget {budget} ({ran} outcomes reported{excl_note})"
 
 
 def main(argv: list[str] | None = None) -> int:

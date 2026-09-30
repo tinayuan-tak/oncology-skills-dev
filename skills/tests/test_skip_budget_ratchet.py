@@ -160,6 +160,84 @@ def test_checker_parses_real_shard_log_shapes(checker):
     assert "15 skipped" in msg
 
 
+# ---------------------------------------------------- the #2305 live-data-skip exclusion
+
+# One real ``SKIPPED`` line of the benign, VARIABLE live-data class the exclusion targets.
+_LIVEDATA_SKIP = (
+    "SKIPPED [1] skills/tests/test_graduated_skills_run_wired.py:287: "
+    "{skill}: all cards _missing on KRAS/COADREAD (data availability, not a decision-layer bug)."
+)
+# Verbatim tail of the RED merge_group run (36747421555) that ejected PR #2304 fleet-wide: the
+# same tree's PR run reported 17 skips, this one 18, the sole difference one extra live-data skip.
+_RED_RUN_TAIL = (
+    "=========================== short test summary info ============================\n"
+    + "".join(
+        _LIVEDATA_SKIP.format(skill=s) + "\n"
+        for s in (
+            "tumor-presence",
+            "tractability-small-molecule",
+            "mechanism-and-pharmacology",
+            "differentiation-landscape",
+            "cis-feature-coherence",
+        )
+    )
+    + "587 passed, 18 skipped in 146.63s\n"
+)
+
+
+def test_checker_excludes_the_2305_variable_livedata_skip_from_the_budget(checker):
+    """skills#2305: the fleet-wide flake. 18 skips against a budget of 17 reds ONLY because the
+    variable live-data count from test_graduated_skills_run_wired.py tipped it — those skips are
+    -rsfE-visible data-availability skips, not a dark guard, so they are subtracted before the
+    ceiling. TOOTH: strip the subtraction and this 18-skip real run reds against 17 again."""
+    budgets = {"skills-guards": 17}
+    rc, msg = checker.check("skills-guards", _RED_RUN_TAIL, budgets)
+    assert rc == 0, f"the #2305 flake still reds — the live-data exclusion is not applied: {msg}"
+    assert "13 skipped" in msg and "5 excluded" in msg and "18 raw" in msg, (
+        f"exclusion not reported transparently: {msg}"
+    )
+    # CONTROL — the exact same summary count with NONE of those excludable lines present must
+    # still red at 18 > 17, proving the green above is the exclusion at work, not a loosened ceiling.
+    bare = "587 passed, 18 skipped in 146.63s\n"
+    assert checker.check("skills-guards", bare, budgets)[0] == 1, (
+        "18 raw skips with nothing excludable passed budget 17 — the ceiling itself loosened"
+    )
+
+
+def test_exclusion_is_pinned_to_both_the_file_and_the_reason(checker):
+    """The match must be NARROW: a differently-worded skip in the SAME file, and a
+    data-availability-worded skip in a DIFFERENT file, must BOTH still count — otherwise a real
+    guard going dark could hide behind the exclusion. One skip over a zero budget isolates each."""
+    budgets = {"skills-guards": 0}
+    # same file, DIFFERENT reason (surfaceome has no SKILL.md) — not the live-data class
+    same_file_other_reason = (
+        "SKIPPED [1] skills/tests/test_graduated_skills_run_wired.py:114: surfaceome-cohort-ranking has no SKILL.md\n"
+        "1 passed, 1 skipped in 2.0s\n"
+    )
+    rc, msg = checker.check("skills-guards", same_file_other_reason, budgets)
+    assert rc == 1, f"a non-live-data skip from the same file was wrongly excluded: {msg}"
+    # data-availability WORDING but a DIFFERENT file — a hypothetical guard borrowing the phrase
+    other_file_livedata_words = (
+        "SKIPPED [1] skills/tests/test_some_other_guard.py:99: foo: all cards _missing on KRAS/COADREAD (data availability, not a decision-layer bug).\n"
+        "1 passed, 1 skipped in 2.0s\n"
+    )
+    rc2, msg2 = checker.check("skills-guards", other_file_livedata_words, budgets)
+    assert rc2 == 1, f"a data-availability skip from a different file was wrongly excluded: {msg2}"
+
+
+def test_exclusion_never_drives_the_count_negative_or_masks_a_real_overage(checker):
+    """A malformed log that lists MORE excludable lines than the summary counted must clamp to a
+    budgeted 0, never a negative that could paper over a genuinely over-budget leg. Here 6
+    excludable lines but a summary of only 2 skipped: budgeted = max(2-6,0) = 0 <= budget, and the
+    raw 2 is still reported."""
+    budgets = {"skills-guards": 0}
+    many_lines = (
+        "".join(_LIVEDATA_SKIP.format(skill=f"s{i}") + "\n" for i in range(6)) + "10 passed, 2 skipped in 3.0s\n"
+    )
+    rc, msg = checker.check("skills-guards", many_lines, budgets)
+    assert rc == 0 and "0 skipped" in msg and "2 raw" in msg, f"clamp/report wrong on an over-matched log: {msg}"
+
+
 # ---------------------------------------------------------------- the committed baseline
 
 
