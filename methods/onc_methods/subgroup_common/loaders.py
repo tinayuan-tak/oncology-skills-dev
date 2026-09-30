@@ -269,14 +269,29 @@ def load_assignments(manifest_id: str, data_catalog_repo: Path | None = None) ->
         )
     # S3 fetch → session cache → read. First fetch of a published product pays
     # the download; subsequent reads hit the local cache (+ the lru_cache above).
+    # Routed through the hardened in-process client (adaptive-retry Config + profile
+    # fallback) instead of a raw `aws s3 cp` subprocess, so a transient (ExpiredToken /
+    # 403 / throttle / timeout) is distinguishable from a genuine 404/NoSuchKey — only
+    # the latter degrades to FileNotFoundError; everything else re-raises (see
+    # `is_definitively_absent` docstring / read.py:_read_gene_uncached exemplar).
+    from onc_methods.target_id_sidecar import is_definitively_absent, s3_client
+
     parquet_local.parent.mkdir(parents=True, exist_ok=True)
     _log(f"[subgroup_common] fetching assignments for {manifest_id} from {s3_uri}")
-    import subprocess
-
-    r = subprocess.run(["aws", "s3", "cp", s3_uri, str(parquet_local), "--no-progress"], capture_output=True, text=True)
-    if r.returncode != 0 or not parquet_local.exists():
+    bucket, _, key = s3_uri.removeprefix("s3://").partition("/")
+    try:
+        # Whole-file by design (Path-B amortization primitive, docstring above): callers consume
+        # EVERY stratum row of the small, tall assignments.parquet in one pass, so there is no
+        # per-target/per-column pushdown to make. Replaces the equally-whole-file `aws s3 cp`
+        # subprocess this superseded — not a new whole-file cold-start cost.
+        s3_client().download_file(bucket, key, str(parquet_local))  # pushdown-discipline: exempt -- whole-file
+    except Exception as e:  # noqa: BLE001
+        if not is_definitively_absent(e):
+            raise  # broken env / transient S3 / creds — propagate, don't mask as absence
         raise FileNotFoundError(
-            f"S3 fetch of {manifest_id} failed ({s3_uri}): {r.stderr.strip()[:200]}. "
-            f"Check AWS_PROFILE (needs onc-compbio GetObject) + that the product is published."
-        )
+            f"S3 fetch of {manifest_id} failed ({s3_uri}): genuine absence ({type(e).__name__}: {e}). "
+            f"Check that the product is published."
+        ) from e
+    if not parquet_local.exists():
+        raise FileNotFoundError(f"S3 fetch of {manifest_id} reported success but {parquet_local} is missing.")
     return pd.read_parquet(parquet_local)

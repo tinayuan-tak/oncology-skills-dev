@@ -201,7 +201,10 @@ def _load_subtype_assignments(indication: str):
     if maf_manifest is not None:
         try:
             frames.append(load_assignments(maf_manifest))
-        except Exception:  # noqa: BLE001 — genomic add-on is best-effort; base strata still stand
+        except FileNotFoundError:
+            # genuine absence (no landed MAF shard / manifest) — genomic add-on is best-effort,
+            # base strata still stand. A transient (ExpiredToken/403/throttle/timeout) is no
+            # longer masked as FileNotFoundError by load_assignments, so it propagates here.
             pass
     merged = _pd.concat(frames, ignore_index=True) if len(frames) > 1 else frames[0]
     return merged, base_manifest
@@ -1039,7 +1042,10 @@ def read_tumor_expression_subtype_landscape(
     # UNION of directly-tagged (molecular/histology) + maf-filter (genomic driver-status) strata.
     try:
         assignments, manifest = _load_subtype_assignments(indication)
-    except Exception as e:  # noqa: BLE001 — base shard itself unfetchable
+    except FileNotFoundError as e:
+        # genuine absence (no landed base shard) — a transient (ExpiredToken/403/throttle/
+        # timeout) is no longer masked as FileNotFoundError by the loader, so it propagates
+        # instead of degrading the whole axis to "unavailable".
         assignments, manifest = None, INDICATION_TO_TUMOR_ASSIGNMENT_MANIFEST.get(indication.upper().strip())
         if manifest is not None:
             base.update(
@@ -1422,7 +1428,9 @@ def read_tumor_subtype_values(target: str, indication: str) -> dict:
     # UNION of directly-tagged + maf-filter (genomic) strata — same helper as the landscape reader.
     try:
         assignments, manifest = _load_subtype_assignments(indication)
-    except Exception as e:  # noqa: BLE001
+    except FileNotFoundError as e:
+        # genuine absence only — a transient propagates instead of degrading to "unavailable"
+        # (see read_tumor_expression_subtype_landscape's identical gate above).
         return {
             "available": False,
             "pooled_values": pooled_vals,

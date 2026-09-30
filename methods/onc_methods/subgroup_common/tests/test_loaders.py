@@ -114,10 +114,9 @@ def test_assignments_load_synthetic(tmp_path, monkeypatch):
 
 
 def test_assignments_s3_fetch_on_cache_miss(tmp_path, monkeypatch):
-    """On cache miss + a manifest with s3_uri, load_assignments fetches from S3
-    (aws s3 cp) into the session cache, then reads. Mocks subprocess so no network."""
-    import subprocess
-
+    """On cache miss + a manifest with s3_uri, load_assignments fetches from S3 via the
+    hardened in-process client (download_file) into the session cache, then reads.
+    Mocks the client so no network."""
     monkeypatch.setattr(loaders, "CACHE_ASSIGNMENTS", tmp_path / "cache" / "assignments")
 
     fake_catalog = tmp_path / "data-catalog"
@@ -133,16 +132,14 @@ def test_assignments_s3_fetch_on_cache_miss(tmp_path, monkeypatch):
 
     df = pd.DataFrame({"sample_id": ["ACH-1", "ACH-2"], "stratum_id": ["MSI_H", "MSS"], "is_member": [True, True]})
 
-    def _fake_aws_cp(cmd, capture_output, text):
-        # cmd = ["aws","s3","cp", s3_uri, dest, "--no-progress"]
-        assert cmd[:3] == ["aws", "s3", "cp"]
-        assert cmd[3].startswith("s3://onc-compbio/")
-        dest = Path(cmd[4])
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        df.to_parquet(dest, index=False)  # simulate the download
-        return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+    class _FakeClient:
+        def download_file(self, bucket, key, dest):
+            assert bucket == "onc-compbio"
+            assert key.startswith("data-catalog/derived/subgroup-assignments/")
+            Path(dest).parent.mkdir(parents=True, exist_ok=True)
+            df.to_parquet(dest, index=False)  # simulate the download
 
-    monkeypatch.setattr("subprocess.run", _fake_aws_cp)
+    monkeypatch.setattr("onc_methods.target_id_sidecar.s3_client", lambda *a, **k: _FakeClient())
 
     loaders.load_assignments.cache_clear()
     got = loaders.load_assignments("depmap-subgroup-assignments-coadread-v1", data_catalog_repo=fake_catalog)
@@ -152,9 +149,10 @@ def test_assignments_s3_fetch_on_cache_miss(tmp_path, monkeypatch):
     assert (loaders.CACHE_ASSIGNMENTS / "depmap-subgroup-assignments-coadread-v1" / "assignments.parquet").exists()
 
 
-def test_assignments_s3_fetch_failure_raises(tmp_path, monkeypatch):
-    """A failed aws cp raises a clear FileNotFoundError (not a silent empty result)."""
-    import subprocess
+def test_assignments_s3_fetch_definitive_absence_raises_filenotfound(tmp_path, monkeypatch):
+    """A genuine 404/NoSuchKey on the S3 fetch degrades to a clear FileNotFoundError
+    (not a silent empty result) — the only case that should read as absence."""
+    from botocore.exceptions import ClientError
 
     monkeypatch.setattr(loaders, "CACHE_ASSIGNMENTS", tmp_path / "cache" / "assignments")
     fake_catalog = tmp_path / "data-catalog"
@@ -162,16 +160,42 @@ def test_assignments_s3_fetch_failure_raises(tmp_path, monkeypatch):
     md.mkdir(parents=True)
     (md / "x-v1.yaml").write_text("id: x-v1\ntype: derived\ns3_uri: s3://onc-compbio/x.parquet\n")
 
-    def _fail(cmd, capture_output, text):
-        return subprocess.CompletedProcess(cmd, 1, stdout="", stderr="AccessDenied")
+    class _FakeClient:
+        def download_file(self, bucket, key, dest):
+            raise ClientError({"Error": {"Code": "404", "Message": "Not Found"}}, "HeadObject")
 
-    monkeypatch.setattr("subprocess.run", _fail)
+    monkeypatch.setattr("onc_methods.target_id_sidecar.s3_client", lambda *a, **k: _FakeClient())
 
     loaders.load_assignments.cache_clear()
-    import pytest
-
     with pytest.raises(FileNotFoundError, match="S3 fetch"):
         loaders.load_assignments("x-v1", data_catalog_repo=fake_catalog)
+
+
+@pytest.mark.parametrize(
+    "code",
+    ["ExpiredToken", "AccessDenied", "SlowDown", "RequestTimeout"],
+)
+def test_assignments_s3_fetch_transient_reraises(tmp_path, monkeypatch, code):
+    """F2: a transient (ExpiredToken/403/throttle/timeout) on the S3 fetch must RE-RAISE,
+    not collapse into FileNotFoundError — the bug this issue fixes. Only a genuine
+    404/NoSuchKey (see test above) should read as absence."""
+    from botocore.exceptions import ClientError
+
+    monkeypatch.setattr(loaders, "CACHE_ASSIGNMENTS", tmp_path / "cache" / "assignments")
+    fake_catalog = tmp_path / "data-catalog"
+    md = fake_catalog / "manifests" / "derived"
+    md.mkdir(parents=True)
+    (md / "y-v1.yaml").write_text("id: y-v1\ntype: derived\ns3_uri: s3://onc-compbio/y.parquet\n")
+
+    class _FakeClient:
+        def download_file(self, bucket, key, dest):
+            raise ClientError({"Error": {"Code": code, "Message": code}}, "HeadObject")
+
+    monkeypatch.setattr("onc_methods.target_id_sidecar.s3_client", lambda *a, **k: _FakeClient())
+
+    loaders.load_assignments.cache_clear()
+    with pytest.raises(ClientError):
+        loaders.load_assignments("y-v1", data_catalog_repo=fake_catalog)
 
 
 def test_lru_cache_amortization(tmp_path, monkeypatch):
