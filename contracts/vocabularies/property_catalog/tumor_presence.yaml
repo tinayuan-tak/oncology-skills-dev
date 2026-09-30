@@ -6,7 +6,7 @@
 # catalog does not invent properties the code does not resolve.
 catalog_id: tumor_presence
 kind: l2a_property
-version: 1.0.0
+version: 1.1.0
 
 description: |
   "Is the target present in the tumour" decomposes into six DIFFERENT questions, each answered by a
@@ -84,6 +84,21 @@ properties:
           estimates selectivity, not abundance. Marked `coupled` so nothing counts it as a
           second abundance estimator.
     determinants:
+      - name: DETECTABLE_LOG2TPM
+        value: 1.0
+        unit: log2_tpm_plus_1
+        source: methods/methods/tcga_gtex_expression_distribution/stats.py:22
+        rationale: |
+          TPM ~= 1, the tumour-side detection floor feeding `detectable_fraction` (the input to
+          `broadly_low_detectable_fraction` and `BROADLY_DETECTED_MODERATE_FRACTION_MIN` below).
+          Numerically identical to the cell-line twin's `_EXPRESSED_LOG2TPM` (expression.yaml) and
+          to DepMap's own `_EXPRESSED` floor (methods/depmap_expression_distribution/read.py:27) —
+          a genuine cross-modality mirror at the DETECTION (not high-expression) rung, unlike
+          HIGH_LOG2TPM below which is the confirmed divergent rung.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: null
       - name: HIGH_LOG2TPM
         value: 5.6724
         unit: log2_tpm_plus_1
@@ -245,7 +260,43 @@ properties:
         role: estimator
         emission: anchor
         dependence_group: protein_ms_tumor
-    determinants: []
+    determinants:
+      - name: _cohens_d_class.small
+        value: 0.2
+        unit: cohens_d_standardized_effect_size
+        source: methods/methods/cptac_protein_deg/read.py:93
+        rationale: |
+          Cohen's (1988) canonical small/medium/large convention for a standardized effect size —
+          a textbook cut, not a value tuned against this framework's data. Standardizes the raw
+          TMT log2 `protein_effect_size` (which is within-cohort, reference-pool-relative and not
+          comparable across cohorts on its own) via the exact MSstatsTMT moderated SE when present,
+          falling back to a p-value/z-score approximation (`read.py:118-125`).
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: null
+      - name: _cohens_d_class.medium
+        value: 0.5
+        unit: cohens_d_standardized_effect_size
+        source: methods/methods/cptac_protein_deg/read.py:91
+        rationale: |
+          Cohen's (1988) canonical convention; see `_cohens_d_class.small` above for the shared
+          standardization context.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: null
+      - name: _cohens_d_class.large
+        value: 0.8
+        unit: cohens_d_standardized_effect_size
+        source: methods/methods/cptac_protein_deg/read.py:89
+        rationale: |
+          Cohen's (1988) canonical convention; see `_cohens_d_class.small` above for the shared
+          standardization context.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: null
     consumers:
       - skill: tumor-presence
         axis_key: A
@@ -289,7 +340,36 @@ properties:
         note: |
           The powering denominator. A detection fraction without a donor count is uninterpretable
           — one donor's 90% is not a population claim.
-    determinants: []
+    determinants:
+      - name: MALIGNANT_BROADLY_DETECTED_MIN
+        value: 0.5
+        unit: fraction_of_malignant_cells_detected
+        source: methods/methods/sc_tumor_expression_celltype/stats.py:23
+        rationale: |
+          Anchored to the single-cell convention: ~0.5 detection reads as "expressed in most cells
+          of the compartment" (cross-donor median `malignant_detection_fraction`).
+          Mirror sites carrying the SAME value under the same "broadly detected" meaning, for the
+          non-malignant microenvironment compartments (a distinct population from `malignant`,
+          hence a separate property is not warranted but the constant is worth tracking together
+          so a future edit to one is visibly a divergence): `caf_compartment/read.py:29`
+          (`_BROADLY_DETECTED_MIN`) and `myeloid_compartment/read.py:42` (same name).
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: null
+      - name: MALIGNANT_SUBSET_DETECTED_MIN
+        value: 0.10
+        unit: fraction_of_malignant_cells_detected
+        source: methods/methods/sc_tumor_expression_celltype/stats.py:24
+        rationale: |
+          Anchored to the single-cell convention: ~0.1 detection reads as "a real expressing subset"
+          (dropout-aware — scRNA under-detects, so a lower bar than the broadly-detected rung is
+          deliberate). Same three-site mirror as `MALIGNANT_BROADLY_DETECTED_MIN`:
+          `caf_compartment/read.py:30` and `myeloid_compartment/read.py:43` (both `_SUBSET_DETECTED_MIN`).
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: null
     consumers:
       - skill: tumor-presence
         axis_key: C
@@ -352,7 +432,57 @@ properties:
         role: estimator
         emission: anchor
         dependence_group: depmap_rna
-    determinants: []
+    determinants:
+      - name: broadly_high_fraction
+        value: 0.30
+        unit: fraction_of_panel_highly_expressing
+        source: methods/methods/depmap_expression_distribution/cli.py:244
+        rationale: |
+          UNKNOWN as a calibrated value, and a FLAGGED, currently-unadjudicated three-way fraction
+          divergence found while sweeping this issue: this `_classify_expression`/`expression_class`
+          knob is 0.30, but the SAME quantity (fraction of the panel highly-expressing, gating a
+          `broadly_high` word) is 0.5 in expression.yaml's `_BROADLY_HIGH_FRACTION_MIN`
+          (`expression_properties/resolve.py`) and 0.5 in the tumour twin
+          (`tcga_gtex_expression_distribution/read.py`, MEASURED to hold under #2220). #2221's
+          adjudication of the co-occurring absolute anchor (5.0 vs 5.6724) already noted this gap in
+          prose ("that 0.30 is currently recorded by no determinant at all") without formally
+          adjudicating it, because #2221's scope was the anchor, not this fraction. Recorded here
+          per the flagging rule; no follow-up issue filed yet — reported on #2218 for one.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2218"
+      - name: lineage_restricted_min_fraction
+        value: 0.10
+        unit: fraction_of_panel_above_detection_floor
+        source: methods/methods/depmap_expression_distribution/cli.py:245
+        rationale: |
+          UNKNOWN. The lower edge of the `expression_class` band that reads as `lineage_restricted`
+          (given >=1 enriched lineage) vs `broadly_low` below it. Shares a numeral with several
+          OTHER determinants in this catalog (`_SUBSET_HIGH_FRACTION_MIN`, `_RARE_FRACTION`,
+          `_PRESENCE_FLOOR_FRACTION` in expression.yaml) but is a DIFFERENT quantity — the panel
+          fraction expressed at all, gating a lineage-structure word, not a presence or subset-high
+          word. Not the same knob as `_LINEAGE_RESTRICTED_MAX_SHARE` (expression.yaml's
+          `lineage_restriction` property, value 0.5, share-of-EVALUATED-lineages) — a name collision
+          on "lineage_restricted" across two differently-grained quantities, not a value divergence.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2218"
+      - name: lineage_restricted_max_fraction
+        value: 0.70
+        unit: fraction_of_panel_above_detection_floor
+        source: methods/methods/depmap_expression_distribution/cli.py:246
+        rationale: |
+          UNKNOWN. The upper edge of the same band as `lineage_restricted_min_fraction` above;
+          numerically identical to `_BROAD_EXPRESSED_FRACTION` (expression.yaml, same unit) but that
+          is the coincidence of a shared boundary between adjacent bands on the SAME `frac_expressed`
+          axis (>=0.70 is `broadly_moderate`/`broadly_high` territory here; the two are read from the
+          same cli.py `_classify_expression`), not an independent determinant to calibrate twice.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2218"
     integration_note: |
       This entry additionally carries the whole RESOLVED expression_properties object under
       `resolved_expression_properties` (presence_claims.py:814) when the card supplies it — the

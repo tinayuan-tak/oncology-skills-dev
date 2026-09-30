@@ -5,7 +5,7 @@
 # shape and the identifiability test that admits `role: estimator`.
 catalog_id: expression
 kind: l2a_property
-version: 1.0.0
+version: 1.1.0
 
 description: |
   Expression is the most over-loaded word in the framework: "is it expressed" can mean
@@ -244,6 +244,35 @@ properties:
           controls: null
           flip_matrix: methods/tests/calibration/high_anchor_flip_matrix/matrix.json
           adjudication: "#2221"
+      - name: DEFAULT_CUTOFFS
+        value: {top_1pct: 99.0, top_decile: 90.0, bottom_decile: 10.0}
+        unit: all_gene_percentile_0_100
+        source: methods/methods/percentile_null/__init__.py:24
+        rationale: |
+          A DIFFERENT percentile classifier from _MAGNITUDE_HIGH_PERCENTILE / _MODERATE_PERCENTILE
+          above (75.0/25.0): this scheme bins the all-gene `allgene_percentile` field into
+          top_1pct/top_decile/mid/bottom_decile display classes, consumed by
+          `allgene_percentile_precompute/lookup.py` for BOTH the tumour-rank and DepMap-rank
+          precompute products — i.e. it is also the percentile classifier behind
+          tumor_presence.yaml's `patient_tumor_abundance` and `tumor_protein_abundance`
+          `allgene_percentile` anchors, not only this cell-line side. NOT tuned: the three cuts are
+          the literal mathematical definitions of the named bins (top 1% == the 99th percentile
+          threshold, top decile == the 90th, bottom decile == the 10th), so there is nothing to
+          calibrate here — the number IS the definition.
+
+          Mirror sites carrying an independently-hardcoded copy of this literal dict (a future edit
+          to one is invisible unless every site is checked): `allgene_percentile_precompute/lookup.py:35`
+          (import-fallback copy), `genie_sv_recurrence/read.py:27`, `genie_panel_recurrence/read.py:74`,
+          and (found while sweeping, not named in the issue) `pooled_snv_recurrence/read.py:27` — the
+          latter three are the genomic-recurrence percentile classes (differentiation-adjacent,
+          #1636/#1580, out of scope here), recorded because they share the SAME literal, not because
+          this file adopts that domain. `procan_protein_abundance/cli.py:57` derives its copy live
+          from this module (`dict(DEFAULT_CUTOFFS)`) rather than hardcoding, so it carries no
+          independent drift risk and is not counted as a mirror site.
+        calibration:
+          controls: contracts/vocabularies/tumor_presence_controls.yaml
+          flip_matrix: null
+          adjudication: null
     consumers:
       - skill: tumor-presence
         surface: source_properties.model_expression_structure.resolved_expression_properties
