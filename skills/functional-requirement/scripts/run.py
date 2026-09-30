@@ -1463,10 +1463,11 @@ _FR_VALUE_TIERS = {
     "not_selective": "absent",
     "non_dependent": "absent",
     "not_dependent": "absent",
+    "pan_organoid_essential": "weak",  # common-essential-like (frac_dependent>=0.90) — low target value
     "broad_organoid_dependency": "strong",
     "selective_organoid_dependency": "moderate",
-    "lineage_organoid_dependency": "moderate",
-    "no_organoid_dependency": "absent",
+    "rare_organoid_dependency": "weak",  # weak-positive (0.05<=frac_dependent<0.20)
+    "not_organoid_dependent": "absent",
     # CRISPR↔RNAi + cross-consortium concordance (agreement × dependency)
     "concordant_dependent": "strong",
     "moderately_concordant_dependent": "moderate",

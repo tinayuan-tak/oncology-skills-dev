@@ -424,7 +424,9 @@ _KNOWN_DEFAULTING = {
             "very_low",
         }
     ),
-    # functional-requirement: 35 unmapped (26 invert a present signal to `absent` = under-reads)
+    # functional-requirement: 32 unmapped (23 invert a present signal to `absent` = under-reads).
+    # #1550: pan_organoid_essential / rare_organoid_dependency / not_organoid_dependent moved OUT of
+    # this ledger into _FR_VALUE_TIERS (the phantom-token fix); they are no longer defaulting.
     "functional-requirement": frozenset(
         {
             "broadly_dependent",
@@ -444,9 +446,7 @@ _KNOWN_DEFAULTING = {
             "no_correlation",
             "no_lineage_enrichment",
             "non_dependent_underpowered",
-            "not_organoid_dependent",
             "not_partner_stratified",
-            "pan_organoid_essential",
             "partially_assayed",
             "partner_conditional_moderately_dependent",
             "partner_conditional_strongly_dependent",
@@ -454,7 +454,6 @@ _KNOWN_DEFAULTING = {
             "poorly_modeled",
             "positive_anomaly",
             "protein_predicts_dependency",
-            "rare_organoid_dependency",
             "rnai_confirmed_engagement",
             "single_consortium_only",
             "strongly_concordant_dependent",
