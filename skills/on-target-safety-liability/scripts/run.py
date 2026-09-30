@@ -782,6 +782,10 @@ _SYNTHESIS_FACET_KEYS = (
     "drug_warning_class",
     "drug_warning_has_black_box",
     "drug_warning_toxicity_classes",
+    # OnSIDES drug-label ADE class (#1577 item 2, verdict-INERT) — the card's PRIMARY class was read
+    # into the headline (above) but stranded from every downstream consumer, incl. this synthesis
+    # facet. Surfaces the pharmacovigilance ADE signal to the composed target-profile fan-out.
+    "onsides_ade_class",
     # CASE-009: scope clarifier — 'no_warning' ≠ no on-target toxicity (verdict-INERT)
     "pharmacovigilance_scope_caveat",
     "human_ko_observed_class",
