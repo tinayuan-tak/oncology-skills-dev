@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import copy
 import importlib.util
+import subprocess
 import sys
 from pathlib import Path
 
@@ -376,6 +377,91 @@ def test_teeth_consumer_without_a_read_site(tmp_path):
     c.pop("surface", None)
     errs = _run(tmp_path, "tumor_presence.yaml", doc)
     assert any("must say WHERE it reads" in e for e in errs), errs
+
+
+# --------------------------------------------------------------------------- gate-argv parity
+#
+# 0a shipped WITHOUT a test that invokes the validator exactly as preland.sh does (literal relative
+# argv, cwd contracts/, nothing patched) — 0c later built that habit
+# (test_gate_invocation_matches_preland_argv + test_the_two_gate_argv_tests_match_what_preland_sh_
+# ACTUALLY_RUNS in test_comparability_state_enum.py) and #2244 backfills it here. Two tests, mirroring
+# 0c: the first hardcodes the literal argv the gate is believed to run; the second reads preland.sh
+# and pins the wired flags to what the first hardcodes, so an edit to preland.sh that drops or
+# reflags this validator's invocation reds HERE instead of leaving the first test green against an
+# invocation that no longer exists.
+
+
+def test_gate_invocation_matches_preland_argv():
+    """Invoke the validator EXACTLY as preland.sh's pool step does — cwd contracts/, the literal
+    relative argv, nothing patched."""
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "validators/validate_property_catalog.py",
+            "--catalog",
+            "vocabularies/property_catalog",
+            "--cards",
+            "cards/",
+        ],
+        cwd=CONTRACTS,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0, f"gate argv failed:\nstdout={proc.stdout}\nstderr={proc.stderr}"
+
+
+def test_gate_invocation_with_additive_against_matches_preland_argv():
+    """Invoke the validator EXACTLY as preland.sh's additivity step does."""
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "validators/validate_property_catalog.py",
+            "--catalog",
+            "vocabularies/property_catalog",
+            "--cards",
+            "cards/",
+            "--additive-against",
+            "HEAD",
+        ],
+        cwd=CONTRACTS,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0, f"gate argv failed:\nstdout={proc.stdout}\nstderr={proc.stderr}"
+
+
+def test_the_two_gate_argv_tests_match_what_preland_sh_ACTUALLY_RUNS():
+    """Copied verbatim (mechanism) from test_comparability_state_enum.py. The two tests above hardcode
+    the argv they believe the gate uses — so if someone edits preland.sh they keep passing while
+    testing an invocation that no longer exists. This reads the script and pins BOTH wired lines to
+    the flags those tests pass. Deliberately a SUBSTRING check on flags, not whole-line equality — the
+    label column and line continuations are formatting, and pinning those would red on a reindent.
+    """
+    # Join backslash continuations FIRST, or this reds on formatting, not on a real drift.
+    script = (CONTRACTS / "scripts" / "preland.sh").read_text().replace("\\\n", " ")
+    wired = [
+        " ".join(ln.split())
+        for ln in script.splitlines()
+        if "validate_property_catalog.py" in ln and not ln.lstrip().startswith("#")
+    ]
+    assert len(wired) == 2, (
+        f"expected the validator wired TWICE in preland.sh (pool shape clause + additivity), found "
+        f"{len(wired)}: {wired}"
+    )
+    shape, additivity = wired[0], wired[1]
+    for flag in (
+        "--catalog vocabularies/property_catalog",
+        "--cards cards/",
+    ):
+        assert flag in shape, (
+            f"preland.sh shape line is missing {flag!r}; test_gate_invocation_matches_preland_argv is now fiction"
+        )
+    assert "--additive-against" in additivity, (
+        "the second wiring must pass --additive-against, otherwise the token-additivity clause never "
+        "runs in the gate and this catalog is governed in name only"
+    )
 
 
 # --------------------------------------------------------------------------- additivity teeth

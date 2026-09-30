@@ -146,6 +146,39 @@ def test_additivity_runs_on_a_RELATIVE_enum_path(monkeypatch):
     assert not any("does not resolve" in e for e in r.errors), r.errors
 
 
+def test_the_two_gate_argv_tests_match_what_preland_sh_ACTUALLY_RUNS():
+    """Backfill of the 0c habit (test_comparability_state_enum.py). The two tests above — this file's
+    `test_gate_invocation_matches_preland_argv` and `test_additivity_runs_on_a_RELATIVE_enum_path` —
+    hardcode the argv they believe the gate uses. If someone edits preland.sh, they keep passing while
+    testing an invocation that no longer exists: green for the wrong reason. This reads the script and
+    pins BOTH wired lines to the flags those tests assume. Deliberately a SUBSTRING check on flags, not
+    whole-line equality — the label column and line continuations are formatting.
+    """
+    # Join backslash continuations FIRST, or this reds on formatting rather than a real drift.
+    script = (CONTRACTS / "scripts" / "preland.sh").read_text().replace("\\\n", " ")
+    wired = [
+        " ".join(ln.split())
+        for ln in script.splitlines()
+        if "validate_concordance_enum.py" in ln and not ln.lstrip().startswith("#")
+    ]
+    assert len(wired) == 2, (
+        f"expected the validator wired TWICE in preland.sh (pool shape clause + additivity), found "
+        f"{len(wired)}: {wired}"
+    )
+    shape, additivity = wired[0], wired[1]
+    for flag in (
+        "--enum vocabularies/concordance_class.enum.yaml",
+        "--families vocabularies/property_catalog/integrated_families.yaml",
+    ):
+        assert flag in shape, (
+            f"preland.sh shape line is missing {flag!r}; test_gate_invocation_matches_preland_argv is now fiction"
+        )
+    assert "--additive-against" in additivity, (
+        "the second wiring must pass --additive-against, otherwise the token-additivity clause never runs "
+        "in the gate and this vocabulary is governed in name only"
+    )
+
+
 def test_relation_block_names_the_whole_dependence_vocabulary():
     """Clause 3 as a population fact. A subset would let a relation be dropped from the enum while
     dependence_edges.py still emits it — a coverage gap that reads as a clean file."""
