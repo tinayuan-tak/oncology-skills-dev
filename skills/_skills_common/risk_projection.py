@@ -97,7 +97,8 @@ _DEPENDENCY_DEFAULTED = frozenset(
 )
 
 # DRUGGABILITY / SURFACE (surface modalities) — `.get(v, 1)` MED default, now EXHAUSTIVE over the
-# 17-token surface_modality resolver vocab (#1602). Before this fix the map keyed only 4 tokens
+# 18-token surface_modality resolver vocab (#1602; +pmhc_tce_supported_presentation_unconfirmed #2113).
+# Before #1602 the map keyed only 4 tokens
 # (both_viable / adc_preferred_tce_unsafe / surface_viable_density_caveated / neither_viable) and the
 # other 13 — added to the resolver after the map was frozen — fell to the MED default, fail-OPEN on
 # foreclosed arms and under-crediting strong positives. Polarity, mirroring the SM leg below:
@@ -131,6 +132,10 @@ _DRUGGABILITY_SURFACE_BINS = {
     "tce_patient_variable": 1,
     "surface_viable_density_caveated": 1,
     "pmhc_tce_supported": 1,
+    # #2113: the caveated pMHC-TCE promotion (IEDB epitope route survives, but the normal-presentation
+    # window is UNMEASURED) — a confidence demotion of an unconfirmed positive, MED like pmhc_tce_supported
+    # and surface_annotation_only_unconfirmed (a viable route survives; it is not a measured negative).
+    "pmhc_tce_supported_presentation_unconfirmed": 1,
     "surface_annotation_only_unconfirmed": 1,
     "modality_ambiguous": 1,
     "isoform_dependent_undefined": 1,

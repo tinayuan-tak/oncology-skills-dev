@@ -13,8 +13,8 @@ attribution_keypaths:
 - resolve/[]/driving_rule
 counts:
   total: 453
-  gating: 155
-  display: 298
+  gating: 156
+  display: 297
 gating:
 - adc-preferred-supportive
 - alteration-role-gof-driver-supportive
@@ -129,6 +129,7 @@ gating:
 - pmhc-broadly-presented-normal-tce-opposing
 - pmhc-iedb-presented-tce-supportive
 - pmhc-iedb-tcell-validated-tce-supportive
+- pmhc-restricted-presentation-tce-supportive
 - prism-clinical-precedent-only-weak-supportive-sm
 - prism-clinically-active-supportive-sm
 - prism-no-compounds-found-neutral
@@ -342,7 +343,6 @@ display:
 - phospho-low-neutral
 - phospho-not-detected-neutral
 - phospho-present-supportive
-- pmhc-restricted-presentation-tce-supportive
 - predictability-biomarker-hypothesis-supportive
 - predictability-context-determined-neutral
 - predictability-data-unavailable-insufficient

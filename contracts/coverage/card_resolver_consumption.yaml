@@ -304,6 +304,7 @@ detail:
     - surface_modality
     rules:
     - pmhc-broadly-presented-normal-tce-opposing
+    - pmhc-restricted-presentation-tce-supportive
   prism-compound-activity:
     resolvers:
     - tractability_small_molecule

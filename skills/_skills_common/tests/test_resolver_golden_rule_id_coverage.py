@@ -134,8 +134,16 @@ RULE_ID_COVERAGE_DEBT: dict[str, set[str]] = {
         "tvn-stromal-confound-veto",
     },
     "surface_modality": {
+        # exon-window stays debted (still cross-product COST — not yet needed by any falsifiability fix).
         "exon-window-essential-liability-tce-opposing",
-        "pmhc-broadly-presented-normal-tce-opposing",
+        # pmhc-broadly-presented-normal-tce-opposing + pmhc-restricted-presentation-tce-supportive were
+        # LIFTED OUT of debt (#2113, 2026-09-30): both are now LISTED in the golden's surface_modality
+        # rule_ids so the normal-presentation MEASUREDNESS gate on the pmhc_tce_supported promotion is
+        # FALSIFIABLE by the frozen oracle (before, the corrective veto was doubly unfalsifiable —
+        # missing-data fail-open + golden coverage-debt). They share one (card,field) exclusivity group
+        # (pmhc-presentation / pmhc_presentation_class) so listing BOTH costs a single group factor of 3
+        # (8,064 -> ~24k rows), NOT 4x — cheaper than the docstring's "list both surface debt ids" figure
+        # because those two included the independent exon-window id.
     },
     "tractability_small_molecule": {
         "measured-potent-ligand-sm-supportive",

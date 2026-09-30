@@ -61,6 +61,7 @@ VERDICT_COLORS = {
     # caveats/foreclosures → ochre caution.
     "adc_preferred_tce_unsafe": "#4a7c9e",  # TCE dropped on normal-tissue safety, ADC survives
     "pmhc_tce_supported": "#4a7c9e",  # folded surface neither_viable, but pMHC-TCE route supported (IEDB)
+    "pmhc_tce_supported_presentation_unconfirmed": "#c07a20",  # #2113 caveat: pMHC route, normal-presentation UNMEASURED
     "tce_unsafe_normal_liability": "#c07a20",  # TCE-only target loses its arm on normal-tissue safety
     "surface_viable_density_caveated": "#c07a20",  # measured below-TCE-floor density (downgrade, not veto)
     "shed_dominant_opposed": "#c07a20",  # dominant shed ectodomain (soluble decoy sink)

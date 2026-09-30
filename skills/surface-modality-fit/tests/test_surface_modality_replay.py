@@ -123,9 +123,13 @@ CEACAM5 = ("ceacam5_coadread", "CEACAM5", "COADREAD", "adc_preferred_tce_unsafe"
 TACSTD2 = ("tacstd2_coadread", "TACSTD2", "COADREAD", "adc_preferred_tce_unsafe")
 ERBB2 = ("erbb2_coadread", "ERBB2", "COADREAD", "adc_preferred_tce_unsafe")
 # pMHC promotion (2026-08-25): WT1 is an INTRACELLULAR transcription factor — correctly surface-
-# neither_viable — yet carries T-cell-validated IEDB epitopes, so it resolves to the pMHC-TCE route
-# (pmhc_tce_supported). Guards the new verdict path against reader drift in the IEDB epitope class.
-WT1 = ("wt1_coadread", "WT1", "COADREAD", "pmhc_tce_supported")
+# neither_viable — yet carries T-cell-validated IEDB epitopes, so it resolves to the pMHC-TCE route.
+# #2113: WT1's frozen fixture has pmhc_presentation_class=intermediate_presentation (Q1–Q3, below the
+# broad veto but NOT tumor-restricted Q1), so it fires NEITHER the restricted nor the broad presentation
+# rule → the normal-presentation window is UNMEASURED-as-restricted, and the promotion correctly resolves
+# to the NON-NOMINATING caveat pmhc_tce_supported_presentation_unconfirmed (not the clean positive). This
+# now guards BOTH the pMHC verdict path AND the normal-presentation measuredness gate against reader drift.
+WT1 = ("wt1_coadread", "WT1", "COADREAD", "pmhc_tce_supported_presentation_unconfirmed")
 ALL = [CEACAM5, TACSTD2, ERBB2, WT1]
 
 
@@ -238,18 +242,24 @@ def test_replay_headline_block_populated_and_verdict_inert():
 
 def test_pmhc_tce_route_surfaces_when_surface_is_neither_viable():
     """pMHC PROMOTION crown-jewel (2026-08-25): WT1 (intracellular oncoprotein) is correctly surface-
-    neither_viable, but its T-cell-validated IEDB epitopes promote the verdict to pmhc_tce_supported —
+    neither_viable, but its T-cell-validated IEDB epitopes promote the verdict to the pMHC-TCE route —
     the peptide-MHC (TCR-mimetic TCE) route the folded-surface ladder cannot see. The fit_class stays
     neither_viable (read direct from the composed card) alongside the verdict, and the headline surfaces
     the pMHC route as the top note so the "neither viable" call is not read as "no biologics route".
+
+    #2113 NORMAL-PRESENTATION MEASUREDNESS GATE: WT1's fixture has pmhc_presentation_class=
+    intermediate_presentation (fires neither the restricted nor the broad rule), so the tumor-restricted
+    normal-presentation window is UNMEASURED and the promotion resolves to the NON-NOMINATING caveat
+    pmhc_tce_supported_presentation_unconfirmed (not the clean positive). The top note surfaces the caveat.
     If the IEDB reader's epitope_evidence_class drifts, the promotion stops and this goes red."""
     d = _decision(*WT1[:3])
     h = d.get("headline") or {}
     assert h.get("fit_class") == "neither_viable", (
         f"WT1 fit_class={h.get('fit_class')!r}, expected neither_viable (intracellular — no cell-surface antigen)."
     )
-    assert h.get("surface_modality_verdict") == "pmhc_tce_supported", (
-        f"WT1 verdict={h.get('surface_modality_verdict')!r}, expected pmhc_tce_supported (IEDB pMHC route)."
+    assert h.get("surface_modality_verdict") == "pmhc_tce_supported_presentation_unconfirmed", (
+        f"WT1 verdict={h.get('surface_modality_verdict')!r}, expected the #2113 caveat "
+        f"pmhc_tce_supported_presentation_unconfirmed (IEDB pMHC route, normal-presentation UNMEASURED)."
     )
     assert h.get("driving_rule_id") == "pmhc-iedb-tcell-validated-tce-supportive"
     assert h.get("pmhc_epitope_evidence_class") == "tcell_validated"
@@ -257,7 +267,9 @@ def test_pmhc_tce_route_surfaces_when_surface_is_neither_viable():
     # the fit_class call is the negative neither_viable; the pMHC route rides as the top note.
     assert blk.get("verdict", {}).get("call") == "neither_viable"
     tension = blk.get("top_tension") or {}
-    assert tension.get("source") == "pmhc_tce_route", f"expected the pMHC-TCE route as top note, got {tension!r}"
+    assert tension.get("source") == "pmhc_tce_route_presentation_unconfirmed", (
+        f"expected the caveated pMHC-TCE route as top note, got {tension!r}"
+    )
 
 
 def test_isoform_dominance_gate_keeps_base_fit():

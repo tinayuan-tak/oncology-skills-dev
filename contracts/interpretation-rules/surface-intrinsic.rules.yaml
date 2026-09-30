@@ -1850,10 +1850,19 @@ rules:
   # TCR-mimetic T-cell engager. INVERTED safety semantics (benign atlas): restricted normal-tissue
   # presentation = a CLEAN pMHC-TCE target; broad normal presentation = on-target/off-tumor LIABILITY.
   # Signals bite_tce ONLY (a pMHC TCE — an ADC/naked antibody binds the folded protein, not pMHC).
-  # broadly_presented_normal is VERDICT-BEARING: with neither-viable-killer + an IEDB positive it feeds
-  # surface_modality resolver rung 3b' (priorities 19/20, pmhc-broadly-presented-normal-tce-opposing),
-  # withdrawing pmhc_tce_supported → tce_unsafe_normal_liability. restricted_presentation stays
-  # signal-only; not_observed + intermediate + data_unavailable fire NO rule (weak-neg / ambiguous / gap -> abstain).
+  # BOTH value-rules are now VERDICT-BEARING on the pMHC-TCE promotion (with neither-viable-killer + an
+  # IEDB positive), forming the normal-presentation MEASUREDNESS gate the tumor-agnostic IEDB epitope
+  # evidence cannot supply (#2113, 2026-09-30):
+  #   - broadly_presented_normal → surface_modality rung 3b' (priorities 21/22,
+  #     pmhc-broadly-presented-normal-tce-opposing), withdrawing pmhc_tce_supported → tce_unsafe_normal_
+  #     liability (MEASURED broad presentation = an on-target/off-tumor liability).
+  #   - restricted_presentation → the CLEAN pmhc_tce_supported rungs (priorities 23/24) as the required
+  #     third conjunct (MEASURED tumor-restricted presentation = a clean pMHC-TCE window). Was signal-only
+  #     until #2113; now the CLEAN positive is unreachable WITHOUT it.
+  # When NEITHER value-rule fires (card absent / not_observed / intermediate / data_unavailable — a weak-
+  # neg / ambiguous / coverage gap that still abstains at the rule layer), the resolver's pMHC promotion
+  # DEMOTES to the NON-NOMINATING caveat pmhc_tce_supported_presentation_unconfirmed (rungs 25/26): the
+  # normal-presentation window is UNMEASURED, so the route is surfaced but not clean-credited.
 
   - rule_id: pmhc-restricted-presentation-tce-supportive
     when:
@@ -1869,7 +1878,10 @@ rules:
       TCR-mimetic pMHC T-cell engager can reach it (even if intracellular / no surface expression) with
       limited on-target/off-tumor presentation risk (MAGE-A4 archetype: testis-restricted). Important for
       bite_tce — this opens targets invisible to surface-antibody modalities. Necessary-not-sufficient:
-      the tumor-restriction call still needs a tumor immunopeptidome.
+      the tumor-restriction call still needs a tumor immunopeptidome. VERDICT-BEARING (#2113): this is the
+      required MEASURED normal-presentation conjunct on the CLEAN pmhc_tce_supported promotion (surface_
+      modality rungs 23/24) — without a restricted (or broad) benign-atlas read the pMHC-TCE promotion
+      demotes to the caveat pmhc_tce_supported_presentation_unconfirmed rather than the clean positive.
 
   - rule_id: pmhc-broadly-presented-normal-tce-opposing
     when:
@@ -1897,12 +1909,20 @@ rules:
   # class)? Signals bite_tce ONLY — a TCR-mimetic pMHC T-cell engager reaches an INTRACELLULAR oncoprotein
   # via the peptide-MHC complex; an ADC / naked antibody binds the folded surface protein, not pMHC.
   #
-  # VERDICT-BEARING (promotion 2026-08-25): the two POSITIVE classes feed a surface_modality resolver rung
-  # (pmhc_tce_supported) that fires ONLY in conjunction with neither-viable-killer — i.e. when the folded-
-  # surface ladder is DEAD (neither_viable) but experimental epitopes support the SEPARATE peptide-MHC
-  # (pMHC-TCE) route the surface cards cannot see (WT1/PRAME/NY-ESO-1/MAGE-A4: correctly surface-neither_
-  # viable yet pMHC-TCE-viable). For a surface-VIABLE antigen the neither-viable-killer does NOT fire, so
-  # these rules ride as an ADDITIVE bite_tce signal and do NOT flip the surface ADC/TCE call.
+  # VERDICT-BEARING (promotion 2026-08-25): the two POSITIVE classes feed the surface_modality pMHC-TCE
+  # promotion, which fires ONLY in conjunction with neither-viable-killer — i.e. when the folded-surface
+  # ladder is DEAD (neither_viable) but experimental epitopes support the SEPARATE peptide-MHC (pMHC-TCE)
+  # route the surface cards cannot see (WT1/PRAME/NY-ESO-1/MAGE-A4: correctly surface-neither_viable yet
+  # pMHC-TCE-viable). For a surface-VIABLE antigen the neither-viable-killer does NOT fire, so these rules
+  # ride as an ADDITIVE bite_tce signal and do NOT flip the surface ADC/TCE call.
+  #
+  # NORMAL-PRESENTATION MEASUREDNESS GATE (#2113, 2026-09-30): because IEDB is TUMOR-CONTEXT-AGNOSTIC, these
+  # epitope positives alone are NECESSARY-NOT-SUFFICIENT for a clean promotion. The CLEAN pmhc_tce_supported
+  # verdict (resolver rungs 23/24) additionally requires a MEASURED tumor-restricted benign-atlas read
+  # (pmhc-restricted-presentation-tce-supportive); a MEASURED broad read vetoes it (rungs 21/22); and an
+  # ABSENT/unmeasured read demotes the promotion to the NON-NOMINATING caveat
+  # pmhc_tce_supported_presentation_unconfirmed (rungs 25/26). So an IEDB positive on its own no longer
+  # mints the clean, nomination-rescuing positive — it mints the caveat until the presentation is measured.
   #
   # ASSAY ASYMMETRY (the card's core caveat): absence of a deposited epitope != not presented. So only the
   # two POSITIVE classes fire — no_positive_epitopes / not_observed / data_unavailable fire NOTHING (a weak
@@ -1927,7 +1947,9 @@ rules:
       Necessary-not-sufficient: IEDB is tumor-context-agnostic (a cancer-context flag, not a tumor-
       restriction call), so the tumor-restriction / normal-presentation window still needs the benign-atlas
       (pmhc-presentation) + a tumor immunopeptidome. VERDICT-MOVING only when the folded-surface fit is
-      neither_viable (→ pmhc_tce_supported); additive otherwise (surface-viable antigens keep their fit).
+      neither_viable (→ clean pmhc_tce_supported ONLY with a measured restricted-presentation conjunct,
+      #2113; else → the caveat pmhc_tce_supported_presentation_unconfirmed); additive otherwise (surface-
+      viable antigens keep their fit).
 
   - rule_id: pmhc-iedb-presented-tce-supportive
     when:
@@ -1944,9 +1966,10 @@ rules:
       peptide is experimentally displayed on human HLA — a real peptide-MHC target for a TCR-mimetic pMHC
       TCE — but T-cell recognisability is not yet confirmed, a weaker call than tcell_validated. bite_tce
       ONLY. Same VERDICT-MOVING scope as the validated rung: it promotes a surface-neither_viable target to
-      pmhc_tce_supported (the pMHC route is the sole biologics route), else it is additive. no_positive_
-      epitopes / not_observed / data_unavailable fire NOTHING (assay asymmetry: absence is a weak negative,
-      never a proven non-epitope).
+      clean pmhc_tce_supported ONLY alongside a measured restricted-presentation conjunct (#2113), else to
+      the caveat pmhc_tce_supported_presentation_unconfirmed (the pMHC route is the sole biologics route),
+      else it is additive. no_positive_epitopes / not_observed / data_unavailable fire NOTHING (assay
+      asymmetry: absence is a weak negative, never a proven non-epitope).
 
   # ============================================================================
   # F5 — sc-normal-celltype-expression card (scRNA normal, WIRED 2026-08-07)

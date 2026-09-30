@@ -145,9 +145,14 @@ def test_exon_window_essential_liability_drops_tce_preserves_adc():
 
 def test_pmhc_normal_presentation_vetoes_pmhc_support():
     # SAFETY veto (2026-08-28, distillation assessment): a pMHC epitope BROADLY PRESENTED on normal tissue
-    # withdraws the un-earned pmhc_tce_supported promotion → tce_unsafe_normal_liability (the 3-condition
-    # veto rung at priority 19/20 outranks the 2-condition pmhc_tce_supported at 21/22).
-    assert _vv("neither-viable-killer", "pmhc-iedb-tcell-validated-tce-supportive")[0] == "pmhc_tce_supported"
+    # withdraws the un-earned promotion → tce_unsafe_normal_liability (the 3-condition veto rung at priority
+    # 21/22 outranks the clean pmhc_tce_supported at 23/24 and the caveat at 25/26).
+    # #2113: WITHOUT a benign-atlas read the promotion is now the NON-NOMINATING caveat (not the clean
+    # positive) — the un-earned clean positive this veto used to withdraw no longer mints in the first place.
+    assert (
+        _vv("neither-viable-killer", "pmhc-iedb-tcell-validated-tce-supportive")[0]
+        == "pmhc_tce_supported_presentation_unconfirmed"
+    )
     assert (
         smf._verdict(
             [
@@ -306,7 +311,12 @@ _NEWLY_REACHABLE_RULES = [
     "modality-window-clean-supportive",  # clean_window → supportive (signal-only)
     "modality-window-narrow-opposing",  # narrow_window → opposing (signal-only)
     # enrichment — peptide-centric HLA presentation (bite_tce-only):
-    "pmhc-restricted-presentation-tce-supportive",  # restricted → TCE supportive
+    # NOTE (#2113, 2026-09-30): pmhc-restricted-presentation-tce-supportive was PROMOTED to a resolver
+    # conjunct — it is the required MEASURED normal-presentation read on the CLEAN pmhc_tce_supported rungs
+    # (23/24) and is NO LONGER signal-only. Removed from this "does-not-move" list; pinned by
+    # test_pmhc_promotes_neither_viable_to_pmhc_tce_supported (clean-vs-caveat split) +
+    # test_pmhc_normal_presentation_guard.py. (It stays inert WITHOUT an IEDB positive, so the additive
+    # test would still pass, but its ROLE is now verdict-bearing, so listing it here would misclassify it.)
     # NOTE (2026-08-28 distillation assessment): pmhc-broadly-presented-normal-tce-opposing was PROMOTED
     # to a resolver veto rung (→ tce_unsafe_normal_liability, priority 19/20; withdraws the un-earned
     # pmhc_tce_supported promotion when the epitope is broadly presented on normal tissue) and is NO LONGER
@@ -382,14 +392,34 @@ _PMHC_RULES = ("pmhc-iedb-tcell-validated-tce-supportive", "pmhc-iedb-presented-
 
 
 def test_pmhc_promotes_neither_viable_to_pmhc_tce_supported():
-    # THE GAP FIX: surface-dead intracellular oncoprotein + experimentally-validated pMHC epitopes →
-    # pmhc_tce_supported (the pMHC-TCE route), outranking the bare neither_viable rung.
+    # THE GAP FIX (2026-08-25): surface-dead intracellular oncoprotein + experimentally-validated pMHC
+    # epitopes → the pMHC-TCE route, outranking the bare neither_viable rung.
+    #
+    # #2113 NORMAL-PRESENTATION MEASUREDNESS GATE: because IEDB is tumor-context-agnostic, the epitope
+    # positive ALONE (no benign-atlas presentation read) now mints the NON-NOMINATING caveat
+    # pmhc_tce_supported_presentation_unconfirmed, NOT the clean, nomination-rescuing positive. The CLEAN
+    # pmhc_tce_supported requires a MEASURED tumor-restricted presentation conjunct.
     assert _vv("neither-viable-killer", "pmhc-iedb-tcell-validated-tce-supportive") == (
+        "pmhc_tce_supported_presentation_unconfirmed",
+        "pmhc-iedb-tcell-validated-tce-supportive",
+    )
+    assert _vv("neither-viable-killer", "pmhc-iedb-presented-tce-supportive") == (
+        "pmhc_tce_supported_presentation_unconfirmed",
+        "pmhc-iedb-presented-tce-supportive",
+    )
+    # WITH a measured restricted-presentation read the promotion earns the CLEAN positive (driving_rule
+    # names the epitope class). This is the falsifiable half of the guard (#2113).
+    assert _vv(
+        "neither-viable-killer",
+        "pmhc-iedb-tcell-validated-tce-supportive",
+        "pmhc-restricted-presentation-tce-supportive",
+    ) == (
         "pmhc_tce_supported",
         "pmhc-iedb-tcell-validated-tce-supportive",
     )
-    # the presented-but-not-T-cell-confirmed class promotes identically (driving_rule names the class).
-    assert _vv("neither-viable-killer", "pmhc-iedb-presented-tce-supportive") == (
+    assert _vv(
+        "neither-viable-killer", "pmhc-iedb-presented-tce-supportive", "pmhc-restricted-presentation-tce-supportive"
+    ) == (
         "pmhc_tce_supported",
         "pmhc-iedb-presented-tce-supportive",
     )

@@ -421,7 +421,9 @@ def _framework_preferred_modalities(surface_verdict) -> set:
         return {"ADC"}
     if v in ("tce_preferred", "tce_escape_risk"):
         return {"TCE"}
-    if v == "pmhc_tce_supported":  # peptide-MHC / TCR-mimic route (surface-dead intracellular target)
+    if v.startswith("pmhc_tce_supported"):  # peptide-MHC / TCR-mimic route (surface-dead intracellular
+        # target); incl. #2113 pmhc_tce_supported_presentation_unconfirmed (caveated — normal-presentation
+        # unmeasured — but still a pMHC-TCE-preferring route for this display-only cross-ref).
         return {"TCE"}
     return set()
 
@@ -1758,7 +1760,10 @@ def _actionability_mode_facet(sub_results: dict, target: str | None = None) -> d
 # recommendation_gate.fired; thesis classified from UN-CONTAMINATED signals only).
 # =====================================================================================================
 _SURFACE_FITS = {"adc_preferred_tce_unsafe", "both_viable", "adc_preferred", "tce_preferred"}
-_INTRACELL_FITS = {"pmhc_tce_supported", "neither_viable"}
+# pmhc_tce_supported_presentation_unconfirmed (#2113): the caveated pMHC-TCE promotion — still a folded-
+# surface-dead intracellular target reached via the peptide-MHC route, so it reads intracellular_intrinsic
+# like its clean sibling pmhc_tce_supported (VERDICT-INERT biology-axis label).
+_INTRACELL_FITS = {"pmhc_tce_supported", "pmhc_tce_supported_presentation_unconfirmed", "neither_viable"}
 _ROLLUP_FIT_ORDER = {"favorable": 3, "conditional": 2, "unfavorable": 0}
 
 

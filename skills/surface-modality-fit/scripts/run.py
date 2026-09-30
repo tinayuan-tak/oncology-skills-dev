@@ -51,6 +51,9 @@ _SURFACE_VALUE_TIERS = {
     "adc_preferred": "strong",
     "tce_preferred": "strong",
     "pmhc_tce_supported": "strong",
+    # #2113: pMHC-TCE route supported by IEDB epitope ground truth but the normal-presentation window is
+    # UNMEASURED — a caveated positive (moderate), weaker than the clean, restriction-confirmed positive.
+    "pmhc_tce_supported_presentation_unconfirmed": "moderate",
     "one_viable": "moderate",
     "neither_viable": "absent",
     "insufficient": "absent",
@@ -145,13 +148,26 @@ def _surface_tension_extra(headline: dict):
     call is not falsely read as "no biologics route" for an intracellular oncoprotein (WT1/PRAME/NY-ESO-1/
     MAGE-A4). Same slot/severity — it is the sharpest correction to the one-word call."""
     v = headline.get("surface_modality_verdict")
-    if v == "pmhc_tce_supported":
+    if v in ("pmhc_tce_supported", "pmhc_tce_supported_presentation_unconfirmed"):
         drv = headline.get("driving_rule_id")
         strength = (
             "T-cell-validated"
             if drv == "pmhc-iedb-tcell-validated-tce-supportive"
             else "HLA-presented (T-cell recognition uncharacterised)"
         )
+        if v == "pmhc_tce_supported_presentation_unconfirmed":
+            # #2113: IEDB epitope evidence supports the pMHC-TCE route, but the tumor-restriction /
+            # normal-presentation window is UNMEASURED (no benign-atlas pmhc-presentation read) — so this is
+            # a CAVEATED, NON-NOMINATING route, NOT the clean positive. Surface the caveat explicitly.
+            return {
+                "text": f"surface fit_class=neither_viable, and experimentally-validated pMHC epitopes "
+                f"({strength}) support a TCR-mimetic pMHC-TCE route the folded-surface ladder cannot see — "
+                f"BUT the normal-tissue presentation window is UNMEASURED (no benign-atlas read), so the "
+                f"route is caveated (NON-NOMINATING) not clean-credited: surface: neither_viable; "
+                f"pMHC-TCE: supported (normal-presentation UNCONFIRMED)",
+                "source": "pmhc_tce_route_presentation_unconfirmed",
+                "severity": 3,
+            }
         return {
             "text": f"surface fit_class=neither_viable, BUT experimentally-validated pMHC epitopes "
             f"({strength}) support a TCR-mimetic peptide-MHC T-cell engager (pMHC-TCE) route "
@@ -235,6 +251,15 @@ _VERDICT_ARMS = {
         "bite_tce": "not_viable",
         "antibody": "not_viable",
         "pmhc_tce": "supported",
+    },
+    # #2113: same surface arms (all not_viable — folded surface is dead), pMHC-TCE route supported by IEDB
+    # epitope ground truth but the normal-presentation window is UNMEASURED (benign-atlas absent) → the
+    # pmhc_tce arm carries the caveat rather than a clean "supported".
+    "pmhc_tce_supported_presentation_unconfirmed": {
+        "adc": "not_viable",
+        "bite_tce": "not_viable",
+        "antibody": "not_viable",
+        "pmhc_tce": "supported_presentation_unconfirmed",
     },
     "modality_ambiguous": {"adc": "ambiguous", "bite_tce": "ambiguous", "antibody": "ambiguous"},
     "isoform_dependent_undefined": {"adc": "undefined", "bite_tce": "undefined", "antibody": "undefined"},
@@ -563,7 +588,15 @@ _SM_MOD_POS = {
 # surface_annotation_only_unconfirmed (Phase-6, 2026-09-04): a positive fit DEMOTED for unconfirmed surface
 # accessibility (annotation-only) — the surface substrate may be real but is UNCONFIRMED, so a weak positive
 # (not a measured negative like neither_viable), and NON-NOMINATING (neutral in nomination_verdict_gate).
-_SM_WEAK_POS = {"shed_dominant_opposed", "surface_annotation_only_unconfirmed"}
+# pmhc_tce_supported_presentation_unconfirmed (#2113): the pMHC-TCE promotion DEMOTED for an unconfirmed
+# normal-presentation window (benign-atlas absent) — a caveated positive (the pMHC route survives), NON-
+# NOMINATING (absent from nomination_verdict_gate positive_signals / veto-downgrade), like the sibling
+# surface_annotation_only_unconfirmed. NOT in _SM_NEG (it is not a measured negative).
+_SM_WEAK_POS = {
+    "shed_dominant_opposed",
+    "surface_annotation_only_unconfirmed",
+    "pmhc_tce_supported_presentation_unconfirmed",
+}
 _SM_NEG = {"neither_viable", "tce_unsafe_normal_liability", "tce_escape_risk"}
 _SM_NONE = {"modality_ambiguous", "isoform_dependent_undefined", "insufficient", "data_unavailable", None}
 _SM_DECISION_CARDS = (
@@ -730,6 +763,10 @@ def _sm_modality_scope(v) -> dict | None:
         # The folded surface is neither_viable (adc/naked-antibody bind the folded protein → unfavorable),
         # but the peptide-MHC (pMHC-TCE) route is favorable via a TCR-mimetic T-cell engager (bite_tce).
         adc, bite = "unfavorable", "favorable"
+    elif v == "pmhc_tce_supported_presentation_unconfirmed":
+        # #2113: same pMHC-TCE route, but the normal-presentation window is UNMEASURED → the route is
+        # CONDITIONAL (caveated, non-nominating), not favorable. Surface arms remain unfavorable.
+        adc, bite = "unfavorable", "conditional"
     elif v in ("neither_viable", "shed_dominant_opposed"):
         adc = bite = "unfavorable"
     else:
@@ -934,8 +971,14 @@ def _pmhc_presentation_caveat(hl) -> dict | None:
     so the reader confirms a tumor-vs-normal presentation DIFFERENTIAL (peptide-level selectivity, HLA
     allele coverage) before advancing. It does NOT foreclose the route (NY-ESO-1/MAGE-A4 = restricted, no
     caveat; broadly-presented already moves the verdict via the resolver). None on any non-intermediate
-    class or non-pMHC verdict → byte-stable for the clean pMHC targets and every surface-viable call."""
-    if hl.get("surface_modality_verdict") != "pmhc_tce_supported":
+    class or non-pMHC verdict → byte-stable for the clean pMHC targets and every surface-viable call.
+
+    #2113: also fires for the caveat verdict pmhc_tce_supported_presentation_unconfirmed — an intermediate
+    presentation is exactly the middle band, and after #2113 an intermediate read resolves to the caveat
+    token (it fires neither the restricted nor the broad rule). The verdict already carries the
+    "presentation-unconfirmed" flag; this field preserves the RICH detail (n_tissues + the named sensitive
+    tissues) so that enrichment is not lost when the promotion demotes to the caveat."""
+    if hl.get("surface_modality_verdict") not in ("pmhc_tce_supported", "pmhc_tce_supported_presentation_unconfirmed"):
         return None
     if hl.get("pmhc_presentation_class") != "intermediate_presentation":
         return None
@@ -1290,10 +1333,17 @@ def _headline(cards, fired, verdict_pair):
         # neither_viable fit_class BY CONSTRUCTION (folded surface is neither-viable; the pMHC route is
         # the inverse positive), so keying on fit_class ∈ _FIT_CLASS_NEGATIVE renders that positive as a
         # surface-axis KILL on the spine/evidence-graph (issue #1572, 195/195 corpus rows). Suppress the
-        # override when the resolved verdict is a positive route; a genuine neither_viable veto (verdict
-        # == neither_viable ∉ _SM_MOD_POS/_SM_STRONG_POS) still keeps its killer.
+        # override when the resolved verdict is a positive route (STRONG / MOD / WEAK — the WEAK band
+        # carries pmhc_tce_supported_presentation_unconfirmed (#2113), the caveated pMHC route which ALSO
+        # sits on a neither_viable fit_class and is a positive route, not a kill); a genuine neither_viable
+        # veto (verdict == neither_viable ∉ any positive band) still keeps its killer.
         _smv = hl.get("surface_modality_verdict")
-        _kill = _v in _FIT_CLASS_NEGATIVE and _smv not in _SM_MOD_POS and _smv not in _SM_STRONG_POS
+        _kill = (
+            _v in _FIT_CLASS_NEGATIVE
+            and _smv not in _SM_MOD_POS
+            and _smv not in _SM_STRONG_POS
+            and _smv not in _SM_WEAK_POS
+        )
         hl["skill_report"] = build_skill_report(
             role=ROLE_GATING,
             verdict=_v,

@@ -239,6 +239,7 @@ VERDICT_ICONS = {
     "adc_preferred": "🟢",
     "tce_preferred": "🟢",
     "pmhc_tce_supported": "🟢",
+    "pmhc_tce_supported_presentation_unconfirmed": "🟡",  # #2113 caveat: pMHC route, normal-presentation UNMEASURED
     "well_covered": "🟢",
     "chemically_confirmed_genetic": "🟢",
     "concordant_dependent": "🟢",

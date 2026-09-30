@@ -78,10 +78,19 @@ def test_none_on_not_observed():
     assert _M._pmhc_presentation_caveat(_hl(pmhc_presentation_class="not_observed", pmhc_n_normal_tissues=0)) is None
 
 
-# ── (5) None when the verdict is NOT the pMHC route (additive pMHC signal on a surface-viable call) ─
+# ── (5) None when the verdict is NOT a pMHC route (additive pMHC signal on a surface-viable call) ─
 def test_none_when_verdict_not_pmhc_route():
     assert _M._pmhc_presentation_caveat(_hl(surface_modality_verdict="both_viable")) is None
     assert _M._pmhc_presentation_caveat(_hl(surface_modality_verdict="tce_unsafe_normal_liability")) is None
+
+
+# ── (5b, #2113) ALSO fires for the caveat verdict — an intermediate read now resolves to the caveat
+#     token, and the rich named-tissue detail must not be lost when the promotion demotes. ─────────────
+def test_fires_on_the_presentation_unconfirmed_caveat_verdict():
+    c = _M._pmhc_presentation_caveat(_hl(surface_modality_verdict="pmhc_tce_supported_presentation_unconfirmed"))
+    assert c is not None, "the intermediate-presentation detail must survive the #2113 demotion to the caveat verdict"
+    assert c["reason"] == "pmhc_intermediate_normal_presentation"
+    assert "Colon" in c["sensitive_normal_tissues"] and "Bone marrow" in c["sensitive_normal_tissues"]
 
 
 # ── (6) empty/absent tissue string still yields a caveat (fires on the class), just no named tissues ─

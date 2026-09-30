@@ -27,7 +27,15 @@
 #     a bite_tce-scoped modality positive registered in nomination_verdict_gate.yaml (positive_signals_
 #     modality_scoped, when_modality_in [bite_tce]); it is NOT kill-capable.
 gate: surface_modality
-version: 1.7.0   # 2026-09-04 Phase-6 (VERDICT-MOVING): NEW surface_annotation_only_unconfirmed rung (3c, priority
+version: 1.8.0   # 2026-09-30 (#2113, VERDICT-MOVING, FAIL-OPEN FIX): the CLEAN pmhc_tce_supported promotion now
+                # REQUIRES a MEASURED tumor-restricted normal-presentation conjunct (pmhc-restricted-presentation-
+                # tce-supportive) on rungs 23/24; when the benign-atlas read is ABSENT/unmeasured the promotion
+                # DEMOTES to the NEW NON-NOMINATING caveat pmhc_tce_supported_presentation_unconfirmed (25/26) —
+                # closing the tumor-agnostic-IEDB over-credit that rescued 160/504 intracellular non_dependent
+                # targets from veto→hold on a structurally-absent guard. Broad-presentation VETO (21/22) unchanged.
+                # (3c) annotation-only renumbered 25-27 -> 27-29; plain fit rungs 28-33 -> 30-35 (order-independent
+                # interpreter; relative order preserved). See the (3b) block comment for the full mechanism.
+                # 1.7.0 2026-09-04 Phase-6 (VERDICT-MOVING): NEW surface_annotation_only_unconfirmed rung (3c, priority
                 # 25-27) — a positive fit_class resting on surfaceome-family + PREDICTED topology with NO confirmed
                 # surface protein AND no clinical-biologic precedent (surface_confirmation_state==annotation_only,
                 # derived by the surface_modality card preprocessor) is DEMOTED to a NON-NOMINATING caveat. Ranks
@@ -142,10 +150,40 @@ resolve:
   #       normal-tce-opposing (previously narrative-only) and OUTRANK the pmhc_tce_supported promotion
   #       (21/22), withdrawing the un-earned positive → tce_unsafe_normal_liability (reuses the existing
   #       normal-tissue-liability verdict; the pMHC signal + normal-presentation detail stay in narration).
+  #
+  # (3b) NORMAL-PRESENTATION MEASUREDNESS CONJUNCT ON THE pMHC-TCE PROMOTION (#2113, 2026-09-30 — FAIL-OPEN
+  #      FIX). Before this fix the clean pmhc_tce_supported rungs (23/24) minted the verdict-moving positive
+  #      from the TUMOR-CONTEXT-AGNOSTIC IEDB epitope evidence ALONE (neither-viable-killer + an IEDB
+  #      positive), with NO normal-tissue-presentation conjunct. The IEDB rules themselves say IEDB is a
+  #      cancer-context flag, "the tumor-restriction/normal-presentation window still needs the benign-atlas
+  #      (pmhc-presentation)". So the ONLY corrective was the (3b') broad-presentation VETO — which fires
+  #      only when the SEPARATE, frequently-ABSENT pmhc-presentation card explicitly reads
+  #      broadly_presented_normal. Measured on n=504: pmhc_tce_supported = 195; of those 160 (82%) had NO
+  #      pmhc-presentation read at all (guard structurally absent → fail-OPEN), and the veto fired 0×. That
+  #      over-credited 160/504 intracellular targets to a verdict-moving positive that turns a
+  #      dependency:non_dependent veto→hold (nomination_verdict_gate biology_axis_scoped_veto_downgrade)
+  #      on weak, tumor-agnostic evidence.
+  #
+  #      THE FIX (mirrors the surface_annotation_only_unconfirmed discipline for unconfirmed surface
+  #      accessibility): the CLEAN pmhc_tce_supported now REQUIRES a MEASURED, tumor-RESTRICTED normal-
+  #      presentation read (pmhc-restricted-presentation-tce-supportive, atlas Q1 ≤3 normal tissues) as a
+  #      third conjunct (23/24). When the benign-atlas read is ABSENT/unmeasured (neither the restricted
+  #      nor the broad rule fired), the promotion DEMOTES to the NON-NOMINATING caveat
+  #      pmhc_tce_supported_presentation_unconfirmed (25/26) — the pMHC-TCE route is still surfaced from the
+  #      IEDB epitope ground truth, but it is NOT a clean positive and does NOT earn the veto→hold rescue
+  #      (absent from nomination_verdict_gate when_surface_verdict_in / positive_signals_modality_scoped).
+  #      Precedence (all require neither-viable-killer + an IEDB positive; single-value pmhc_presentation_
+  #      class group ⇒ at most one presentation rule fires, so these are non-overlapping): broad VETO
+  #      (21/22, MEASURED broad → unsafe) ▸ CLEAN (23/24, MEASURED restricted → clean positive) ▸ CAVEATED
+  #      fall-through (25/26, UNMEASURED → caveat). The caveated fall-through also co-matches the restricted
+  #      and broad cases, but its higher priority NUMBER (lower precedence) means it only wins when neither
+  #      the veto nor the clean rung matched — i.e. exactly when normal presentation is unmeasured.
   - {verdict: tce_unsafe_normal_liability, when_all_fired: [neither-viable-killer, pmhc-iedb-tcell-validated-tce-supportive, pmhc-broadly-presented-normal-tce-opposing], driving_rule: pmhc-broadly-presented-normal-tce-opposing, priority: 21}
   - {verdict: tce_unsafe_normal_liability, when_all_fired: [neither-viable-killer, pmhc-iedb-presented-tce-supportive, pmhc-broadly-presented-normal-tce-opposing], driving_rule: pmhc-broadly-presented-normal-tce-opposing, priority: 22}
-  - {verdict: pmhc_tce_supported, when_all_fired: [neither-viable-killer, pmhc-iedb-tcell-validated-tce-supportive], driving_rule: pmhc-iedb-tcell-validated-tce-supportive, priority: 23}
-  - {verdict: pmhc_tce_supported, when_all_fired: [neither-viable-killer, pmhc-iedb-presented-tce-supportive], driving_rule: pmhc-iedb-presented-tce-supportive, priority: 24}
+  - {verdict: pmhc_tce_supported, when_all_fired: [neither-viable-killer, pmhc-iedb-tcell-validated-tce-supportive, pmhc-restricted-presentation-tce-supportive], driving_rule: pmhc-iedb-tcell-validated-tce-supportive, priority: 23}
+  - {verdict: pmhc_tce_supported, when_all_fired: [neither-viable-killer, pmhc-iedb-presented-tce-supportive, pmhc-restricted-presentation-tce-supportive], driving_rule: pmhc-iedb-presented-tce-supportive, priority: 24}
+  - {verdict: pmhc_tce_supported_presentation_unconfirmed, when_all_fired: [neither-viable-killer, pmhc-iedb-tcell-validated-tce-supportive], driving_rule: pmhc-iedb-tcell-validated-tce-supportive, priority: 25}
+  - {verdict: pmhc_tce_supported_presentation_unconfirmed, when_all_fired: [neither-viable-killer, pmhc-iedb-presented-tce-supportive], driving_rule: pmhc-iedb-presented-tce-supportive, priority: 26}
 
   # (3c) SURFACE ANNOTATION-ONLY UNCONFIRMED (2026-09-04 Phase-6, VERDICT-MOVING). The surface analog of
   #      tractability's annotation_only_indirect. A POSITIVE fit_class (composed from surfaceome-family +
@@ -160,30 +198,31 @@ resolve:
   #      the false-demote the naive clamp would cause is AVOIDED. NON-NOMINATING (not in
   #      nomination_verdict_gate positive_signals). fit_class is still emitted alongside (the caveat is a
   #      confidence demotion of an unconfirmed positive, not a biology negative like neither_viable).
-  - {verdict: surface_annotation_only_unconfirmed, when_all_fired: [adc-preferred-supportive, surface-annotation-only-unconfirmed-opposing], driving_rule: surface-annotation-only-unconfirmed-opposing, priority: 25}
-  - {verdict: surface_annotation_only_unconfirmed, when_all_fired: [tce-preferred-supportive, surface-annotation-only-unconfirmed-opposing], driving_rule: surface-annotation-only-unconfirmed-opposing, priority: 26}
-  - {verdict: surface_annotation_only_unconfirmed, when_all_fired: [both-viable-supportive, surface-annotation-only-unconfirmed-opposing], driving_rule: surface-annotation-only-unconfirmed-opposing, priority: 27}
+  - {verdict: surface_annotation_only_unconfirmed, when_all_fired: [adc-preferred-supportive, surface-annotation-only-unconfirmed-opposing], driving_rule: surface-annotation-only-unconfirmed-opposing, priority: 27}
+  - {verdict: surface_annotation_only_unconfirmed, when_all_fired: [tce-preferred-supportive, surface-annotation-only-unconfirmed-opposing], driving_rule: surface-annotation-only-unconfirmed-opposing, priority: 28}
+  - {verdict: surface_annotation_only_unconfirmed, when_all_fired: [both-viable-supportive, surface-annotation-only-unconfirmed-opposing], driving_rule: surface-annotation-only-unconfirmed-opposing, priority: 29}
 
   # (4) PLAIN fit_class rungs (topology+family gate) — unchanged; the byte-stable base ladder. Reached
-  #     when no liability combination above fires (first-match). Priorities renumbered 25-30 -> 28-33
-  #     (order-independent interpreter; relative order preserved) to seat the (3c) annotation-only rungs.
+  #     when no liability combination above fires (first-match). Priorities renumbered 28-33 -> 30-35
+  #     (order-independent interpreter; relative order preserved) to seat the (3b) pMHC caveated fall-through
+  #     rungs (25/26) + the (3c) annotation-only rungs (27-29).
   - verdict: adc_preferred
     when_fired: adc-preferred-supportive
-    priority: 28
+    priority: 30
   - verdict: tce_preferred
     when_fired: tce-preferred-supportive
-    priority: 29
+    priority: 31
   - verdict: both_viable
     when_fired: both-viable-supportive
-    priority: 30
+    priority: 32
   - verdict: neither_viable
     when_fired: neither-viable-killer
-    priority: 31
+    priority: 33
   - verdict: isoform_dependent_undefined
     when_fired: isoform-dependent-modality-suppression
-    priority: 32
+    priority: 34
   - verdict: modality_ambiguous
     when_fired: modality-ambiguous-insufficient
-    priority: 33
+    priority: 35
 default: insufficient
 evaluation: match_all_reduce
