@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import copy
 import importlib.util
+import subprocess
 import sys
 from pathlib import Path
 
@@ -132,6 +133,31 @@ def test_gate_invocation_matches_preland_argv(monkeypatch, capsys):
     # And it must have actually examined the population, not short-circuited into a green.
     assert "13 famil(ies)" in out, out
     assert "48 (family, token) pair(s)" in out, out
+
+
+def test_gate_invocation_via_subprocess_matches_preland_argv():
+    """The A test in the STRICT arc-§2.6 sense: shell the validator out as a SUBPROCESS with the
+    literal relative argv from cwd contracts/, nothing patched. The `_main(...)` test above proves the
+    argv PARSES and the clauses run under a relative cwd, but NOT the `__main__` entrypoint / process
+    boundary the gate actually crosses (`python validators/validate_concordance_enum.py …`) — and a
+    test that calls the checker in-process is not an A test (arc trap §2.6, quoted by #2244). #2247's
+    roster reconciliation requires this subprocess form; without it concordance is the one wired
+    validator whose argv coverage is weaker than its four siblings'."""
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "validators/validate_concordance_enum.py",
+            "--enum",
+            "vocabularies/concordance_class.enum.yaml",
+            "--families",
+            "vocabularies/property_catalog/integrated_families.yaml",
+        ],
+        cwd=CONTRACTS,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0, f"gate argv failed:\nstdout={proc.stdout}\nstderr={proc.stderr}"
 
 
 def test_additivity_runs_on_a_RELATIVE_enum_path(monkeypatch):
