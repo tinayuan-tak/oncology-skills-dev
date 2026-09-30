@@ -14,6 +14,7 @@ import os
 from pathlib import Path
 
 import pytest
+from _skills_common.composition_schema import parse_skill_md_frontmatter
 from _skills_common.paths import TARGET_CONTRACTS_ROOT_DEFAULT
 
 yaml = pytest.importorskip("yaml")
@@ -24,17 +25,10 @@ VOCAB = TARGET_CONTRACTS / "vocabularies" / "measurement_types.yaml"
 
 
 def _skill_frontmatter() -> dict:
-    """Parse the YAML frontmatter block (between the first two '---' lines) of SKILL.md."""
-    text = SKILL_MD.read_text()
-    parts = text.split("---")
-    # frontmatter is parts[1] when the file starts with '---', else the first fenced block
-    for chunk in parts[1:]:
-        try:
-            doc = yaml.safe_load(chunk)
-        except yaml.YAMLError:
-            continue
-        if isinstance(doc, dict) and "composition" in doc:
-            return doc
+    """The skill's composition frontmatter, via the canonical parser (skills#2142)."""
+    doc = parse_skill_md_frontmatter(SKILL_MD)
+    if isinstance(doc, dict) and "composition" in doc:
+        return doc
     raise AssertionError("no composition frontmatter found in SKILL.md")
 
 

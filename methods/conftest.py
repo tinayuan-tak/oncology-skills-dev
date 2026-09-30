@@ -21,6 +21,8 @@ import os
 
 import pytest
 
+from methods._common.live_data_skip import is_live_data_exception
+
 # Exploratory method-development scripts (methods/<pkg>/method_development/<YYYY-MM>_<slug>/...) are
 # NOT unit tests: they invoke R and read live S3, and run on demand (see a package's method_development
 # README). Never let pytest collect anything beneath a method_development/ tree — a helper that happens
@@ -28,36 +30,17 @@ import pytest
 # fnmatch semantics: '*' expands to '.*' and crosses '/', so this ignores the whole subtree.
 collect_ignore_glob = ["*/method_development/*"]
 
-# Exception TYPE names that indicate "couldn't reach the data", not "the code is wrong".
-_LIVE_DATA_EXC_NAMES = frozenset(
-    {
-        "NoCredentialsError",
-        "PartialCredentialsError",
-        "ClientError",
-        "EndpointConnectionError",
-        "ConnectTimeoutError",
-        "ReadTimeoutError",
-        "SSLError",
-        "CredentialRetrievalError",
-    }
-)
-
 
 def _is_live_data_failure(excinfo) -> bool:
-    """True iff the raised exception is an S3/credential/endpoint error (chain-aware)."""
+    """True iff the raised exception is an S3/credential/endpoint error (chain-aware).
+
+    The TYPE-based classification itself is shared with skills/_skills_common/tests/conftest.py's
+    skip_if_no_data via methods._common.live_data_skip (skills#2142) — this wrapper just adapts the
+    pytest ExceptionInfo shape this hook receives.
+    """
     if excinfo is None:
         return False
-    exc = excinfo.value
-    seen = 0
-    while exc is not None and seen < 10:  # walk the __cause__/__context__ chain
-        etype = type(exc)
-        if getattr(etype, "__module__", "").split(".")[0] == "botocore":
-            return True
-        if etype.__name__ in _LIVE_DATA_EXC_NAMES:
-            return True
-        exc = exc.__cause__ or exc.__context__
-        seen += 1
-    return False
+    return is_live_data_exception(excinfo.value)
 
 
 @pytest.hookimpl(hookwrapper=True)

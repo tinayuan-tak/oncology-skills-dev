@@ -229,6 +229,12 @@ def _example_instance(t: dict, graph: dict, roots: dict) -> dict:
 
 
 def _skill_md_fields(path: Path) -> dict:
+    # NOT routed through skills._skills_common.composition_schema.parse_skill_md_frontmatter
+    # (skills#2142 survey): this dashboard-generator script runs via plain
+    # `python architecture_dashboard/living/concepts.py` (contracts/scripts/preland.sh's "bare
+    # python, no pixi env" invocation) — importing a skills/ package under that invocation raises
+    # ModuleNotFoundError (verified 2026-09-30, no sys.path entry for skills/ exists here). Left in
+    # place per the issue's own conditional.
     import re
 
     txt = path.read_text()

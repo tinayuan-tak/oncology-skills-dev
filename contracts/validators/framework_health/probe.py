@@ -189,7 +189,17 @@ def _resolver_gate_arg(tree: ast.Module) -> Optional[str]:
 # SKILL.md frontmatter + prose
 # ===========================================================================
 def parse_skill_md(skill_dir: Path) -> dict:
-    """Parse frontmatter (YAML between the first two `---` fences) + prose markers."""
+    """Parse frontmatter (YAML between the first two `---` fences) + prose markers.
+
+    NOT routed through the canonical `skills._skills_common.composition_schema.
+    parse_skill_md_frontmatter` (skills#2142 survey): this script runs via plain
+    `python validators/framework_health/probe.py` under contracts/scripts/preland.sh, which is bare
+    python with no pixi env and no sys.path entry for skills/ — `import _skills_common...` raises
+    ModuleNotFoundError under that invocation (verified 2026-09-30), and this function is also a
+    strict superset of the canonical parser (it additionally extracts declared_status/phase,
+    cards_used, rules_scope, and prose markers from the SAME frontmatter dict in one pass), so
+    delegating would still leave a local re-implementation for everything past the raw YAML parse.
+    Left in place per the issue's own conditional."""
     md = skill_dir / "SKILL.md"
     out: dict[str, Any] = {
         "skill_md_exists": md.exists(),

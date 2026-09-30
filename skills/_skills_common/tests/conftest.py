@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from methods._common.live_data_skip import is_live_data_exception
 
 
 def _scrub_volatile(pkg: dict) -> dict:
@@ -55,10 +56,18 @@ _S3_ACCESS_MARKERS = (
 
 def skip_if_no_data(thunk):
     """Call `thunk()` and return its result; skip the test if the live read could not access data
-    (S3 access error raised, OR a structured no-data dict returned). Non-S3 exceptions propagate."""
+    (S3 access error raised, OR a structured no-data dict returned). Non-S3 exceptions propagate.
+
+    Two classifiers, layered: the TYPE-based `is_live_data_exception` (shared with
+    methods/conftest.py's pytest_runtest_makereport hook via methods._common.live_data_skip,
+    skills#2142) catches a raw botocore/credential exception; the message-marker fallback below
+    covers cases already wrapped/re-raised as a different exception type but still carrying an S3
+    access failure in its message (e.g. a reader that re-raises as a bare RuntimeError)."""
     try:
         result = thunk()
     except Exception as e:  # noqa: BLE001 — classify, then re-raise if not an S3 access issue
+        if is_live_data_exception(e):
+            pytest.skip(f"live S3 object read not permitted in this environment ({type(e).__name__})")
         msg = f"{type(e).__name__}: {e}".lower()
         if any(marker in msg for marker in _S3_ACCESS_MARKERS):
             pytest.skip(f"live S3 object read not permitted in this environment ({type(e).__name__})")
