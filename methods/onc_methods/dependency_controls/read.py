@@ -15,7 +15,13 @@ NO percentile product: Chronos is already control-normalized, so control genes a
 read DIRECTLY from the CRISPR matrix (cheap lru-cached column reads).
 
 data_unavailable-safe: vocab/Chronos read failure → dep_control_position_class of
-data_unavailable, never a raise (so this can land before the vocab is merged).
+data_unavailable, never a raise (so this can land before the vocab is merged). A
+TRANSIENT read failure (S3/network/credentials) on the target OR any control gene is
+distinguished from genuine gene-absence (#2184): absence degrades that one member to
+None as before, but a transient failure aborts the whole computation to
+data_unavailable rather than silently dropping the failed member out of its band —
+the bands are data-driven from the control genes, so a silently-narrowed band would
+bias the pan-essential/non-essential bounds the classifier reads.
 """
 
 from __future__ import annotations
@@ -41,29 +47,46 @@ def _load_controls(contracts_dir: str) -> dict:
     return yaml.safe_load(path.read_text())
 
 
+class TransientReadFailure(RuntimeError):
+    """A control/target Chronos read failed for a reason OTHER than genuine gene-absence
+    from the DepMap panel (S3 throttle, credentials, network, malformed row, ...).
+
+    Distinguishing this from absence matters (#2184): `get_chronos_column` returning
+    None (or an empty/no-signal column) is the panel's own, reproducible verdict that
+    the gene is not there — a legitimate `None`. A raised exception is NOT that; it is
+    unknown-state, and treating it the same as absence let a transient failure quietly
+    drop a control gene out of its pos/neg band with no marker, biasing the data-driven
+    pan-essential/non-essential bounds that the classifier reads directly.
+    """
+
+
 def _median_chronos(symbol: str, release_pin: str) -> Optional[float]:
     """Pan-panel median Chronos for a gene, via the cheap column-projection read.
-    Returns None if the gene is absent from the panel or the read fails."""
-    try:
-        from onc_methods.depmap_common.parquet import get_chronos_column
 
+    Returns None ONLY for genuine gene-absence (not in the DepMap panel, or present with
+    no non-null values across the panel) — that is a real, reproducible data condition.
+    A read failure (S3/network/credentials/malformed data) raises TransientReadFailure
+    instead of silently returning None, so callers can refuse to compute a control band
+    that lost a member to an unknown-state failure rather than a true absence (#2184).
+    """
+    from onc_methods.depmap_common.parquet import get_chronos_column
+
+    try:
         df = get_chronos_column(symbol, release_pin)
-    except Exception:  # noqa: BLE001 — never break the render path on a read failure
-        return None
+    except Exception as e:  # noqa: BLE001 — real failure, NOT absence: surface as a typed marker
+        raise TransientReadFailure(f"{symbol}: {type(e).__name__}: {e}") from e
     if df is None:
-        return None
+        return None  # genuine absence: gene not present in the DepMap panel
     cols = [c for c in df.columns if c != "ModelID"]
     if not cols:
-        return None
+        return None  # genuine absence: column-projection returned no gene column
     try:
-        import pandas as pd  # noqa: F401
-
         series = df[cols[0]].dropna()
-        if len(series) == 0:
-            return None
-        return float(series.median())
-    except Exception:  # noqa: BLE001
-        return None
+    except Exception as e:  # noqa: BLE001 — malformed data is a real failure, not absence
+        raise TransientReadFailure(f"{symbol}: {type(e).__name__}: {e}") from e
+    if len(series) == 0:
+        return None  # genuine absence: gene present but every model value is null
+    return float(series.median())
 
 
 def _classify_dep_control_position(target_med: Optional[float], pos_meds: dict, neg_meds: dict) -> str:
@@ -121,9 +144,43 @@ def control_position_dependency(
             "dep_control_method_version": METHOD_VERSION,
         }
 
-    target_med = _median_chronos(target, release_pin)
-    pos_meds = {sym: _median_chronos(sym, release_pin) for sym in (controls.get("positive_controls") or {})}
-    neg_meds = {sym: _median_chronos(sym, release_pin) for sym in (controls.get("negative_controls") or {})}
+    def _safe_median(sym: str):
+        """(median, failure_note) — failure_note is None on success (incl. genuine absence)."""
+        try:
+            return _median_chronos(sym, release_pin), None
+        except TransientReadFailure as e:
+            return None, str(e)
+
+    target_med, target_failure = _safe_median(target)
+    pos_meds: dict = {}
+    neg_meds: dict = {}
+    failures: dict = {}
+    if target_failure is not None:
+        failures[target] = target_failure
+    for sym in controls.get("positive_controls") or {}:
+        med, failure = _safe_median(sym)
+        pos_meds[sym] = med
+        if failure is not None:
+            failures[sym] = failure
+    for sym in controls.get("negative_controls") or {}:
+        med, failure = _safe_median(sym)
+        neg_meds[sym] = med
+        if failure is not None:
+            failures[sym] = failure
+
+    if failures:
+        # A transient failure on ANY member (target or control) is unknown-state, not
+        # absence — refuse to compute a band that would silently lose that member
+        # (#2184), rather than quietly narrowing the pan-essential/non-essential bounds.
+        return {
+            "dep_control_position_class": "data_unavailable",
+            "_dep_control_note": (
+                "transient read failure (not genuine absence) on "
+                f"{', '.join(sorted(failures))}; refusing to compute a control band that "
+                "would silently drop a member: " + "; ".join(f"{k}: {v}" for k, v in failures.items())
+            ),
+            "dep_control_method_version": METHOD_VERSION,
+        }
 
     klass = _classify_dep_control_position(target_med, pos_meds, neg_meds)
 

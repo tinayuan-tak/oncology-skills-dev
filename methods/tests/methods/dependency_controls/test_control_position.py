@@ -106,6 +106,67 @@ def test_missing_vocab_degrades_not_raises(tmp_path, monkeypatch):
     assert "_dep_control_note" in r
 
 
+# ---- #2184: transient read failure vs genuine absence ----
+def test_median_chronos_raises_transient_on_read_exception(monkeypatch):
+    """A read-layer exception (S3 throttle/creds/network) must propagate as
+    TransientReadFailure, NOT collapse to the same bare None as genuine absence."""
+    import onc_methods.depmap_common.parquet as parquet_mod
+
+    def _boom(symbol, release_pin):
+        raise ConnectionError("simulated transient S3 failure")
+
+    monkeypatch.setattr(parquet_mod, "get_chronos_column", _boom)
+    with pytest.raises(DC.TransientReadFailure):
+        DC._median_chronos("SOME_GENE", "26q3")
+
+
+def test_median_chronos_returns_none_on_genuine_absence(monkeypatch):
+    """get_chronos_column returning None (gene not in panel) is genuine absence:
+    _median_chronos must return None, never raise."""
+    import onc_methods.depmap_common.parquet as parquet_mod
+
+    monkeypatch.setattr(parquet_mod, "get_chronos_column", lambda symbol, release_pin: None)
+    assert DC._median_chronos("GHOST_GENE", "26q3") is None
+
+
+def test_transient_control_failure_refuses_to_narrow_band(contracts, monkeypatch):
+    """A transient failure on ONE control gene must not silently drop it from the band
+    (which would narrow the pan-essential ceiling / non-essential floor) — the whole
+    computation must degrade to data_unavailable, distinct from genuine absence."""
+
+    def _flaky(symbol, release_pin):
+        if symbol == "PANESS_SHALLOW":  # this control sets the ceiling in the fixture
+            raise DC.TransientReadFailure("simulated transient failure")
+        if symbol in _CONTROL_MEDIANS:
+            return _CONTROL_MEDIANS[symbol]
+        return -0.46  # target value, irrelevant to this assertion
+
+    monkeypatch.setattr(DC, "_median_chronos", _flaky)
+    r = DC.control_position_dependency("KRAS_LIKE", contracts_dir=contracts)
+    assert r["dep_control_position_class"] == "data_unavailable"
+    assert "PANESS_SHALLOW" in r["_dep_control_note"]
+    assert "transient" in r["_dep_control_note"]
+    # must NOT silently emit a band computed from the surviving 3 controls
+    assert "dep_control_pan_essential_ceiling" not in r
+
+
+def test_transient_target_failure_is_distinguished_from_absent_target(contracts, monkeypatch):
+    """A transient failure reading the TARGET's own Chronos must also refuse to compute
+    (data_unavailable with a note naming it), same outcome as absence but a DIFFERENT,
+    identifiable reason — the note must say so, not just report data_unavailable blind."""
+
+    def _flaky(symbol, release_pin):
+        if symbol in _CONTROL_MEDIANS:
+            return _CONTROL_MEDIANS[symbol]
+        raise DC.TransientReadFailure("simulated transient failure on target")
+
+    monkeypatch.setattr(DC, "_median_chronos", _flaky)
+    r = DC.control_position_dependency("FLAKY_TARGET", contracts_dir=contracts)
+    assert r["dep_control_position_class"] == "data_unavailable"
+    assert "FLAKY_TARGET" in r["_dep_control_note"]
+    assert "transient" in r["_dep_control_note"]
+
+
 # ---- assembly + provenance ----
 def test_emits_provenance_and_control_medians(contracts, monkeypatch):
     monkeypatch.setattr(DC, "_median_chronos", _mock_median(-0.46))
