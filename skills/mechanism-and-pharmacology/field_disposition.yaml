@@ -100,8 +100,9 @@ signaling-network-mechanism:
   moa_ontology_unmapped_fraction:
     role: provenance
     reason: "float — fraction of curated edges that fell to 'unmapped' class; a data-quality/audit
-      metric stamped into provenance.yaml and CI-enforced (<5% target, SKILL.md). No exact reader
-      (census 2026-09-27); surfaced as a reproducibility QC token"
+      metric stamped into provenance.yaml and CI-enforced (<5% target, SKILL.md). Lifted into the
+      machine-readable headline (run.py, exact reader, #1807) so it is no longer prose-only;
+      surfaced as a reproducibility QC token"
     reviewed: true
   source_counts:
     role: provenance

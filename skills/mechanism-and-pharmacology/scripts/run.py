@@ -663,6 +663,12 @@ def _headline(cards, fired, verdict_pair, target=None):
         "has_actionable_moa": get_card_field(cards, "signaling-network-mechanism", "has_actionable_moa"),
         "has_pd_marker": get_card_field(cards, "signaling-network-mechanism", "has_pd_marker"),
         "moa_ontology_version": get_card_field(cards, "signaling-network-mechanism", "moa_ontology_version"),
+        # coverage-quality signal (#1807 carved slice) — fraction of curated edges that fell to
+        # 'unmapped' class; a data-quality/audit metric, verdict-inert. Lifted into the machine-
+        # readable headline so downstream consumers no longer need prose-only access.
+        "moa_ontology_unmapped_fraction": get_card_field(
+            cards, "signaling-network-mechanism", "moa_ontology_unmapped_fraction"
+        ),
         # Phospho ACTIVITY facet (re-homed 2026-08-05) — CPTAC phosphoproteomics signaling-state
         # readout. Display-only (feeds no resolver); enriches the mechanism picture for kinases/
         # signaling nodes. data_unavailable for indications with no CPTAC cohort or non-phosphoproteins.
