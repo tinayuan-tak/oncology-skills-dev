@@ -80,6 +80,36 @@ def test_self_driven_flag():
     assert h["pred_self_driven"] is True
 
 
+def test_signor_corroboration_keys_reach_synthesis_facet():
+    """Issue #1564: the SIGNOR-partner-corroboration keys emitted by _predictability_mechanism_facet
+    were reaching _headline but not _SYNTHESIS_FACET_KEYS, so the composed target-profile consumer
+    (which reads only the synthesis facet, not the raw headline) never saw them. Pin all 6 keys, not
+    just pred_predictability_class."""
+    for key in (
+        "pred_predictability_class",
+        "pred_dominant_feature_class",
+        "pred_self_driven",
+        "pred_mechanistic_partner_features",
+        "pred_signor_corroborated_partners",
+        "pred_n_signor_corroborated",
+    ):
+        assert key in me._SYNTHESIS_FACET_KEYS, (
+            f"{key} emitted by _predictability_mechanism_facet but stranded from synthesis"
+        )
+
+
+def test_synthesis_facet_carries_signor_corroboration():
+    """End-to-end: _synthesis_facet (the actual composed-consumer path) must carry the corroboration,
+    not just _headline."""
+    facet = me._synthesis_facet(_cards(_PRED_SUMMARY, _SIGNOR_SUMMARY), [], None)
+    assert facet["pred_signor_corroborated_partners"] == ["EDA2R"]
+    assert facet["pred_n_signor_corroborated"] == 1
+    assert facet["pred_self_driven"] is False
+    assert facet["pred_dominant_feature_class"] == "cross_gene_expression"
+    genes = {pf["gene"] for pf in facet["pred_mechanistic_partner_features"]}
+    assert genes == {"EDA2R", "MYC"}
+
+
 def test_predictability_is_verdict_inert():
     """Display-only: mechanism_verdict identical with a populated vs empty predictability card, and the
     facet degrades (never raises) when the data is absent."""

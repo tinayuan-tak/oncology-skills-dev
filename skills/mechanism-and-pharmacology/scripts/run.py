@@ -650,6 +650,16 @@ def _headline(cards, fired, verdict_pair, target=None):
         "phospho_activity_class": get_card_field(cards, "phospho-pathway-activity", "phospho_activity_class"),
         "n_phosphosites": get_card_field(cards, "phospho-pathway-activity", "n_phosphosites"),
         "max_site_detection_fraction": get_card_field(cards, "phospho-pathway-activity", "max_site_detection_fraction"),
+        # Detection-gap disambiguation (card caveats mandate reading these before inferring biology off
+        # phospho_not_detected): phosphoprotein_detected_in_other_cohorts=true means THIS cohort's zero is
+        # a detection gap, not a real no-signal; phospho_axis_uninformative_reason names why the axis is
+        # data_unavailable when not simply a missing cohort (e.g. total_protein_not_detected_in_cohort).
+        "phosphoprotein_detected_in_other_cohorts": get_card_field(
+            cards, "phospho-pathway-activity", "phosphoprotein_detected_in_other_cohorts"
+        ),
+        "phospho_axis_uninformative_reason": get_card_field(
+            cards, "phospho-pathway-activity", "phospho_axis_uninformative_reason"
+        ),
         # Tahoe single-cell drug-perturbation MoA facet (added 2026-08-10) — which drugs move the
         # target's expression, in how many cancer lines. Display-only (feeds no resolver); a
         # target-ENGAGEMENT / MoA lens (engagement != dependency, per the Pilot-2 backtest).
@@ -789,9 +799,21 @@ _SYNTHESIS_FACET_KEYS = (
     "network_class",
     "has_actionable_moa",
     "phospho_activity_class",
+    # detection-gap disambiguation for phospho_not_detected (issue #1564): the card caveats mandate
+    # reading these before inferring biology off a not_detected class.
+    "phosphoprotein_detected_in_other_cohorts",
+    "phospho_axis_uninformative_reason",
     "pathway_activity_class",
     "tahoe_perturbation_class",
     "pred_predictability_class",
+    # SIGNOR-partner-corroboration keys from _predictability_mechanism_facet (issue #1564): cross-
+    # references the predictability feature attribution against the composed curated network partners —
+    # emitted since the facet's introduction but never previously reached synthesis.
+    "pred_dominant_feature_class",
+    "pred_self_driven",
+    "pred_mechanistic_partner_features",
+    "pred_signor_corroborated_partners",
+    "pred_n_signor_corroborated",
     "claim_vector",
     "key_signals",
     # verdict-INERT actionable-MoA INFLATION surfacing (2026-09-04): the has_actionable_moa context-free /
