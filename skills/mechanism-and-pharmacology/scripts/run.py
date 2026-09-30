@@ -459,12 +459,16 @@ def _curation_gap_note(network_class, phospho, pathway_activity, tahoe, coess_pa
         edge the curation missed.
     Only measured target PHOSPHO-activity and DepMap CO-ESSENTIALITY partners are TARGET-SPECIFIC functional
     signals. So we split the corroboration and set the strength accordingly:
-      - >=1 target-specific signal → 'curated_network_under_reads_operative_signal' (likely curation gap;
+      - >=2 target-specific signals (corroboration across BOTH independent lanes — phospho AND
+        co-essentiality) → 'curated_network_under_reads_operative_signal' (likely curation gap;
         the IDH1/WRN pattern — a real mechanism tissue-agnostic curation misses).
-      - ONLY indication/expression-level signals → 'thin_network_context_level_signal_only' (the thin
-        network may reflect a GENUINELY non-signaling target — surface antigen / metabolic / structural
-        protein — as readily as a curation gap; do NOT assert a gap). This keeps the honest hypothesis
-        without over-claiming a mechanism CEACAM5/MSLN-type surface antigens do not have."""
+      - A single target-specific signal, or ONLY indication/expression-level signals →
+        'thin_network_context_level_signal_only' (the thin network may reflect a GENUINELY non-signaling
+        target — surface antigen / metabolic / structural protein — as readily as a curation gap; do NOT
+        assert a gap on one lane alone). This keeps the honest hypothesis without over-claiming a
+        mechanism CEACAM5/MSLN-type surface antigens do not have.
+      (2026-09-30, issue #1808: raised from a single-signal trigger, which asserted an operative-mechanism
+      curation gap off as little as one phospho class or one co-essential partner.)"""
     thin = network_class in {"sparse", "partial", "data_unavailable"}  # set, not tuple (drift-guard)
     if not thin:
         return None
@@ -480,7 +484,7 @@ def _curation_gap_note(network_class, phospho, pathway_activity, tahoe, coess_pa
         context_level.append(f"drug-perturbation EXPRESSION engagement ({tahoe}; expression, not a signaling edge)")
     if not (target_specific or context_level):
         return None
-    if target_specific:
+    if len(target_specific) >= 2:
         signals = target_specific + context_level
         return {
             "reason": "curated_network_under_reads_operative_signal",
@@ -494,6 +498,25 @@ def _curation_gap_note(network_class, phospho, pathway_activity, tahoe, coess_pa
                 "IDH1, a synthetic-lethal-exploited dependency, or a fusion-rewired driver) can be missing "
                 "from tissue-agnostic curated edges — read a thin network_class as a likely CURATION gap "
                 "here, not proof of no mechanism."
+            ),
+        }
+    if target_specific:
+        # Exactly one target-specific signal: below the >=2 corroboration threshold (#1808) — surface it
+        # alongside any context-level signals, but fall through to the conservative note rather than
+        # asserting a curation gap off a single, uncorroborated lane.
+        all_signals = target_specific + context_level
+        return {
+            "reason": "thin_network_context_level_signal_only",
+            "context_level_signals": context_level,
+            "target_specific_signals": target_specific,
+            "note": (
+                f"The curated signaling network is thin (network_class={network_class}); only a single "
+                "target-specific signal is present, below the corroboration threshold for asserting a "
+                "curation gap: " + "; ".join(all_signals) + ". A lone phospho or co-essentiality signal, "
+                "without corroboration across both independent lanes, may reflect a GENUINELY non-signaling "
+                "target — a lineage-restricted surface antigen (CEACAM5/MSLN), a metabolic or structural "
+                "protein — as readily as a curation gap. Do NOT read this as evidence of an uncaptured "
+                "signaling mechanism; confirm the target's biology via the literature lane (--literature)."
             ),
         }
     return {

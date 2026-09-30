@@ -117,12 +117,14 @@ def test_prediction_lane_coessentiality_only():
 
 
 # ── curation_gap_note ─────────────────────────────────────────────────────────────────────────────────
-def test_curation_gap_fires_on_thin_network_with_operative_signal():
-    """MTAP-like: thin (partial) curated network but a functional co-essentiality signal + drug-perturbation
-    engagement → the curated network under-reads an operative mechanism."""
-    c = RUN._curation_gap_note("partial", "phospho_not_detected", None, "drug_suppressed", 4)
+def test_curation_gap_fires_on_thin_network_with_two_corroborating_operative_signals():
+    """MTAP-like: thin (partial) curated network but BOTH independent target-specific lanes — measured
+    phospho-activity AND a functional co-essentiality signal — corroborate each other → the curated
+    network under-reads an operative mechanism. (#1808: raised from a single-signal trigger.)"""
+    c = RUN._curation_gap_note("partial", "phospho_active", None, "drug_suppressed", 4)
     assert c is not None and c["reason"] == "curated_network_under_reads_operative_signal"
     assert "co-essential" in c["note"]
+    assert len(c["target_specific_signals"]) >= 2
 
 
 def test_curation_gap_none_when_network_rich():
@@ -148,12 +150,23 @@ def test_curation_gap_context_level_only_does_not_assert_gap():
     assert "genuinely non-signaling" in c["note"].lower() or "genuinely non-signaling" in c["note"]
 
 
-def test_curation_gap_target_specific_wins_over_context_level():
-    """When BOTH a target-specific (co-essentiality) and context-level signal are present, the strong
-    curation-gap reason fires and the context-level signal is carried as additional context."""
-    c = RUN._curation_gap_note("partial", "phospho_not_detected", "relatively_high", "drug_suppressed", 3)
+def test_curation_gap_single_target_specific_signal_falls_through():
+    """#1808: a SINGLE target-specific signal (one co-essentiality lane, no corroborating phospho) is
+    below the ≥2-signal corroboration threshold — it must NOT assert the affirmative curation-gap /
+    operative-mechanism note. It falls through to the conservative context-level reason, carrying the
+    lone signal as context rather than asserting a mechanism off one lane."""
+    c = RUN._curation_gap_note("partial", "phospho_not_detected", None, "drug_suppressed", 4)
+    assert c is not None and c["reason"] == "thin_network_context_level_signal_only"
+    assert c["target_specific_signals"] and "co-essential" in "; ".join(c["target_specific_signals"])
+
+
+def test_curation_gap_target_specific_wins_over_context_level_when_corroborated():
+    """When BOTH independent target-specific lanes (phospho AND co-essentiality) are present alongside a
+    context-level signal, the strong curation-gap reason fires and the context-level signal is carried
+    as additional context."""
+    c = RUN._curation_gap_note("partial", "phospho_active", "relatively_high", "drug_suppressed", 3)
     assert c["reason"] == "curated_network_under_reads_operative_signal"
-    assert c["target_specific_signals"] and c["context_level_signals"]
+    assert len(c["target_specific_signals"]) >= 2 and c["context_level_signals"]
 
 
 # ── prediction_lane_caveat MATERIALITY gate (v1.10.0) ──────────────────────────────────────────────────
