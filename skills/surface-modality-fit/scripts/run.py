@@ -1343,6 +1343,56 @@ _SYNTHESIS_FACET_KEYS = (
     "surfaceome_cohort_rank_class",
     "bulk_pair_best_and_partner",
     "bulk_pair_best_and_selectivity",
+    # BILLED ADDITIVE FACETS — carried to the composed target-profile consumer (#1571). These fields
+    # are already lifted into the standalone _headline above but were omitted here, so every "billed
+    # additive facet" below was invisible to the dominant composed consumer (standalone-only). All are
+    # verdict-INERT (their cards feed NO resolver rung — the surface_modality resolver keys on fit_class
+    # + the safety/density/shed movers only), so carrying them cannot move the verdict. This is a
+    # facet-key expansion only — no new card-field read is added, so the field_read_health census is
+    # unchanged. (#1571 confines the fix to run.py; the two fully-stranded, zero-lift cards
+    # sc-surface-normal-safety / sc-surface-rna-protein-concordance are deferred — they need new
+    # _headline lifts + a _skills_common change out of this issue's scope.)
+    #
+    # surface-colocalization-avidity — the ONLY consumer of the pair physics / unique normal-selectivity
+    # window (finding #3): all 11 lifted fields were dropped from the fan-out.
+    "samecell_avidity_class",
+    "samecell_best_partner",
+    "samecell_best_enrichment_median",
+    "samecell_best_both_fraction_median",
+    "samecell_n_partners_tested",
+    "samecell_n_coordinated_partners",
+    "samecell_window_verdict",
+    "samecell_window_best_partner",
+    "samecell_selectivity_margin",
+    "samecell_n_window_open",
+    "samecell_normal_liability_locus",
+    # surfaceome-cohort-ranking — the only cross-target ranking context (finding #5). cohort_rank_class
+    # already propagated (above); its continuous rank/percentile were headline-only.
+    "surfaceome_tissue_rank",
+    "surfaceome_tissue_percentile_rna",
+    "surfaceome_rna_protein_concordance",
+    # surface-bulk-pair-selectivity — AND/OR/NOT logic-gate necessity screen (finding #6). best_and
+    # partner/selectivity already propagated (above); the rule-matchable call + NOT-gate partner + N
+    # were headline-only.
+    "bulk_pair_best_and_call",
+    "bulk_pair_best_not_partner",
+    "bulk_pair_n_partners_scanned",
+    # mutation/pathway-stratified-surface — biologics-unique patient-selection handles (finding #7).
+    "mutant_stratified_surface_class",
+    "mutant_surface_driver",
+    "mutant_surface_delta_log2",
+    "pathway_stratified_surface_class",
+    "pathway_surface_signature",
+    "pathway_surface_delta_log2",
+    # cd-antigen-backbone (clinical-precedent prior) + modality-exon-window (exon-resolution window) —
+    # verdict-inert facets that were entirely off the fan-out (finding #8).
+    "cd_antigen_backbone_class",
+    "cd_number",
+    "cd_established_io_precedent",
+    "exon_window_class",
+    "exon_best_exon_id",
+    "exon_best_exon_window_ratio",
+    "exon_heterogeneity_log2",
     "claim_vector",
     "key_signals",
     # the per-question (data·signal·confidence) rows — rendered as the leading table by target-profile too

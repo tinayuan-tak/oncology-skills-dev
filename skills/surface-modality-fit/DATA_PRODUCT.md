@@ -26,12 +26,15 @@ substrate call; fuses topology + surfaceome family), `surface-topology-and-ptm`,
 `structure-features-static`, `surface-abundance-density`.
 
 **Safety / density / shed downgrade arms (drive `surface_modality_verdict`, not `fit_class`):**
-`normal-tissue-liability` (HPA-IHC), `sc-normal-celltype-expression` + `sc-surface-normal-safety` (scRNA/CITE-seq
-normal), `shed-ectodomain-liability` (soluble-antigen sink), `modality-therapeutic-window`.
+`normal-tissue-liability` (HPA-IHC), `sc-normal-celltype-expression` (scRNA cell-type normal — the
+verdict-moving bite/TCE killer `sc-normal-high-liability-bite-killer`), `shed-ectodomain-liability`
+(soluble-antigen sink), `modality-therapeutic-window`.
 
 **Antigen-escape / presentation / patient-selection (verdict-inert or arm-scoped):** `tumor-scrna-celltype-expression`
 (within-tumor escape), `pmhc-presentation`, `modality-exon-window`, `mutation-stratified-surface`,
-`pathway-stratified-surface`, `cd-antigen-backbone`, `protein-surface-evidence` (CSPA), `sc-surface-rna-protein-concordance`,
+`pathway-stratified-surface`, `cd-antigen-backbone`, `protein-surface-evidence` (CSPA), `sc-surface-normal-safety`
+(CITE-seq surface-protein normal footprint — additive signal-only, its rules feed NO resolver rung so it
+does NOT move `surface_modality_verdict`), `sc-surface-rna-protein-concordance`,
 `rna-protein-concordance-tumor`, `copy-number-distribution`, `cellline-surfaceome-abundance` (Surfaceome 26Q3
 paired DIA-MS surface-confirmed abundance + surface-vs-wholecell enrichment lens; `interpretation: rules_pending`
 — no rule/rung reads it, additive display only).
