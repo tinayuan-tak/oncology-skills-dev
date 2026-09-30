@@ -55,11 +55,12 @@ ALL_IDS = V.collect_entry_ids(CATALOG)
 def test_catalog_is_not_empty():
     """Anti-vacuity floor. Without this, an empty glob would make every parametrized test below
     collect zero cases and the whole module would pass while checking nothing."""
-    # Ratcheted 3->4 / 25->33 by PR-1a of epic SK#2210 (+safety.yaml, 8 L2a properties). The floor is
-    # what makes every sweep and parametrized clause below non-vacuous for the NEWEST file: without the
-    # ratchet, safety.yaml could drop out of the glob and the whole module would stay green.
-    assert len(CATALOG_FILES) >= 4, f"expected >= 4 catalog files, found {[p.name for p in CATALOG_FILES]}"
-    assert len(ALL_IDS) >= 33, f"expected >= 33 catalog entries, found {len(ALL_IDS)}"
+    # Ratcheted 3->4 / 25->33 by PR-1a (+safety.yaml, 8), then 4->5 / 33->39 by PR-1b of epic SK#2210
+    # (+dependency.yaml, 6 L2a properties). The floor is what makes every sweep and parametrized clause
+    # below non-vacuous for the NEWEST file: without the ratchet, dependency.yaml could drop out of the
+    # glob and the whole module would stay green.
+    assert len(CATALOG_FILES) >= 5, f"expected >= 5 catalog files, found {[p.name for p in CATALOG_FILES]}"
+    assert len(ALL_IDS) >= 39, f"expected >= 39 catalog entries, found {len(ALL_IDS)}"
     assert CARD_INDEX and len(CARD_INDEX) >= 100, "card index did not load — referential clauses would be inert"
 
 

@@ -1,0 +1,659 @@
+# dependency.yaml — the functional-requirement DEPENDENCY source properties.
+#
+# Register (not engine) for the six per-source observational properties the functional-requirement skill
+# resolves and exports as `claim_vector.source_properties` / `evidence_package.source_properties`
+# (skills/_skills_common/dependency_claims.py::_SOURCE_PROPERTY_RECIPES_DEPENDENCY). See README.md for the
+# entry shape and the identifiability test that admits `role: estimator`. PR-1b of epic SK#2210 (#1507),
+# replicating the safety seed (safety.yaml, PR-1a) for the dependency domain.
+catalog_id: dependency
+kind: l2a_property
+version: 1.0.0
+
+description: |
+  This is the DEFAULT-valence domain, and that framing is the single most important thing to carry from
+  it into 1c-1e: a STRONG read on any property here — a deep Chronos dependency, a high strongly-dependent
+  fraction, a lineage-selective enrichment — is the efficacy SIGNAL the domain is looking for, not a
+  liability. So unlike the safety catalog, NO entry carries a `comparability.valence` marker: a generic
+  "higher is a stronger dependency" reading is correct, and minting `valence: efficacy` would introduce a
+  SECOND valence token the property-catalog validator's closed ENTRY_KEYS cannot yet govern (the exact
+  ungoverned drift the safety seed's own comment warns against). The absence of the marker IS the
+  default-frame declaration.
+
+  ⚠️ THE ONE CROSS-DOMAIN SUBTLETY, recorded because it is where "default valence" stops being obvious:
+  `crispr_essentiality` is READ AT LIABILITY VALENCE by the SAFETY domain's PAN_ESSENTIAL claim axis — a
+  gene that is essential in EVERY lineage is a safety concern, not a selective vulnerability. That is a
+  property of the CONSUMING axis's frame, not of this measurement. The measurement is emitted ONCE, here,
+  in the dependency frame; the safety domain deliberately does NOT re-emit it as a safety L2a property
+  (its safety.yaml records the sharing in a `dependence_note` instead), so no emitted entry anywhere ever
+  carries two valences. `crispr_essentiality`'s `consumers:` below therefore names BOTH
+  functional-requirement.DEP (efficacy) and on-target-safety-liability.PAN_ESSENTIAL (liability).
+
+  A second domain-wide fact, recorded once rather than six times: every entry's `entity_grain` is
+  `target`. Each card emits a gene-level aggregate over a cell-line panel (a distribution statistic, an
+  enrichment class, a stratification q-value), not a per-sample read, so the six are commensurable ON
+  GRAIN. What separates them is `measurement_type` and the shared-screen non-independence documented on
+  `crispr_essentiality` — four of the six touch the SAME DepMap CRISPR Chronos screen and are re-cuts of
+  it, so a fold must not read them as independent replication of one another.
+
+  What is NOT here, deliberately, because an L2a catalog that over-claims its roster is worse than one
+  that explains its edges:
+    * NO separate "dependency prevalence" / "pan-essentiality" property. The prevalence facet is the
+      `fraction_strongly_dependent` ANCHOR on `crispr_essentiality`, and the pan-essential read is that
+      property's `common_essential` CLASS TOKEN. Minting a distinct entry for it would make one DepMap
+      screen look like two independent sources — the double-count `dependence_group` exists to prevent.
+    * The dependency-predictability, cross-consortium-dependency and coessential-module cards. The
+      functional-requirement skill carries these as CONFIDENCE annotations on the verdict, NOT as
+      verdict-driving source properties (see dependency_claims.py's disclaimer). They estimate how
+      TRUSTWORTHY the dependency call is, not the dependency itself, so they are not L2a biological
+      properties of the target and are deliberately out of this roster.
+
+governance:
+  role: |
+    Authoritative for: what each dependency property MEANS, which observables estimate it, and which
+    numbers decide its value. NOT authoritative for the value vocabulary — each property's tokens are
+    owned by its own card's `summary_fields_vocabulary` in cards/, and the scalar dependency VERDICT is
+    owned by the target-contracts dependency resolver, never by this file or the projection that reads it.
+  versioning: |
+    Semver. Adding a property or an observable is a MINOR bump. Correcting a rationale, a unit, or a
+    `source:` path is a PATCH bump. Removing a property, or changing an existing property's `grain`, is
+    BREAKING and requires a MAJOR bump plus coordination via the wip-registry —
+    `validate_property_catalog.py --additive-against <ref>` makes an un-bumped removal RED.
+  ownership: |
+    Epic #1507 (evidence-property architecture), arc #2210 Wave-1b (issue #2211, the dependency
+    generalisation of the tumour-presence L2a reference vertical SK#1941, replicating the safety seed
+    PR-1a). Threshold rationales marked UNKNOWN below are the re-sequenced Wave-3 docs sweep's subject
+    (#2219, which runs AFTER 1b-1e), not this PR's — this PR pins each determinant's `source:` and value
+    so the sweep has a verified anchor to document.
+  change_discipline: |
+    `property_id`s are published names referenced from outside this directory (the claim_axis registry's
+    `resolves:` field, which uses the QUALIFIED `dependency.<property_id>` form — the bare form is
+    ambiguous across catalogs and the validator rejects it). Migrate by add -> consume -> remove, never a
+    bare rename.
+
+properties:
+
+  crispr_essentiality:
+    status: resolvable
+    definition: |
+      How strongly, how consistently, and how SELECTIVELY is loss of this gene lethal across a pan-cancer
+      CRISPR cell-line panel? The core dependency read: a Chronos gene-effect distribution summarised by
+      its central tendency (median), its tail depth (5th percentile), the FRACTION of lines strongly
+      dependent, and a selectivity index that separates a broadly/pan-essential gene from a
+      strongly-selective one. The `common_essential` class token is also the pan-essentiality read the
+      safety domain consumes at liability valence.
+    grain:
+      measurement_type: crispr_chronos_dependency
+      sample_context: pan_cancer_cell_line_panel
+      entity_grain: target
+    observables:
+      - card_id: pan-cancer-crispr-dependency-distribution
+        field: dependency_class
+        role: estimator
+        dependence_group: depmap_crispr_chronos
+        emission: class_token
+        note: |
+          strongly_selective / common_essential / broadly_dependent / non_dependent (+ the two
+          _underpowered admissibility gaps and data_unavailable) — the value carried in the export's
+          `property` slot. `common_essential` is the pan-essential token the safety PAN_ESSENTIAL axis
+          reads at liability valence.
+      - card_id: pan-cancer-crispr-dependency-distribution
+        field: median_chronos_panel
+        role: estimator
+        dependence_group: depmap_crispr_chronos
+        emission: anchor
+        note: |
+          Panel-median Chronos gene effect. NOTE the scale: a normalised dependency score where ~ -1 is
+          the median common-essential gene and 0 is non-essential — NOT a fraction and NOT comparable
+          with the DEMETER2 RNAi score, which is why the export declares `scale: chronos_gene_effect`.
+      - card_id: pan-cancer-crispr-dependency-distribution
+        field: p5_chronos_panel
+        role: estimator
+        dependence_group: depmap_crispr_chronos
+        emission: anchor
+        note: |
+          The 5th-percentile (deepest-dependent tail) gene effect, on the same Chronos scale. Retained
+          WITH the median because a gene can have a shallow median and a deep selective tail — the
+          signature of a strongly_selective dependency the median alone hides.
+      - card_id: pan-cancer-crispr-dependency-distribution
+        field: fraction_strongly_dependent
+        role: estimator
+        dependence_group: depmap_crispr_chronos
+        emission: anchor
+        note: |
+          The prevalence anchor: fraction of the evaluated panel below the strong-dependency cut. THIS is
+          the "dependency prevalence" facet — deliberately NOT minted as a separate property (a distinct
+          entry would double-count the one screen).
+      - card_id: pan-cancer-crispr-dependency-distribution
+        field: selectivity_index
+        role: estimator
+        dependence_group: depmap_crispr_chronos
+        emission: anchor
+        note: |
+          A tail-vs-background magnitude ratio in [0, 1] (higher = more selective). The anchor that
+          separates a broadly/pan-essential gene from a strongly-selective one at the same median depth,
+          and the discriminator behind the strongly_selective vs common_essential class split.
+      - card_id: pan-cancer-crispr-dependency-distribution
+        field: n_cell_lines_evaluated
+        role: estimator
+        dependence_group: depmap_crispr_chronos
+        emission: anchor
+        note: |
+          THE DENOMINATOR. A fraction and a percentile are uninterpretable without the panel size behind
+          them, and it is the field the two _underpowered admissibility gaps are decided on.
+    determinants:
+      - name: PAN_ESSENTIAL_FRACTION
+        value: 0.85
+        unit: fraction_of_panel_strongly_dependent
+        source: methods/onc_methods/depmap_chronos_distribution/cli.py:277
+        rationale: |
+          At or above 85% of the panel strongly dependent classifies the gene as (candidate)
+          common/pan-essential rather than selective. UNKNOWN as a calibration — the sweep in #2219
+          documents whether 0.85 is a published DepMap convention or an in-repo choice.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+      - name: SELECTIVE_MIN
+        value: 0.05
+        unit: fraction_of_panel_strongly_dependent
+        source: methods/onc_methods/depmap_chronos_distribution/cli.py:278
+        rationale: |
+          UNKNOWN. The lower fraction bound of the strongly_selective band (a selective dependency needs
+          SOME dependent lines, but few enough not to be broad). Adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+      - name: SELECTIVE_MAX
+        value: 0.60
+        unit: fraction_of_panel_strongly_dependent
+        source: methods/onc_methods/depmap_chronos_distribution/cli.py:279
+        rationale: |
+          UNKNOWN. The upper fraction bound of the strongly_selective band; above it the gene reads
+          broadly_dependent. The [0.60, 0.85) band between this and PAN_ESSENTIAL_FRACTION is
+          broadly_dependent, a residual rather than a separately-reasoned class. Adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+      - name: MODERATE_CHRONOS
+        value: -0.5
+        unit: chronos_gene_effect
+        source: methods/onc_methods/depmap_chronos_distribution/cli.py:276
+        rationale: |
+          UNKNOWN as a calibration. The median-depth gate a dependency call must clear (median at or
+          below -0.5). Convention-inherited from the Chronos scale; adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+    dependence_note: |
+      THE SHARED-SCREEN non-independence a downstream fold must respect. Four of this catalog's six
+      properties rest on the DepMap CRISPR Chronos screen: `crispr_essentiality` (this one, the pan-panel
+      distribution), `dependency_lineage_selectivity` (the per-lineage re-cut of the SAME scores),
+      `partner_conditional_dependency` (Chronos stratified by a partner alteration) and — in part —
+      `chemical_genetic_engagement` (PRISM drug response correlated against the SAME CRISPR readout). They
+      answer DIFFERENT questions (is it a dependency / where / conditional on what / does a chemical probe
+      agree), so the framework carries them as four SEPARATE claim axes, but they are NOT independent
+      REPLICATION of the dependency call — a fold that reads agreement between `crispr_essentiality` and
+      `dependency_lineage_selectivity` as corroboration is double-counting one screen. Genuine
+      independent corroboration of the dependency comes from `rnai_essentiality` (a different perturbation
+      modality, DEMETER2) and cross-consortium replication, which is exactly why the L2b
+      `crispr_rnai_essentiality_concordance` island folds CRISPR against RNAi and not against a second
+      CRISPR-derived cut.
+
+      SECOND caveat — the cross-domain read. `common_essential` is consumed at LIABILITY valence by the
+      safety PAN_ESSENTIAL axis (see the catalog description). A fold that counts both a dependency
+      property from this file and a safety property must treat pan-essentiality as ONE shared
+      measurement, read in two frames, not two independent sources.
+    consumers:
+      - skill: functional-requirement
+        axis_key: DEP
+        surface: source_properties.crispr_essentiality
+        note: |
+          The primary dependency signal, read in the efficacy frame. DEP also resolves the l2b
+          `integrated_families.essentiality` fold and `dependency.rnai_essentiality`; this is its CRISPR
+          substrate.
+      - skill: on-target-safety-liability
+        axis_key: PAN_ESSENTIAL
+        surface: source_properties.crispr_essentiality
+        note: |
+          The SAME measurement read at LIABILITY valence: a pan-essential gene (`common_essential`) is a
+          broad-toxicity safety concern. The safety domain does not re-emit this as a safety L2a property
+          — it reads this one. See the catalog description and dependence_note.
+
+  rnai_essentiality:
+    status: resolvable
+    definition: |
+      Does an ORTHOGONAL perturbation modality — RNAi knockdown (DEMETER2) rather than CRISPR knockout —
+      agree that loss of this gene is lethal, and how selectively? The independent-modality corroboration
+      of `crispr_essentiality`: same distribution shape (median, tail, strongly-dependent fraction,
+      selectivity), different technology with different off-target and scale characteristics, which is why
+      CRISPR×RNAi concordance is the framework's cleanest dependency-corroboration test.
+    grain:
+      measurement_type: rnai_demeter2_dependency
+      sample_context: pan_cancer_cell_line_panel
+      entity_grain: target
+    observables:
+      - card_id: pan-cancer-rnai-dependency-distribution
+        field: rnai_dependency_class
+        role: estimator
+        dependence_group: depmap_rnai_demeter2
+        emission: class_token
+      - card_id: pan-cancer-rnai-dependency-distribution
+        field: rnai_median_dep_score
+        role: estimator
+        dependence_group: depmap_rnai_demeter2
+        emission: anchor
+        note: |
+          Panel-median DEMETER2 dependency score. NOTE the scale is DEMETER2, NOT Chronos: the strong cut
+          is -0.5 (vs Chronos -1.0), so a DEMETER2 value is NOT interchangeable with a Chronos one even
+          though both name a "dependency score" — hence the distinct `scale: demeter2_dependency_score`.
+      - card_id: pan-cancer-rnai-dependency-distribution
+        field: rnai_p5_dep_score
+        role: estimator
+        dependence_group: depmap_rnai_demeter2
+        emission: anchor
+      - card_id: pan-cancer-rnai-dependency-distribution
+        field: rnai_fraction_strongly_dependent
+        role: estimator
+        dependence_group: depmap_rnai_demeter2
+        emission: anchor
+      - card_id: pan-cancer-rnai-dependency-distribution
+        field: rnai_selectivity_index
+        role: estimator
+        dependence_group: depmap_rnai_demeter2
+        emission: anchor
+      - card_id: pan-cancer-rnai-dependency-distribution
+        field: rnai_n_cell_lines_evaluated
+        role: estimator
+        dependence_group: depmap_rnai_demeter2
+        emission: anchor
+        note: |
+          THE DENOMINATOR, and the reason RNAi is the corroboration arm rather than the primary: DEMETER2
+          panels are materially smaller than the CRISPR panel, so a thin RNAi read confirms but does not
+          by itself establish a dependency.
+    determinants:
+      - name: RNAI_STRONG_THRESHOLD
+        value: -0.5
+        unit: demeter2_dependency_score
+        source: methods/onc_methods/depmap_demeter_distribution/cli.py:241
+        rationale: |
+          DEMETER2 strong-dependency cut (a line at or below -0.5 is strongly dependent). Distinct from
+          the Chronos strong cut (-1.0) BY DESIGN — the two scales are not comparable. UNKNOWN whether the
+          exact value is a published DEMETER2 convention; adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+      - name: RNAI_MODERATE_THRESHOLD
+        value: -0.25
+        unit: demeter2_dependency_score
+        source: methods/onc_methods/depmap_demeter_distribution/cli.py:242
+        rationale: |
+          UNKNOWN. The moderate-dependency floor on the DEMETER2 scale. Adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+      - name: RNAI_PAN_ESSENTIAL_FRACTION
+        value: 0.85
+        unit: fraction_of_panel_strongly_dependent
+        source: methods/onc_methods/depmap_demeter_distribution/cli.py:243
+        rationale: |
+          Mirrors crispr_essentiality's PAN_ESSENTIAL_FRACTION (0.85) on the RNAi panel — a genuine mirror
+          (the same prevalence question on a different modality), not a coincidence. UNKNOWN as a
+          calibration; adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+    dependence_note: |
+      Shares NO dependence_group with `crispr_essentiality` — and that is the entire point. CRISPR
+      knockout (Chronos) and RNAi knockdown (DEMETER2) are independent perturbation modalities, so their
+      AGREEMENT is real corroboration and their DISAGREEMENT is the assay-discordance the L2b
+      `crispr_rnai_essentiality_concordance` island exists to surface. Grouping them would erase exactly
+      the independence the concordance read is built on.
+    consumers:
+      - skill: functional-requirement
+        axis_key: DEP
+        surface: source_properties.rnai_essentiality
+        note: |
+          Read as the orthogonal-modality corroboration arm of the DEP axis (whose primary supply is the
+          CRISPR distribution), and folded with CRISPR by the L2b crispr_rnai_essentiality_concordance
+          island.
+
+  dependency_lineage_selectivity:
+    status: resolvable
+    definition: |
+      Is the dependency confined to particular lineages, or does it hit every lineage roughly equally?
+      The context-selectivity question, answered by a one-vs-rest enrichment scan across lineages plus an
+      across-lineage omnibus effect size. A lineage-selective dependency is a candidate for a
+      biomarker-defined population; a broadly-lineage-dependent one is closer to pan-essential.
+    grain:
+      measurement_type: crispr_chronos_lineage_selectivity
+      sample_context: pan_cancer_cell_line_panel
+      entity_grain: target
+    observables:
+      - card_id: dependency-lineage-selectivity
+        field: enrichment_class
+        role: estimator
+        dependence_group: depmap_crispr_chronos
+        emission: class_token
+        note: |
+          lineage_selective / broadly_lineage_dependent / no_lineage_enrichment / data_unavailable.
+          Shares the `depmap_crispr_chronos` dependence_group with crispr_essentiality: this is the SAME
+          Chronos screen re-cut by lineage, NOT an independent measurement — see crispr_essentiality's
+          dependence_note.
+      - card_id: dependency-lineage-selectivity
+        field: lineage_variance_explained
+        role: estimator
+        dependence_group: depmap_crispr_chronos
+        emission: anchor
+        note: |
+          Kruskal-Wallis epsilon-squared: the fraction of Chronos variance explained by lineage — the
+          across-lineage effect size behind the enrichment call.
+      - card_id: dependency-lineage-selectivity
+        field: lineage_omnibus_kruskal_h
+        role: estimator
+        dependence_group: depmap_crispr_chronos
+        emission: anchor
+        note: |
+          The Kruskal-Wallis H statistic itself, retained with its effect size (epsilon-squared) because
+          H scales with sample size while epsilon-squared does not — a large H on a large panel and a
+          large effect are different claims.
+      - card_id: dependency-lineage-selectivity
+        field: n_enriched_lineages
+        role: estimator
+        dependence_group: depmap_crispr_chronos
+        emission: anchor
+      - card_id: dependency-lineage-selectivity
+        field: n_lineages_evaluated
+        role: estimator
+        dependence_group: depmap_crispr_chronos
+        emission: anchor
+        note: |
+          THE DENOMINATOR for n_enriched_lineages: 2-of-3 lineages enriched and 2-of-30 are different
+          selectivity claims.
+    determinants:
+      - name: ENRICHED_LINEAGE_STRONG_CHRONOS
+        value: -1.0
+        unit: chronos_gene_effect
+        source: methods/onc_methods/depmap_chronos/cli.py:327
+        rationale: |
+          The strong-dependency depth an enriched lineage's median must clear (applied to the ENRICHED
+          lineage's depth, not the panel's — see the module comment). UNKNOWN as a calibration;
+          adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+      - name: EFFECT_STRONG_FRAC
+        value: 0.75
+        unit: fraction_of_lineage_strongly_dependent
+        source: methods/onc_methods/depmap_chronos/read.py:124
+        rationale: |
+          UNKNOWN. The within-lineage strongly-dependent fraction that marks a lineage enriched.
+          Adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+    consumers:
+      - skill: functional-requirement
+        axis_key: SEL
+        surface: source_properties.dependency_lineage_selectivity
+
+  partner_conditional_dependency:
+    status: resolvable
+    definition: |
+      Is the requirement CONDITIONAL on a partner alteration rather than intrinsic to the lineage — a
+      synthetic-lethal / collateral-lethality relationship (WRN×MSI, PRMT5×MTAP)? Measured by stratifying
+      the CRISPR dependency by the partner's deficiency status and testing whether the partner-deficient
+      stratum is more dependent, with a BH-corrected significance.
+    grain:
+      measurement_type: crispr_partner_stratified_dependency
+      sample_context: partner_stratified_cell_line_panel
+      entity_grain: target
+    observables:
+      - card_id: partner-conditional-dependency
+        field: partner_stratification_class
+        role: estimator
+        dependence_group: depmap_partner_stratified_chronos
+        emission: class_token
+        note: |
+          partner_conditional_strongly_dependent / ..._moderately_dependent / not_partner_conditional /
+          insufficient_partner_deficient_rate / no_partner_mapped / data_unavailable.
+      - card_id: partner-conditional-dependency
+        field: n_partner_deficient
+        role: estimator
+        dependence_group: depmap_partner_stratified_chronos
+        emission: anchor
+        note: |
+          The partner-deficient stratum size — the count the stratification test rests on, gated by a
+          minimum (MIN_PARTNER_DEFICIENT_CELLS) below which the class is insufficient_partner_deficient_rate.
+      - card_id: partner-conditional-dependency
+        field: partner_stratification_mannwhitney_q
+        role: estimator
+        dependence_group: depmap_partner_stratified_chronos
+        emission: anchor
+        note: |
+          The BH-CORRECTED (q, not p) Mann-Whitney significance of the deficient-vs-neutral contrast — the
+          card's real field name (the arc plan table's `partner_stratification_q` is not a summary field).
+          Declared `scale: bh_q_value` so a consumer does not read it as a nominal p-value.
+    determinants:
+      - name: STRONG_EFFECT_DELTA
+        value: -0.5
+        unit: chronos_gene_effect_delta
+        source: methods/onc_methods/depmap_partner_conditional_dependency/cli.py:39
+        rationale: |
+          Partner-deficient median Chronos minus neutral at or below -0.5 → strongly partner-conditional.
+          Mirrored from the oncogene mutant-vs-WT stratified paths. UNKNOWN as a calibration; adjudicated
+          by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+      - name: MODERATE_EFFECT_DELTA
+        value: -0.2
+        unit: chronos_gene_effect_delta
+        source: methods/onc_methods/depmap_partner_conditional_dependency/cli.py:40
+        rationale: |
+          The median-delta path to MODERATE. Documented at the site as the cut WRN×MSI (-0.41) clears but
+          a modest-median SL like PRMT5×MTAP misses — which is why an effect-size path (MODERATE_EFFECT_RB)
+          was added alongside it. UNKNOWN as a formal calibration; adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+      - name: MODERATE_EFFECT_RB
+        value: 0.3
+        unit: rank_biserial_correlation
+        source: methods/onc_methods/depmap_partner_conditional_dependency/cli.py:49
+        rationale: |
+          Rank-biserial at or above 0.30 (conventional "moderate") + forward-significant → moderate. The
+          distribution-shape-normalised, cross-context-comparable effect size that admits a
+          hugely-significant modest-median SL the raw median-delta floor discards. Adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+      - name: STRATIFICATION_ALPHA
+        value: 0.05
+        unit: bh_q_value
+        source: methods/onc_methods/depmap_partner_conditional_dependency/cli.py:50
+        rationale: |
+          Conventional BH-corrected significance floor for the deficient-vs-neutral contrast. Adjudicated
+          by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+    dependence_note: |
+      Chronos-derived (shares the raw CRISPR screen with crispr_essentiality) but keyed on a SECOND data
+      source — the partner's alteration status defining the deficient stratum — so it is recorded in its
+      own dependence_group (`depmap_partner_stratified_chronos`). It is not independent REPLICATION of the
+      pan-panel dependency call; it answers a different (conditional) question off the same screen.
+    consumers:
+      - skill: functional-requirement
+        axis_key: COND
+        surface: source_properties.partner_conditional_dependency
+
+  chemical_genetic_engagement:
+    status: resolvable
+    definition: |
+      Does a CHEMICAL probe reproduce the genetic requirement — do PRISM small-molecule sensitivity
+      profiles correlate with the CRISPR (and RNAi) dependency across cell lines? A triangulation that a
+      genetic dependency is druggable and on-target: dual responders are lines dependent by BOTH the
+      genetic and chemical readouts.
+    grain:
+      measurement_type: prism_crispr_chemical_genetic_concordance
+      sample_context: pan_cancer_cell_line_panel
+      entity_grain: target
+    observables:
+      - card_id: prism-crispr-concordance
+        field: crispr_prism_concordance_class
+        role: estimator
+        dependence_group: depmap_prism_crispr
+        emission: class_token
+        note: |
+          The rollup concordance class, classified at PRECOMPUTE time
+          (depmap_prism_precompute/cli.py, authoritative) and read verbatim here.
+      - card_id: prism-crispr-concordance
+        field: n_compounds_evaluated
+        role: estimator
+        dependence_group: depmap_prism_crispr
+        emission: anchor
+      - card_id: prism-crispr-concordance
+        field: n_dual_responders
+        role: estimator
+        dependence_group: depmap_prism_crispr
+        emission: anchor
+        note: |
+          Lines dependent by BOTH the genetic and chemical readouts — the count that makes the
+          concordance actionable rather than merely correlational.
+      - card_id: prism-crispr-concordance
+        field: best_spearman_r_crispr
+        role: estimator
+        dependence_group: depmap_prism_crispr
+        emission: anchor
+        note: |
+          Best Spearman correlation of PRISM sensitivity against the CRISPR dependency across lines. A
+          correlation coefficient (`scale: spearman_r`), retained with its RNAi sibling so a consumer sees
+          which genetic readout the chemistry tracks.
+      - card_id: prism-crispr-concordance
+        field: best_spearman_r_rnai
+        role: estimator
+        dependence_group: depmap_prism_crispr
+        emission: anchor
+    determinants:
+      - name: CONCORDANCE_STRONG_SPEARMAN
+        value: 0.30
+        unit: spearman_r
+        source: methods/onc_methods/depmap_prism_crispr_concordance/cli.py:64
+        rationale: |
+          A per-compound Spearman at or above 0.30 reads as strong PRISM×genetic concordance. Pinned equal
+          to the authoritative precompute copy by a threshold-mirror guard (the reader never re-derives
+          the class). UNKNOWN as a calibration; adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+      - name: CONCORDANCE_WEAK_SPEARMAN
+        value: 0.10
+        unit: spearman_r
+        source: methods/onc_methods/depmap_prism_crispr_concordance/cli.py:65
+        rationale: |
+          UNKNOWN. The floor below which a compound is discordant; [0.10, 0.30) is the intermediate band.
+          Adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+    dependence_note: |
+      Touches the CRISPR screen (it correlates PRISM against the SAME Chronos readout) AND the independent
+      PRISM drug-response screen, so its dependence_group is `depmap_prism_crispr`. Its VALUE as
+      corroboration comes from PRISM being an independent (chemical) modality; the shared CRISPR arm is
+      what it is being correlated AGAINST, not a second independent source.
+    consumers:
+      - skill: functional-requirement
+        axis_key: CHEM
+        surface: source_properties.chemical_genetic_engagement
+
+  paralog_buffering:
+    status: resolvable
+    definition: |
+      Does a functional PARALOG buffer this gene's loss — masking a single-KO dependency that a dual KO
+      would reveal? A dependency-hardening / confidence signal: strong buffering means a single-gene
+      CRISPR screen can UNDER-call the dependency, so an apparent non-dependence must be read with the
+      paralog in mind. Measured as the dual-KO's additional lethality over the stronger single KO.
+    grain:
+      measurement_type: paralog_dual_ko_buffering
+      sample_context: pan_cancer_cell_line_panel
+      entity_grain: target
+    observables:
+      - card_id: paralog-buffering
+        field: paralog_buffering_class
+        role: estimator
+        dependence_group: depmap_paralog_dual_ko
+        emission: class_token
+        note: |
+          strong / partial / none / data_unavailable — the strongest paralog partner's buffering call.
+      - card_id: paralog-buffering
+        field: n_paralogs_annotated
+        role: estimator
+        dependence_group: depmap_paralog_dual_ko
+        emission: anchor
+      - card_id: paralog-buffering
+        field: n_paralogs_functionally_buffering
+        role: estimator
+        dependence_group: depmap_paralog_dual_ko
+        emission: anchor
+        note: |
+          The count classified strong-or-partial, retained WITH n_paralogs_annotated: 1-of-2 paralogs
+          buffering and 1-of-9 are different hardening claims.
+      - card_id: paralog-buffering
+        field: strongest_paralog_delta
+        role: estimator
+        dependence_group: depmap_paralog_dual_ko
+        emission: anchor
+        note: |
+          dep_delta_paired_vs_max_single: the strongest single KO minus the median dual KO on the Chronos
+          scale — POSITIVE means the dual KO is more lethal than the stronger single, i.e. the paralogs
+          buffer. A None delta is genuinely unmeasured, never a confirmed no-buffer.
+    determinants:
+      - name: STRONG_DELTA
+        value: 0.5
+        unit: chronos_gene_effect_delta
+        source: methods/onc_methods/depmap_paralog_aggregator/read.py:266
+        rationale: |
+          A buffering delta above +0.5 (dual KO more lethal than the stronger single by > 0.5 Chronos)
+          reads as strong buffering. UNKNOWN as a calibration; adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+      - name: PARTIAL_DELTA
+        value: 0.2
+        unit: chronos_gene_effect_delta
+        source: methods/onc_methods/depmap_paralog_aggregator/read.py:267
+        rationale: |
+          UNKNOWN. The partial-buffering floor; [0.2, 0.5] is partial, below 0.2 is none. Adjudicated by
+          #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+    note: |
+      NO claim axis of its own — the functional-requirement HeadlineSpec declares DEP/SEL/COND/CHEM and
+      paralog-buffering is not among them: the skill reads it as a compound-only VETO-SUPPRESSOR /
+      confidence caveat (it never vetoes a positive call, and hardens an absence call), so its consumer
+      below carries a `surface:` and NO `axis_key`. That is a first-class shape in the property-catalog
+      validator (a consumer needs axis_key OR surface), and it is why this property does NOT appear in the
+      claim_axis registry's `resolves:`/`properties:` index — no headline axis resolves it.
+    consumers:
+      - skill: functional-requirement
+        surface: source_properties.paralog_buffering
+        note: |
+          Read as a confidence-only veto-suppressor (dependency_claims.py _FR_SUBGROUP_READER marks
+          paralog_buffering confidence-only), not through a claim axis.

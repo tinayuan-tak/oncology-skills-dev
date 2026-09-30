@@ -55,12 +55,20 @@
 # the skills' ASTs fail-loud and reconciles both directions.
 
 enum_id: claim_axis
+# 1.2.0 — arc #2210 Wave-1b (issue #2211, the dependency seed) landed
+# contracts/vocabularies/property_catalog/dependency.yaml (6 l2a properties), so functional-requirement's
+# SEL/COND/CHEM now cite it, DEP additionally cites dependency.crispr_essentiality +
+# dependency.rnai_essentiality alongside its l2b family, and the safety PAN_ESSENTIAL axis — empty since
+# 1.1.0 pending exactly this catalog — now resolves the SHARED dependency.crispr_essentiality (read at
+# liability valence). MINOR per `governance.versioning`: `resolves:` entries added, none removed, no
+# label/`critical` touched. (Also fixes the 1.1.0 PAN_ESSENTIAL pending note's #2212 slip: the dependency
+# domain is #2211, not #2212 — #2212 is genomic.)
 # 1.1.0 — arc #2210 Wave-1a (the hands-on safety seed) landed
 # contracts/vocabularies/property_catalog/safety.yaml, so six on-target-safety-liability axes now cite
 # the eight properties it declares. MINOR per `governance.versioning`: `resolves:` entries added, none
 # removed, no label or `critical` flag touched. PAN_ESSENTIAL is the one safety axis still empty, and
 # its `resolves_pending:` now says WHY rather than pointing at a wave that has already landed.
-version: 1.1.0
+version: 1.2.0
 
 description: |
   One governed entry per (skill, axis_key): the display label, the decision question the axis informs,
@@ -239,6 +247,8 @@ axes:
       Is loss of the target lethal to the tumour cell?
     critical: true
     resolves:
+      - dependency.crispr_essentiality
+      - dependency.rnai_essentiality
       - integrated_families.essentiality
     collides_with:
       - skill: genomic-alteration-profile
@@ -249,27 +259,24 @@ axes:
     informs: |
       Is that lethality confined to a context, or does it hit every lineage equally?
     critical: false
-    resolves: []
-    resolves_pending: |
-      arc #2210 Wave-1b, issue #2211 (dependency l2a catalog)
+    resolves:
+      - dependency.dependency_lineage_selectivity
   - skill: functional-requirement
     axis_key: COND
     label: "conditional / synthetic-lethal"
     informs: |
       Is the requirement conditional on a partner alteration rather than intrinsic to the lineage?
     critical: false
-    resolves: []
-    resolves_pending: |
-      arc #2210 Wave-1b, issue #2211 (dependency l2a catalog)
+    resolves:
+      - dependency.partner_conditional_dependency
   - skill: functional-requirement
     axis_key: CHEM
     label: "chemical-genetic confirmation"
     informs: |
       Does a chemical probe reproduce the genetic requirement?
     critical: false
-    resolves: []
-    resolves_pending: |
-      arc #2210 Wave-1b, issue #2211 (dependency l2a catalog)
+    resolves:
+      - dependency.chemical_genetic_engagement
 
   # ── genomic-alteration-profile (gate: genomic_alteration) ───────────────────────────────────────
   - skill: genomic-alteration-profile
@@ -446,15 +453,16 @@ axes:
     informs: |
       Is the gene essential across all lineages, making it a safety liability rather than a target?
     critical: true
-    resolves: []
-    resolves_pending: |
-      NOT Wave-1a, and not an oversight: safety.yaml (landed by the Wave-1a seed) deliberately
-      catalogues no DepMap pan-essentiality property. The substrate is the dependency domain's, whose
-      l2a catalog is #2212; cataloguing it here would file the SAME biological property twice under two
-      catalog_ids and make the `properties:` inverse index below claim two independent properties where
-      there is one. The correct shape is a dependency-domain entry that BOTH this axis and
-      functional-requirement's `DEP` cite, which is #2212's call to make, not this seed's. Until then
-      this axis resolves nothing — which is an honest empty set, not a measurement of zero.
+    resolves:
+      # The Wave-1a seed left this empty pending exactly this: the DepMap pan-essentiality substrate is
+      # the DEPENDENCY domain's, and Wave-1b (issue #2211) has now catalogued it. This axis reads the
+      # SHARED `dependency.crispr_essentiality` property at LIABILITY valence — a gene essential in every
+      # lineage is a broad-toxicity concern, not a selective vulnerability — exactly the "a dependency-
+      # domain entry that BOTH this axis and functional-requirement's DEP cite" shape the 1.1.0 pending
+      # note prescribed. It is ONE measurement read in two frames, NOT filed twice: dependency.yaml owns
+      # it, records the cross-domain sharing in its dependence_note, and lists BOTH consumers. (The 1.1.0
+      # pending note mis-said the dependency catalog was #2212; it is #2211. #2212 is genomic.)
+      - dependency.crispr_essentiality
   - skill: on-target-safety-liability
     axis_key: NORMAL_TISSUE
     label: "normal-tissue protein (HPA-IHC)"
@@ -741,6 +749,41 @@ skills:
 
 # ── inverse index 2: property -> the axes that resolve it ───────────────────────────
 properties:
+  dependency.chemical_genetic_engagement:
+    resolved_by:
+      - skill: functional-requirement
+        axis_key: CHEM
+  dependency.crispr_essentiality:
+    resolved_by:
+      - skill: functional-requirement
+        axis_key: DEP
+      - skill: on-target-safety-liability
+        axis_key: PAN_ESSENTIAL
+    note: |
+      The ONE property in this registry resolved by TWO skills' axes, and deliberately so: it is a single
+      DepMap CRISPR measurement read in two frames — functional-requirement's DEP reads it as the
+      efficacy dependency signal, on-target-safety-liability's PAN_ESSENTIAL reads its `common_essential`
+      token at LIABILITY valence (broad tox). dependency.yaml owns the property, records the cross-domain
+      sharing in its dependence_note, and lists both consumers; the safety domain does NOT re-emit it as
+      a safety L2a property, so the measurement is filed once, not twice.
+  dependency.dependency_lineage_selectivity:
+    resolved_by:
+      - skill: functional-requirement
+        axis_key: SEL
+  dependency.partner_conditional_dependency:
+    resolved_by:
+      - skill: functional-requirement
+        axis_key: COND
+  dependency.rnai_essentiality:
+    resolved_by:
+      - skill: functional-requirement
+        axis_key: DEP
+    note: |
+      Resolved by the SAME axis (DEP) as dependency.crispr_essentiality: DEP's decision question is
+      answered by both the CRISPR and the RNAi distribution, with RNAi the orthogonal-modality
+      corroboration arm. (dependency.paralog_buffering is a sixth dependency property but is resolved by
+      NO axis — the FR skill reads it as a confidence-only veto-suppressor via a `surface:` consumer with
+      no axis_key — so it correctly does not appear in this axis-keyed index.)
   integrated_families.abundance:
     resolved_by:
       - skill: tumor-presence
@@ -864,35 +907,38 @@ population_floors:
   skills: 15
   axes: 55
   distinct_axis_keys: 55
-  resolved_axes: 17
-  resolved_properties: 18
+  resolved_axes: 21
+  resolved_properties: 23
   note: |
-    Anti-vacuity, not decoration. Floors sit at or BELOW the measured population (measured at v1.1.0: 15 skills, 61 axes, 60 distinct axis_keys, 19 resolved axes, 23 resolved properties; at v1.0.0 the last two were 14 and 15) so that legitimate additive growth never reds, while a discovery glob that silently matches nothing does. The two resolve-floors are RATCHETED with each wave that populates `resolves:`, preserving their v1.0.0 margin below measured (2 and 5): a floor left at the pre-wave number would still pass on a registry that had silently lost everything the wave added, which is precisely the shrink a floor exists to catch. `skills` is a FLOOR and not pinned to equality on purpose: contracts/ may not read skills' HeadlineSpecs (dependency direction), so the equality half lives in skills/_skills_common/tests/test_claim_axis_registry_coverage.py, which reds when a 16th skill declares axes with no entry here.
+    Anti-vacuity, not decoration. Floors sit at or BELOW the measured population (measured at v1.2.0: 15 skills, 61 axes, 60 distinct axis_keys, 23 resolved axes, 28 resolved properties; at v1.1.0 the last two were 19 and 23; at v1.0.0 they were 14 and 15) so that legitimate additive growth never reds, while a discovery glob that silently matches nothing does. The two resolve-floors are RATCHETED with each wave that populates `resolves:`, preserving their v1.0.0 margin below measured (2 and 5): a floor left at the pre-wave number would still pass on a registry that had silently lost everything the wave added, which is precisely the shrink a floor exists to catch. `skills` is a FLOOR and not pinned to equality on purpose: contracts/ may not read skills' HeadlineSpecs (dependency direction), so the equality half lives in skills/_skills_common/tests/test_claim_axis_registry_coverage.py, which reds when a 16th skill declares axes with no entry here.
 
 coverage_dimensions:
   - dimension: axes_resolving_a_catalogued_property
-    measured: 19
+    measured: 23
     total: 61
     is_a_gate: false
     rationale: |
-      19 of 61 axes cite a property today (14 at v1.0.0, +5 from Wave-1a's safety.yaml: CONSTRAINT,
-      BURDEN, DOSAGE, CLINVAR, MOUSE_KO — NORMAL_TISSUE already resolved its l2b family and gained two
-      l2a properties without changing this count). They come from the three landed l2a catalogs plus
-      the l2b family catalog Wave-0a landed. The other 42 are not defects and not holes in this file:
-      the l2a catalogs for dependency, genomic, selectivity and surface are Wave-1 items owned by
-      #2211-#2214. A GATE on this number would either block the wave behind its own successors or force
-      catalog entries to be invented ahead of the measurement they record. So it is REPORTED. Fail-open
-      promotes; an unmeasured number would be worse than a small one, which is why `measured` is
-      required to be an int and `resolves_pending:` is required on every one of the 42.
+      23 of 61 axes cite a property today (14 at v1.0.0, +5 from Wave-1a's safety.yaml, +4 from
+      Wave-1b's dependency.yaml: functional-requirement's SEL, COND, CHEM, and safety's PAN_ESSENTIAL
+      which now resolves the SHARED dependency.crispr_essentiality — FR's DEP already resolved its l2b
+      family, so it did not change this count even though it gained two l2a properties). They come from
+      the four landed l2a catalogs plus the l2b family catalog Wave-0a landed. The other 38 are not
+      defects and not holes in this file: the l2a catalogs for genomic, selectivity and surface are the
+      remaining Wave-1 items owned by #2212-#2214. A GATE on this number would either block the wave
+      behind its own successors or force catalog entries to be invented ahead of the measurement they
+      record. So it is REPORTED. Fail-open promotes; an unmeasured number would be worse than a small
+      one, which is why `measured` is required to be an int and `resolves_pending:` is required on every
+      one of the 38.
   - dimension: domains_with_a_landed_l2a_property_catalog
-    measured: 3
+    measured: 4
     total: 15
     is_a_gate: false
     rationale: |
-      expression.yaml, tumor_presence.yaml and — as of Wave-1a — safety.yaml are the three landed
-      `l2a_property` files; the 13 entries in integrated_families.yaml are `l2b_family` folds, not
-      per-domain properties. This is the upstream cause of the dimension above, recorded separately so
-      a reader does not mistake sparse `resolves:` coverage for sloppy registration here.
+      expression.yaml, tumor_presence.yaml, safety.yaml (Wave-1a) and — as of Wave-1b — dependency.yaml
+      are the four landed `l2a_property` files; the 13 entries in integrated_families.yaml are
+      `l2b_family` folds, not per-domain properties. This is the upstream cause of the dimension above,
+      recorded separately so a reader does not mistake sparse `resolves:` coverage for sloppy
+      registration here.
   - dimension: skills_using_a_letter_axis_scheme
     measured: 1
     total: 15

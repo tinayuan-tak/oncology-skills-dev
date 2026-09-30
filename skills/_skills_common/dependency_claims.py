@@ -29,6 +29,9 @@ contract-uniformity with presence_claims but unused here.
 
 from __future__ import annotations
 
+import functools
+from pathlib import Path
+
 from _skills_common.claim_vector_core import (
     ClaimSpec,
     build_claim_vector,
@@ -484,6 +487,289 @@ def _essentiality_concordance_claim(c: dict) -> dict | None:
     }
 
 
+# ── L2a NAMED source_properties map — DEPENDENCY domain (PR-1b, epic #2210 Wave 1 / #1507) ──────────
+# The dependency generalisation of the tumour-presence reference vertical
+# (`presence_claims.py::_SOURCE_PROPERTY_RECIPES`), replicating the shape the safety seed (PR-1a,
+# safety_claims.py::_SOURCE_PROPERTY_RECIPES_SAFETY) proved end-to-end. Lifts the per-source
+# observational (L2a) properties — until now embedded implicitly inside the four claim signal blocks —
+# into a NAMED, typed map, one entry per source/grain, matching the architecture's `source_properties:`
+# export shape (docs/EVIDENCE_PROPERTY_ARCHITECTURE_L1_L4.md). Each entry carries the L1 card it resolves
+# from, the resolved observational class (the SAME class the claim axes read from that source), the
+# RETAINED quantitative anchors (value + scale + ledger-declared disposition typing), and comparability
+# metadata so a downstream reader can tell which entries are commensurable.
+#
+# PURE PROJECTION over the already-computed card summaries: no LLM, no new measurement, no re-derivation.
+# Like every other L2a/L2b facet on this vector it carries NO `signal` key, is read by no
+# rule/verdict/ladder, and every property reconstructs to its L1 card field via {card_id, property_field,
+# property}. VERDICT-INERT.
+#
+# TWO deliberate divergences from the safety seed, each an honest property of THIS domain, not an
+# oversight — both stated because 1c-1e will face the same two calls:
+#
+#   (1) NO `comparability.valence` marker. Safety is INVERSE-valence (a strong read is a liability), so it
+#       had to mint the marker or a "higher = better" reader would invert it. Dependency is the DEFAULT
+#       frame: a strong dependency is the efficacy signal the domain is looking for, so a generic
+#       higher-is-stronger reading is CORRECT and no marker is needed. Minting `valence: efficacy` here
+#       would introduce a SECOND valence token — precisely the ungoverned drift the safety seed's own
+#       comment warns 1b-1e against ("must NOT invent a second valence token without governing it
+#       first"; there is no `valence` slot in the property-catalog validator's closed ENTRY_KEYS). So the
+#       marker is OMITTED, and its absence IS the default-valence declaration. ⚠️ Note the cross-domain
+#       twist this makes safe: `crispr_essentiality` is READ at LIABILITY valence by the safety
+#       PAN_ESSENTIAL axis, but safety deliberately does not re-emit it as a safety L2a property, so no
+#       single emitted entry ever carries two valences.
+#
+#   (2) NO `interpretation` provenance object on any entry. Safety emitted it on the one source whose
+#       class comes from a genuine skills-side multi-arm disjunction (`_normaltissue_sig`). Every one of
+#       the six dependency classes below is a VERBATIM read of the card summary field — the producing
+#       disjunct (where one exists) was decided upstream in methods/ and is not recoverable from the
+#       summary. Emitting a fabricated `disjunct_fired` would assert provenance this domain does not
+#       have; omitting it is the honest state (safety's discipline for its own seven verbatim entries).
+#       The section-fidelity test PINS this absence so a future disjunction-resolved class is a
+#       deliberate decision, not silent drift.
+
+# The scale/unit slot for each retained quantitative anchor (envelope-v0: a raw value + its declared
+# scale, never a `decision_weight`/`modality_relevance`). Absent → "raw".
+_DEPENDENCY_ANCHOR_SCALE = {
+    # CRISPR Chronos gene-effect scores: a normalised dependency scale where ~ -1 is the median common-
+    # essential gene and 0 is non-essential. Panel median and 5th percentile are on the SAME scale.
+    "median_chronos_panel": "chronos_gene_effect",
+    "p5_chronos_panel": "chronos_gene_effect",
+    # RNAi DEMETER2 dependency scores — a DIFFERENT scale from Chronos (strong cut -0.5 vs Chronos -1.0),
+    # named distinctly so a consumer never compares a Chronos value with a DEMETER2 one.
+    "rnai_median_dep_score": "demeter2_dependency_score",
+    "rnai_p5_dep_score": "demeter2_dependency_score",
+    # Strongly-dependent fractions — fraction of the evaluated panel below the strong-dependency cut.
+    "fraction_strongly_dependent": "fraction",
+    "rnai_fraction_strongly_dependent": "fraction",
+    # Selectivity indices — a tail-vs-background magnitude ratio in [0, 1] (higher = more selective).
+    "selectivity_index": "selectivity_index",
+    "rnai_selectivity_index": "selectivity_index",
+    # Lineage-selectivity omnibus statistics.
+    "lineage_variance_explained": "epsilon_squared",  # Kruskal-Wallis effect size (variance fraction)
+    "lineage_omnibus_kruskal_h": "kruskal_h_statistic",
+    # Partner-conditional stratification — a BH-corrected q-value over the partner-deficient contrast.
+    "partner_stratification_mannwhitney_q": "bh_q_value",
+    # PRISM×CRISPR chemical-genetic concordance — best Spearman correlations across compounds.
+    "best_spearman_r_crispr": "spearman_r",
+    "best_spearman_r_rnai": "spearman_r",
+    # Paralog buffering — the dual-KO additional lethality over the stronger single, on the Chronos scale.
+    "strongest_paralog_delta": "chronos_gene_effect_delta",
+    # COUNTS across the domain — cell lines, lineages, compounds, dual responders, paralogs. All raw
+    # integer counts, never rates.
+    "n_cell_lines_evaluated": "cell_line_count",
+    "rnai_n_cell_lines_evaluated": "cell_line_count",
+    "n_lineages_evaluated": "lineage_count",
+    "n_enriched_lineages": "lineage_count",
+    "n_partner_deficient": "cell_line_count",
+    "n_compounds_evaluated": "compound_count",
+    "n_dual_responders": "compound_count",
+    "n_paralogs_annotated": "paralog_count",
+    "n_paralogs_functionally_buffering": "paralog_count",
+}
+
+# Data-driven recipe (keyed by the L2a property name from the architecture's source_properties shape).
+# `property_field` is the resolved observational class of that source; `anchors` are its retained
+# quantitative anchors, in reading order; `context` fields are retained categorical/label qualifiers that
+# orient the anchors but are not themselves quantities. Every `card_id`/`property_field`/anchor/context
+# name below was verified against `contracts/cards/<card_id>.card.yaml` `outputs.summary_fields`.
+#
+# TWO plan-table anchors CORRECTED against the cards (the arc's plan table was authority on intent, the
+# card YAML on fact; PR-1a corrected a ClinVar field name the same way):
+#   * crispr_essentiality dropped `bimodality_coefficient` — it is COMPUTED inside the classifier
+#     (depmap_chronos_distribution/cli.py:337) but NOT emitted in the card's summary_fields, so it does
+#     not reconstruct to L1 and cannot be an anchor. The distribution-shape facet it captured is
+#     retained categorically via `distribution_shape` context.
+#   * partner_conditional_dependency reads `partner_stratification_mannwhitney_q` — the card's real
+#     field name; the plan's `partner_stratification_q` is not a summary field.
+#
+# A source whose card is absent (or whose class does not resolve) emits NO entry, and the whole
+# `source_properties` key is omitted when nothing resolves — keeping a card-absent run byte-stable,
+# matching the concordance-atom discipline on this vector.
+#
+# NOT here, deliberately:
+#   * NO separate "dependency prevalence" / "pan-essentiality" entry. The prevalence facet is the
+#     `fraction_strongly_dependent` anchor ON `crispr_essentiality`, and the pan-essential read is that
+#     property's `common_essential` class token — read at LIABILITY valence by the SAFETY domain's
+#     PAN_ESSENTIAL axis. It is ONE shared measurement, recorded via `dependence_group` in the catalog
+#     and cited by both FR's DEP and safety's PAN_ESSENTIAL; minting a second entry would make one card
+#     look like two independent sources.
+_SOURCE_PROPERTY_RECIPES_DEPENDENCY = (
+    {
+        "name": "crispr_essentiality",
+        "card_id": "pan-cancer-crispr-dependency-distribution",
+        "property_field": "dependency_class",
+        "anchors": (
+            "median_chronos_panel",
+            "p5_chronos_panel",
+            "fraction_strongly_dependent",
+            "selectivity_index",
+            "n_cell_lines_evaluated",
+        ),
+        "context": ("distribution_shape", "pan_essential_fraction_call", "broad_dependency_band"),
+        "comparability": {
+            "measurement_type": "crispr_chronos_dependency",
+            "sample_context": "pan_cancer_cell_line_panel",
+            "grain": "target",
+        },
+    },
+    {
+        "name": "rnai_essentiality",
+        "card_id": "pan-cancer-rnai-dependency-distribution",
+        "property_field": "rnai_dependency_class",
+        "anchors": (
+            "rnai_median_dep_score",
+            "rnai_p5_dep_score",
+            "rnai_fraction_strongly_dependent",
+            "rnai_selectivity_index",
+            "rnai_n_cell_lines_evaluated",
+        ),
+        "context": ("rnai_distribution_shape",),
+        "comparability": {
+            "measurement_type": "rnai_demeter2_dependency",
+            "sample_context": "pan_cancer_cell_line_panel",
+            "grain": "target",
+        },
+    },
+    {
+        "name": "dependency_lineage_selectivity",
+        "card_id": "dependency-lineage-selectivity",
+        "property_field": "enrichment_class",
+        "anchors": (
+            "lineage_variance_explained",
+            "lineage_omnibus_kruskal_h",
+            "n_enriched_lineages",
+            "n_lineages_evaluated",
+        ),
+        "context": ("indication_dependency_class", "lineage_omnibus_effect_size_class", "which_lineages_separate"),
+        "comparability": {
+            "measurement_type": "crispr_chronos_lineage_selectivity",
+            "sample_context": "pan_cancer_cell_line_panel",
+            "grain": "target",
+        },
+    },
+    {
+        "name": "partner_conditional_dependency",
+        "card_id": "partner-conditional-dependency",
+        "property_field": "partner_stratification_class",
+        "anchors": ("n_partner_deficient", "partner_stratification_mannwhitney_q"),
+        "context": ("partner", "deficiency_type"),
+        "comparability": {
+            "measurement_type": "crispr_partner_stratified_dependency",
+            "sample_context": "partner_stratified_cell_line_panel",
+            "grain": "target",
+        },
+    },
+    {
+        "name": "chemical_genetic_engagement",
+        "card_id": "prism-crispr-concordance",
+        "property_field": "crispr_prism_concordance_class",
+        "anchors": ("n_compounds_evaluated", "n_dual_responders", "best_spearman_r_crispr", "best_spearman_r_rnai"),
+        "context": (),
+        "comparability": {
+            "measurement_type": "prism_crispr_chemical_genetic_concordance",
+            "sample_context": "pan_cancer_cell_line_panel",
+            "grain": "target",
+        },
+    },
+    {
+        "name": "paralog_buffering",
+        "card_id": "paralog-buffering",
+        "property_field": "paralog_buffering_class",
+        "anchors": ("n_paralogs_annotated", "n_paralogs_functionally_buffering", "strongest_paralog_delta"),
+        "context": ("strongest_paralog_symbol", "strongest_paralog_ohnolog_status"),
+        "comparability": {
+            "measurement_type": "paralog_dual_ko_buffering",
+            "sample_context": "pan_cancer_cell_line_panel",
+            "grain": "target",
+        },
+    },
+)
+
+_DEPENDENCY_SKILL = "functional-requirement"
+
+
+@functools.lru_cache(maxsize=None)
+def _dependency_reach_map(skills_root: "str | None" = None) -> dict:
+    """{(card_id, field): interpretation_reach} for the functional-requirement ledger — the SECOND
+    disposition axis (SK#1525), read-only, sourced the same way `role_for` sources the first axis.
+
+    Returns {} when this skill's ledger declares the reach axis on no row (the mechanism is wired anyway
+    and proven by a test pointing it at a ledger that DOES declare it, so anchors type themselves the day
+    the FR ledger gains reach rows). Empty when the ledger is absent, so anchor typing stays
+    additive/byte-stable where the source is missing. Mirrors safety_claims._safety_reach_map."""
+    from _skills_common.field_disposition_contract import INTERPRETATION_REACH
+    from _skills_common.field_disposition_ledger import (
+        LEDGER_NAME,
+        _default_skills_root,
+        iter_rows,
+        load_ledger,
+    )
+
+    root = Path(skills_root) if skills_root else _default_skills_root()
+    path = root / _DEPENDENCY_SKILL / LEDGER_NAME
+    if not path.exists():
+        return {}
+    doc = load_ledger(path)
+    return {
+        (cid, field): spec["interpretation_reach"]
+        for cid, field, spec in iter_rows(doc)
+        if spec.get("interpretation_reach") in INTERPRETATION_REACH
+    }
+
+
+def _typed_dependency_anchor(card_id, field, value, *, skills_root=None):
+    """One retained quantitative anchor: {field, value, scale} + the ledger-declared disposition typing
+    (semantic_role via the role axis, interpretation_reach via the reach axis, #1525) when this skill's
+    ledger declares them. Typing keys are OMITTED when the ledger does not classify the field, so the
+    anchor never fabricates a disposition it cannot source."""
+    from _skills_common.field_disposition_ledger import role_for
+
+    anchor = {"field": field, "value": value, "scale": _DEPENDENCY_ANCHOR_SCALE.get(field, "raw")}
+    role = role_for(card_id, field, _DEPENDENCY_SKILL, skills_root=Path(skills_root) if skills_root else None)
+    if role is not None:
+        anchor["semantic_role"] = role
+    reach = _dependency_reach_map(skills_root).get((card_id, field))
+    if reach is not None:
+        anchor["interpretation_reach"] = reach
+    return anchor
+
+
+def _source_properties(c: dict, *, skills_root=None) -> "dict | None":
+    """The NAMED, typed L2a source_properties map for the DEPENDENCY domain (PR-1b): one entry per
+    source/grain, lifting the per-source observational properties out of the four claim signal blocks
+    into an explicit, recoverable object. Returns None when no source resolves (whole key omitted →
+    byte-stable), matching the atom discipline on this vector. Pure projection, verdict-inert, carries no
+    signal tier. Takes the cards-by-id map only: every dependency class is a verbatim card read, so
+    unlike the safety domain there is no headline-evaluated disjunction to report."""
+    out = {}
+    for recipe in _SOURCE_PROPERTY_RECIPES_DEPENDENCY:
+        summ = c.get(recipe["card_id"], {}) or {}
+        prop = summ.get(recipe["property_field"])
+        # A source with no card / no resolved observational class emits no entry (byte-stable).
+        if not prop or prop == "data_unavailable":
+            continue
+        entry = {
+            "card_id": recipe["card_id"],
+            # The L1 card field the class token was read from — NAMED on the entry (following the safety
+            # seed) so every entry reconstructs to L1 as {card_id, property_field, property}.
+            "property_field": recipe["property_field"],
+            "property": prop,
+            "anchors": [
+                _typed_dependency_anchor(recipe["card_id"], f, summ[f], skills_root=skills_root)
+                for f in recipe["anchors"]
+                if summ.get(f) is not None
+            ],
+            "comparability": dict(recipe["comparability"]),
+        }
+        # Retained categorical qualifiers that orient the anchors without being quantities themselves.
+        # OMITTED entirely when the card supplies none, keeping a partial-card run byte-stable.
+        context = {f: summ[f] for f in recipe["context"] if summ.get(f) is not None}
+        if context:
+            entry["context"] = context
+        out[recipe["name"]] = entry
+    return out or None
+
+
 def dependency_claim_vector(headline: dict, cards: list) -> dict:
     """The modality-blind claim vector {DEP,SEL,COND,CHEM: {signal, corroboration, evidence, conflict,
     informs}, _disclaimer}. Verdict-inert projection over the computed headline."""
@@ -496,6 +782,13 @@ def dependency_claim_vector(headline: dict, cards: list) -> dict:
     _ess = _essentiality_concordance_claim(cards_by_id(cards))
     if _ess is not None:
         vec["crispr_rnai_essentiality_concordance"] = _ess
+    # L2a NAMED source_properties map (PR-1b, #2210): the per-source observational properties lifted out
+    # of the four claim signal blocks into a named, typed, L1-reconstructable object. Carries NO `signal`
+    # key on any entry → not a chip, not a tier, read by no rule/verdict/ladder. OMITTED entirely
+    # (byte-stable) when no source resolves, matching the concordance-claim discipline directly above.
+    _props = _source_properties(cards_by_id(cards))
+    if _props is not None:
+        vec["source_properties"] = _props
     return vec
 
 

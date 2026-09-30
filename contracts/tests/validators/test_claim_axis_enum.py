@@ -4,9 +4,10 @@ The same two halves as its 0a/0b/0c siblings, and the second is again the load-b
 
   * POPULATION — the committed vocabularies/claim_axis.enum.yaml passes every clause, and the facts it
     was built to record are pinned as FACTS rather than left in prose: 15 skills, 61 `(skill, axis_key)`
-    pairs over 60 distinct tokens, exactly ONE collision (`DEP`), 19 axes resolving 23 catalogued
-    properties (14/15 at v1.0.0, +5 axes / +8 properties from Wave-1a's safety.yaml), and
-    `integrated_families.normal_liability` resolved by THREE axes under three different display names.
+    pairs over 60 distinct tokens, exactly ONE collision (`DEP`), 23 axes resolving 28 catalogued
+    properties (14/15 at v1.0.0, +5 axes / +8 properties from Wave-1a's safety.yaml, +4 axes /
+    +5 properties from Wave-1b's dependency.yaml), and `integrated_families.normal_liability` resolved
+    by THREE axes under three different display names.
     contracts/tests/ is collected wholesale by the `contracts-pytest` job with no path
     filter, so a regression reds trunk here without needing a workflow edit.
 
@@ -157,15 +158,15 @@ def test_the_owners_question_is_answered_by_the_property_index():
 
 def test_resolves_uses_the_qualified_form_because_the_catalog_namespace_COLLIDES():
     """Why `resolves:` is `<catalog_id>.<entry_id>` and not the bare id, driven rather than asserted from
-    prose: the catalog's 35 entries (Wave-1a added safety.yaml's 8) have only 33 distinct bare ids.
-    `collect_entry_ids()` — the namespace `estimates_property` already resolves against — flattens them,
-    so 2 of 35 entries are genuinely ambiguous by bare name."""
+    prose: the catalog's 41 entries (Wave-1a added safety.yaml's 8, Wave-1b dependency.yaml's 6) have
+    only 39 distinct bare ids. `collect_entry_ids()` — the namespace `estimates_property` already
+    resolves against — flattens them, so 2 of 41 entries are genuinely ambiguous by bare name."""
     from validate_property_catalog import collect_entry_ids
 
     flat = collect_entry_ids(CATALOG)
     qualified = {f"{cid}.{eid}" for cid, eids in V._catalog_index(CATALOG)[1].items() for eid in eids}
-    assert len(qualified) == 35, len(qualified)
-    assert len(flat) == 33, (
+    assert len(qualified) == 41, len(qualified)
+    assert len(flat) == 39, (
         "the bare-id namespace is no longer ambiguous, so the qualified-form requirement has lost its "
         "measured justification — re-read the enum header before relaxing anything"
     )
@@ -175,20 +176,21 @@ def test_resolves_uses_the_qualified_form_because_the_catalog_namespace_COLLIDES
 
 
 def test_every_unresolved_axis_says_WHY_and_every_resolved_one_does_not():
-    """Clause 5 on the real population, both directions. 42 of 61 axes resolve nothing because four l2a
-    catalogs remain Wave-1 items (safety.yaml landed in Wave-1a); each names the item that will fill it.
-    PAN_ESSENTIAL is the one safety axis still empty and its pending note now says WHY (the property is
-    the dependency domain's, #2212's to catalogue) rather than pointing at a wave that has landed."""
+    """Clause 5 on the real population, both directions. 38 of 61 axes resolve nothing because three l2a
+    catalogs remain Wave-1 items (safety.yaml landed Wave-1a, dependency.yaml Wave-1b; genomic/
+    selectivity/surface = #2212-#2214 remain); each names the item that will fill it. PAN_ESSENTIAL — the
+    one safety axis empty at v1.1.0 — is now RESOLVED (Wave-1b catalogued the shared
+    dependency.crispr_essentiality it reads at liability valence)."""
     unresolved = [a for a in DOC["axes"] if not a["resolves"]]
     resolved = [a for a in DOC["axes"] if a["resolves"]]
-    assert len(unresolved) == 42, len(unresolved)
-    assert len(resolved) == 19, len(resolved)
+    assert len(unresolved) == 38, len(unresolved)
+    assert len(resolved) == 23, len(resolved)
     assert all(str(a.get("resolves_pending", "")).strip() for a in unresolved)
     assert not any("resolves_pending" in a for a in resolved)
 
 
 def test_no_coverage_dimension_claims_to_be_a_gate():
-    """Clause 9 on the real population. 42/61 is REPORTED; gating it would block this item behind its
+    """Clause 9 on the real population. 38/61 is REPORTED; gating it would block this item behind its
     peer l2a epics or force catalog entries invented ahead of their measurement."""
     dims = DOC["coverage_dimensions"]
     assert len(dims) >= 3, dims
@@ -518,10 +520,10 @@ def test_additivity_reds_on_an_unbumped_addition(tmp_path):
 # person to add an axis cannot tell a real violation from a validator that forbids all change.
 def test_adding_an_axis_with_a_version_bump_stays_green(tmp_path):
     def mutate(d):
-        # A version STRICTLY above the committed one (now 1.1.0 after Wave-1a): the additivity half of
+        # A version STRICTLY above the committed one (now 1.2.0 after Wave-1b): the additivity half of
         # this test compares the mutated working file against HEAD, so the bump must clear HEAD's version
         # or the addition reads as unbumped and this "stays green" control would red for the wrong reason.
-        d["version"] = "1.2.0"
+        d["version"] = "1.3.0"
         d["axes"].append(
             {
                 "skill": "immune-context",

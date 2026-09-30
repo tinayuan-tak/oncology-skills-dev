@@ -18,7 +18,11 @@ import sys
 
 from _skills_common import _summary_is_unavailable, get_card_field, resolve_cards
 from _skills_common.claim_record import assemble_claim_record, magnitude_for_card
-from _skills_common.dependency_claims import dependency_claim_vector, dependency_key_signals
+from _skills_common.dependency_claims import (
+    DEPENDENCY_CLAIM_SPEC,
+    dependency_claim_vector,
+    dependency_key_signals,
+)
 from _skills_common.dependency_indication import _indication_lineage_read, _infer_indication
 from _skills_common.dependency_question_table import dependency_question_table
 from _skills_common.dispatcher import run_wired_skill
@@ -34,7 +38,7 @@ from _skills_common.skill_report import ROLE_GATING, build_skill_report
 from _skills_common.subgroup_derivation import _SUBGROUP_N_FLOOR, make_value_classifier
 
 SKILL_NAME = "functional-requirement"
-SKILL_VERSION = "1.9.0"  # 1.9.0 (2026-09-04): verdict-INERT surfacing — indication_scope_note (target-grain positive enriched outside the queried indication) + partial-paralog caveat on absence verdicts.   # 1.8.0 (2026-09-03): --literature lane + verdict-INERT signal enrichment (measurement_caveat, concordance_scope_note, PRISM DEP-quorum, paralog caveat, polarity_note).   # 1.7.0 (2026-08-28): migrate narrator to generic capsule-driven engine. Verdict-INERT.   # 1.6.0 (2026-08-27): tuned signals-first sub-group reader (dependency-vocab
+SKILL_VERSION = "1.10.0"  # 1.10.0 (2026-09-30, PR-1b of epic SK#2210 / #1507 — the DEPENDENCY generalisation of the tumor-presence L2a vertical, replicating the safety seed PR-1a): the per-source observational (L2a) properties, which existed only IMPLICITLY inside the four claim signal blocks, are lifted into a NAMED typed map `claim_vector.source_properties` (dependency_claims.py `_SOURCE_PROPERTY_RECIPES_DEPENDENCY`, 6 entries: crispr_essentiality / rnai_essentiality / dependency_lineage_selectivity / partner_conditional_dependency / chemical_genetic_engagement / paralog_buffering), each carrying its L1 card_id, the resolved observational class, the RETAINED quantitative anchors ({field, value, scale} + ledger-declared semantic_role / interpretation_reach, #1525) and comparability metadata; and under --emit-envelope evidence_package.json gains the NAMED top-level sections source_properties (L2a) / integrated_properties (L2b crispr_rnai_essentiality_concordance) / local_composites (the 4 axes DEP/SEL/COND/CHEM), built by _evidence_sections(headline) and threaded through run_wired_skill(evidence_sections_fn=...). No `l3d` section yet — the dependency within-domain story object is Wave-2a (PR-2a). Unlike the safety seed, dependency emits NO `comparability.valence` marker (this is the DEFAULT/efficacy frame — a strong dependency is the signal sought, so a generic higher-is-stronger read is correct; minting `valence: efficacy` would be an ungoverned second token) and NO `interpretation` provenance object (all six classes are verbatim card reads, no skills-side disjunction to name). Contracts governance: contracts/vocabularies/property_catalog/dependency.yaml (6 L2a props); claim_axis.enum.yaml 1.1.0→1.2.0 (SEL/COND/CHEM + safety PAN_ESSENTIAL now cite dependency.*; DEP additionally cites dependency.crispr_essentiality + dependency.rnai_essentiality alongside its l2b family). ADDITIVE / VERDICT-INERT: no axis renamed, no new L2b family, no token minted; `source_properties` omitted byte-stably when no source resolves; carries no `signal` key and read by no rule/verdict/ladder, so dependency_verdict + the resolver goldens + the KRAS replay are byte-stable.   # 1.9.0 (2026-09-04): verdict-INERT surfacing — indication_scope_note (target-grain positive enriched outside the queried indication) + partial-paralog caveat on absence verdicts.   # 1.8.0 (2026-09-03): --literature lane + verdict-INERT signal enrichment (measurement_caveat, concordance_scope_note, PRISM DEP-quorum, paralog caveat, polarity_note).   # 1.7.0 (2026-08-28): migrate narrator to generic capsule-driven engine. Verdict-INERT.   # 1.6.0 (2026-08-27): tuned signals-first sub-group reader (dependency-vocab
 #        value→tier map + paralog-buffering confidence-only). Verdict-INERT.
 # 1.5.0 (2026-08-21): emit the existing per-question question_table into the headline
 # 1.4.0 (2026-08-13): production review — offline recorded-fixture replay drift
@@ -1504,6 +1508,68 @@ _FR_VALUE_TIERS = {
 _FR_SUBGROUP_READER = {"paralog_buffering": None}
 
 
+# ─── EXPORTED bounded evidence-package sections (PR-1b, epic #2210 Wave 1 / #1507) ───────────────────
+# The dependency generalisation of the tumour-presence reference vertical
+# (`skills/tumor-presence/scripts/run.py::_evidence_sections`), replicating the safety seed
+# (on-target-safety-liability/run.py). Under `--emit-envelope` the emitted evidence_package.json gains
+# NAMED top-level sections so the L1→L2a→L2b layering is STRUCTURE rather than a convention over
+# `synthesis.headline.claim_vector`. The schema (contracts/schemas/evidence_package.schema.json) ALREADY
+# declares all four as optional — no schema change, and a section this domain does not produce is OMITTED.
+#
+# The L2b property island promoted to a shared top-level section. ONE for dependency today —
+# `crispr_rnai_essentiality_concordance` (CRISPR × RNAi, SK#1533), which reconstructs to L1 through
+# `provenance.sources[*].(provenance.)card_id`. Deliberately a ROSTER, not "everything without a
+# `signal` key": a future L2b fold must be listed here consciously, exactly as the presence roster works.
+_INTEGRATED_ISLAND_KEYS = ("crispr_rnai_essentiality_concordance",)
+
+# The composites that stay INSIDE the domain with their epistemic type declared — the four dependency
+# claim axes. NOT promoted to shared L2 properties: each is this skill's own (signal × corroboration)
+# read of one source, reconstructable to L1 via `evidence_atom.cite.card_id`. Pinned to the ClaimSpec
+# roster so an axis added to DEPENDENCY_CLAIM_SPEC cannot silently go unexported.
+_LOCAL_COMPOSITE_KEYS = tuple(spec.axis_key for spec in DEPENDENCY_CLAIM_SPEC)
+
+
+def _evidence_sections(headline: dict) -> "dict | None":
+    """Build the NAMED, bounded top-level evidence-package sections from the rich decision headline.
+
+    Pure read-projection over the already-built `headline`: partitions content it ALREADY carries into the
+    doc's named sections (`source_properties` L2a, `integrated_properties` L2b, `local_composites`).
+    Nothing is recomputed and nothing is dropped that a consumer could not already read on the headline.
+    Every emitted section reconstructs downward to L1:
+      * source_properties[*].card_id (+ per-anchor {field, value} → the L1 card field)
+      * integrated_properties[*].provenance.sources[*].card_id (or .provenance.card_id)
+      * local_composites.claims.<AXIS>.evidence_atom.cite.card_id
+    `l3d` is NOT emitted: the dependency within-domain L3d story object is Wave-2a (PR-2a), not built yet,
+    and an empty section is worse than an absent one — so this domain emits THREE of the schema's four
+    optional sections. Returns None when no claim_vector resolved, so the dispatcher passes
+    `evidence_sections=None` and the emitted package is byte-identical to the pre-PR-1b shape.
+    VERDICT-INERT throughout."""
+    if not isinstance(headline, dict):
+        return None
+    cv = headline.get("claim_vector")
+    if not isinstance(cv, dict):
+        return None
+
+    sections: dict = {}
+
+    # L2a — per-source observational biological properties (each entry carries its L1 card_id).
+    sp = cv.get("source_properties")
+    if sp:
+        sections["source_properties"] = sp
+
+    # L2b — the property islands (reconstructable to card_ids via provenance.sources[*].(provenance.)card_id).
+    integrated = {k: cv[k] for k in _INTEGRATED_ISLAND_KEYS if cv.get(k) is not None}
+    if integrated:
+        sections["integrated_properties"] = integrated
+
+    # Local composites — carried inside the domain with the epistemic type declared.
+    carried = {k: cv[k] for k in _LOCAL_COMPOSITE_KEYS if cv.get(k) is not None}
+    if carried:
+        sections["local_composites"] = {"epistemic_type": "domain_local_composite", "claims": carried}
+
+    return sections or None
+
+
 if __name__ == "__main__":
     sys.exit(
         run_wired_skill(
@@ -1545,5 +1611,10 @@ if __name__ == "__main__":
             # rungs reachable on the standalone path too (the composed paths already apply it via the
             # gate name). Verdict-inert on a target-grain run (indication_not_supplied has no rung).
             preprocess_gate="dependency",
+            # PR-1b (#2210): under --emit-envelope, splice the NAMED bounded evidence-package sections
+            # (source_properties L2a / integrated_properties L2b / local_composites) in as top-level keys
+            # of evidence_package.json — a VIEW over the same headline content, each reconstructable
+            # downward to its claim IDs / L1 card_ids. Verdict-INERT (decision.json spine untouched).
+            evidence_sections_fn=_evidence_sections,
         )
     )

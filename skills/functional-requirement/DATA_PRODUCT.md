@@ -6,7 +6,7 @@ logic + history live in SKILL.md / run.py; this file is the data-product spec.
 | | |
 |---|---|
 | **Skill** | `functional-requirement` |
-| **Skill code version** | 1.9.0 |
+| **Skill code version** | 1.10.0 |
 | **Contract version** | 1.0.0 (emitted-output schema; versioned independently — see §4) |
 | **Role** | `gating` (verdict moves the nomination; polarity dynamic — `pan_essential_killer` emits a killer override) |
 | **Verdict field** | `headline.dependency_verdict` (resolved) + `dependency_verdict_by_scope` (`{pan_cancer, indication, subtype}`) |
