@@ -150,6 +150,45 @@ def test_builder_retains_only_splice_and_sorts():
     assert out[0]["end_position"] == 112840010  # End_Position retained
 
 
+def test_builder_default_entry_filter_drops_non_default_duplicate_profile():
+    # A model with two sequencing profiles (default + non-default) must contribute only the
+    # default-flagged splice row — the non-default duplicate must not double-count (#2191).
+    from onc_methods.exon_skip_carrier.build import splice_rows_from_maf
+
+    header = [
+        "Hugo_Symbol",
+        "Chromosome",
+        "Start_Position",
+        "End_Position",
+        "Variant_Classification",
+        "ModelID",
+        "IsDefaultEntryForModel",
+    ]
+    rows = [
+        header,
+        ["MET", "chr7", "116771990", "116771990", "Splice_Site", "ACH-000616", "Yes"],
+        ["MET", "chr7", "116771990", "116771990", "Splice_Site", "ACH-000616", "No"],  # dup profile
+        ["APC", "chr5", "112839999", "112840010", "Splice_Site", "ACH-YY", "Yes"],
+    ]
+    out = splice_rows_from_maf(rows)
+    assert len(out) == 2  # the non-default MET duplicate is excluded
+    assert [r["gene_symbol"] for r in out] == ["APC", "MET"]
+
+
+def test_builder_missing_default_entry_column_is_unfiltered():
+    # Sources without an IsDefaultEntryForModel column (e.g. the existing test MAF shape)
+    # keep every splice row, unaffected by the filter.
+    from onc_methods.exon_skip_carrier.build import splice_rows_from_maf
+
+    rows = _maf(
+        [
+            ["MET", "chr7", "116771990", "116771990", "Splice_Site", "ACH-000616", "SNV"],
+        ]
+    )
+    out = splice_rows_from_maf(rows)
+    assert len(out) == 1
+
+
 def test_builder_unparseable_position_dropped():
     from onc_methods.exon_skip_carrier.build import splice_rows_from_maf
 

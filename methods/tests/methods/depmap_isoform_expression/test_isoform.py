@@ -109,6 +109,55 @@ def test_unmapped_transcript_ignored(monkeypatch):
     assert df.iloc[0]["dominant_isoform_fraction"] == 1.0
 
 
+def _write_csv_with_default(tmp_path, enst_cols, model_rows):
+    """model_rows: list of (default_flag, {enst: linear_tpm}). Writes a CSV with an
+    IsDefaultEntryForModel column so the default-entry filter (#2191) can be exercised."""
+    p = tmp_path / "tx_default.csv"
+    header = ["ModelID", "IsDefaultEntryForModel"] + enst_cols
+    lines = [",".join(header)]
+    for i, (flag, mr) in enumerate(model_rows):
+        vals = [f"model{i}", flag] + [str(_log1p(mr.get(e, 0.0))) for e in enst_cols]
+        lines.append(",".join(vals))
+    p.write_text("\n".join(lines))
+    return str(p)
+
+
+def test_default_entry_filter_drops_non_default_duplicate_rows(monkeypatch):
+    # A model with two sequencing profiles (one default, one not) must contribute only the
+    # default row — the non-default row's wildly different values must NOT leak into the
+    # aggregation, and must not count toward n_models (#2191).
+    _setup_map(monkeypatch, {"ENST1": "GENEA", "ENST2": "GENEA"})
+    monkeypatch.setattr(r, "_MIN_MODELS", 20)
+    import tempfile
+
+    d = tempfile.mkdtemp()
+    default_rows = [("Yes", {"ENST1.1": 100.0, "ENST2.1": 0.5}) for _ in range(25)]
+    # 10 extra non-default duplicate profile rows with values that would flip the class
+    # (isoform-diverse) if wrongly included.
+    dup_rows = [("No", {"ENST1.1": 30.0, "ENST2.1": 30.0}) for _ in range(10)]
+    path = _write_csv_with_default(Path(d), ["ENST1.1", "ENST2.1"], default_rows + dup_rows)
+    tbl = r.build_isoform_table(local_csv=path)
+    df = tbl.to_pandas()
+    row = df[df.gene_symbol == "GENEA"].iloc[0]
+    assert row["n_models"] == 25  # non-default rows excluded from the count
+    assert row["isoform_expression_class"] == "single_isoform_dominant"
+    assert row["dominant_isoform_fraction"] >= 0.99
+
+
+def test_no_default_entry_column_is_unfiltered(monkeypatch):
+    # Sources without an IsDefaultEntryForModel column (older/synthetic) are unaffected.
+    _setup_map(monkeypatch, {"ENST1": "GENEA", "ENST2": "GENEA"})
+    monkeypatch.setattr(r, "_MIN_MODELS", 20)
+    import tempfile
+
+    d = tempfile.mkdtemp()
+    rows = [{"ENST1.1": 100.0, "ENST2.1": 0.5} for _ in range(25)]
+    path = _write_csv(Path(d), ["ENST1.1", "ENST2.1"], rows)
+    tbl = r.build_isoform_table(local_csv=path)
+    row = tbl.to_pandas().iloc[0]
+    assert row["n_models"] == 25
+
+
 def test_summary_for_gene_data_unavailable(monkeypatch):
     monkeypatch.setattr(r, "_read_from_product", lambda t: None)
     out = r.isoform_summary_for_gene("NOPE")

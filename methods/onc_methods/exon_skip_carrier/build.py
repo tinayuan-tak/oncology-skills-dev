@@ -56,17 +56,23 @@ def splice_rows_from_maf(rows: Iterable[list]) -> list:
     )
     mi = ix.get("ModelID")
     vti = ix.get("VariantType", ix.get("Variant_Type"))
+    di = ix.get("IsDefaultEntryForModel")
     required = {"Hugo_Symbol": gi, "Chromosome": ci, "Start_Position": si, "Variant_Classification": vi, "ModelID": mi}
     missing = [n for n, i in required.items() if i is None]
     if missing:
         raise ValueError(f"raw MAF missing required columns: {missing}")
     out = []
     for r in it:
-        top = max(gi, ci, si, vi, mi, ei or 0, vti or 0)
+        top = max(gi, ci, si, vi, mi, ei or 0, vti or 0, di or 0)
         if len(r) <= top:
             continue
         vc = r[vi]
         if _SPLICE_TOKEN not in (vc or "").lower():
+            continue
+        # Default-entry filter (one representative sequencing profile per model), mirroring
+        # depmap_common's IsDefaultEntryForModel idiom — drops non-canonical duplicate profile
+        # rows so cohort/carrier counts stay model-canonical (#2191).
+        if di is not None and r[di] not in (True, "Yes", "yes", "true", "TRUE"):
             continue
         try:
             start = int(r[si])

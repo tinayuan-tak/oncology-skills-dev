@@ -198,10 +198,22 @@ def build_isoform_table(local_csv: Optional[str] = None):
         # column → gene (version-stripped); keep only mapped columns.
         col_to_gene = {c: enst2gene[c.split(".")[0]] for c in enst_cols if c.split(".")[0] in enst2gene}
         mapped = list(col_to_gene)
+        # Default-entry filter (one representative sequencing profile per model), mirroring the
+        # depmap_common IsDefaultEntryForModel idiom — a model with multiple sequencing profiles
+        # otherwise contributes duplicate rows to the per-model aggregation below (#2191). Read the
+        # flag column alongside the ENST columns (when present) and drop non-default rows before
+        # aggregating; absent on older/synthetic sources → no filtering (unchanged behavior).
+        default_col = "IsDefaultEntryForModel" if "IsDefaultEntryForModel" in header else None
+        include_cols = mapped + ([default_col] if default_col else [])
+        column_types = {c: pa.float32() for c in mapped}
+        if default_col:
+            column_types[default_col] = pa.string()
         # block_size must exceed the longest line; the ~237k-column header line alone is multi-MB.
-        conv = pac.ConvertOptions(include_columns=mapped, column_types={c: pa.float32() for c in mapped})
+        conv = pac.ConvertOptions(include_columns=include_cols, column_types=column_types)
         read_opts = pac.ReadOptions(use_threads=True, block_size=256 * 1024 * 1024)
-        tbl = pac.read_csv(path, read_options=read_opts, convert_options=conv).select(mapped)
+        tbl = pac.read_csv(path, read_options=read_opts, convert_options=conv)
+        default_flags = tbl.column(default_col).to_pylist() if default_col else None
+        tbl = tbl.select(mapped)
     finally:
         if tmp is not None:
             _os.unlink(tmp.name)
@@ -210,6 +222,9 @@ def build_isoform_table(local_csv: Optional[str] = None):
         "float32"
     )
     del tbl
+    if default_flags is not None:
+        keep = np.array([v in (True, "Yes", "yes", "true", "TRUE") for v in default_flags])
+        mat = mat[keep]
     mat = np.expm1(mat)  # log1p → linear TPM
     mat[~np.isfinite(mat)] = 0.0
     mat[mat < _MIN_EXPRESSED_TPM] = 0.0  # apply expressed floor (below-floor → 0 = not expressed)
