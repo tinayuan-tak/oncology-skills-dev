@@ -429,7 +429,11 @@ def test_teeth_consumer_without_a_read_site(tmp_path):
 # #2306 rollout step 1 (add-only): an L2a entry MAY declare an optional `reliability` block. This
 # validator admits it structurally (RELIABILITY_KEYS + closed scalar types); the TOKEN governance
 # (flag-vocabulary membership) is validate_reliability_enum.py's referential clause. No landed catalog
-# declares a block, so the admission is proven by planted fixtures, not by the committed corpus.
+# declares a VALUE-shaped block (n_effective/powered/...) yet, so that half is proven by planted
+# fixtures, not by the committed corpus. The DECLARATION-shaped half (`n_effective_anchor` /
+# `powered_floor`, #2330) IS landed — dependency.yaml's three DepMap-calibrated properties — and is
+# covered by `test_committed_catalog_validates` (population) plus
+# `test_dependency_powered_floor_declarations_match_the_pinned_roster` below (roster equality).
 
 
 def test_teeth_reliability_block_valid_declaration_passes(tmp_path):
@@ -489,6 +493,137 @@ def test_teeth_reliability_block_nonlist_flags_is_red(tmp_path):
     doc["properties"]["patient_tumor_abundance"]["reliability"] = {"confound_flags": "microenvironment_weighted"}
     errs = _run(tmp_path, "tumor_presence.yaml", doc)
     assert any("`confound_flags` must be a list of string tokens" in e for e in errs), errs
+
+
+# --------------------------------------------------------------------------- reliability DECLARATION shape (#2330)
+#
+# `n_effective_anchor` + `powered_floor` are the DECLARATION-shaped half of `reliability`: they say
+# WHICH of this entry's own fields is the power denominator and WHAT the calibrated floor is, never an
+# emitted runtime value. `patient_tumor_abundance` (tumor_presence.yaml) has a real observable field
+# `allgene_percentile` this fixture reuses as "a field this property actually measures".
+
+
+def test_teeth_reliability_declaration_valid_passes(tmp_path):
+    """The control: an anchor naming a real observable field, paired with a well-formed floor."""
+    doc = _l2a_doc()
+    doc["properties"]["patient_tumor_abundance"]["reliability"] = {
+        "n_effective_anchor": "allgene_percentile",
+        "powered_floor": {"value": 300, "adjudication": "#2327"},
+    }
+    assert _run(tmp_path, "tumor_presence.yaml", doc) == []
+
+
+def test_teeth_reliability_declaration_anchor_alone_passes(tmp_path):
+    """`n_effective_anchor` may be declared without a floor (e.g. calibration pending)."""
+    doc = _l2a_doc()
+    doc["properties"]["patient_tumor_abundance"]["reliability"] = {"n_effective_anchor": "allgene_percentile"}
+    assert _run(tmp_path, "tumor_presence.yaml", doc) == []
+
+
+def test_teeth_reliability_declaration_pending_adjudication_passes(tmp_path):
+    """The `pending` sentinel is legal — a floor not yet calibrated is an honest state, not an error."""
+    doc = _l2a_doc()
+    doc["properties"]["patient_tumor_abundance"]["reliability"] = {
+        "n_effective_anchor": "allgene_percentile",
+        "powered_floor": {"value": 0, "adjudication": "pending"},
+    }
+    assert _run(tmp_path, "tumor_presence.yaml", doc) == []
+
+
+def test_teeth_reliability_anchor_not_an_own_field_is_red(tmp_path):
+    """Defends: a floor declared against a field this property does not itself measure — borrowing an
+    anchor from elsewhere would let a floor cite a denominator the property never emits."""
+    doc = _l2a_doc()
+    doc["properties"]["patient_tumor_abundance"]["reliability"] = {"n_effective_anchor": "n_cell_lines_evaluated"}
+    errs = _run(tmp_path, "tumor_presence.yaml", doc)
+    assert any("is not one of this entry's own fields" in e for e in errs), errs
+
+
+def test_teeth_reliability_anchor_nonstring_is_red(tmp_path):
+    doc = _l2a_doc()
+    doc["properties"]["patient_tumor_abundance"]["reliability"] = {"n_effective_anchor": 12}
+    errs = _run(tmp_path, "tumor_presence.yaml", doc)
+    assert any("`n_effective_anchor` must be a non-empty string" in e for e in errs), errs
+
+
+def test_teeth_reliability_powered_floor_without_anchor_is_red(tmp_path):
+    """Defends: a floor with no declared anchor is a number nobody can say what it floors."""
+    doc = _l2a_doc()
+    doc["properties"]["patient_tumor_abundance"]["reliability"] = {
+        "powered_floor": {"value": 300, "adjudication": "#2327"}
+    }
+    errs = _run(tmp_path, "tumor_presence.yaml", doc)
+    assert any("`powered_floor` declared without `n_effective_anchor`" in e for e in errs), errs
+
+
+def test_teeth_reliability_powered_floor_unknown_key_is_red(tmp_path):
+    doc = _l2a_doc()
+    doc["properties"]["patient_tumor_abundance"]["reliability"] = {
+        "n_effective_anchor": "allgene_percentile",
+        "powered_floor": {"value": 300, "adjudication": "#2327", "confidence": "high"},
+    }
+    errs = _run(tmp_path, "tumor_presence.yaml", doc)
+    assert any("unknown key `confidence`" in e for e in errs), errs
+
+
+def test_teeth_reliability_powered_floor_negative_value_is_red(tmp_path):
+    doc = _l2a_doc()
+    doc["properties"]["patient_tumor_abundance"]["reliability"] = {
+        "n_effective_anchor": "allgene_percentile",
+        "powered_floor": {"value": -1, "adjudication": "#2327"},
+    }
+    errs = _run(tmp_path, "tumor_presence.yaml", doc)
+    assert any("`value` must be a non-negative integer" in e for e in errs), errs
+
+
+def test_teeth_reliability_powered_floor_bad_adjudication_is_red(tmp_path):
+    """Mirrors the determinant discipline: an unreferenced claim is a hole, not a citation."""
+    doc = _l2a_doc()
+    doc["properties"]["patient_tumor_abundance"]["reliability"] = {
+        "n_effective_anchor": "allgene_percentile",
+        "powered_floor": {"value": 300, "adjudication": "maybe later"},
+    }
+    errs = _run(tmp_path, "tumor_presence.yaml", doc)
+    assert any("`adjudication` must be `pending` or an issue reference" in e for e in errs), errs
+
+
+def test_teeth_reliability_powered_floor_nonmapping_is_red(tmp_path):
+    doc = _l2a_doc()
+    doc["properties"]["patient_tumor_abundance"]["reliability"] = {
+        "n_effective_anchor": "allgene_percentile",
+        "powered_floor": 300,
+    }
+    errs = _run(tmp_path, "tumor_presence.yaml", doc)
+    assert any("`powered_floor` must be a mapping" in e for e in errs), errs
+
+
+def test_dependency_powered_floor_declarations_match_the_pinned_roster():
+    """Population-level ROSTER pin (arc habit: pin to EQUALITY with the source, never a bare count).
+
+    The three DepMap-calibrated dependency properties landed in dependency.yaml (#2330) declare exactly
+    this (anchor, floor, adjudication) triple — a peer editing dependency.yaml to add/drop/retune one of
+    these must red HERE, not slide by unnoticed because nothing counted them. The single source of truth
+    for the VALUE is onc_methods.reliability_calibration.powered_floors (pinned there, both directions,
+    by methods/tests/calibration/powered_floor_flip_matrix/test_catalog_powered_floor_declaration.py —
+    contracts/ never imports onc_methods, so this test hardcodes the same three numbers as a second,
+    independent witness).
+    """
+    doc = yaml.safe_load((CATALOG / "dependency.yaml").read_text())
+    found = {}
+    for entry_id, entry in doc["properties"].items():
+        rel = (entry or {}).get("reliability")
+        if rel and "powered_floor" in rel:
+            found[entry_id] = (
+                rel["n_effective_anchor"],
+                rel["powered_floor"]["value"],
+                rel["powered_floor"]["adjudication"],
+            )
+    expected = {
+        "crispr_essentiality": ("n_cell_lines_evaluated", 300, "#2327"),
+        "rnai_essentiality": ("rnai_n_cell_lines_evaluated", 300, "#2327"),
+        "partner_conditional_dependency": ("n_partner_deficient", 5, "#2327"),
+    }
+    assert found == expected, f"dependency.yaml powered_floor roster drifted: {found} != {expected}"
 
 
 def test_reliability_scalar_mirrors_equal_the_enum_authoritative_sets():

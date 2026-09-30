@@ -128,10 +128,36 @@ CONSUMER_KEYS = {"skill", "axis_key", "surface", "note"}
 # only the STRUCTURE of a declared block: strict keys, an int `n_effective`, and the two closed scalar
 # fields; the GROWING flag vocabularies (`confound_flags` / `artifact_flags`) are token-governed by the
 # enum validator, so here they are checked only to be lists of strings.
-RELIABILITY_KEYS = {"n_effective", "powered", "confound_flags", "artifact_flags", "detection_strength"}
+#
+# TWO SHAPES SHARE ONE KEY SET, deliberately never colliding on a name (#2330). The first five keys are
+# VALUE-shaped — they hold an EMITTED runtime fact (`powered: true`, an actual `n_effective` count) and
+# belong on a builder's OUTPUT, never on a static catalog entry: freezing `powered: unmeasured` into the
+# catalog would go stale the instant a floor is calibrated for that anchor. `n_effective_anchor` and
+# `powered_floor` are DECLARATION-shaped — they say WHICH of this entry's own observable fields is the
+# power denominator and WHAT the calibrated floor is, never an emitted value, so the catalog can declare
+# the derivation without pretending to know today's answer. `powered_floor` is single-sourced from
+# `onc_methods.reliability_calibration.powered_floors` (#2327) and PINNED to it, both directions, by
+# methods/tests/calibration/powered_floor_flip_matrix/test_catalog_powered_floor_declaration.py — a
+# drift on either side reds there. This validator only admits the SHAPE; it never imports onc_methods
+# (dependency direction is skills -> methods -> contracts, never reversed).
+RELIABILITY_KEYS = {
+    "n_effective",
+    "powered",
+    "confound_flags",
+    "artifact_flags",
+    "detection_strength",
+    "n_effective_anchor",
+    "powered_floor",
+}
 VALID_POWERED = {True, False, "unmeasured"}
 VALID_DETECTION_STRENGTH = {"weak", "moderate", "strong"}
 RELIABILITY_FLAG_KEYS = ("confound_flags", "artifact_flags")
+# `powered_floor` sub-shape: the calibrated floor VALUE plus WHO adjudicated it. `adjudication` is either
+# the literal sentinel `pending` (no floor calibrated yet) or an issue reference `#<digits>` — a bare
+# unreferenced claim is exactly the "UNKNOWN with no adjudication.adjudication" hole determinants already
+# guard against, so this mirrors that discipline for the new shape.
+POWERED_FLOOR_KEYS = {"value", "adjudication"}
+_ADJUDICATION_RE = re.compile(r"^(pending|#\d+)$")
 
 _SEMVER = re.compile(r"^\d+\.\d+\.\d+$")
 _SNAKE = re.compile(r"^[a-z][a-z0-9_]*$")
@@ -298,14 +324,23 @@ def _check_consumers(r: Report, where: str, consumers, skills_root: Path) -> Non
             r.err(f"{w}: skill `{skill}` has no skills/{skill}/ directory")
 
 
-def _check_reliability(r: Report, where: str, block) -> None:
-    """OPTIONAL `reliability` declaration (#2306 step 1). STRUCTURE only — the enum validator owns tokens.
+def _check_reliability(r: Report, where: str, block, field_names: "set[str]") -> None:
+    """OPTIONAL `reliability` declaration (#2306 step 1 + #2330). STRUCTURE only — the enum validator owns
+    the flag-vocabulary tokens; `onc_methods.reliability_calibration.powered_floors` is single-sourced
+    and PINNED (both directions) by a methods-side test, never imported here.
 
     Every sub-key is itself optional (the facet's fields are conditionally carried); this checks the
     strict key set, that `n_effective` is a plain int, and that the two CLOSED scalar fields draw from
     their locked sets. The growing flag vocabularies are checked only to be lists of strings; their
     token membership is validate_reliability_enum.py's referential clause. No landed catalog declares a
-    block, so this clause is proven by planted fixtures, not by the committed corpus.
+    VALUE-shaped block yet, so that half is proven by planted fixtures, not by the committed corpus.
+
+    `n_effective_anchor` / `powered_floor` are the DECLARATION-shaped half (#2330): `n_effective_anchor`
+    must name one of THIS entry's own observable (l2a) / arm (l2b) fields — `field_names` is that set,
+    so a floor cannot be declared against a field the property does not itself measure. `powered_floor`
+    is a mapping of `value` (non-negative int) + `adjudication` (`pending` or `#<issue>`), and is refused
+    without a co-declared `n_effective_anchor` — a floor means nothing without saying which field it
+    floors.
     """
     if not isinstance(block, dict):
         r.err(f"{where}.reliability: must be a mapping ({sorted(RELIABILITY_KEYS)}; every sub-key optional)")
@@ -339,6 +374,36 @@ def _check_reliability(r: Report, where: str, block) -> None:
         vals = block[flag_key]
         if not isinstance(vals, list) or any(not isinstance(v, str) for v in vals):
             r.err(f"{where}.reliability: `{flag_key}` must be a list of string tokens, got {vals!r}")
+    if "n_effective_anchor" in block:
+        anchor = block["n_effective_anchor"]
+        if not isinstance(anchor, str) or not anchor.strip():
+            r.err(f"{where}.reliability: `n_effective_anchor` must be a non-empty string")
+        elif anchor not in field_names:
+            r.err(
+                f"{where}.reliability: `n_effective_anchor` names `{anchor}`, which is not one of this "
+                f"entry's own fields {sorted(field_names)} — the anchor must be a field THIS property "
+                f"itself measures, not borrowed from elsewhere"
+            )
+    if "powered_floor" in block:
+        pf = block["powered_floor"]
+        if not isinstance(pf, dict):
+            r.err(f"{where}.reliability: `powered_floor` must be a mapping ({sorted(POWERED_FLOOR_KEYS)})")
+        else:
+            _strict_keys(r, f"{where}.reliability.powered_floor", pf, POWERED_FLOOR_KEYS)
+            v = pf.get("value")
+            if isinstance(v, bool) or not isinstance(v, int) or v < 0:
+                r.err(f"{where}.reliability.powered_floor: `value` must be a non-negative integer, got {v!r}")
+            adj = pf.get("adjudication")
+            if not isinstance(adj, str) or not _ADJUDICATION_RE.match(adj):
+                r.err(
+                    f"{where}.reliability.powered_floor: `adjudication` must be `pending` or an issue "
+                    f"reference of the form `#<digits>`, got {adj!r}"
+                )
+        if "n_effective_anchor" not in block:
+            r.err(
+                f"{where}.reliability: `powered_floor` declared without `n_effective_anchor` — a floor "
+                f"means nothing without saying which field it floors"
+            )
 
 
 def _check_l2a_entry(r: Report, where: str, entry: dict, cards: dict, all_ids: set) -> None:
@@ -500,7 +565,12 @@ def validate_file(path: Path, cards: "dict[str, set[str]]", all_ids: set, skills
         _check_determinants(r, where, entry.get("determinants"))
         _check_consumers(r, where, entry.get("consumers"), skills_root)
         if "reliability" in entry:
-            _check_reliability(r, where, entry.get("reliability"))
+            if kind == "l2b_family":
+                field_names = {a.get("field") for a in (entry.get("arms") or []) if isinstance(a, dict)}
+            else:
+                field_names = {o.get("field") for o in (entry.get("observables") or []) if isinstance(o, dict)}
+            field_names = {f for f in field_names if isinstance(f, str)}
+            _check_reliability(r, where, entry.get("reliability"), field_names)
         if kind == "l2b_family":
             _check_l2b_entry(r, where, entry, cards)
         else:
