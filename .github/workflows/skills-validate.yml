@@ -144,12 +144,28 @@ jobs:
           # changed). No `|| true` fail-open — a diff error must fail this job, not silently green.
           changed=$(git diff --name-only --diff-filter=ACMRD "origin/$base"...HEAD)
           echo "Changed files:"; echo "$changed"
+          # Match against a FILE, never `echo "$changed" | grep -q` (skills#2258).
+          # `set -o pipefail` + `grep -q` is a SIZE-DEPENDENT FAIL-OPEN: grep exits at the FIRST
+          # match, the writer (echo) then takes SIGPIPE, and pipefail promotes that to the
+          # pipeline's status — 141 — so the `if` reads FALSE and the leg is SKIPPED, while the
+          # `pytest` fan-in reads that skip as EXPECTED and posts green. Invisible when the list
+          # fits the 64 KiB pipe buffer; fires on exactly the large refactors that most need the
+          # heavy legs. Measured on PR #2257: 1215 paths / 75564 bytes ->
+          # methods=false contracts=false contracts_jobs=false, with contracts/ present at line 4.
+          changed_list=$(mktemp)
+          printf '%s\n' "$changed" > "$changed_list"
           contracts=false
           methods=false
           skills=false
-          if echo "$changed" | grep -qE '^contracts/'; then contracts=true; fi
-          if echo "$changed" | grep -qE '^methods/';   then methods=true; fi
-          if echo "$changed" | grep -qE '^skills/';    then skills=true; fi
+          if grep -qE '^contracts/' "$changed_list"; then contracts=true; fi
+          if grep -qE '^methods/'   "$changed_list"; then methods=true; fi
+          if grep -qE '^skills/'    "$changed_list"; then skills=true; fi
+          # Per-prefix match counts in the log, so a future false negative reads as
+          # "N matched but leg=false" rather than having to be inferred from a bare `false`.
+          echo "Matched: contracts=$(grep -cE '^contracts/' "$changed_list" || true)" \
+               "methods=$(grep -cE '^methods/' "$changed_list" || true)" \
+               "skills=$(grep -cE '^skills/' "$changed_list" || true)" \
+               "of $(wc -l < "$changed_list") changed paths"
           # methods leg runs when methods/ changed OR contracts/ changed (methods imports contracts).
           if [ "$contracts" = "true" ]; then methods=true; fi
           # contracts legs (#2090, de-hermeticised): run when skills/, methods/, or contracts/ changed
