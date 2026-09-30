@@ -84,9 +84,10 @@ composition:
 
 ## Snapshot resolution (rank-ordered, first match wins)
 
-Source of truth: `target-contracts/resolvers/tractability_small_molecule.resolver.yaml` (v1.3.0).
+Source of truth: `target-contracts/resolvers/tractability_small_molecule.resolver.yaml` (v1.7.0).
 Precedence: ON-TARGET chemical-genetic (concordance-confirmed) > opposing OFF-TARGET > retrospective
-chemical ACTIVITY > MEASURED potency > structural forward-ligandability > unhit.
+chemical ACTIVITY > MEASURED potency > directness/modality gate > structural forward-ligandability >
+unhit.
 
   1. `e7-triangulated-target-engaged-supportive` → `well_covered`
      (chemical hit agrees with the genetic dependency — highest confidence; on-target)
@@ -96,22 +97,30 @@ chemical ACTIVITY > MEASURED potency > structural forward-ligandability > unhit.
       Stays below the on-target rungs above — a proven-on-mechanism target is not overridden.)
   4. `prism-clinically-active-supportive-sm` → `chemically_active` (measured cell-panel activity)
   5. `known-drug-approved-antineoplastic-sm-supportive` → `chemically_active` (DGIdb approved drug)
-  6. `prism-clinical-precedent-only-weak-supportive-sm` → `clinical_precedent_only`
+  6. `measured-chembl-approved-sm-supportive` → `chemically_active` (v1.5.0: a real ChEMBL max_clinical_phase >= 4 approval)
+  7. `measured-chembl-clinical-precedent-sm-supportive` → `clinical_precedent_only` (v1.5.0: real ChEMBL phase 1-3 precedent)
+  8. `prism-clinical-precedent-only-weak-supportive-sm` → `clinical_precedent_only`
      (T1.2: a phase-1+ compound ANNOTATED but NO measured activity — weaker than a measured hit)
-  7. `prism-tool-compound-only-weak-supportive-sm` → `tool_compound_only`
-  8. `prism-weakly-active-weak-supportive-sm` → `weakly_active`
-  9. `measured-potent-ligand-sm-supportive` → `measured_potent_ligand`
+  9. `prism-tool-compound-only-weak-supportive-sm` → `tool_compound_only`
+  10. `prism-weakly-active-weak-supportive-sm` → `weakly_active`
+  11. `measured-potent-ligand-sm-supportive` → `measured_potent_ligand`
      (T3.1: a potent ≤1 µM MEASURED chemotype series from ChEMBL/BindingDB — a real chemical start point)
-  10. `ligandability-experimental-sm-supportive` → `structurally_ligandable` (real co-crystal, strongest handle)
-  11. `hotspot-in-druggable-pocket-sm-supportive-e8` → `structurally_ligandable` (LIVE hotspot-in-pocket, KRAS-G12C archetype)
-  12. `structure-pocket-adjacent-sm-supportive` → `structurally_ligandable`
-  13. `ligandability-predicted-sm-supportive` → `structurally_ligandable` (predicted pocket / VS-hit / cryptic)
-  14. `known-drug-druggable-category-sm-supportive` → `structurally_ligandable` (DGIdb druggable-class prior)
-  15. `measured-weak-ligand-sm-supportive` → `structurally_ligandable` (T3.1: weak measured activity — a starting-point handle)
-  16. `structure-low-confidence-sm-opposing` → `structurally_intractable` (E8: low-confidence fold)
-  17. `ligandability-disordered-sm-opposing` → `structurally_intractable` (measured IDP disorder — SM-opposing, not a killer)
-  18. `prism-no-compounds-found-neutral` → `chemically_unhit`
-  19. else → `insufficient`
+  12. `known-drug-approved-biologic-only-sm-not-supportive` → `annotation_only_indirect`
+     (v1.7.0, CASE-008: a biologics-only approved antigen — no approved small molecule — routes here
+      instead of the SM-supportive approved-drug rung above)
+  13. `ligandability-experimental-sm-supportive` → `structurally_ligandable` (real co-crystal, strongest handle)
+  14. `hotspot-in-druggable-pocket-sm-supportive-e8` → `structurally_ligandable` (LIVE hotspot-in-pocket, KRAS-G12C archetype)
+  15. `structure-pocket-adjacent-sm-supportive` → `structurally_ligandable`
+  16. `ligandability-predicted-sm-supportive` → `structurally_ligandable` (predicted pocket / VS-hit / cryptic)
+  17. `known-drug-druggable-category-sm-supportive` → `structurally_ligandable` (DGIdb druggable-class prior)
+  18. `measured-weak-ligand-sm-supportive` → `structurally_ligandable` (T3.1: weak measured activity — a starting-point handle)
+  19. `structure-low-confidence-sm-opposing` → `structurally_intractable` (E8: low-confidence fold)
+  20. `ligandability-disordered-sm-opposing` → `structurally_intractable` (measured IDP disorder — SM-opposing, not a killer)
+  21. `known-drug-approved-indirect-only-sm-weak` → `annotation_only_indirect`
+     (v1.5.0, directness gate: an approved drug catalogued but the DGIdb roster is indirect/sparse —
+      no direct binder; below every genuine positive, above chemically_unhit)
+  22. `prism-no-compounds-found-neutral` → `chemically_unhit`
+  23. else → `insufficient`
 
 ## Degrader lens (2026-07-23, modality-specific-interpretation slice 2)
 

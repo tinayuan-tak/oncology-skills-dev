@@ -756,8 +756,10 @@ def _degrader_snapshot(fired: list[dict]) -> tuple[str, str | None]:
     A degrader lens is NOT the SM lens: degradation models COMPLETE removal (KO-like) rather than
     catalytic inhibition, so a target with a dependency but no druggable pocket can still be a degrader
     prospect. This first pass reads the degrader signal channel; the FULL degrader question ("is the
-    degradation MACHINERY intact?" — CRBN/VHL/proteasome) needs the E3-machinery card (slice 3, not yet
-    built), so `degradability_machinery` is reported as not_yet_assessed until that card lands.
+    degradation MACHINERY intact?" — CRBN/VHL/proteasome) is carried by the degradation-feasibility
+    card (slice 3, landed): `_headline` populates `degradability_machinery` from that card's
+    `degradability_feasibility_class` field (E3-substrate + PROTAC precedent + location gate), not via
+    this function.
 
     Rank (first match): a degrader-killer (e.g. broadly-low expression — nothing to degrade) →
     degrader_unviable; a dominant degrader-supportive → strong_degrader_rationale; any degrader-
