@@ -23,7 +23,7 @@ description: |
   is modality-independent.
 
 metadata:
-  version: 1.10.0
+  version: 1.11.0    # 1.11.0 (2026-09-30, #2306 step 2 of epic SK#2210 / #1507 — reliability-facet EMIT): each source_properties[*] entry carries a typed, verdict-INERT `reliability` object (shared _skills_common/reliability.py _derive_reliability); powered='unmeasured' uniformly (no calibrated floor yet, #2219-style follow-on), confound_flags/artifact_flags=[], detection_strength omitted. The L2b crispr_rnai_essentiality_concordance island does NOT carry it (no per-arm anchors to derive from → honestly omitted). Skills-only (catalog derivation-declaration deferred). ADDITIVE / byte-stable. # 1.10.0 (2026-09-30, PR-1b of epic SK#2210 / #1507 — DEPENDENCY generalisation of the L2a vertical)
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:

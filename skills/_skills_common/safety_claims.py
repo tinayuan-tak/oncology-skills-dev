@@ -49,6 +49,7 @@ from _skills_common.claim_vector_core import (
     corroboration_from_arms,
     sig_ge,
 )
+from _skills_common.reliability import _derive_reliability
 
 # ── enum → LIABILITY tier maps (grounded in the target-contracts card summary_fields_vocabulary) ────
 _CONSTRAINT_SIGNAL = {
@@ -687,6 +688,12 @@ def _normal_liability_concordance_claim(c: dict) -> "dict | None":
         "corroboration": corroboration,
         # DETERMINISTIC, reproducible-by-contract: an explicit rule over three tokens, never an LLM.
         "integration_method": "explicit_deterministic",
+        # NO `reliability` facet on this L2b island (#2306): the locked shape derives an arm's reliability
+        # FROM THAT ARM'S OWN anchors and does not restate the L2a values. This island reads only
+        # categorical per-source DIRECTION tokens (GTEx/scRNA/HPA liability calls) with no per-arm anchor
+        # list, so there is nothing to derive from → the facet is honestly OMITTED (byte-stable), not a
+        # thin restate of the L2a `powered`. Per-arm L2b reliability lands at the presence-style islands
+        # that carry per-arm anchors/retained_quantitative (a later #2306 step).
         "source_support": source_support,
         "sources_resolved": sorted(resolved),
         # PRESENTATION-SUPPORT (surface-consumption, NOT verdict-routing) — see block above.
@@ -1016,6 +1023,9 @@ _SOURCE_PROPERTY_RECIPES_SAFETY = (
             "grain": "target",
             "valence": "liability",
         },
+        # NO sample-N anchor: pLI/LOEUF/mis-z are per-gene MLE posteriors, not a sample size → n_effective
+        # OMITTED, powered 'unmeasured'. (obs/exp LoF are variant counts describing the fit, not a cohort N.)
+        "reliability": {"n_effective_anchor": None, "n_effective_absent_reason": "per_gene_constraint_mle"},
     },
     {
         "name": "dominant_lof_selection",
@@ -1029,6 +1039,9 @@ _SOURCE_PROPERTY_RECIPES_SAFETY = (
             "grain": "target",
             "valence": "liability",
         },
+        # NO sample-N anchor: s_het is a per-gene selection-coefficient MLE + credible interval, not a
+        # sample size → n_effective OMITTED, powered 'unmeasured'.
+        "reliability": {"n_effective_anchor": None, "n_effective_absent_reason": "per_gene_shet_mle"},
     },
     {
         "name": "population_burden_liability",
@@ -1042,6 +1055,9 @@ _SOURCE_PROPERTY_RECIPES_SAFETY = (
             "grain": "target",
             "valence": "liability",
         },
+        # NO sample-N anchor: the only anchor is min_pvalue (an association p-value), not a cohort size →
+        # n_effective OMITTED, powered 'unmeasured'.
+        "reliability": {"n_effective_anchor": None, "n_effective_absent_reason": "association_p_value"},
     },
     {
         "name": "germline_pathogenicity",
@@ -1055,6 +1071,8 @@ _SOURCE_PROPERTY_RECIPES_SAFETY = (
             "grain": "target",
             "valence": "liability",
         },
+        # n_effective = the review-status-filtered confident pathogenic count (the load-bearing anchor).
+        "reliability": {"n_effective_anchor": "n_pathogenic_germline_confident"},
     },
     {
         "name": "dosage_sensitivity",
@@ -1068,6 +1086,8 @@ _SOURCE_PROPERTY_RECIPES_SAFETY = (
             "grain": "target",
             "valence": "liability",
         },
+        # n_effective = the high-confidence curated-assertion count behind the dosage class.
+        "reliability": {"n_effective_anchor": "n_high_confidence"},
     },
     {
         "name": "ko_organismal_phenotype",
@@ -1081,6 +1101,9 @@ _SOURCE_PROPERTY_RECIPES_SAFETY = (
             "grain": "target",
             "valence": "liability",
         },
+        # NO sample-N anchor: n_lethal / n_adult_lethal / n_developmental_lethal are curated lethal-OUTCOME
+        # counts (MP-term matches), not a sample size → n_effective OMITTED, powered 'unmeasured'.
+        "reliability": {"n_effective_anchor": None, "n_effective_absent_reason": "lethal_outcome_counts"},
     },
     {
         "name": "normal_tissue_protein_liability",
@@ -1094,6 +1117,9 @@ _SOURCE_PROPERTY_RECIPES_SAFETY = (
             "grain": "target",
             "valence": "liability",
         },
+        # NO sample-N anchor: n_essential_tissues_with_expression / n_specific_tissues are tissue-BREADTH
+        # counts (how many tissues stained), not a sample size → n_effective OMITTED, powered 'unmeasured'.
+        "reliability": {"n_effective_anchor": None, "n_effective_absent_reason": "tissue_breadth_counts"},
     },
     {
         "name": "normal_tissue_rna_liability",
@@ -1113,6 +1139,8 @@ _SOURCE_PROPERTY_RECIPES_SAFETY = (
             "grain": "target",
             "valence": "liability",
         },
+        # n_effective = the number of GTEx tissues TESTED (the denominator behind the breadth fraction).
+        "reliability": {"n_effective_anchor": "n_tissues_tested"},
     },
 )
 
@@ -1260,6 +1288,10 @@ def _source_properties(h: dict, c: dict, *, skills_root=None) -> "dict | None":
         interp_fn = _SAFETY_INTERPRETATION_FNS.get(recipe["name"])
         if interp_fn is not None:
             entry["interpretation"] = interp_fn(h)
+        # The typed `reliability` facet (#2306 step 2): a PURE projection over the entry's OWN retained
+        # anchors + this recipe's n-anchor spec. Verdict-inert (SK#2091). Always present (powered is
+        # required); every OTHER field on the entry stays byte-identical. See _skills_common/reliability.py.
+        entry["reliability"] = _derive_reliability(entry["anchors"], recipe["reliability"])
         out[recipe["name"]] = entry
     return out or None
 

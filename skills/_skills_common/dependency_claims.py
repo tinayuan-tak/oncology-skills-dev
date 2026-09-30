@@ -43,6 +43,7 @@ from _skills_common.claim_vector_core import (
     corroboration_from_arms,
     sig_ge,
 )
+from _skills_common.reliability import _derive_reliability
 
 # ── enum → tier maps (grounded in the target-contracts card summary_fields_vocabulary) ────────────
 # CRISPR dependency_class: common_essential | common_essential_underpowered | strongly_selective |
@@ -442,6 +443,12 @@ def _essentiality_concordance_claim(c: dict) -> dict | None:
         "corroboration": corroboration,
         # DETERMINISTIC, reproducible-by-contract: an explicit rule over two tokens, never an LLM.
         "integration_method": "explicit_deterministic",
+        # NO `reliability` facet on this L2b island (#2306): the locked shape derives an arm's reliability
+        # FROM THAT ARM'S OWN anchors and does not restate the L2a values. This island reads only the two
+        # categorical per-assay DIRECTION tokens (CRISPR/RNAi dependency calls) with no per-arm anchor
+        # list, so there is nothing to derive from → the facet is honestly OMITTED (byte-stable), not a
+        # thin restate of the L2a `powered`. Per-arm L2b reliability lands at the presence-style islands
+        # that carry per-arm anchors/retained_quantitative (a later #2306 step).
         "assay_support": assay_support,
         "selective_assays": selective_assays,
         "informs": (
@@ -611,6 +618,8 @@ _SOURCE_PROPERTY_RECIPES_DEPENDENCY = (
             "sample_context": "pan_cancer_cell_line_panel",
             "grain": "target",
         },
+        # n_effective = the CRISPR panel size (the denominator behind the distribution + fractions).
+        "reliability": {"n_effective_anchor": "n_cell_lines_evaluated"},
     },
     {
         "name": "rnai_essentiality",
@@ -629,6 +638,8 @@ _SOURCE_PROPERTY_RECIPES_DEPENDENCY = (
             "sample_context": "pan_cancer_cell_line_panel",
             "grain": "target",
         },
+        # n_effective = the RNAi (DEMETER2) panel size — materially smaller than the CRISPR panel.
+        "reliability": {"n_effective_anchor": "rnai_n_cell_lines_evaluated"},
     },
     {
         "name": "dependency_lineage_selectivity",
@@ -646,6 +657,8 @@ _SOURCE_PROPERTY_RECIPES_DEPENDENCY = (
             "sample_context": "pan_cancer_cell_line_panel",
             "grain": "target",
         },
+        # n_effective = the number of lineages evaluated (the denominator behind n_enriched_lineages).
+        "reliability": {"n_effective_anchor": "n_lineages_evaluated"},
     },
     {
         "name": "partner_conditional_dependency",
@@ -658,6 +671,8 @@ _SOURCE_PROPERTY_RECIPES_DEPENDENCY = (
             "sample_context": "partner_stratified_cell_line_panel",
             "grain": "target",
         },
+        # n_effective = the partner-deficient stratum size (the count the stratification test rests on).
+        "reliability": {"n_effective_anchor": "n_partner_deficient"},
     },
     {
         "name": "chemical_genetic_engagement",
@@ -670,6 +685,8 @@ _SOURCE_PROPERTY_RECIPES_DEPENDENCY = (
             "sample_context": "pan_cancer_cell_line_panel",
             "grain": "target",
         },
+        # n_effective = the number of PRISM compounds evaluated for the CRISPR/RNAi concordance.
+        "reliability": {"n_effective_anchor": "n_compounds_evaluated"},
     },
     {
         "name": "paralog_buffering",
@@ -682,6 +699,8 @@ _SOURCE_PROPERTY_RECIPES_DEPENDENCY = (
             "sample_context": "pan_cancer_cell_line_panel",
             "grain": "target",
         },
+        # n_effective = the number of paralogs annotated (the denominator behind those buffering).
+        "reliability": {"n_effective_anchor": "n_paralogs_annotated"},
     },
 )
 
@@ -766,6 +785,10 @@ def _source_properties(c: dict, *, skills_root=None) -> "dict | None":
         context = {f: summ[f] for f in recipe["context"] if summ.get(f) is not None}
         if context:
             entry["context"] = context
+        # The typed `reliability` facet (#2306 step 2): a PURE projection over the entry's OWN retained
+        # anchors + this recipe's n-anchor spec. Verdict-inert (SK#2091). Always present (powered is
+        # required); every OTHER field on the entry stays byte-identical. See _skills_common/reliability.py.
+        entry["reliability"] = _derive_reliability(entry["anchors"], recipe["reliability"])
         out[recipe["name"]] = entry
     return out or None
 

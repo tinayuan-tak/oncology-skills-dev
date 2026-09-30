@@ -250,6 +250,27 @@ def test_sections_are_named_and_reconstruct_downward_to_l1(pair):
             assert isinstance(a["field"], str) and a["field"] and isinstance(a["scale"], str) and a["scale"], (
                 f"{name} anchor has an empty field/scale: {a}"
             )
+        # RELIABILITY FACET (#2306 step 2): every L2a entry carries a well-formed, verdict-inert
+        # reliability object. `powered` is REQUIRED and is 'unmeasured' uniformly at this step (no
+        # calibrated per-property-kind floor exists yet — a #2219-style follow-on will flip it, and when
+        # it does this pin reds so the change is not silent). confound/artifact flags are [] on safety
+        # anchors (no purity r; floor_tie deferred); detection_strength is omitted (not detection-kind);
+        # n_effective is conditionally present (omitted where the property has no sample-N anchor).
+        rel = entry.get("reliability")
+        assert isinstance(rel, dict), f"{name} carries no reliability object — the #2306 facet is required"
+        assert rel.get("powered") in (True, False, "unmeasured"), (
+            f"{name} reliability.powered={rel.get('powered')!r} is not the governed tri-state"
+        )
+        assert rel["powered"] == "unmeasured", (
+            f"{name} reliability.powered must be 'unmeasured' (no calibrated floor at this step), got {rel['powered']!r}"
+        )
+        assert rel.get("confound_flags") == [], f"{name} safety anchors carry no purity confound → [] expected"
+        assert rel.get("artifact_flags") == [], f"{name} artifact_flags are deferred → [] expected"
+        assert "detection_strength" not in rel, f"{name} is not detection-kind — detection_strength must be omitted"
+        if "n_effective" in rel:
+            assert isinstance(rel["n_effective"], int) and not isinstance(rel["n_effective"], bool), (
+                f"{name} reliability.n_effective must be a plain int, got {rel['n_effective']!r}"
+            )
 
     # INVERSE VALENCE (the 1a pilot). The catalog's ENTRY_KEYS are closed and carry no `valence` slot,
     # so nothing in contracts/ can enforce this — if it regresses, a consumer holding only the L2a
@@ -267,6 +288,14 @@ def test_sections_are_named_and_reconstruct_downward_to_l1(pair):
     )
     for claim_id, island in integrated.items():
         assert _island_card_ids(island), f"integrated property {claim_id} exposes no reconstructable card_id"
+        # NO `reliability` on the L2b island (#2306): the locked shape derives an arm's reliability from
+        # THAT ARM'S OWN anchors and does not restate the L2a values; this island reads only categorical
+        # per-source direction tokens (no per-arm anchor list), so the facet is honestly OMITTED here.
+        # Per-arm L2b reliability lands at the presence-style islands that carry per-arm anchors.
+        assert "reliability" not in island, (
+            f"integrated property {claim_id} must NOT carry a reliability object at this step "
+            f"(no per-arm anchors to derive from), got {island.get('reliability')!r}"
+        )
 
     # local composites: carried inside the domain, epistemic type declared; every claim axis
     # reconstructs via evidence_atom.cite.card_id.

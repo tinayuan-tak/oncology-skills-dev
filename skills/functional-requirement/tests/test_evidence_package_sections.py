@@ -246,6 +246,23 @@ def test_sections_are_named_and_reconstruct_downward_to_l1(pair):
             assert isinstance(a["field"], str) and a["field"] and isinstance(a["scale"], str) and a["scale"], (
                 f"{name} anchor has an empty field/scale: {a}"
             )
+        # RELIABILITY FACET (#2306 step 2): every L2a entry carries a well-formed, verdict-inert
+        # reliability object. `powered` is 'unmeasured' uniformly at this step (no calibrated floor yet —
+        # a #2219-style follow-on will flip it, and this pin reds when it does). confound/artifact flags
+        # are [] (dependency anchors carry no purity r; floor_tie deferred); detection_strength omitted
+        # (not detection-kind); n_effective is present when the property's n-anchor resolved (int).
+        rel = entry.get("reliability")
+        assert isinstance(rel, dict), f"{name} carries no reliability object — the #2306 facet is required"
+        assert rel.get("powered") == "unmeasured", (
+            f"{name} reliability.powered must be 'unmeasured' (no calibrated floor at this step), got {rel.get('powered')!r}"
+        )
+        assert rel.get("confound_flags") == [], f"{name} dependency anchors carry no purity confound → [] expected"
+        assert rel.get("artifact_flags") == [], f"{name} artifact_flags are deferred → [] expected"
+        assert "detection_strength" not in rel, f"{name} is not detection-kind — detection_strength must be omitted"
+        if "n_effective" in rel:
+            assert isinstance(rel["n_effective"], int) and not isinstance(rel["n_effective"], bool), (
+                f"{name} reliability.n_effective must be a plain int, got {rel['n_effective']!r}"
+            )
 
     # DEFAULT VALENCE (the 1b design decision). Every entry's comparability carries the three grain keys
     # and NO `valence` — dependency is the default frame; a `valence: efficacy` would be an ungoverned
@@ -276,6 +293,14 @@ def test_sections_are_named_and_reconstruct_downward_to_l1(pair):
     )
     for claim_id, island in integrated.items():
         assert _island_card_ids(island), f"integrated property {claim_id} exposes no reconstructable card_id"
+        # NO `reliability` on the L2b island (#2306): the locked shape derives an arm's reliability from
+        # THAT ARM'S OWN anchors and does not restate the L2a values; this island reads only categorical
+        # per-assay direction tokens (no per-arm anchor list), so the facet is honestly OMITTED here.
+        # Per-arm L2b reliability lands at the presence-style islands that carry per-arm anchors.
+        assert "reliability" not in island, (
+            f"integrated property {claim_id} must NOT carry a reliability object at this step "
+            f"(no per-arm anchors to derive from), got {island.get('reliability')!r}"
+        )
 
     # local composites: carried inside the domain, epistemic type declared; every claim axis
     # reconstructs via evidence_atom.cite.card_id (where the axis carries an atom on this fixture).
@@ -302,6 +327,16 @@ def test_the_full_coverage_fixture_emits_every_declared_source_property():
         f"KRAS source_properties drifted from the producer recipes: missing {sorted(_RECIPE_NAMES - set(sp))}, "
         f"unexpected {sorted(set(sp) - _RECIPE_NAMES)}"
     )
+    # PROJECTION WIRING (#2306): reliability.n_effective is the PROJECTED value of the property's own
+    # n-anchor, not a recomputed number. crispr_essentiality reads n_cell_lines_evaluated — assert the
+    # two are equal on this rich fixture so a mis-wired anchor name (or a recompute) reds.
+    crispr = sp["crispr_essentiality"]
+    n_anchor = next((a["value"] for a in crispr["anchors"] if a["field"] == "n_cell_lines_evaluated"), None)
+    if n_anchor is not None:
+        assert crispr["reliability"]["n_effective"] == int(n_anchor), (
+            f"reliability.n_effective ({crispr['reliability'].get('n_effective')}) is not the projected "
+            f"n_cell_lines_evaluated anchor ({n_anchor})"
+        )
 
 
 def test_the_partial_fixture_omits_the_absent_sources_bytestably():
