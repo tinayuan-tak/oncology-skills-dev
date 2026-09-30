@@ -3,7 +3,7 @@
 `panorama.evidence_state()` is additive: called with two positional arguments it returns the
 historical `{measured, underpowered, absent}` trichotomy, and the two keyword arguments unlock
 `exploratory` / `unevaluable`. That design means the set of readers emitting the wider vocabulary
-is not visible in `panorama.py` at all — it is spread across ten call sites in eight modules.
+is not visible in `panorama.py` at all — it is spread across eleven call sites in eight modules.
 
 This module pins that set, because getting it wrong is silent in BOTH directions:
 
@@ -39,7 +39,12 @@ _CALLEE_NAMES = {"evidence_state", "_evstate"}
 # The three by-subtype arms of the tumor-presence stack. Their cards declare
 # {measured, exploratory, underpowered, unevaluable, absent}, so they may pass the kwargs.
 _ARM_SITES: dict[str, int] = {
-    "onc_methods/cptac_protein_distribution/read.py": 2,
+    # 3 sites (AM#2180 F1): the computed-n final return + TWO constant-n=0 templates — the
+    # membership-missing `empty` template (evaluated=_stratum_evaluated) and the detection-missing
+    # branch (a populated stratum with every value below-LOD/non-finite, forced evaluated=False so it
+    # abstains as `unevaluable` rather than grading a measured `absent`). Both n=0 sites opt in via
+    # `evaluated=`, and `unevaluable` is already in this card's enum.
+    "onc_methods/cptac_protein_distribution/read.py": 3,
     "onc_methods/depmap_expression_distribution/read.py": 1,
     "onc_methods/tcga_gtex_expression_distribution/read.py": 2,
 }

@@ -82,10 +82,35 @@ def read_stratified_protein(
         df = df[df["condition"].astype(str).str.contains("Tumor|Primary", case=False, na=False)]
     if _sample_id_filter is not None:
         df = df[df["aliquot_submitter_id"].isin(_sample_id_filter)]
-    vals = df["log2_ratio"].dropna().astype(float).to_numpy()
+    # Total member aliquots that reached this reader (post cohort/condition/stratum filter), BEFORE
+    # dropping MS-missing / below-LOD values. This is the DETECTION DENOMINATOR: `detectable_fraction`
+    # used to be `np.isfinite(vals).mean()` on an already-dropna'd array, i.e. the finite values
+    # divided by THEMSELVES — structurally ~1.0, carrying no below-LOD information. The field named to
+    # carry detection was blind. Dividing the finite count by the member count fixes that (F1).
+    total_aliquots = int(len(df))
+    # DETECTABLE == FINITE, not merely non-NaN. dropna() keeps +/-Inf, which MSstatsTMT emits for a
+    # protein quantified in only one condition; a stray +Inf would poison np.median -> inf ->
+    # protein_elevated (the F1 fold-in). Excluding non-finite values here counts them as below-LOD /
+    # unmeasured, consistent with the detectable_fraction denominator.
+    raw = df["log2_ratio"].to_numpy(dtype=float)
+    vals = raw[np.isfinite(raw)]
     n = int(vals.size)
     if n == 0:
-        return empty
+        if total_aliquots == 0:
+            # MEMBERSHIP-missing: the stratum has no member aliquots in this cohort (or the product is
+            # missing). Unchanged path — evidence_state is governed by `_stratum_evaluated` (`absent`
+            # when the assigner evaluated the stratum, `unevaluable` when it did not).
+            return empty
+        # DETECTION-missing: members ARE present but every value is below-LOD / MS-missing / non-finite.
+        # This is NOT a measured negative — mirroring Card 4's `_unestimable_reason`, the ratio has no
+        # denominator, so no absence was ever tested. Abstain rather than fall into the `empty`
+        # template's graded `absent`: evidence_state `unevaluable` is the enum's "no absence to assert"
+        # token, and detectable_fraction is now an honest 0.0 (0 finite of `total_aliquots` members).
+        return {
+            **empty,
+            "detectable_fraction": 0.0,
+            "evidence_state": evidence_state(0, False, evaluated=False),
+        }
     median = float(np.median(vals))
     floor_met = n >= SUBGROUP_N_FLOOR
     return {
@@ -93,7 +118,7 @@ def read_stratified_protein(
         "indication": indication,
         "subgroup_n": n,
         "median_log2_ratio": round(median, 4),
-        "detectable_fraction": round(float(np.isfinite(vals).mean()), 4),
+        "detectable_fraction": round(float(n / total_aliquots), 4),
         "subgroup_n_floor_met": floor_met,
         # `evaluated=` is deliberately omitted: evidence_state consults it only at subgroup_n == 0
         # and the `n == 0` early return above makes n > 0 unreachable-otherwise here, so passing it

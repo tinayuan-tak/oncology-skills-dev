@@ -107,6 +107,104 @@ def test_read_stratified_protein_filters_and_classifies(monkeypatch):
     assert rec2["subgroup_n"] == 2 and rec2["evidence_state"] == "underpowered"
 
 
+def _fake_per_sample_with_missing():
+    """40 MSI_H members: 10 detectable (finite), 29 below-LOD (NaN), 1 non-finite (+Inf).
+    Plus a fully-below-LOD MSS stratum (all NaN)."""
+    import numpy as np
+
+    rows = []
+    for i in range(10):
+        rows.append(
+            {
+                "gene_symbol": "EPCAM",
+                "cohort": "COAD",
+                "aliquot_submitter_id": f"MSI_{i}",
+                "condition": "Tumor",
+                "log2_ratio": 1.2,
+            }
+        )
+    for i in range(10, 39):
+        rows.append(
+            {
+                "gene_symbol": "EPCAM",
+                "cohort": "COAD",
+                "aliquot_submitter_id": f"MSI_{i}",
+                "condition": "Tumor",
+                "log2_ratio": np.nan,
+            }
+        )
+    # a stray +Inf (MSstatsTMT one-condition artefact) — must NOT poison the median or count as detectable
+    rows.append(
+        {
+            "gene_symbol": "EPCAM",
+            "cohort": "COAD",
+            "aliquot_submitter_id": "MSI_39",
+            "condition": "Tumor",
+            "log2_ratio": np.inf,
+        }
+    )
+    for i in range(40):
+        rows.append(
+            {
+                "gene_symbol": "EPCAM",
+                "cohort": "COAD",
+                "aliquot_submitter_id": f"MSS_{i}",
+                "condition": "Tumor",
+                "log2_ratio": np.nan,
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def test_detectable_fraction_uses_total_aliquot_denominator(monkeypatch):
+    """detectable_fraction divides FINITE values by the MEMBER count, not by themselves.
+
+    Before F1 it was `np.isfinite(vals).mean()` on an already-dropna'd array — structurally ~1.0, so
+    the field named to carry below-LOD information carried none. Here 10 of 40 members are finite
+    (29 NaN + 1 +Inf), so the honest fraction is 0.25. The +Inf must also be excluded from the
+    median (the F1 fold-in): it is non-finite, so it is neither counted nor allowed to poison
+    np.median -> inf -> protein_elevated."""
+    import onc_methods.cptac_protein_deg.read as cpr
+
+    monkeypatch.setattr(cpr, "read_per_sample", lambda t: _fake_per_sample_with_missing())
+    rec = read_stratified_protein("EPCAM", "COADREAD", cohort="COAD", _sample_id_filter={f"MSI_{i}" for i in range(40)})
+    assert rec["subgroup_n"] == 10  # finite/detectable count, not the 40 members
+    assert rec["detectable_fraction"] == 0.25  # 10 finite / 40 members
+    assert rec["median_log2_ratio"] == 1.2  # +Inf did not poison the median
+    assert rec["protein_class"] == "protein_elevated"
+
+
+def test_all_below_lod_stratum_abstains_not_measured_absent(monkeypatch):
+    """A POPULATED stratum whose every value is below-LOD must NOT read as a measured `absent`.
+
+    This is the F1 headline false-negative: dropna() collapsed a members-present-but-undetectable
+    stratum to n==0 and the `empty` template graded it `absent` (a measured negative) whenever the
+    assigner had evaluated it. There is no denominator here, so no absence was tested (Card 4's
+    `_unestimable_reason` posture): the stratum abstains with evidence_state `unevaluable` and an
+    honest detectable_fraction of 0.0 — distinct from the membership-missing 0-member case, which
+    still grades `absent` when evaluated."""
+    import onc_methods.cptac_protein_deg.read as cpr
+
+    monkeypatch.setattr(cpr, "read_per_sample", lambda t: _fake_per_sample_with_missing())
+    # MSS members are all NaN -> detection-missing, and _stratum_evaluated=True would have graded `absent`
+    rec = read_stratified_protein(
+        "EPCAM",
+        "COADREAD",
+        cohort="COAD",
+        _sample_id_filter={f"MSS_{i}" for i in range(40)},
+        _stratum_evaluated=True,
+    )
+    assert rec["evidence_state"] == "unevaluable"  # abstain, NOT the measured `absent` false-negative
+    assert rec["detectable_fraction"] == 0.0
+    assert rec["subgroup_n"] == 0
+    assert rec["median_log2_ratio"] is None
+    # contrast: a genuinely 0-MEMBER evaluated stratum is still a measured `absent` (unchanged path)
+    zero_member = read_stratified_protein(
+        "EPCAM", "COADREAD", cohort="COAD", _sample_id_filter=set(), _stratum_evaluated=True
+    )
+    assert zero_member["evidence_state"] == "absent"
+
+
 def test_build_panorama_no_shard_is_honest_false():
     # an indication with no landed CPTAC shard -> honest subtype_axis_available:false, no S3 touched
     pan = build_protein_subtype_panorama("EPCAM", "GBM", subgroups=["x"])
