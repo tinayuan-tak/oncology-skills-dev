@@ -659,8 +659,16 @@ def _all_protein_median_null(matrix_path=None) -> tuple:
     if matrix_path is None:
         try:
             return _load_allgene_null_sidecar()
-        except Exception:
-            return tuple()
+        except Exception as e:
+            # Genuine absence (sidecar object gone) -> honest empty null (broadly_high stays
+            # unreachable, an honest degradation). A transient/creds/broken-env error must NOT
+            # masquerade as absence -- re-raise so the caller surfaces an honest _live_read_error
+            # instead of silently narrowing the all-protein null.
+            from onc_methods.target_id_sidecar import is_definitively_absent
+
+            if isinstance(e, FileNotFoundError) or is_definitively_absent(e):
+                return tuple()
+            raise
     try:
         df = _read_csv(matrix_path, S3_BUCKET, MATRIX_KEY)
         id_col = df.columns[0]

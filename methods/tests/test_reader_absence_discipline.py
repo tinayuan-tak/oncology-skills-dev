@@ -446,21 +446,13 @@ _BASELINE_RESIDUALS: dict[str, str] = {
     # (scope = the guard only). Burndown: #809 (four seams). #796 (marrow-HPA) BURNED DOWN 2026-09-27 —
     # marrow._load now discriminates transient (isinstance(_TRANSIENT_LOAD_ERRORS)/5xx) from definitive
     # config misses, so its handler is no longer a violation and its residual entry was removed.
-    "depmap_methylation_silencing/read.py::_load_ccle_methylation_for_gene": '#809 — live CCLE gzip fallback: `except Exception → return {}, f"s3_read_failed: {e}"` '
-    "over `s3.get_object` masks a transient/creds blip into methylation_silencing_class="
-    "data_unavailable (VERDICT-DRIVING). Sibling _load_methylation_from_product is the reference-good "
-    "is_definitively_absent+re-raise form; bring the live fallback to the same discipline.",
-    "depmap_rna_protein_concordance/read.py::_paired_rna_protein": '#809 — RNA arm `except Exception → return {}, {}, f"RNA load failed: {type(e).__name__}"` '
-    "masks a transient load_depmap_files_for_card4 failure into the rna_as_biomarker data-gap path "
-    "(VERDICT-DRIVING). Fix symmetrically with the protein arm (:56-57, same shape, non-empty tuple).",
-    "depmap_protein_abundance/cli.py::_all_protein_median_null": "#809 — `except Exception → return tuple()` over the `_load_allgene_null_sidecar()` read: a "
-    "transient sidecar fault empties the all-protein null → high_cutoff None → broadly_high cannot "
-    "fire (degradation lane). Discriminate genuine absence from transient.",
-    "expression_purity_confound/read.py::read_purity_points": "#809 — BENIGN figure-only best-effort: called AFTER the verdict class is computed, already "
-    "logger.debug's the drop and returns None, so it cannot produce a false verdict. Right resolution "
-    "is an inline `# absence-discipline: exempt -- figure-only, post-verdict` on the except line "
-    "(reader-scoped follow-up), then delete this entry — recorded here only because this PR is "
-    "guard-file-scoped and cannot edit the reader.",
+    # depmap_methylation_silencing/_load_ccle_methylation_for_gene, depmap_rna_protein_concordance/
+    # _paired_rna_protein (both arms), depmap_protein_abundance/_all_protein_median_null, and
+    # expression_purity_confound/read_purity_points — BURNDOWN COMPLETE (#2185): the first three now
+    # discriminate via is_definitively_absent (+FileNotFoundError), re-raising transient/creds/broken-
+    # env; the fourth carries an inline `# absence-discipline: exempt -- figure-only best-effort,
+    # post-verdict` marker on its except line. No longer masking handlers → removed from the residual
+    # allowlist.
     # ============================================================================================
     # SKILLS+CONTRACTS SCOPE WIDENING (#2126, 2026-09-29). The guard was methods-only (root
     # parents[1]/"methods", glob "*/*.py"); this PR widened BOTH detectors to also rglob skills/ and

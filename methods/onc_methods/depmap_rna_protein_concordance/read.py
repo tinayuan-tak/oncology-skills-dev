@@ -41,6 +41,12 @@ def _paired_rna_protein(target: str, release_pin: str = "26q3"):
     try:
         _ch, rna_by_model, _meta, errs = _rna.load_depmap_files_for_card4(release_pin=release_pin, target_symbol=target)
     except Exception as e:  # noqa: BLE001
+        # Genuine absence -> honest data-gap note. A transient/creds/broken-env error must NOT
+        # masquerade as absence -- re-raise so the caller records an honest _live_read_error.
+        from onc_methods.target_id_sidecar import is_definitively_absent
+
+        if not (isinstance(e, FileNotFoundError) or is_definitively_absent(e)):
+            raise
         return {}, {}, f"RNA load failed: {type(e).__name__}"
     if errs or not rna_by_model:
         return {}, {}, (errs[0].get("_live_read_error") if errs else "no model RNA")
@@ -54,6 +60,10 @@ def _paired_rna_protein(target: str, release_pin: str = "26q3"):
             return rna_by_model, {}, "target has no UniProt accession in the Gygi MS sidecar"
         prot_by_model, _panel = _prot.load_abundance_column(acc)
     except Exception as e:  # noqa: BLE001
+        from onc_methods.target_id_sidecar import is_definitively_absent
+
+        if not (isinstance(e, FileNotFoundError) or is_definitively_absent(e)):
+            raise
         return rna_by_model, {}, f"protein load failed: {type(e).__name__}"
     if not prot_by_model:
         return rna_by_model, {}, "target not quantified in the Gygi MS panel"

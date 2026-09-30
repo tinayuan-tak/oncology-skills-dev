@@ -170,7 +170,7 @@ def read_purity_points(target: str, indication: str):
         if len(df) < 2:
             return None
         return (df["log2_tpm"].astype(float).tolist(), df["purity"].astype(float).tolist())
-    except Exception as e:  # noqa: BLE001 — figure is best-effort; a read failure just yields no scatter
+    except Exception as e:  # absence-discipline: exempt -- figure-only best-effort, post-verdict; a read failure just yields no scatter, noqa: BLE001
         # Figure-only (called AFTER the real class is computed) → cannot produce a false verdict, so a
         # failure degrades to "no scatter" rather than propagating. Log it instead of swallowing blindly
         # so the dropped figure is diagnosable.

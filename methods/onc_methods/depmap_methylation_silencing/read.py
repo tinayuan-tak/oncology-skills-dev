@@ -78,7 +78,14 @@ def _load_ccle_methylation_for_gene(target: str, stripped_to_model: dict) -> tup
             s3 = boto3.client("s3")
         body = s3.get_object(Bucket=bucket, Key=key)["Body"]
     except Exception as e:
-        return {}, f"s3_read_failed: {e}"
+        # Genuine absence (object gone / NoSuchKey / 404) -> honest data_unavailable. A
+        # transient/creds/broken-env error must NOT masquerade as "absent" -- re-raise so the
+        # caller records an honest _live_read_error rather than silently dropping the leg.
+        from onc_methods.target_id_sidecar import is_definitively_absent
+
+        if isinstance(e, FileNotFoundError) or is_definitively_absent(e):
+            return {}, f"s3_read_failed: {e}"
+        raise
 
     gz = gzip.GzipFile(fileobj=body)
     text = io.TextIOWrapper(gz, encoding="utf-8")
