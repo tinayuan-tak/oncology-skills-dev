@@ -36,11 +36,17 @@ from onc_methods.dataset_fitness_signals.resolve import contract_path
 
 CONTRACT = contract_path()
 
-pytestmark = pytest.mark.skipif(
-    not CONTRACT.exists(),
-    reason=f"dataset-fitness resolution contract not on disk at {CONTRACT} -- it ships in the "
-    "sibling target-contracts repo, absent from this clone. CI DOES check it out, so these "
-    "tests gate there; a skip here means a local clone, not an unguarded merge.",
+# HARD ASSERT, not a skipif: the contract has shipped IN-TREE at
+# contracts/vocabularies/dataset_fitness_resolution.yaml since the SK#2063 consolidation, so
+# `CONTRACT.exists()` can no longer be legitimately False -- there is no sibling clone left to be
+# absent. A False here means resolution itself is broken (an unset TARGET_CONTRACTS_ROOT plus a
+# missing/renamed root symlink, on the leg -- methods-pytest -- that relies on the symlink rather
+# than the env var), which is exactly the breakage skills#2240 stage 4 would otherwise arm
+# silently as a vacuous PASS-via-SKIP. Failing collection here turns that into a RED. See #2159.
+assert CONTRACT.exists(), (
+    f"dataset-fitness resolution contract not found at {CONTRACT}. It ships in-tree at "
+    "contracts/vocabularies/dataset_fitness_resolution.yaml; this means contract resolution "
+    "itself is broken (TARGET_CONTRACTS_ROOT / the root symlink), not an absent sibling clone."
 )
 
 COLLAPSED = {"degraded_to_gtex_only", "degraded_to_adjacent_only", "single_comparator"}
