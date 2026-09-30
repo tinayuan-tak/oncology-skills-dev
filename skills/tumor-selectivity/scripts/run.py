@@ -974,7 +974,6 @@ def _headline(cards, fired, verdict_pair, modality=None):
     sc_tumor = _summary("tumor-scrna-celltype-expression")  # tumor side, single-cell
     spatial_rna = _summary("spatial-region-rna-expression")
     spatial_coloc = _summary("spatial-tumor-normal-colocalization")
-    spatial_protein = _summary("spatial-surface-protein-abundance")
 
     # RESOLVED verdict from _verdict (includes any normal-breadth veto downgrade). The headline
     # selectivity_class is the resolved value — a veto-downgraded target reads
@@ -1131,7 +1130,6 @@ def _headline(cards, fired, verdict_pair, modality=None):
         # (set by _verdict via the shared clamp over `fired`) is unchanged.
         "therapeutic_window_class": window.get("therapeutic_window_class"),
         "full_normal_window_class": window.get("full_normal_window_class"),
-        "window_class": window.get("window_class"),
         "max_essential_normal_organ": window.get("max_essential_normal_organ"),
         # The FULL-normal (non-essential) window arm's OWN driver — the non-essential dirty tissue that
         # fires tvn-no-full-normal-window-veto (the TROP2/salivary blind spot), the exact case where
@@ -1141,7 +1139,6 @@ def _headline(cards, fired, verdict_pair, modality=None):
         # de-anonymizing the last un-named veto arm (sibling of the sc-normal #572 / TPHP v1.26.0 fixes).
         "max_full_normal_organ": window.get("max_full_normal_organ"),
         "max_full_normal_tpm": window.get("max_full_normal_tpm"),
-        "window_ratio_essential": window.get("window_ratio_essential"),
         # Single-cell (NORMAL side) facet — the sc-normal veto's own inputs, surfaced for transparency.
         # This card is verdict-DRIVING via the veto, but a reader of decision['headline'] alone could not
         # otherwise see WHICH normal cell type / organ drove (or nearly drove) it. Display; the spine is
@@ -1207,18 +1204,13 @@ def _headline(cards, fired, verdict_pair, modality=None):
         "sc_stromal_confound_class": sc_tumor.get("stromal_confound_class"),
         "sc_tumor_expression_class": sc_tumor.get("sc_expression_class"),
         "sc_malignant_detection_fraction": sc_tumor.get("malignant_detection_fraction"),
-        "sc_top_microenvironment_compartment": sc_tumor.get("top_microenvironment_compartment"),
-        "sc_top_microenvironment_detection_fraction": sc_tumor.get("top_microenvironment_detection_fraction"),
         "sc_caf_vs_malignant_class": sc_tumor.get("caf_vs_malignant_class"),
-        "sc_tce_homogeneity_class": sc_tumor.get("tce_homogeneity_class"),
         # In-situ spatial facets (verdict-inert): deconvolution-free tumour-compartment confirmation
-        # (region RNA) + bystander-adjacency-to-normal-epithelium risk (colocalization) + protein-layer
-        # spatial enrichment. data_unavailable where the spatial atlas doesn't cover the indication.
+        # (region RNA) + bystander-adjacency-to-normal-epithelium risk (colocalization).
+        # data_unavailable where the spatial atlas doesn't cover the indication.
         "spatial_rna_class": spatial_rna.get("spatial_rna_class"),
-        "spatial_tumour_vs_tme_delta": spatial_rna.get("tumour_vs_tme_delta"),
         "spatial_coloc_class": spatial_coloc.get("spatial_coloc_class"),
         "spatial_normal_epithelium_adjacency_fraction": spatial_coloc.get("normal_epithelium_adjacency_fraction"),
-        "spatial_protein_class": spatial_protein.get("spatial_protein_class"),
     }
     # Additive, verdict-INERT: the claim vector (WIN/DIST/INT/SAFE signal×corroboration) + a brief
     # cited key-signals read — the WITHIN-lens evidence integration this subskill owns, built on the

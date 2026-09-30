@@ -892,8 +892,12 @@ spatial-region-rna-expression:
     reviewed: true
   tumour_vs_tme_delta:
     role: signal
-    reason: tumour-vs-TME RNA enrichment delta; core spatial selectivity magnitude, reach=exact
+    reason: tumour-vs-TME RNA enrichment delta; core spatial selectivity magnitude
     reviewed: true
+    waived_because: 'no exact reader binds spatial_tumour_vs_tme_delta as of #1778 — the field was
+      projected to the tumor-selectivity headline (run.py) but consumed by no view/claim/verdict, so
+      the dead projection was dropped rather than wired (default per #1778). Track-B: add a reader
+      (a spatial-corroboration claim/tile) if this magnitude should gate something.'
   detected_tumour:
     role: context
     reason: tumour-region detection flag; coverage qualifier; reach=orphan

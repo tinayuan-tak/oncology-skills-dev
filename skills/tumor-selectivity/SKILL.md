@@ -21,8 +21,12 @@ description: |
   of gate v1.10.0, the two KILLs block `strong` in the composed nomination. CORROBORATION (1):
   tumor-vs-normal-percentile-crossing (per-sample). ADDITIVE facets, verdict-inert (7):
   expression-purity-confound, surface-abundance-density, tumor-protein-abundance-cptac +
-  tumor-vs-normal-protein-abundance-tphp (two PARALLEL RNA→protein tumor-vs-normal corroboration
-  facets: CPTAC TMT ~10 cohorts + TPHP DIA-MS 22 cohorts), and the tumor SIDE at in-situ spatial
+  tumor-vs-normal-protein-abundance-tphp (two RNA→protein tumor-vs-normal corroboration facets on
+  DIFFERENT tumor-side proteomes: CPTAC TMT ~10 cohorts + TPHP DIA-MS 22 cohorts — NOT independent of
+  each other's normal arm the way "two platforms" implies: the TPHP facet's normal comparator is the
+  SAME body-atlas normal-tissue samples normal-tissue-protein-abundance-tphp reads [methods/
+  tphp_tumor_vs_normal_protein/read.py], one TPHP measurement read twice, not a second corroborating
+  replicate), and the tumor SIDE at in-situ spatial
   resolution (spatial-region-rna-expression + spatial-tumor-normal-colocalization +
   spatial-surface-protein-abundance: in-situ tumour enrichment + normal-epithelium bystander
   adjacency). (+1 subtype-gated card tumor-vs-normal-percentile-crossing-by-subtype under --subtypes.)
@@ -71,10 +75,13 @@ composition:
                                              # which the _verdict clamp turns into selective_with_normal_liability. Abundance-
                                              # gated (Floor-C), NOT DIA detection. Per-tissue DIA-MS across 70 adult + 4 fetal
                                              # groups (TPHP; Xu et al. Nature 2026). No resolver rung (skills-side clamp).
-    - tumor-vs-normal-protein-abundance-tphp # RNA→PROTEIN corroboration (verdict-inert), PARALLEL to
-                                             # tumor-protein-abundance-cptac: tumor-vs-adjacent-normal protein_effect_size +
-                                             # protein_bh_q_value from the TPHP DIA-MS proteome (Xu et al. Nature 2026), 22
-                                             # carcinoma cohorts (several outside CPTAC). CPTAC-ALIGNED field names → the SAME
+    - tumor-vs-normal-protein-abundance-tphp # RNA→PROTEIN corroboration (verdict-inert) on a DIFFERENT
+                                             # tumor-side proteome than tumor-protein-abundance-cptac: tumor-vs-adjacent-normal
+                                             # protein_effect_size + protein_bh_q_value from the TPHP DIA-MS proteome (Xu et
+                                             # al. Nature 2026), 22 carcinoma cohorts (several outside CPTAC). Its NORMAL arm
+                                             # is NOT an independent replicate, though — it is the SAME body-atlas TPHP
+                                             # normal-tissue samples normal-tissue-protein-abundance-tphp reads, one TPHP
+                                             # measurement read twice. CPTAC-ALIGNED field names → the SAME
                                              # rna_protein_tvn_concordance projection consumes it unchanged. No resolver rung.
     - tumor-scrna-celltype-expression        # single-cell, tumor side — VERDICT-DRIVING (INT-axis
                                              # stromal-confound VETO, shipped v1.17.0): stromal_confound_class ==
@@ -202,7 +209,9 @@ composition:
     (relative-selectivity context), the `percentile_crossing_class` corroboration, and
     the single-cell + spatial facets: `sc_tumor_expression_class`,
     `sc_malignant_detection_fraction`, `sc_caf_vs_malignant_class`, `spatial_rna_class`,
-    `spatial_coloc_class`, `spatial_normal_epithelium_adjacency_fraction`, `spatial_protein_class`.
+    `spatial_coloc_class`, `spatial_normal_epithelium_adjacency_fraction`. (The
+    `spatial-surface-protein-abundance` card is still fetched but its `spatial_protein_class` is not
+    projected to the headline — dead payload, #1778: no view/claim/verdict read it.)
   - `verdict`: the resolved selectivity verdict, which may be a veto-clamp outcome —
     `selective_but_broadly_normal` (axis-A selective but no therapeutic window — the housekeeping
     KILL) or `selective_with_normal_liability` (a real window but a NON-origin critical-organ
