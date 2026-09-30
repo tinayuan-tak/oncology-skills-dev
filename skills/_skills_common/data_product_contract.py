@@ -21,13 +21,19 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from _skills_common.paths import target_contracts_root
+from oncology_target_contracts.loader import contracts_root as _contracts_root
 
 
 def schema_path(skill: str, suffix: str = "decision") -> Path:
     """Path to the per-skill schema. `suffix='decision'` (default) = the generated envelope schema;
     `suffix='emit'` = a hand-authored bespoke aux-skill emit schema."""
-    root = target_contracts_root()
+    # SK#2144 stage 3a: resolve the contracts tree through the packaged loader's single
+    # resolution point instead of the duplicated _skills_common.paths helper. The per-skill
+    # schema lives under schemas/skills/<skill>.<suffix>.schema.json — a layout the packaged
+    # loader.load_schema does not cover — so the read stays here; only the ROOT is routed.
+    # contracts_root() == target_contracts_root() (both honor $TARGET_CONTRACTS_ROOT, else
+    # <checkout>/contracts); with no runtime mutation of that env its lru_cache is inert.
+    root = _contracts_root()
     return root / "schemas" / "skills" / f"{skill}.{suffix}.schema.json"
 
 

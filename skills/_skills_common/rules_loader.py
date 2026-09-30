@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import Optional
 
 import yaml
+from oncology_target_contracts import loader as _contracts_loader
 
 from _skills_common.paths import target_contracts_root
 
@@ -75,17 +76,23 @@ def load_interpretation_rules(
     """
     if not axis:
         return None
-    root = Path(contracts_root) if contracts_root is not None else TARGET_CONTRACTS
-    rules_dir = root / "interpretation-rules"
-    if not rules_dir.is_dir():
-        return None
     axis_kebab = axis.replace("_", "-")
-    rules_path = rules_dir / f"{axis_kebab}.rules.yaml"
-    if not rules_path.is_file():
-        return None
+    # Route the tree-resolution + YAML read through the packaged contracts loader
+    # (SK#2144 stage 3a) instead of a duplicated reader. loader.load_interpretation_rules
+    # reads root/interpretation-rules/{name}.rules.yaml (root defaults to the packaged
+    # contracts_root(), identical to target_contracts_root()) and returns the parsed doc,
+    # raising FileNotFoundError when the dir/file is absent. We keep this module's OWN
+    # contract on top: kebab-casing, axis-match validation, rules-list extraction, and the
+    # two DOCUMENTED graceful-degrade None cases below — so callers see byte-identical results.
     try:
-        doc = yaml.load(rules_path.read_text(), Loader=_SafeLoader)
-    except Exception:
+        root = Path(contracts_root) if contracts_root is not None else None
+        doc = _contracts_loader.load_interpretation_rules(axis_kebab, root=root)
+    except (FileNotFoundError, yaml.YAMLError):
+        # Swallow ONLY the two documented None cases: definitive absence (the loader raises
+        # FileNotFoundError, replacing the pre-3a rules_dir.is_dir()/rules_path.is_file()
+        # guards) and a malformed rules file (yaml.YAMLError — the original broad-except parse
+        # swallow). A transient / creds / broken-env fault now PROPAGATES instead of being
+        # laundered into "no rules for this axis".
         return None
     if not isinstance(doc, dict) or doc.get("axis") != axis:
         return None

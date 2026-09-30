@@ -36,6 +36,7 @@ from pathlib import Path
 from typing import Optional
 
 import yaml
+from oncology_target_contracts import loader as _contracts_loader
 
 # The E2 calibration register: (card_id, warning_id) pairs whose predicate is NON-DISCRIMINATING (fires on
 # >90% or <1% of runs, measured over the corpus) — such a predicate carries ~no per-run information, so it
@@ -195,12 +196,13 @@ def triage_predicate(predicate: str, known_fields: set) -> tuple[bool, str]:
 def _card_warning_spec(card_id: str, contracts_root_str: str) -> tuple:
     """`((warning_id, if_expr), ...), thresholds` for a card — loaded from its contract. `((), {})` when
     the card yaml is absent or unreadable (best-effort; never raises into the emission path)."""
-    cf = Path(contracts_root_str) / "cards" / f"{card_id}.card.yaml"
-    if not cf.is_file():
-        return ((), {})
+    # Route the card read through the packaged contracts loader (SK#2144 stage 3a) —
+    # loader.load_card reads root/cards/{card_id}.card.yaml via yaml.safe_load, raising
+    # FileNotFoundError when absent (in place of the prior is_file() guard). Best-effort
+    # contract preserved: absent card OR malformed YAML → ((), {}), never raise.
     try:
-        spec = yaml.safe_load(cf.read_text()) or {}
-    except yaml.YAMLError:
+        spec = _contracts_loader.load_card(card_id, root=Path(contracts_root_str)) or {}
+    except (FileNotFoundError, yaml.YAMLError):
         return ((), {})
     preds = tuple(
         (w.get("warning_id"), w.get("if", ""))

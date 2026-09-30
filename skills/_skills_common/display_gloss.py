@@ -30,8 +30,6 @@ import functools
 import re
 from typing import Optional
 
-import yaml
-
 # ── direction phrases (3-value display hint -> plain clause) ─────────────────────────────────────────
 # The graph carries `direction` on key_evidence.effect (24/30 salience specs). Normalize token variance
 # (case / spacing / a few historical aliases) so a stray `higher_worse` still resolves — a prior organoid
@@ -693,15 +691,18 @@ def card_question(card_id: str) -> Optional[str]:
     is absent/unreadable or carries no question. Fail-soft (a description is display sugar; never break a
     render). Mirrors _skills_common.card_input_manifest_ids' cached card.yaml read."""
     try:
-        from _skills_common.paths import target_contracts_root
+        # Route the card read through the packaged contracts loader (SK#2144 stage 3a);
+        # loader.load_card resolves root/cards/{card_id}.card.yaml (root = the packaged
+        # contracts_root(), identical to target_contracts_root()) and raises FileNotFoundError
+        # on absence. Swallow ONLY that definitive-absence signal (matching the pre-3a
+        # `p.exists()` guard that returned None solely for a missing card) — a transient /
+        # creds / broken-env fault propagates rather than masquerading as "card has no question".
+        from oncology_target_contracts import loader as _contracts_loader
 
-        p = target_contracts_root() / "cards" / f"{card_id}.card.yaml"
-        if not p.exists():
-            return None
-        spec = yaml.safe_load(p.read_text()) or {}
+        spec = _contracts_loader.load_card(card_id) or {}
         q = spec.get("question")
         return q if isinstance(q, str) and q.strip() else None
-    except Exception:  # noqa: BLE001 — display-only; never break the render
+    except FileNotFoundError:  # definitive absence only (display sugar); other faults propagate
         return None
 
 

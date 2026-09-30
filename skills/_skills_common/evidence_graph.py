@@ -1009,17 +1009,19 @@ def _referential_integrity_errors(graph: dict) -> list:
 def _load_schema(contracts_repo: Optional[str] = None):
     """Load evidence_graph.schema.json from target-contracts (best-effort; None if unavailable)."""
     try:
-        import json
+        # Route the schema read through the packaged contracts loader (SK#2144 stage 3a);
+        # loader.load_schema resolves root/schemas/evidence_graph.schema.json (root defaults
+        # to the packaged contracts_root(), identical to DEFAULT_CONTRACTS_REPO) and raises
+        # FileNotFoundError when absent. Swallow ONLY that definitive-absence signal (matching
+        # the pre-3a `p.exists()` guard that returned None solely for a missing schema) — a
+        # transient / creds / broken-env fault propagates. The two seams that read this
+        # (assert_evidence_graph_valid, attach_evidence_graph) each wrap the call in their own
+        # try/except, so a propagated fault still degrades the enrichment softly, not the spine.
+        from oncology_target_contracts import loader as _contracts_loader
 
-        if contracts_repo:
-            base = Path(contracts_repo)
-        else:
-            from _skills_common.paths import DEFAULT_CONTRACTS_REPO
-
-            base = Path(DEFAULT_CONTRACTS_REPO)
-        p = base / "schemas" / "evidence_graph.schema.json"
-        return json.loads(p.read_text()) if p.exists() else None
-    except Exception:  # noqa: BLE001
+        root = Path(contracts_repo) if contracts_repo else None
+        return _contracts_loader.load_schema("evidence_graph", root=root)
+    except FileNotFoundError:  # definitive absence only; other faults propagate to the seam
         return None
 
 
