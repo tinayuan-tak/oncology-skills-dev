@@ -221,3 +221,169 @@ def test_preland_sh_invokes_this_validator():
     assert "validate_expression_property_enum.py" in joined, (
         "preland.sh does not invoke validate_expression_property_enum.py — the gate exists but is unwired"
     )
+
+
+def test_the_two_gate_argv_tests_match_what_preland_sh_ACTUALLY_RUNS():
+    """#2249: the validator is now wired on TWO `run` lines in preland.sh (pool shape clause +
+    synchronous additivity clause, mirroring 0b/0c). `test_gate_invocation_matches_preland_argv`
+    above hardcodes the argv it believes the SHAPE line uses; without this test, someone could edit
+    preland.sh and both that test and the additivity test below would keep passing against an
+    invocation the gate no longer runs — green for the wrong reason (arc trap §2.6). Joins backslash
+    continuations first, and is deliberately a substring check on flags, not whole-line equality.
+    """
+    script = (CONTRACTS / "scripts" / "preland.sh").read_text().replace("\\\n", " ")
+    wired = [
+        " ".join(ln.split())
+        for ln in script.splitlines()
+        if "validate_expression_property_enum.py" in ln and not ln.lstrip().startswith("#")
+    ]
+    assert len(wired) == 2, (
+        f"expected the validator wired TWICE in preland.sh (pool shape clause + additivity), found "
+        f"{len(wired)}: {wired}"
+    )
+    shape, additivity = wired[0], wired[1]
+    for flag in (
+        "--enum vocabularies/expression_property.enum.yaml",
+        "--cards cards/",
+    ):
+        assert flag in shape, (
+            f"preland.sh shape line is missing {flag!r}; test_gate_invocation_matches_preland_argv is now fiction"
+        )
+    assert "--additive-against" in additivity, (
+        "the second wiring must pass --additive-against, otherwise the token-additivity clause never "
+        "runs in the gate and this vocabulary is governed in name only"
+    )
+
+
+def test_additivity_runs_on_a_RELATIVE_enum_path(monkeypatch):
+    """The additivity clause resolves the enum path against the REPO root while the argument arrives
+    relative to contracts/ (preland.sh's cwd). Without `resolve()` before `relative_to()` this raises
+    ValueError and the clause is UNRUN while preland.sh still prints FAIL — indistinguishable from a
+    real violation (arc trap §2.6, the bug PR-0a shipped and caught)."""
+    monkeypatch.chdir(CONTRACTS)
+    r = V.check_token_additivity(Path("vocabularies/expression_property.enum.yaml"), "HEAD")
+    assert not any("resolves outside the repo root" in e for e in r.errors), r.errors
+    assert not any("does not resolve" in e for e in r.errors), r.errors
+
+
+def test_the_enum_EXISTS_at_HEAD_so_the_additivity_teeth_are_not_vacuous():
+    """#2228 correction, applied here: `--additive-against` is VACUOUS and reports CLEAN whenever the
+    file is ABSENT at the comparison ref (`check_token_additivity` short-circuits when `_git_show`
+    returns None). This turns that silent-pass condition into a loud, explained RED instead — proving
+    the teeth below are comparing against a ref where the file actually exists, not testing nothing.
+    """
+    rel = ENUM_PATH.resolve().relative_to(REPO).as_posix()
+    prior_text = V._git_show("HEAD", rel)
+    assert prior_text is not None, (
+        f"{rel} does not exist at HEAD — every additivity clause below would be vacuously green "
+        f"(#2228's trap: an --additive-against clause reports CLEAN when its file is absent at the "
+        f"comparison ref). Commit the enum file before trusting any additivity test in this module."
+    )
+
+
+def _with_mutated_enum_in_place(mutate):
+    """`check_token_additivity` resolves its `enum_path` against the real REPO_ROOT (to build the
+    `git show <ref>:<rel>` path), so a mutant written under `tmp_path` fails `relative_to()` before
+    the clause ever runs (proven while writing this test — the mutants below reproduced the "resolves
+    outside the repo root" error, not their intended one). The only faithful way to exercise the
+    real function's real path arithmetic is to mutate the REAL committed file in place and restore
+    it byte-for-byte in `finally`, exactly mirroring the git-diff-population workaround the arc's own
+    traps already required elsewhere."""
+    original = ENUM_PATH.read_bytes()
+    try:
+        doc = copy.deepcopy(REAL_DOC)
+        mutate(doc)
+        ENUM_PATH.write_text(yaml.safe_dump(doc, sort_keys=False))
+        return V.check_token_additivity(ENUM_PATH, "HEAD")
+    finally:
+        ENUM_PATH.write_bytes(original)
+
+
+def test_additivity_removed_property_is_red():
+    """Mutation tooth, removal direction: a `property.id` present at HEAD but absent from the
+    mutant must be RED — this is the exact rename/removal failure #2249 exists to catch."""
+    r = _with_mutated_enum_in_place(
+        lambda doc: doc["properties"].__setitem__(
+            slice(None), [p for p in doc["properties"] if p.get("id") != "magnitude"]
+        )
+    )
+    assert not r.ok
+    assert any("magnitude" in e and "removed" in e for e in r.errors), r.errors
+
+
+def test_additivity_status_changed_is_red():
+    """Mutation tooth: changing a surviving property's `status` vs HEAD must be RED — status selects
+    whether the property claims a measurement path at all, so a silent flip is a behavioural change
+    dressed up as a no-op."""
+
+    def mutate(doc):
+        for p in doc["properties"]:
+            if p["id"] == "selectivity" and p.get("status") == "fleet_deferred":
+                p["status"] = "resolvable"
+                p["resolves_from"] = {"card": "cellline-rna-distribution", "measurements": ["fraction_expressed"]}
+                return
+        raise AssertionError("expected a fleet_deferred property named 'selectivity' in the real population")
+
+    r = _with_mutated_enum_in_place(mutate)
+    assert not r.ok
+    assert any("selectivity" in e and "status" in e for e in r.errors), r.errors
+
+
+def test_additivity_new_property_without_version_bump_is_red():
+    """Mutation tooth: adding a new property id without bumping `version` must be RED — an addition
+    is at least a MINOR bump, or the wire contract silently changed shape."""
+
+    def mutate(doc):
+        doc["properties"].append(
+            {
+                "id": "brand_new_property_2249",
+                "label": "Brand New",
+                "status": "fleet_deferred",
+                "polarity": "neutral",
+                "description": "planted for the additivity mutation tooth",
+                "values": ["placeholder"],
+            }
+        )
+
+    r = _with_mutated_enum_in_place(mutate)
+    assert not r.ok
+    assert any("brand_new_property_2249" in e and "version" in e for e in r.errors), r.errors
+
+
+def test_additivity_new_property_WITH_version_bump_is_green():
+    """The documented deliberate non-failure (arc §3): additive growth accompanied by a version bump
+    must stay GREEN, or the teeth would ossify legitimate evolution of the vocabulary."""
+
+    def mutate(doc):
+        doc["properties"].append(
+            {
+                "id": "brand_new_property_2249",
+                "label": "Brand New",
+                "status": "fleet_deferred",
+                "polarity": "neutral",
+                "description": "planted for the additivity mutation tooth",
+                "values": ["placeholder"],
+            }
+        )
+        major, minor, _patch = (int(x) for x in doc["version"].split("."))
+        doc["version"] = f"{major}.{minor + 1}.0"
+
+    r = _with_mutated_enum_in_place(mutate)
+    assert r.ok, "\n  ".join(r.errors)
+
+
+def test_additivity_unresolvable_ref_is_red():
+    """Fail-closed on a bad ref: the caller explicitly asked for the clause via --additive-against,
+    so an unresolvable ref must be an ERROR, never a silent skip that reports green on an unrun
+    clause."""
+    r = V.check_token_additivity(ENUM_PATH, "no-such-ref-anywhere-2249")
+    assert not r.ok
+    assert any("does not resolve" in e for e in r.errors), r.errors
+
+
+def test_additivity_clean_control_is_green():
+    """Control for every mutation tooth above: comparing the real, unmutated file against HEAD (its
+    own last-committed state at the time of the compare) must be silent, or the REDs above could not
+    be attributed to their planted defects."""
+    r = V.check_token_additivity(ENUM_PATH, "HEAD")
+    assert r.ok, "\n  ".join(r.errors)

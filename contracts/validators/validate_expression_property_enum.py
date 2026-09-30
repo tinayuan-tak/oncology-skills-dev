@@ -30,32 +30,46 @@ WHAT THIS ENFORCES:
      `resolves_from.measurements` must appear in that card's `outputs.summary_fields`. A name that
      does not resolve is a claim of traceability to a measurement that does not exist.
 
+  4. ADDITIVITY (opt-in, `--additive-against <git-ref>`). At TOKEN granularity: no `property.id`
+     removed, no property's `status` changed, and any addition accompanied by a version bump.
+     Opt-in because it needs git; when the flag IS passed and the ref cannot be resolved the run is
+     RED, never a silent skip — the caller asked for the clause and must not get a green without it.
+     Copies `validate_concordance_enum.py`'s `check_token_additivity` mechanism (clause 9 there),
+     keyed on `properties[*].id` in place of `values[*].value` and `status` in place of
+     `disposition` — this file has no `families`/`(family, token)` layer, so that half is not
+     ported.
+
 WHAT IT DELIBERATELY DOES NOT DO. It does not enforce full vocabulary governance parity with
-`validate_concordance_enum.py` / `validate_comparability_state.py` (no additivity clause, no
-per-value SIGNAL_ORD cross-check) — this file's scope is the referential defect #2233 named plus the
-minimal shape needed to iterate safely. Broader governance parity is a separate, larger change if
-ever wanted.
+`validate_concordance_enum.py` / `validate_comparability_state.py` (no per-value SIGNAL_ORD
+cross-check) — this file's scope is the referential defect #2233 named plus the minimal shape
+needed to iterate safely, plus the additivity clause (#2249). Broader governance parity is a
+separate, larger change if ever wanted.
 
 Usage:
   python validators/validate_expression_property_enum.py
   python validators/validate_expression_property_enum.py --enum vocabularies/expression_property.enum.yaml --cards cards/
+  python validators/validate_expression_property_enum.py --additive-against origin/main
 """
 
 from __future__ import annotations
 
 import argparse
+import subprocess
 import sys
 from pathlib import Path
 
 import yaml
 
 # Reuse, do not re-implement (per the issue's own instruction): `card_field_index()` already builds
-# exactly the index this file's load-bearing clause needs.
+# exactly the index this file's load-bearing clause needs. `_git_show`/`REPO_ROOT` carry the
+# additivity clause's git-reading behaviour, same as `validate_concordance_enum.py`'s reuse of them.
 from validate_property_catalog import (  # noqa: E402  (path-relative sibling import, see __main__)
     _SEMVER,
     _SNAKE,
     CONTRACTS_ROOT,
+    REPO_ROOT,
     Report,
+    _git_show,
     _nonempty_str,
     _strict_keys,
     card_field_index,
@@ -207,6 +221,81 @@ def validate_file(enum_path: Path, cards: "dict[str, set[str]] | None") -> Repor
     return r
 
 
+def check_token_additivity(enum_path: Path, ref: str) -> Report:
+    """No `property.id` removed, no `status` changed; any addition bumps `version`.
+
+    A ref that cannot be resolved is an ERROR, not a skip: the caller explicitly asked for this
+    clause, and returning green without having run it is the fail-open this validator exists to
+    prevent. Mirrors `validate_concordance_enum.py::check_token_additivity`, keyed on
+    `properties[*].id`/`status` in place of `values[*].value`/`disposition`.
+    """
+    r = Report()
+    probe = subprocess.run(
+        ["git", "rev-parse", "--verify", f"{ref}^{{commit}}"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if probe.returncode != 0:
+        r.err(f"--additive-against: ref `{ref}` does not resolve — refusing to report green on an unrun clause")
+        return r
+
+    # `relative_to` needs BOTH sides absolute, and the path normally arrives RELATIVE (preland.sh and
+    # CI pass it from cwd contracts/), so resolve() FIRST — without it this raises ValueError and the
+    # clause CRASHES instead of running (the bug PR-0a shipped and caught; repeated here as a comment
+    # because the shape is repeated here too).
+    try:
+        rel = enum_path.resolve().relative_to(REPO_ROOT).as_posix()
+    except ValueError:
+        r.err(f"{enum_path}: resolves outside the repo root {REPO_ROOT} — cannot compare against {ref}")
+        return r
+    prior_text = _git_show(ref, rel)
+    if prior_text is None:
+        return r  # new file at this ref — nothing to be additive against
+    try:
+        prior = yaml.safe_load(prior_text) or {}
+        current = yaml.safe_load(enum_path.read_text()) or {}
+    except yaml.YAMLError as exc:
+        r.err(f"{enum_path.name}: could not compare against {ref}: {exc}")
+        return r
+    if not isinstance(prior, dict) or not isinstance(current, dict):
+        return r
+
+    def _by_id(doc: dict) -> dict:
+        out = {}
+        for e in doc.get("properties") or []:
+            if isinstance(e, dict) and isinstance(e.get("id"), str):
+                out[e["id"]] = e
+        return out
+
+    prior_props, cur_props = _by_id(prior), _by_id(current)
+    removed = sorted(set(prior_props) - set(cur_props))
+    if removed:
+        r.err(
+            f"{enum_path.name}: property id(s) removed vs {ref}: {removed} — expression_property "
+            f"tokens are PUBLISHED wire names, string-matched by consumers that fail OPEN when a "
+            f"match stops happening; migrate by add -> consume -> remove, and a removal needs a "
+            f"MAJOR bump"
+        )
+    for pid in sorted(set(prior_props) & set(cur_props)):
+        p_status = prior_props[pid].get("status")
+        c_status = cur_props[pid].get("status")
+        if p_status != c_status:
+            r.err(
+                f"{enum_path.name}::{pid}: `status` changed vs {ref} ({p_status} -> {c_status}) — "
+                f"status selects whether the property claims a measurement path at all; a different "
+                f"status is a different commitment"
+            )
+    new_ids = sorted(set(cur_props) - set(prior_props))
+    if new_ids and current.get("version") == prior.get("version"):
+        r.err(
+            f"{enum_path.name}: added propert(ies) {new_ids} without bumping `version` (still "
+            f"{current.get('version')!r}) — an addition is at least a MINOR bump"
+        )
+    return r
+
+
 def _main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[1])
     ap.add_argument(
@@ -215,6 +304,12 @@ def _main(argv=None) -> int:
         default=CONTRACTS_ROOT / "vocabularies" / "expression_property.enum.yaml",
     )
     ap.add_argument("--cards", type=Path, default=CONTRACTS_ROOT / "cards")
+    ap.add_argument(
+        "--additive-against",
+        metavar="GIT_REF",
+        default=None,
+        help="also enforce token-level additivity against this git ref (RED if the ref does not resolve)",
+    )
     args = ap.parse_args(argv)
 
     print("validate_expression_property_enum.py results:")
@@ -234,6 +329,13 @@ def _main(argv=None) -> int:
         print(f"  [ERROR]   {e}")
     for w in r.warnings:
         print(f"  [WARNING] {w}")
+    total_errors = len(r.errors)
+
+    if args.additive_against:
+        ar = check_token_additivity(args.enum, args.additive_against)
+        for e in ar.errors:
+            print(f"  [ERROR]   {e}")
+        total_errors += len(ar.errors)
 
     try:
         doc = yaml.safe_load(args.enum.read_text()) or {}
@@ -243,9 +345,9 @@ def _main(argv=None) -> int:
     resolvable = [p for p in props if isinstance(p, dict) and p.get("status") == "resolvable"]
     print(
         f"\nSummary: {len(props)} propert(ies), {len(resolvable)} resolvable; "
-        f"{'OK' if r.ok else str(len(r.errors)) + ' error(s)'}."
+        f"{'OK' if total_errors == 0 else str(total_errors) + ' error(s)'}."
     )
-    return 0 if r.ok else 1
+    return 0 if total_errors == 0 else 1
 
 
 if __name__ == "__main__":

@@ -146,6 +146,19 @@ else
   echo "WARN  comparability-state additivity SKIPPED — '$pc_base' not fetched; set PRELAND_BASE or run 'git fetch origin main'"
 fi
 
+# --- expression-property TOKEN additivity (vocabularies/expression_property.enum.yaml) ---
+# Fourth instance of the same shape, same reason. #2233 shipped this vocabulary's referential clause
+# but explicitly scoped additivity out (#2249 closes that gap); expression_property tokens are
+# string-matched by consumers the same way concordance_class/comparability_state tokens are, so a
+# quiet rename or removal here is exactly the failure this clause exists for.
+if git rev-parse --verify -q "$pc_base" >/dev/null; then
+  run "validate_expression_property_enum --additive-against $pc_base" \
+      python validators/validate_expression_property_enum.py --enum vocabularies/expression_property.enum.yaml \
+             --cards cards/ --additive-against "$pc_base"
+else
+  echo "WARN  expression-property additivity SKIPPED — '$pc_base' not fetched; set PRELAND_BASE or run 'git fetch origin main'"
+fi
+
 # --- claim-axis PAIR additivity (vocabularies/claim_axis.enum.yaml) ---
 # Fourth instance of the same shape, and the one with the sharpest failure mode. The published name here
 # is the PAIR `(skill, axis_key)`, and `claim_vector.<axis>` keys are hard-coded in question-table
