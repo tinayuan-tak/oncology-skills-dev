@@ -40,7 +40,6 @@ from pathlib import Path
 
 from jsonschema import Draft202012Validator
 
-SCHEMA_PATH = Path(__file__).resolve().parent.parent / "schemas" / "evidence_graph.schema.json"
 EXAMPLE_PATH = Path(__file__).resolve().parent.parent / "schemas" / "examples" / "evidence_graph.example.json"
 
 
@@ -57,8 +56,10 @@ class ValidationReport:
 
 
 def _load_schema() -> dict:
-    with SCHEMA_PATH.open() as f:
-        return json.load(f)
+    # N3-1 #2144: load via the packaged loader instead of a local SCHEMA_PATH file read.
+    from oncology_target_contracts.loader import load_schema
+
+    return load_schema("evidence_graph")
 
 
 def _structural_check(graph: dict, report: ValidationReport, schema: dict) -> None:

@@ -31,7 +31,6 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import json
 import os
 import sys
 from dataclasses import dataclass, field
@@ -40,7 +39,6 @@ from pathlib import Path
 import yaml
 from jsonschema import Draft202012Validator
 
-SCHEMA_PATH = Path(__file__).resolve().parent.parent / "schemas" / "subgroup_assignment.schema.json"
 DEFAULT_CATALOG_REPO = Path(
     os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")
 )
@@ -77,7 +75,10 @@ def _sha256_file(path: Path) -> str:
 
 
 def _load_schema() -> dict:
-    return json.loads(SCHEMA_PATH.read_text())
+    # N3-1 #2144: load via the packaged loader instead of a local SCHEMA_PATH file read.
+    from oncology_target_contracts.loader import load_schema
+
+    return load_schema("subgroup_assignment")
 
 
 def _find_catalog(catalog_ref: str, indication: str, catalog_repo: Path) -> Path | None:

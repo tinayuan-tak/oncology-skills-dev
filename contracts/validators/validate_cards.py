@@ -30,7 +30,6 @@ from __future__ import annotations
 import argparse
 import ast
 import functools
-import json
 import os
 import re
 import sys
@@ -41,7 +40,6 @@ from typing import Optional
 import yaml
 from jsonschema import Draft202012Validator
 
-SCHEMA_PATH = Path(__file__).resolve().parent.parent / "schemas" / "card.schema.json"
 PRODUCTS_PATH = Path(__file__).resolve().parent.parent / "vocabularies" / "products.yaml"
 # Sibling data-catalog checkout, for the required_inputs[].product_id referential-integrity check.
 # A product_id resolves against EITHER a data-catalog manifest id OR a registered products.yaml
@@ -635,8 +633,12 @@ class ValidationReport:
 
 @functools.lru_cache(maxsize=1)
 def _load_schema() -> dict:
-    with SCHEMA_PATH.open() as f:
-        return json.load(f)
+    # N3-1 #2144: load via the packaged loader (contracts_root-relative) instead of a local
+    # SCHEMA_PATH file read. The @lru_cache keeps the returned dict a single object across
+    # callers, so _cached_validator's id()-keyed cache still holds (load_schema itself re-reads).
+    from oncology_target_contracts.loader import load_schema
+
+    return load_schema("card")
 
 
 _VALIDATOR_CACHE: dict[int, Draft202012Validator] = {}

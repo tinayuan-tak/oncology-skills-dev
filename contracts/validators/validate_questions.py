@@ -31,7 +31,6 @@ import yaml
 from jsonschema import Draft202012Validator
 
 REPO = Path(__file__).resolve().parent.parent
-SCHEMA_PATH = REPO / "schemas" / "questions.schema.json"
 CARDS_DIR = REPO / "cards"
 SKILLS_REPO = Path(
     os.environ.get(
@@ -41,9 +40,10 @@ SKILLS_REPO = Path(
 
 
 def _load_schema() -> dict:
-    import json
+    # N3-1 #2144: load via the packaged loader instead of a local SCHEMA_PATH file read.
+    from oncology_target_contracts.loader import load_schema
 
-    return json.loads(SCHEMA_PATH.read_text())
+    return load_schema("questions")
 
 
 def _card_measurement_types() -> set:
