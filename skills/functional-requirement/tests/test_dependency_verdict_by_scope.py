@@ -68,6 +68,42 @@ def test_dependent_not_enriched_and_not_dependent_from_per_lineage():
     assert DI._indication_lineage_read(nod, "COADREAD")["class"] == "not_dependent_in_indication"
 
 
+def test_null_or_nan_median_never_falls_open_to_the_negative_veto():
+    # #1556: a present, adequately-powered row with a MISSING median (None, or NaN — NaN is a float
+    # instance and every comparison against it is False, so an unguarded `<= cut` silently reaches the
+    # else branch exactly like None does) must classify as data_unavailable, never the measured
+    # negative not_dependent_in_indication (a missing measurement is not a genuinely-high median).
+    none_median = _cards(
+        enriched=[{"lineage": "Pancreas", "n": 74, "q_value": 1e-20}],
+        per_lineage=[{"lineage": "Bowel", "n": 60, "median_chronos": None}],
+    )
+    read = DI._indication_lineage_read(none_median, "COADREAD")
+    assert read["class"] == "data_unavailable"
+    assert read["class"] != "not_dependent_in_indication"
+
+    nan_median = _cards(
+        enriched=[{"lineage": "Pancreas", "n": 74, "q_value": 1e-20}],
+        per_lineage=[{"lineage": "Bowel", "n": 60, "median_chronos": float("nan")}],
+    )
+    read_nan = DI._indication_lineage_read(nan_median, "COADREAD")
+    assert read_nan["class"] == "data_unavailable"
+    assert read_nan["class"] != "not_dependent_in_indication"
+
+
+def test_non_numeric_n_never_falls_open_to_the_negative_veto():
+    # Mirror conjunct (issue #1556 comment): a valid, non-dependent median with an absent/non-numeric n
+    # skips BOTH the power guard (`isinstance(None, ...)` is False) and the dependency-cut branch, so it
+    # must not reach not_dependent_in_indication either — route to underpowered instead, since the power
+    # precondition (>= floor cell lines) can never be confirmed from an unknown n.
+    cards = _cards(
+        enriched=[{"lineage": "Pancreas", "n": 74, "q_value": 1e-20}],
+        per_lineage=[{"lineage": "Bowel", "n": None, "median_chronos": 0.2}],
+    )
+    read = DI._indication_lineage_read(cards, "COADREAD")
+    assert read["class"] == "underpowered"
+    assert read["class"] != "not_dependent_in_indication"
+
+
 def test_underpowered_lineage_never_over_read():
     cards = _cards(enriched=[], per_lineage=[{"lineage": "Bowel", "n": 3, "median_chronos": -1.5}])
     read = DI._indication_lineage_read(cards, "COADREAD")

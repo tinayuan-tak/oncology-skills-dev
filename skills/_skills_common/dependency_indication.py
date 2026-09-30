@@ -25,6 +25,7 @@ untouched by everything here.
 from __future__ import annotations
 
 import functools
+import math
 
 from _skills_common.paths import DEFAULT_CONTRACTS_REPO
 
@@ -52,6 +53,15 @@ def _card_field(cards, card_id: str, key: str):
 
 _LINEAGE_DEPENDENCY_CUT = -0.5  # DepMap-standard Chronos threshold for "dependent" (median)
 _LINEAGE_UNDERPOWER_FLOOR = 5  # mirrors the card's min_cell_lines_in_lineage
+
+
+def _is_measured_number(x) -> bool:
+    """True only for a genuinely-measured finite number. `isinstance(x, (int, float))` alone is NOT
+    a measuredness guard: NaN IS a float instance and every comparison against NaN is False, so an
+    unguarded `x < floor` / `x <= cut` silently falls through to the else branch exactly like a
+    missing value would — the same fail-open this module exists to prevent, just via NaN instead of
+    None. Bool is excluded because it is an int subclass but never a legitimate n/median value here."""
+    return isinstance(x, (int, float)) and not isinstance(x, bool) and math.isfinite(x)
 
 
 @functools.lru_cache(maxsize=1)
@@ -274,11 +284,29 @@ def _indication_lineage_read(cards, indication) -> dict:
             read["per_oncotree_code"] = sub["per_code"]
             n, med = sub["n"], sub["median_chronos"]
             read.update(median_chronos=med, n=n)
-            if n < _LINEAGE_UNDERPOWER_FLOOR:
+            if not _is_measured_number(n) or n < _LINEAGE_UNDERPOWER_FLOOR:
+                # A non-numeric/absent n means the power precondition (>= floor cell lines) can never
+                # be confirmed — route to underpowered rather than risking the negative veto below on
+                # an unknown sample size, symmetric with the median guard.
                 read.update(
                     **{
                         "class": "underpowered",
-                        "_note": f"{indication} sublineage {sub['matched_codes']} n={n} (< floor)",
+                        "_note": (
+                            f"{indication} sublineage {sub['matched_codes']} n={n} "
+                            "(< floor or unmeasured — power precondition unconfirmed)"
+                        ),
+                    }
+                )
+            elif not _is_measured_number(med):
+                # A present, adequately-powered row with a null/NaN median is a MISSING measurement,
+                # not a genuinely-high (non-dependent) one — must not fall open to the negative veto.
+                read.update(
+                    **{
+                        "class": "data_unavailable",
+                        "_note": (
+                            f"{indication} sublineage-resolved (codes {sub['matched_codes']}, "
+                            f"n={n}): median Chronos unmeasured — cannot classify dependent vs not"
+                        ),
                     }
                 )
             elif med <= _LINEAGE_DEPENDENCY_CUT:
@@ -330,9 +358,25 @@ def _indication_lineage_read(cards, indication) -> dict:
     if per_lineage is not None:
         n, med = per_lineage.get("n"), per_lineage.get("median_chronos")
         read.update(median_chronos=med, n=n)
-        if isinstance(n, (int, float)) and n < _LINEAGE_UNDERPOWER_FLOOR:
-            read.update(**{"class": "underpowered", "_note": f"{lineage} has n={n} (< floor)"})
-        elif isinstance(med, (int, float)) and med <= _LINEAGE_DEPENDENCY_CUT:
+        if not _is_measured_number(n) or n < _LINEAGE_UNDERPOWER_FLOOR:
+            # Non-numeric/absent n means the power precondition (>= floor cell lines) can never be
+            # confirmed — route to underpowered rather than risking the negative veto on an unknown n.
+            read.update(
+                **{
+                    "class": "underpowered",
+                    "_note": f"{lineage} has n={n} (< floor or unmeasured — power precondition unconfirmed)",
+                }
+            )
+        elif not _is_measured_number(med):
+            # Present, adequately-powered row with a null/NaN median is a MISSING measurement, not a
+            # genuinely-high (non-dependent) one — must not fall open to the negative veto.
+            read.update(
+                **{
+                    "class": "data_unavailable",
+                    "_note": f"{lineage}: median Chronos unmeasured (n={n}) — cannot classify dependent vs not",
+                }
+            )
+        elif med <= _LINEAGE_DEPENDENCY_CUT:
             read.update(
                 **{
                     "class": "dependent_not_enriched",
@@ -343,7 +387,7 @@ def _indication_lineage_read(cards, indication) -> dict:
             read.update(
                 **{
                     "class": "not_dependent_in_indication",
-                    "_note": f"{lineage}: median Chronos {med} above the dependency cut",
+                    "_note": f"{lineage}: median Chronos {med:.2f} above the dependency cut",
                 }
             )
         return read
