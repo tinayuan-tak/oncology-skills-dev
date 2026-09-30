@@ -232,8 +232,10 @@ jobs:
       # shard, and the fan-in then fails the required `pytest` check. Denylisted skills only ::warning::.
       # Live-S3 tests self-skip on the credential-less runner (conftest skip_if_no_data).
       #
-      # SKIP VISIBILITY + SKIP BUDGET (skills#2127). Every invocation below carries `-rs` so each
-      # skip is NAMED in the log, and — MEASURED, not assumed — the redundant CLI `-q` was REMOVED:
+      # SKIP VISIBILITY + SKIP BUDGET (skills#2127, skills#2236). Every invocation below carries
+      # `-rsfE` so each skip is NAMED in the log AND the FAILED/ERROR short-summary survives (a bare
+      # `-rs` REPLACES pytest's default `-r` value "fE" instead of adding to it, dropping the FAILED
+      # list — see skills#2236). — MEASURED, not assumed — the redundant CLI `-q` was REMOVED:
       # pyproject's `addopts = "-q -rs …"` already supplies both, so a second `-q` pushed verbosity
       # to -2, which suppresses the final `N passed, M skipped in Xs` COUNT line. Skip reasons were
       # printed but the totals were not, leaving nothing to ratchet against and no cardinality
@@ -296,7 +298,7 @@ jobs:
             # LITERAL path: the coverage anchor test_ci_covers_all_test_files parses (also matched by
             # the skills/*/tests glob below, but kept explicit as its own blocking gate).
             L=$(logfile _skills_common)
-            echo "::group::_skills_common"; pixi run pytest skills/_skills_common/tests/ -rs -n auto > "$L" 2>&1; r=$?; cat "$L"; echo "::endgroup::"
+            echo "::group::_skills_common"; pixi run pytest skills/_skills_common/tests/ -rsfE -n auto > "$L" 2>&1; r=$?; cat "$L"; echo "::endgroup::"
             [ "$r" -ne 0 ] && gate_fail=1
             check_budget "_skills_common" "$L"
           elif [ "$SHARD" = "core-guards" ]; then
@@ -305,8 +307,8 @@ jobs:
             # core-rest long pole at ~4m24s). LITERAL `pytest <path>` invocations (NOT via run_suite):
             # coverage anchors for skills/tests/ + eval/, which the skills/*/tests glob does not match.
             LG=$(logfile skills-guards); LE=$(logfile eval)
-            echo "::group::skills-guards"; pixi run pytest skills/tests/ -rs --import-mode=importlib -n auto > "$LG" 2>&1; r1=$?; cat "$LG"; echo "::endgroup::"
-            echo "::group::eval"; pixi run pytest eval/ -rs --import-mode=importlib -n auto > "$LE" 2>&1; r2=$?; cat "$LE"; echo "::endgroup::"
+            echo "::group::skills-guards"; pixi run pytest skills/tests/ -rsfE --import-mode=importlib -n auto > "$LG" 2>&1; r1=$?; cat "$LG"; echo "::endgroup::"
+            echo "::group::eval"; pixi run pytest eval/ -rsfE --import-mode=importlib -n auto > "$LE" 2>&1; r2=$?; cat "$LE"; echo "::endgroup::"
             for r in "$r1" "$r2"; do [ "$r" -ne 0 ] && gate_fail=1; done
             check_budget "skills-guards" "$LG"
             check_budget "eval" "$LE"
@@ -314,7 +316,7 @@ jobs:
             # target-profile (the composed nomination skill) on its own shard. LITERAL path — also
             # matched by the skills/*/tests glob, kept explicit as its own blocking gate.
             L=$(logfile target-profile)
-            echo "::group::target-profile"; pixi run pytest skills/target-profile/tests/ -rs -n auto > "$L" 2>&1; r=$?; cat "$L"; echo "::endgroup::"
+            echo "::group::target-profile"; pixi run pytest skills/target-profile/tests/ -rsfE -n auto > "$L" 2>&1; r=$?; cat "$L"; echo "::endgroup::"
             [ "$r" -ne 0 ] && gate_fail=1
             check_budget "target-profile" "$L"
           else
@@ -327,7 +329,7 @@ jobs:
               case "$skill" in _skills_common|target-profile) continue ;; esac
               ls "$d"/test_*.py >/dev/null 2>&1 || continue   # skip dirs with no test files (e.g. deferred skills)
               if [ "$((i % NUM_LOOP_SHARDS))" = "$SHARD" ]; then
-                run_suite "$skill" "$d -rs --import-mode=importlib"
+                run_suite "$skill" "$d -rsfE --import-mode=importlib"
               fi
               i=$((i + 1))
             done
@@ -430,9 +432,9 @@ jobs:
         # summary counts are the sole instrument under -q — which is exactly why the shard legs
         # above pass `-rs` WITHOUT `-q`). Verified on one file: with `-q` the log ends at the
         # SKIPPED list; without it, `21 passed, 1 skipped in 3.63s`.
-        # The same redundant `-q`, and the same `-rs`-without-`fE`, remain at the contracts leg and
-        # at the skills sites in scripts/preland.sh — left alone here to keep this PR scoped
-        # (they are not this PR's env change); both are reported on #2145.
+        # The same redundant `-q`, and the same `-rs`-without-`fE`, that remained at the contracts
+        # leg and at the skills sites in scripts/preland.sh (left alone here to keep this PR
+        # scoped to the env change; both reported on #2145) were fixed separately in skills#2236.
         run: pixi run pytest methods/ tests/ -rsfE --import-mode=importlib -n auto
 
   # ── CONTRACTS GATES (ported from target-contracts' contracts-validate.yml at the SK#2063
@@ -575,10 +577,14 @@ jobs:
         run: python -m pip install --upgrade pip pyyaml jsonschema pytest pytest-xdist pytest-split matplotlib
 
       - name: Whole-package test suite (shard ${{ matrix.group }}/4; the contracts pytest gate)
-        # -rs: named skip lines — a skip is "the check did not run" and must stay visible in the log,
-        # never summed into the green (see the methods-pytest step and the old methods-validate.yml).
+        # -rsfE: named skip lines — a skip is "the check did not run" and must stay visible in the
+        # log, AND the FAILED/ERROR short-summary must survive (a bare -rs REPLACES pytest's
+        # default -r value "fE" instead of adding to it — see the methods-pytest step and
+        # skills#2236). No CLI -q here: contracts/pyproject.toml's addopts already supplies -q, so
+        # a second -q would push verbosity to -2 and suppress the final `N passed, M skipped in
+        # Xs` count line (see the old methods-validate.yml history / skills#2236).
         run: >
-          python -m pytest -q -rs -n auto
+          python -m pytest -rsfE -n auto
           --splits 4 --group ${{ matrix.group }}
           --durations-path .test_durations
           --splitting-algorithm least_duration

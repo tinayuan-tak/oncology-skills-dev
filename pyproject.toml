@@ -1,7 +1,10 @@
 [tool.pytest.ini_options]
 # Declarative defaults for the skills-repo suites invoked from THIS root (skills/*/tests,
-# eval/, tests/): -q (quiet), -rs (show skip reasons), --tb=short (short tracebacks so a red
-# against the large resolver/golden corpora doesn't flood the context window), and
+# eval/, tests/): -q (quiet), -rsfE (show skip reasons AND named FAILED/ERROR lines — pytest's
+# `-r` is action="store" with default "fE", so a bare `-rs` REPLACES rather than adds to that
+# default and silently drops the FAILED short-summary; see skills#2236), --tb=short (short
+# tracebacks so a red against the large resolver/golden corpora doesn't flood the context
+# window), and
 # --import-mode=importlib (several per-skill test files share a basename across skills, so the
 # default prepend/rootdir import mode collides — importlib avoids that).
 #
@@ -16,4 +19,4 @@
 # task, and 4 docs — so a direct `pixi run pytest ...` typed by hand got `--tb=long` and hidden
 # skips. The explicit CLI flags in those call sites are now redundant (not conflicting) with
 # this default and were left as-is.
-addopts = "-q -rs --tb=short --import-mode=importlib"
+addopts = "-q -rsfE --tb=short --import-mode=importlib"

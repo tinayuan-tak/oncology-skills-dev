@@ -71,13 +71,16 @@ run() { local label="$1"; shift; local out
 #      with an empty denylist, each in its OWN pytest process for run.py import isolation)
 run_skills() {
   local sfail=0
-  run "_skills_common"           pixi run pytest skills/_skills_common/tests/ -q "${xdist[@]}"
+  # NOTE (skills#2236): no explicit -q here — the root pyproject.toml addopts already supplies
+  # `-q -rsfE`; a second CLI -q would push verbosity to -2 (i.e. -qq), which suppresses pytest's
+  # final `N passed, M skipped in Xs` count line (skip reasons still print, but the totals vanish).
+  run "_skills_common"           pixi run pytest skills/_skills_common/tests/ "${xdist[@]}"
   [ $fail -ne 0 ] && sfail=1; fail=0
-  run "target-profile"           pixi run pytest skills/target-profile/tests/ -q "${xdist[@]}"
+  run "target-profile"           pixi run pytest skills/target-profile/tests/ "${xdist[@]}"
   [ $fail -ne 0 ] && sfail=1; fail=0
-  run "skills/tests guards"      pixi run pytest skills/tests/ -q --import-mode=importlib "${xdist[@]}"
+  run "skills/tests guards"      pixi run pytest skills/tests/ --import-mode=importlib "${xdist[@]}"
   [ $fail -ne 0 ] && sfail=1; fail=0
-  run "eval/ harness suite"      pixi run pytest eval/ -q --import-mode=importlib "${xdist[@]}"
+  run "eval/ harness suite"      pixi run pytest eval/ --import-mode=importlib "${xdist[@]}"
   [ $fail -ne 0 ] && sfail=1; fail=0
 
   # Keep this denylist in sync with the workflow's NON_BLOCKING_SKILLS (currently none).
@@ -101,7 +104,7 @@ run_skills() {
   local resdir; resdir=$(mktemp -d)
   run_one() {
     local dd="$1" ss="$2" out rc
-    if out=$(pixi run pytest "$dd" -q --import-mode=importlib 2>&1); then rc=0; else rc=$?; fi
+    if out=$(pixi run pytest "$dd" --import-mode=importlib 2>&1); then rc=0; else rc=$?; fi
     { printf '%s\n' "$rc"; printf '%s\n' "$out"; } > "$resdir/$ss"
   }
   for d in "${loop_dirs[@]}"; do

@@ -51,10 +51,11 @@ exclude = ["methods.*.steps", "methods.*.scripts"]
 [tool.pytest.ini_options]
 # Declarative defaults for `pytest methods/ tests/` (run from THIS dir — see
 # scripts/preland.sh / skills-validate.yml, the former methods-validate.yml). --import-mode=importlib is REQUIRED: several
-# method test files share a basename and collide under the default import mode. -q/-rs/--tb=short
-# match the skills-repo root default (SK#2093) so a direct `pixi run pytest` an agent types by
-# hand doesn't default to `--tb=long` + hidden skips.
-addopts = "-q -rs --tb=short --import-mode=importlib"
+# method test files share a basename and collide under the default import mode. -q/-rsfE/--tb=short
+# match the skills-repo root default (SK#2093, skills#2236) so a direct `pixi run pytest` an agent
+# types by hand doesn't default to `--tb=long` + hidden skips or a bare `-rs` that drops the
+# FAILED short-summary (pytest's `-r` default is "fE"; a bare `-rs` REPLACES it, not adds to it).
+addopts = "-q -rsfE --tb=short --import-mode=importlib"
 # requires_data was previously registered programmatically in conftest.py's pytest_configure;
 # declared here so it shows in `pytest --markers` without importing conftest first.
 markers = [

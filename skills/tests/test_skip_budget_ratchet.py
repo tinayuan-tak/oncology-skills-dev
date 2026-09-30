@@ -7,10 +7,12 @@ unresolvable; they run on CI ONLY because the shard job exports ``TARGET_CONTRAC
 to the in-repo ``contracts/``. If that export regresses, or ``contracts/cards`` moves, the
 whole family goes silently SKIPPED and CI stays green. The counter-measures are:
 
-  * ``-rs`` on every skills shard pytest invocation (skip made VISIBLE) — and, MEASURED
-    while doing it, removal of the redundant CLI ``-q``: pyproject's ``addopts`` already
-    pass ``-q -rs``, so the shards were running at ``-qq``, which prints skip REASONS but
-    suppresses the ``N passed, M skipped in Xs`` COUNT line — no totals, no ratchet;
+  * ``-rsfE`` on every skills shard pytest invocation (skip made VISIBLE, and the FAILED/ERROR
+    short-summary preserved — a bare ``-rs`` REPLACES pytest's default ``-r`` value ``fE``
+    instead of adding to it, per skills#2236) — and, MEASURED while doing it, removal of the
+    redundant CLI ``-q``: pyproject's ``addopts`` already pass ``-q -rsfE``, so the shards were
+    running at ``-qq``, which prints skip REASONS but suppresses the ``N passed, M skipped in
+    Xs`` COUNT line — no totals, no ratchet;
   * ``scripts/check_skip_budget.py`` + ``.github/skills-skip-budget.json``: a per-leg
     CEILING on skips, so an *inflation* goes RED.
 
@@ -23,7 +25,7 @@ logic is proved here in-process rather than by trusting the workflow:
   2. the checker discriminates over-budget from within-budget, and gives an unknown leg a
      ceiling of 0 rather than an unbounded pass;
   3. the committed baseline is well-formed and free of stale keys;
-  4. the workflow actually WIRES it: every skills shard invocation carries ``-rs``,
+  4. the workflow actually WIRES it: every skills shard invocation carries ``-rsfE``,
      redirects to a log, and hands that log to the checker. A workflow file is not a
      running workflow, but a workflow that no longer calls the checker at all is a
      regression this catches at the file level.
@@ -192,10 +194,15 @@ def test_every_skills_shard_invocation_is_skip_visible_and_budgeted():
         "parser regressed, so the assertions below prove nothing"
     )
     assert call_sites, "parsed no run_suite call sites — the per-skill loop parser regressed"
-    missing_rs = [ln for ln in literals + call_sites if not re.search(r"(?<!\S)-rs(?!\S)", ln)]
+    # skills#2236: the standalone token must be `-rsfE`, not bare `-rs`. pytest's `-r` is
+    # action="store" with default "fE"; a bare `-rs` REPLACES that default rather than adding to
+    # it, which drops the FAILED/ERROR short-summary lines entirely (measured: a run reported
+    # "1 failed, 4817 passed" with the failing node id nowhere in the log). Anchored so `-rsfE`
+    # passes but a regression back to bare `-rs` still fails this test.
+    missing_rs = [ln for ln in literals + call_sites if not re.search(r"(?<!\S)-rsfE(?!\S)", ln)]
     assert not missing_rs, (
-        "these skills shard invocations run without -rs, so their skips are invisible in the log "
-        f"(SKIP != PASS): {missing_rs}"
+        "these skills shard invocations run without -rsfE, so either their skips or their "
+        f"FAILED/ERROR short-summary lines are invisible in the log (SKIP != PASS): {missing_rs}"
     )
     # MEASURED coupling: pyproject's addopts already supply `-q -rs`, so a SECOND `-q` on the
     # command line takes verbosity to -2, which suppresses pytest's `N passed, M skipped in Xs`

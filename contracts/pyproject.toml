@@ -44,9 +44,10 @@ include = ["oncology_target_contracts*"]
 
 [tool.pytest.ini_options]
 # Declarative defaults for the many `python -m pytest <one file> -q` gate steps in
-# scripts/preland.sh / skills-validate.yml (run from THIS dir). -rs/--tb=short match the
-# skills-repo root default (SK#2093) so a red against the large resolver/vocabulary corpora
-# doesn't flood the context window with a long traceback.
+# scripts/preland.sh / skills-validate.yml (run from THIS dir). -rsfE/--tb=short match the
+# skills-repo root default (SK#2093, skills#2236) so a red against the large resolver/vocabulary
+# corpora doesn't flood the context window with a long traceback, and a bare `-rs` doesn't
+# silently replace pytest's default "fE" and drop the FAILED short-summary lines.
 #
 # NOTE: deliberately does NOT set --import-mode=importlib, unlike the skills/methods
 # packages. The contracts living-doc suite under
@@ -55,4 +56,4 @@ include = ["oncology_target_contracts*"]
 # directory to sys.path; importlib does not do that and breaks those imports with
 # ModuleNotFoundError. Migrating that suite to package-relative imports is deferred to
 # #2136 — do not add --import-mode=importlib here until that lands.
-addopts = "-q -rs --tb=short"
+addopts = "-q -rsfE --tb=short"
