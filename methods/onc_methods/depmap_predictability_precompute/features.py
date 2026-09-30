@@ -961,6 +961,81 @@ def feature_class_of(feature_name: str) -> str:
     return "other"
 
 
+# Own-omics feature-class -> readable phrase (target's OWN axis predicts its own dependency).
+_OWN_FEATURE_LABEL = {
+    "own_expression": "own expression",
+    "own_copy_number": "own copy-number",
+    "own_mut_hotspot": "own hotspot mutation",
+    "own_mut_damaging": "own damaging mutation",
+}
+
+
+def _strip_prefix(feature_name: str, prefix: str) -> str:
+    return feature_name[len(prefix) :] if feature_name.startswith(prefix) else feature_name
+
+
+def feature_label_of(feature_name: str) -> str:
+    """Canonical humanizer: map a raw prefix-coded feature token to a readable phrase.
+
+    Keyed off feature_class_of() so every feature class the taxonomy knows about is
+    translated (not just the partner-gene classes). An UNKNOWN prefix (class "other")
+    falls back to the raw feature name, so this never raises and older callers/pins
+    degrade gracefully. Verdict-INERT: this is a display/label decoder only.
+
+    Examples:
+      expr_CCND1        -> "CCND1 expression"
+      cn_MDM2           -> "MDM2 copy-number"
+      arm_chr12p        -> "chr12p arm-level copy-number"
+      molsig_SBS81      -> "SBS81 mutational signature"
+      lineage_Bowel     -> "lineage membership"
+      paralog_dep_STAG1 -> "STAG1 paralog dependency"
+      msi_high_fraction -> "MSI status"
+      own_expression    -> "own expression"
+    """
+    if not isinstance(feature_name, str) or not feature_name:
+        return feature_name
+    cls = feature_class_of(feature_name)
+    if cls in _OWN_FEATURE_LABEL:
+        return _OWN_FEATURE_LABEL[cls]
+    if cls == "cross_gene_expression":
+        return f"{_strip_prefix(feature_name, 'expr_')} expression"
+    if cls == "cross_gene_copy_number":
+        return f"{_strip_prefix(feature_name, 'cn_')} copy-number"
+    if cls == "arm_level_cn":
+        return f"{_strip_prefix(feature_name, 'arm_')} arm-level copy-number"
+    if cls == "oncokb_gof":
+        sym = _strip_prefix(feature_name, "driver_")
+        if sym.endswith("_GoF"):
+            sym = sym[: -len("_GoF")]
+        return f"{sym} gain-of-function driver"
+    if cls == "oncokb_lof":
+        sym = _strip_prefix(feature_name, "driver_")
+        if sym.endswith("_LoF"):
+            sym = sym[: -len("_LoF")]
+        return f"{sym} loss-of-function driver"
+    if cls == "lineage":
+        return "lineage membership"
+    if cls == "fusion":
+        return f"{_strip_prefix(feature_name, 'fusion_')} fusion"
+    if cls == "rppa_protein":
+        return f"{_strip_prefix(feature_name, 'rppa_')} protein abundance"
+    if cls == "ms_protein":
+        return f"{_strip_prefix(feature_name, 'ms_')} protein abundance"
+    if cls == "paralog_dep":
+        return f"{_strip_prefix(feature_name, 'paralog_dep_')} paralog dependency"
+    if cls == "mol_signature":
+        return f"{_strip_prefix(feature_name, 'molsig_')} mutational signature"
+    if cls == "msi_status":
+        return "MSI status"
+    if cls == "sv_gene":
+        return f"{_strip_prefix(feature_name, 'sv_')} structural variant"
+    if cls == "methylation_tss":
+        return f"{_strip_prefix(feature_name, 'methyl_')} promoter methylation"
+    if cls == "metabolomics":
+        return f"{_strip_prefix(feature_name, 'metab_')} metabolite level"
+    return feature_name  # class "other" / unknown prefix -> raw fallback
+
+
 def build_gene_feature_matrix(gene: str, omics: dict, min_cell_lines: int = 100) -> Optional[dict]:
     """Assemble the full feature matrix for one gene. Returns dict:
         {

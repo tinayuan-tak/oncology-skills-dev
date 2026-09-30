@@ -309,6 +309,7 @@ def _top_features(names: list, ranks: np.ndarray, k: int = 10) -> list:
             {
                 "feature": n,
                 "feature_class": feat.feature_class_of(n),
+                "feature_label": feat.feature_label_of(n),
                 "importance": float(ranks[i]),
             }
         )
@@ -369,6 +370,7 @@ def _fit_lineage_conditional(
                 "n_cell_lines": int(len(idx)),
                 "r2": float(r2),
                 "top_feature": top if reportable else None,
+                "top_feature_label": feat.feature_label_of(top) if reportable else None,
                 "top_feature_status": "reported" if reportable else "withheld_r2_below_high_conf_floor",
             }
         )
@@ -476,6 +478,9 @@ def write_parquet(records: list, out_path: Path) -> Path:
         [
             pa.field("feature", pa.string()),
             pa.field("feature_class", pa.string()),
+            # humanized phrase for the feature token (verdict-inert display; #1942). Older
+            # pins predate this field — consumers fall back to `feature`.
+            pa.field("feature_label", pa.string()),
             pa.field("importance", pa.float32()),
             pa.field("rf_importance", pa.float32()),
         ]
@@ -489,6 +494,8 @@ def write_parquet(records: list, out_path: Path) -> Path:
             # "reported" / "withheld_r2_below_high_conf_floor" applies, so a consumer never has to
             # guess whether a null means "withheld" or "never computed".
             pa.field("top_feature", pa.string()),
+            # humanized phrase for top_feature (verdict-inert display; #1942); NULL when withheld.
+            pa.field("top_feature_label", pa.string()),
             pa.field("top_feature_status", pa.string()),
         ]
     )

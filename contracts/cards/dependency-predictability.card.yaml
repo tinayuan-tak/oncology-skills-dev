@@ -76,7 +76,10 @@ outputs:
     # Feature-attribution outputs
     - pred_top_features_rf              # top-10 features by mean(|SHAP|) in canonical 26q1-v4
                                           # (RF impurity fallback in the older v1/v2/v3 pins)
-                                          # struct{feature, feature_class, importance, rf_importance}
+                                          # struct{feature, feature_class, feature_label, importance, rf_importance}
+                                          # feature_label = humanized phrase for the raw prefix-coded token
+                                          # (verdict-inert display, #1942); older pins omit it -> consumers
+                                          # fall back to `feature`.
     - pred_dominant_feature             # top-1 feature name
     - pred_dominant_feature_class       # feature-class of the top-1 feature
     - predictability_class              # DESCRIPTIVE (drives Tier-2 rules)

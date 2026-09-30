@@ -182,7 +182,8 @@ _PARTNER_FEATURE_PREFIX = {
 # mechanistically meaningful but NOT a partner — surfaced separately as pred_self_driven.
 _SELF_FEATURE_CLASSES = {"own_expression", "own_copy_number", "own_mut_hotspot", "own_mut_damaging"}
 # Everything else (arm_level_cn, lineage, mol_signature, metabolomics, msi_status, oncokb_gof/lof,
-# fusion, sv_gene) names no single mechanistic partner gene → dropped from the mechanism lens.
+# fusion, sv_gene) names no single mechanistic partner gene → excluded from the SIGNOR partner
+# cross-reference, but (since #1942) still surfaced LABELED in pred_top_feature_labels rather than dropped.
 
 
 def _predictability_mechanism_facet(cards):
@@ -235,11 +236,29 @@ def _predictability_mechanism_facet(cards):
             }
         )
     corroborated = [pf["gene"] for pf in partner_features if pf["in_signor"]]
+    # Humanized attribution of ALL top features (#1942) — arm/lineage/molsig/msi/metab are surfaced
+    # LABELED here rather than dropped (the partner list above still keeps only partner-gene classes for
+    # the SIGNOR cross-reference). Prefer the producer-stamped `feature_label`; fall back to the raw token
+    # for older pins that predate it. Verdict-INERT display.
+    top_feature_labels = []
+    for f in top_rf:
+        if not isinstance(f, dict):
+            continue
+        raw = f.get("feature") or ""
+        top_feature_labels.append(
+            {
+                "feature": raw,
+                "feature_label": f.get("feature_label") or raw,
+                "feature_class": f.get("feature_class"),
+                "importance": f.get("importance"),
+            }
+        )
     return {
         "pred_predictability_class": pclass,
         "pred_dominant_feature_class": dom_class,
         "pred_self_driven": dom_class in _SELF_FEATURE_CLASSES,
         "pred_mechanistic_partner_features": partner_features[:10],
+        "pred_top_feature_labels": top_feature_labels[:10],
         "pred_signor_corroborated_partners": corroborated,
         "pred_n_signor_corroborated": len(corroborated),
     }

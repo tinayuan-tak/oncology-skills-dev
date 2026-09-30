@@ -236,7 +236,8 @@ def emit_feature_importance_bar(
 
     # Top 10 importance-ranked by the pin's attribution basis (mean(|SHAP|) under the
     # default 26q1-v4 pin; RF impurity / XGB gain for legacy v1-v3 — see module docstring).
-    names = [t["feature"] for t in top]
+    # Prefer the producer-stamped humanized label (#1942); fall back to the raw token for older pins.
+    names = [t.get("feature_label") or t["feature"] for t in top]
     imps = [t["importance"] for t in top]
     classes = [t["feature_class"] for t in top]
     colors = [FEATURE_CLASS_COLORS.get(c, "#bbbbbb") for c in classes]
@@ -319,7 +320,8 @@ def emit_lineage_conditional_panel(
     # names a feature at every r²) are also rendered honestly without waiting for a re-materialize.
     top_feats = []
     for l in lineage:
-        tf = l.get("top_feature") or ""
+        # Prefer the producer-stamped humanized label (#1942); fall back to the raw token for older pins.
+        tf = l.get("top_feature_label") or l.get("top_feature") or ""
         r2 = l.get("r2") or 0.0
         top_feats.append(tf if (tf and r2 >= R2_LINEAGE_LABEL_FLOOR) else "")
     fig, ax = plt.subplots(figsize=pal.FIGSIZE_DOUBLE_COLUMN)
@@ -382,7 +384,7 @@ def emit_plotly_specs(
     try:
         # Reverse so the TOP importance feature sits at the top of the horizontal bar (mirrors invert_yaxis).
         top10 = list(top[:10])[::-1]
-        names = [t["feature"] for t in top10]
+        names = [t.get("feature_label") or t["feature"] for t in top10]
         imps = [t["importance"] for t in top10]
         classes = [t["feature_class"] for t in top10]
         colors = [FEATURE_CLASS_COLORS.get(c, "#bbbbbb") for c in classes]
