@@ -1,0 +1,888 @@
+# claim_axis.enum.yaml — the governed registry of every skill's headline claim axes.
+#
+# Structure arc #2210 Wave-0d; epic #1507. Answers the owner's question of 2026-09-29 — *"can we make
+# the signal blocks somewhat uniform at least in structure or naming across skills so that it is easier
+# to align them or navigate between?"* — by MEASURING it rather than assuming it:
+#
+#   * STRUCTURE IS ALREADY UNIFORM. Every skill declares the same
+#     `HeadlineSpec{gate, axis_keys, axis_labels, critical_axes, tension_extra}`
+#     (skills/_skills_common/headline_core.py) and every axis block has the same
+#     `{signal, corroboration, evidence, conflict}` shape. Nothing here changes that; there was
+#     nothing to fix.
+#
+#   * NAMING IS NOT, AND THIS FILE DOES NOT FIX IT BY RENAMING. 15 skills declare axes; 14 use
+#     mnemonics and tumour-presence alone uses the letters A/B/C/D. `DEP` means *genetic* dependency in
+#     functional-requirement and *alteration-conferred* dependency in genomic-alteration-profile.
+#     `NORMAL_TISSUE` / `SAFE` / `SAFETY` are three display names for ONE property. A rename is a
+#     BREAKING change — `claim_vector.<axis>` keys are hard-coded in question-table `provenance_ref`
+#     strings and in `critical_axes`, and a mismatch degrades SILENTLY (reads as `unmeasured`) instead
+#     of raising. So renaming is #2229's job, as add -> consume -> remove, and "the letters stay" is a
+#     legitimate outcome there.
+#
+# WHAT THIS FILE DELIVERS INSTEAD. Alignment through the `resolves:` field: two axes are the same
+# question when they resolve the same `property_id`, NOT when they share a token. The `properties:`
+# inverse index below turns "which skills read the normal-tissue-liability property" from a
+# fifteen-file code archaeology exercise into one grep — and makes the SAFE/SAFETY/NORMAL_TISSUE triple
+# visibly one property with three display names, with nothing renamed.
+#
+# ★ THE UNIT OF IDENTITY IS THE PAIR `(skill, axis_key)`, NEVER THE BARE `axis_key`. This is the direct
+#   transposition of Wave-0b's measured result that `single_source_only` is emitted by 5 different
+#   concordance families and means a different comparison in each. Here the same shape is MEASURED, not
+#   assumed: 61 axes over 60 distinct tokens, with exactly one collision (`DEP`, two skills, two
+#   different properties). Every roster, index and floor in this file keys on the pair.
+#
+# ★ AND `resolves:` USES THE QUALIFIED FORM `<catalog_id>.<entry_id>`, NEVER THE BARE ENTRY ID, for
+#   exactly the same reason one level down. The property catalog's own namespace COLLIDES: its 27
+#   entries have only 25 distinct bare ids, because `selectivity` and `subtype_restriction` each name
+#   one `l2a_property` in expression.yaml AND one unrelated `l2b_family` in integrated_families.yaml.
+#   `validate_property_catalog.collect_entry_ids()` flattens them into one 25-element namespace, so a
+#   bare `resolves: [selectivity]` would be genuinely ambiguous for 2 of 27 entries. The validator
+#   REJECTS the bare form rather than guessing.
+#
+# WHAT THIS FILE IS NOT. It is a register, not an engine: nothing reads it at runtime and no verdict
+# moves because of it (SK#2091 — verdict movement is not a metric here in either direction). It does
+# not gate coverage: 47 of 61 axes have no resolvable property yet, because the l2a catalogs for
+# safety / dependency / genomic / selectivity / surface are Wave-1 items owned elsewhere in the arc.
+# That number is REPORTED as a `coverage_dimensions` entry with `is_a_gate: false`. A gate on it would
+# be false at repository grain today and would force emission into code owned by four peer epics.
+#
+# TEETH. `../validators/validate_claim_axis.py` (wired into `scripts/preland.sh` twice — shape clauses
+# in the pool, token additivity after) checks that this file is internally coherent and pinned to the
+# property catalog in both directions. It CANNOT check the thing that matters most — whether the
+# declarations agree with the real `HeadlineSpec`s — because the dependency direction is
+# skills/ -> contracts/ and never the reverse. That half is
+# `skills/_skills_common/tests/test_claim_axis_registry_coverage.py`, which re-derives every axis from
+# the skills' ASTs fail-loud and reconciles both directions.
+
+enum_id: claim_axis
+version: 1.0.0
+
+description: |
+  One governed entry per (skill, axis_key): the display label, the decision question the axis informs,
+  whether it is decision-critical, and — the load-bearing field — which catalogued biological
+  properties it resolves. Two inverse indexes (`skills:` for gate + display order, `properties:` for
+  property -> axes) are cross-checked against the primary `axes:` roster by the validator. That
+  redundancy is the point, not debt: an entry added to one view and forgotten in another is the single
+  most likely way this file goes wrong, and only a mutual check catches it.
+
+criterion: |
+  An axis belongs in this registry if and only if it appears in some skill's `HeadlineSpec.axis_keys`.
+  There is no editorial discretion: the population is whatever the code declares, equality is enforced
+  in both directions by the skills-side coverage test, and a new axis in any `run.py` reds until it is
+  declared here.
+
+governance:
+  role: |
+    Authoritative for: the fleet-wide roster of claim axes, each axis's governed display label, the
+    decision question it informs, its critical-axis status, and which catalogued properties it
+    resolves. NOT authoritative for the axis KEYS themselves — those are owned by each skill's
+    `HeadlineSpec` and are wire names appearing in `claim_vector.<axis>` paths. This file is a
+    projection of that code, pinned to it; where they disagree the code is right and this file is
+    broken.
+  versioning: |
+    Semver. Adding a skill, an axis, or a `resolves:` entry is a MINOR bump. Correcting an `informs`
+    gloss or a `resolves_pending` note is a PATCH bump. Removing an axis, or changing an existing
+    axis's `label`, `critical` flag or `resolves` set, is BREAKING and requires a MAJOR bump plus
+    coordination via the wip-registry — `validate_claim_axis.py --additive-against <ref>` makes an
+    un-bumped removal RED.
+  ownership: |
+    Epic #1507 (evidence-property architecture), arc #2210 Wave-0d (#2228). `resolves:` is populated
+    domain by domain as Wave-1 lands its l2a catalogs (#2211-#2214 plus the hands-on safety seed);
+    every axis still awaiting one carries a `resolves_pending:` note naming the item that will fill it.
+    Axis RENAMES belong to #2229 and are explicitly not this file's business.
+  change_discipline: |
+    ADDITIVE ONLY, and the pair `(skill, axis_key)` is the published key — migrate by
+    add -> consume -> remove, never a bare rename. `resolves:` cites property ids in the QUALIFIED
+    form `<catalog_id>.<entry_id>`; those too are published names under the property catalog's own
+    add -> consume -> remove discipline.
+  identity_is_the_pair: |
+    Nothing in this file, in its validator, or in any consumer may key on a bare `axis_key`. `DEP` is
+    two different properties in two skills, and the day a second collision lands, code keyed on the
+    bare token will silently conflate them rather than fail. Every roster and index here is keyed on
+    `(skill, axis_key)`; `collides_with:` exists so that the one measured collision is DECLARED rather
+    than resolved, and the validator reconciles the declared collisions against the measured ones in
+    both directions with ABSENCE as a first-class member of the comparison — a "check it when present"
+    clause is structurally blind to an entry that should have carried the key and did not.
+
+axes:
+
+  # ── cis-feature-coherence (gate: cis_coherence) ─────────────────────────────────────────────────
+  - skill: cis-feature-coherence
+    axis_key: CIS_DOSAGE
+    label: "CN→expression cis-dosage"
+    informs: |
+      Does a copy-number change at the locus actually move the target's own expression in cis?
+    critical: false
+    resolves:
+      - integrated_families.cis_dosage
+  - skill: cis-feature-coherence
+    axis_key: SILENCING
+    label: "methylation→low-expression"
+    informs: |
+      Is low expression explained by promoter methylation rather than by absent copy?
+    critical: false
+    resolves:
+      - integrated_families.methylation_silencing
+  - skill: cis-feature-coherence
+    axis_key: EXPR_DEP
+    label: "expression→dependency"
+    informs: |
+      Do the tumours that express the target most also depend on it most?
+    critical: true
+    resolves:
+      - integrated_families.expression_dependency
+  - skill: cis-feature-coherence
+    axis_key: CONJOINT
+    label: "amp∩overexpr addiction"
+    informs: |
+      Are amplification and over-expression jointly present — the addiction signature rather than either alone?
+    critical: false
+    resolves: []
+    resolves_pending: |
+      no l2a property catalog is scheduled for this domain in arc #2210; the determinant sweep #2219 is the first item that would reach it
+
+  # ── combination-and-vulnerability (gate: combination_vulnerability) ─────────────────────────────
+  - skill: combination-and-vulnerability
+    axis_key: SL
+    label: "curated synthetic-lethal"
+    informs: |
+      Is there a curated partner whose loss is lethal only together with loss of this target?
+    critical: true
+    resolves: []
+    resolves_pending: |
+      no l2a property catalog is scheduled for this domain in arc #2210; the determinant sweep #2219 is the first item that would reach it
+  - skill: combination-and-vulnerability
+    axis_key: CODEP
+    label: "paralog dual-KO co-dependency"
+    informs: |
+      Does a paralog buffer the target, so that only dual knockout is lethal?
+    critical: true
+    resolves: []
+    resolves_pending: |
+      no l2a property catalog is scheduled for this domain in arc #2210; the determinant sweep #2219 is the first item that would reach it
+  - skill: combination-and-vulnerability
+    axis_key: COMBO
+    label: "combination co-target"
+    informs: |
+      Which co-target would a combination regimen pair this one with?
+    critical: false
+    resolves: []
+    resolves_pending: |
+      no l2a property catalog is scheduled for this domain in arc #2210; the determinant sweep #2219 is the first item that would reach it
+  - skill: combination-and-vulnerability
+    axis_key: SYNERGY
+    label: "chemical drug×drug synergy"
+    informs: |
+      Do compounds against the target and a partner synergise in cells, beyond additivity?
+    critical: false
+    resolves: []
+    resolves_pending: |
+      no l2a property catalog is scheduled for this domain in arc #2210; the determinant sweep #2219 is the first item that would reach it
+  - skill: combination-and-vulnerability
+    axis_key: RESISTANCE
+    label: "resistance mediators"
+    informs: |
+      What is most likely to mediate escape from inhibiting the target?
+    critical: false
+    resolves: []
+    resolves_pending: |
+      no l2a property catalog is scheduled for this domain in arc #2210; the determinant sweep #2219 is the first item that would reach it
+
+  # ── differentiation-landscape (gate: differentiation) ───────────────────────────────────────────
+  - skill: differentiation-landscape
+    axis_key: COMUT
+    label: "co-mutation landscape"
+    informs: |
+      Which co-occurring alterations define the patient subset this target belongs to?
+    critical: true
+    resolves: []
+    resolves_pending: |
+      no l2a property catalog is scheduled for this domain in arc #2210; the determinant sweep #2219 is the first item that would reach it
+  - skill: differentiation-landscape
+    axis_key: SURVIVAL
+    label: "expression↔survival"
+    informs: |
+      Does the target's expression track patient survival in this indication?
+    critical: true
+    resolves: []
+    resolves_pending: |
+      no l2a property catalog is scheduled for this domain in arc #2210; the determinant sweep #2219 is the first item that would reach it
+  - skill: differentiation-landscape
+    axis_key: PROGNOSIS
+    label: "PRECOG prognostic"
+    informs: |
+      Is the target prognostic in an independent cross-cohort meta-analysis?
+    critical: false
+    resolves: []
+    resolves_pending: |
+      no l2a property catalog is scheduled for this domain in arc #2210; the determinant sweep #2219 is the first item that would reach it
+  - skill: differentiation-landscape
+    axis_key: NODE
+    label: "pathway-node leverage"
+    informs: |
+      Does the target sit at a pathway node with leverage over the rest of the pathway?
+    critical: false
+    resolves: []
+    resolves_pending: |
+      no l2a property catalog is scheduled for this domain in arc #2210; the determinant sweep #2219 is the first item that would reach it
+
+  # ── functional-requirement (gate: dependency) ───────────────────────────────────────────────────
+  - skill: functional-requirement
+    axis_key: DEP
+    label: "genetic dependency"
+    informs: |
+      Is loss of the target lethal to the tumour cell?
+    critical: true
+    resolves:
+      - integrated_families.essentiality
+    collides_with:
+      - skill: genomic-alteration-profile
+        axis_key: DEP
+  - skill: functional-requirement
+    axis_key: SEL
+    label: "context-selectivity"
+    informs: |
+      Is that lethality confined to a context, or does it hit every lineage equally?
+    critical: false
+    resolves: []
+    resolves_pending: |
+      arc #2210 Wave-1b, issue #2211 (dependency l2a catalog)
+  - skill: functional-requirement
+    axis_key: COND
+    label: "conditional / synthetic-lethal"
+    informs: |
+      Is the requirement conditional on a partner alteration rather than intrinsic to the lineage?
+    critical: false
+    resolves: []
+    resolves_pending: |
+      arc #2210 Wave-1b, issue #2211 (dependency l2a catalog)
+  - skill: functional-requirement
+    axis_key: CHEM
+    label: "chemical-genetic confirmation"
+    informs: |
+      Does a chemical probe reproduce the genetic requirement?
+    critical: false
+    resolves: []
+    resolves_pending: |
+      arc #2210 Wave-1b, issue #2211 (dependency l2a catalog)
+
+  # ── genomic-alteration-profile (gate: genomic_alteration) ───────────────────────────────────────
+  - skill: genomic-alteration-profile
+    axis_key: SNV
+    label: "recurrent SNV/indel driver"
+    informs: |
+      Is the target recurrently mutated above background in patient cohorts?
+    critical: true
+    resolves:
+      - integrated_families.recurrence
+  - skill: genomic-alteration-profile
+    axis_key: CN
+    label: "copy-number driver"
+    informs: |
+      Is the target recurrently amplified or deleted as a driver event?
+    critical: true
+    resolves: []
+    resolves_pending: |
+      arc #2210 Wave-1c, issue #2212 (genomic l2a catalog)
+  - skill: genomic-alteration-profile
+    axis_key: FUS
+    label: "fusion driver"
+    informs: |
+      Is the target recurrently involved in a driver fusion?
+    critical: true
+    resolves: []
+    resolves_pending: |
+      arc #2210 Wave-1c, issue #2212 (genomic l2a catalog)
+  - skill: genomic-alteration-profile
+    axis_key: DEP
+    label: "alteration confers dependency"
+    informs: |
+      Does carrying the alteration make the tumour cell depend on the target?
+    critical: true
+    resolves: []
+    resolves_pending: |
+      arc #2210 Wave-1c, issue #2212 (genomic l2a catalog)
+    collides_with:
+      - skill: functional-requirement
+        axis_key: DEP
+
+  # ── immune-context (gate: immune_context) ───────────────────────────────────────────────────────
+  - skill: immune-context
+    axis_key: IMMUNE
+    label: "TCE effector context"
+    informs: |
+      Is the effector context present for a T-cell engager to work in this tumour?
+    critical: true
+    resolves: []
+    resolves_pending: |
+      no l2a property catalog is scheduled for this domain in arc #2210; the determinant sweep #2219 is the first item that would reach it
+
+  # ── literature-context (gate: literature_context) ───────────────────────────────────────────────
+  - skill: literature-context
+    axis_key: VOLUME
+    label: "co-occurrence volume"
+    informs: |
+      How much published work connects the target to this disease at all?
+    critical: true
+    resolves: []
+    resolves_pending: |
+      no l2a property catalog is scheduled for this domain in arc #2210; the determinant sweep #2219 is the first item that would reach it
+  - skill: literature-context
+    axis_key: RECENCY
+    label: "recent activity"
+    informs: |
+      Is that literature current, or a closed historical file?
+    critical: false
+    resolves: []
+    resolves_pending: |
+      no l2a property catalog is scheduled for this domain in arc #2210; the determinant sweep #2219 is the first item that would reach it
+  - skill: literature-context
+    axis_key: RELATION
+    label: "typed relations"
+    informs: |
+      What kind of relationship does the literature actually assert between target and disease?
+    critical: false
+    resolves: []
+    resolves_pending: |
+      no l2a property catalog is scheduled for this domain in arc #2210; the determinant sweep #2219 is the first item that would reach it
+
+  # ── mechanism-and-pharmacology (gate: mechanism) ────────────────────────────────────────────────
+  - skill: mechanism-and-pharmacology
+    axis_key: NETWORK
+    label: "signaling-network topology"
+    informs: |
+      Where does the target sit in the signalling network it acts through?
+    critical: true
+    resolves: []
+    resolves_pending: |
+      no l2a property catalog is scheduled for this domain in arc #2210; the determinant sweep #2219 is the first item that would reach it
+  - skill: mechanism-and-pharmacology
+    axis_key: PHOSPHO
+    label: "phospho-activity"
+    informs: |
+      Is the target's catalytic activity observable as a phospho-signal?
+    critical: false
+    resolves: []
+    resolves_pending: |
+      no l2a property catalog is scheduled for this domain in arc #2210; the determinant sweep #2219 is the first item that would reach it
+  - skill: mechanism-and-pharmacology
+    axis_key: PATHWAY
+    label: "pathway activity context"
+    informs: |
+      Is the pathway the target acts through active in this context?
+    critical: false
+    resolves: []
+    resolves_pending: |
+      no l2a property catalog is scheduled for this domain in arc #2210; the determinant sweep #2219 is the first item that would reach it
+  - skill: mechanism-and-pharmacology
+    axis_key: PERTURBATION
+    label: "drug-perturbation engagement"
+    informs: |
+      Do drug-perturbation profiles show the target actually being engaged?
+    critical: false
+    resolves: []
+    resolves_pending: |
+      no l2a property catalog is scheduled for this domain in arc #2210; the determinant sweep #2219 is the first item that would reach it
+  - skill: mechanism-and-pharmacology
+    axis_key: PREDICTABILITY
+    label: "dependency predictability"
+    informs: |
+      Is the target's dependency predictable from molecular features, or idiosyncratic?
+    critical: false
+    resolves: []
+    resolves_pending: |
+      no l2a property catalog is scheduled for this domain in arc #2210; the determinant sweep #2219 is the first item that would reach it
+
+  # ── on-target-safety-liability (gate: safety) ───────────────────────────────────────────────────
+  - skill: on-target-safety-liability
+    axis_key: CONSTRAINT
+    label: "gnomAD LoF constraint"
+    informs: |
+      Is the gene under selective constraint against loss of function in humans?
+    critical: true
+    resolves: []
+    resolves_pending: |
+      arc #2210 Wave-1a (safety l2a catalog, hands-on seed item)
+  - skill: on-target-safety-liability
+    axis_key: BURDEN
+    label: "population gene-burden"
+    informs: |
+      Does population sequencing show loss-of-function variation is tolerated?
+    critical: true
+    resolves: []
+    resolves_pending: |
+      arc #2210 Wave-1a (safety l2a catalog, hands-on seed item)
+  - skill: on-target-safety-liability
+    axis_key: DOSAGE
+    label: "ClinGen dosage"
+    informs: |
+      Has a clinical dosage-sensitivity verdict been curated for the gene?
+    critical: true
+    resolves: []
+    resolves_pending: |
+      arc #2210 Wave-1a (safety l2a catalog, hands-on seed item)
+  - skill: on-target-safety-liability
+    axis_key: CLINVAR
+    label: "germline pathogenicity"
+    informs: |
+      Do germline variants in the gene cause Mendelian disease?
+    critical: true
+    resolves: []
+    resolves_pending: |
+      arc #2210 Wave-1a (safety l2a catalog, hands-on seed item)
+  - skill: on-target-safety-liability
+    axis_key: MOUSE_KO
+    label: "mouse-KO phenotype"
+    informs: |
+      What phenotype does knocking the gene out produce in mouse?
+    critical: true
+    resolves: []
+    resolves_pending: |
+      arc #2210 Wave-1a (safety l2a catalog, hands-on seed item)
+  - skill: on-target-safety-liability
+    axis_key: PAN_ESSENTIAL
+    label: "DepMap pan-essentiality"
+    informs: |
+      Is the gene essential across all lineages, making it a safety liability rather than a target?
+    critical: true
+    resolves: []
+    resolves_pending: |
+      arc #2210 Wave-1a (safety l2a catalog, hands-on seed item)
+  - skill: on-target-safety-liability
+    axis_key: NORMAL_TISSUE
+    label: "normal-tissue protein (HPA-IHC)"
+    informs: |
+      Is the protein present in normal tissue that a therapeutic would also hit?
+    critical: true
+    resolves:
+      - integrated_families.normal_liability
+
+  # ── surface-modality-fit (gate: surface_modality) ───────────────────────────────────────────────
+  - skill: surface-modality-fit
+    axis_key: FIT
+    label: "ADC/TCE modality fit"
+    informs: |
+      Which surface-directed modality does this antigen fit?
+    critical: true
+    resolves: []
+    resolves_pending: |
+      arc #2210 Wave-1e, issue #2214 (surface l2a catalog)
+  - skill: surface-modality-fit
+    axis_key: TOPOLOGY
+    label: "surface topology / ECD"
+    informs: |
+      Is there an accessible extracellular domain for a binder to reach?
+    critical: true
+    resolves: []
+    resolves_pending: |
+      arc #2210 Wave-1e, issue #2214 (surface l2a catalog)
+  - skill: surface-modality-fit
+    axis_key: DENSITY
+    label: "antigen abundance"
+    informs: |
+      Is the antigen abundant enough on tumour cells to clear the modality's threshold?
+    critical: false
+    resolves:
+      - integrated_families.coverage
+      - integrated_families.protein_presence
+  - skill: surface-modality-fit
+    axis_key: SAFETY
+    label: "normal-tissue window"
+    informs: |
+      Is there a tumour-versus-normal window for a surface-directed agent?
+    critical: false
+    resolves:
+      - integrated_families.normal_liability
+  - skill: surface-modality-fit
+    axis_key: SHED
+    label: "ectodomain shedding"
+    informs: |
+      Does the ectodomain shed into circulation and act as a drug sink?
+    critical: false
+    resolves: []
+    resolves_pending: |
+      arc #2210 Wave-1e, issue #2214 (surface l2a catalog)
+
+  # ── target-intrinsic (gate: target_intrinsic) ───────────────────────────────────────────────────
+  - skill: target-intrinsic
+    axis_key: MODALITY_ROUTING
+    label: "domain→modality implication"
+    informs: |
+      What do the target's own domains imply about which modality can engage it?
+    critical: true
+    resolves: []
+    resolves_pending: |
+      no l2a property catalog is scheduled for this domain in arc #2210; the determinant sweep #2219 is the first item that would reach it
+  - skill: target-intrinsic
+    axis_key: TRACTABILITY_PRECEDENT
+    label: "Pharos/IDG development level"
+    informs: |
+      How far has the community already taken this target towards a drug?
+    critical: true
+    resolves: []
+    resolves_pending: |
+      no l2a property catalog is scheduled for this domain in arc #2210; the determinant sweep #2219 is the first item that would reach it
+
+  # ── tractability-small-molecule (gate: tractability_sm) ─────────────────────────────────────────
+  - skill: tractability-small-molecule
+    axis_key: POTENCY
+    label: "measured binding"
+    informs: |
+      Has anything been measured binding the target, and how tightly?
+    critical: true
+    resolves: []
+    resolves_pending: |
+      no l2a property catalog is scheduled for this domain in arc #2210; the determinant sweep #2219 is the first item that would reach it
+  - skill: tractability-small-molecule
+    axis_key: ACTIVITY
+    label: "functional compound"
+    informs: |
+      Does a compound produce a functional cellular effect, not just binding?
+    critical: true
+    resolves: []
+    resolves_pending: |
+      no l2a property catalog is scheduled for this domain in arc #2210; the determinant sweep #2219 is the first item that would reach it
+  - skill: tractability-small-molecule
+    axis_key: STRUCT
+    label: "ligandable pocket"
+    informs: |
+      Is there a ligandable pocket in an experimental structure?
+    critical: false
+    resolves: []
+    resolves_pending: |
+      no l2a property catalog is scheduled for this domain in arc #2210; the determinant sweep #2219 is the first item that would reach it
+  - skill: tractability-small-molecule
+    axis_key: DRUG
+    label: "known-drug pharmacology"
+    informs: |
+      Is there an approved or clinical drug with known pharmacology against the target?
+    critical: false
+    resolves: []
+    resolves_pending: |
+      no l2a property catalog is scheduled for this domain in arc #2210; the determinant sweep #2219 is the first item that would reach it
+  - skill: tractability-small-molecule
+    axis_key: DEGRADER
+    label: "degrader feasibility"
+    informs: |
+      Is the target amenable to induced degradation rather than inhibition?
+    critical: false
+    resolves: []
+    resolves_pending: |
+      no l2a property catalog is scheduled for this domain in arc #2210; the determinant sweep #2219 is the first item that would reach it
+
+  # ── translational-readiness (gate: translational_readiness) ─────────────────────────────────────
+  - skill: translational-readiness
+    axis_key: MODEL
+    label: "HCMI models"
+    informs: |
+      Are there patient-derived models in which to test the hypothesis at all?
+    critical: true
+    resolves: []
+    resolves_pending: |
+      no l2a property catalog is scheduled for this domain in arc #2210; the determinant sweep #2219 is the first item that would reach it
+  - skill: translational-readiness
+    axis_key: GENOTYPE
+    label: "genotype-matched"
+    informs: |
+      Do those models carry the genotype the hypothesis requires?
+    critical: false
+    resolves: []
+    resolves_pending: |
+      no l2a property catalog is scheduled for this domain in arc #2210; the determinant sweep #2219 is the first item that would reach it
+  - skill: translational-readiness
+    axis_key: ORGANOID
+    label: "organoid (ex-vivo)"
+    informs: |
+      Is there an ex-vivo organoid system for the readout?
+    critical: false
+    resolves: []
+    resolves_pending: |
+      no l2a property catalog is scheduled for this domain in arc #2210; the determinant sweep #2219 is the first item that would reach it
+  - skill: translational-readiness
+    axis_key: PDX
+    label: "PDX (in-vivo)"
+    informs: |
+      Is there an in-vivo PDX system for the readout?
+    critical: false
+    resolves: []
+    resolves_pending: |
+      no l2a property catalog is scheduled for this domain in arc #2210; the determinant sweep #2219 is the first item that would reach it
+
+  # ── tumor-presence (gate: presence) ─────────────────────────────────────────────────────────────
+  - skill: tumor-presence
+    axis_key: A
+    label: "abundance"
+    informs: |
+      Is the target present in the tumour at all, in any modality?
+    critical: true
+    resolves:
+      - integrated_families.abundance
+      - integrated_families.protein_presence
+      - tumor_presence.patient_tumor_abundance
+      - tumor_presence.tumor_protein_abundance
+  - skill: tumor-presence
+    axis_key: B
+    label: "tumor-elevation"
+    informs: |
+      Is it higher in tumour than in the matched normal tissue?
+    critical: true
+    resolves:
+      - tumor_presence.tumor_normal_selectivity
+  - skill: tumor-presence
+    axis_key: C
+    label: "malignant-intrinsic"
+    informs: |
+      Is it the malignant cells that carry it, rather than stroma or immune infiltrate?
+    critical: true
+    resolves:
+      - integrated_families.coverage
+      - tumor_presence.malignant_cell_coverage
+  - skill: tumor-presence
+    axis_key: D
+    label: "generality"
+    informs: |
+      Across how much of the patient population does the elevation hold?
+    critical: false
+    resolves:
+      - tumor_presence.tumor_elevation_breadth
+
+  # ── tumor-selectivity (gate: selectivity) ───────────────────────────────────────────────────────
+  - skill: tumor-selectivity
+    axis_key: WIN
+    label: "tumor-vs-normal window"
+    informs: |
+      Is there a tumour-versus-normal expression window at all?
+    critical: true
+    resolves:
+      - integrated_families.selectivity
+  - skill: tumor-selectivity
+    axis_key: DIST
+    label: "distributional separation"
+    informs: |
+      Do the tumour and normal distributions separate, or merely differ in central tendency?
+    critical: false
+    resolves: []
+    resolves_pending: |
+      arc #2210 Wave-1d, issue #2213 (selectivity l2a catalog)
+  - skill: tumor-selectivity
+    axis_key: INT
+    label: "tumor-cell-intrinsic"
+    informs: |
+      Is the window driven by the tumour cells themselves rather than by composition?
+    critical: false
+    resolves: []
+    resolves_pending: |
+      arc #2210 Wave-1d, issue #2213 (selectivity l2a catalog)
+  - skill: tumor-selectivity
+    axis_key: SAFE
+    label: "normal-tissue window"
+    informs: |
+      Which normal tissues fall inside the window and become the dose-limiting liability?
+    critical: false
+    resolves:
+      - integrated_families.normal_liability
+
+# ── inverse index 1: skill -> gate + display order ──────────────────────────────────
+skills:
+  cis-feature-coherence:
+    gate: cis_coherence
+    axis_keys: [CIS_DOSAGE, SILENCING, EXPR_DEP, CONJOINT]
+  combination-and-vulnerability:
+    gate: combination_vulnerability
+    axis_keys: [SL, CODEP, COMBO, SYNERGY, RESISTANCE]
+  differentiation-landscape:
+    gate: differentiation
+    axis_keys: [COMUT, SURVIVAL, PROGNOSIS, NODE]
+  functional-requirement:
+    gate: dependency
+    axis_keys: [DEP, SEL, COND, CHEM]
+  genomic-alteration-profile:
+    gate: genomic_alteration
+    axis_keys: [SNV, CN, FUS, DEP]
+  immune-context:
+    gate: immune_context
+    axis_keys: [IMMUNE]
+  literature-context:
+    gate: literature_context
+    axis_keys: [VOLUME, RECENCY, RELATION]
+  mechanism-and-pharmacology:
+    gate: mechanism
+    axis_keys: [NETWORK, PHOSPHO, PATHWAY, PERTURBATION, PREDICTABILITY]
+  on-target-safety-liability:
+    gate: safety
+    axis_keys: [CONSTRAINT, BURDEN, DOSAGE, CLINVAR, MOUSE_KO, PAN_ESSENTIAL, NORMAL_TISSUE]
+  surface-modality-fit:
+    gate: surface_modality
+    axis_keys: [FIT, TOPOLOGY, DENSITY, SAFETY, SHED]
+  target-intrinsic:
+    gate: target_intrinsic
+    axis_keys: [MODALITY_ROUTING, TRACTABILITY_PRECEDENT]
+  tractability-small-molecule:
+    gate: tractability_sm
+    axis_keys: [POTENCY, ACTIVITY, STRUCT, DRUG, DEGRADER]
+  translational-readiness:
+    gate: translational_readiness
+    axis_keys: [MODEL, GENOTYPE, ORGANOID, PDX]
+  tumor-presence:
+    gate: presence
+    axis_keys: [A, B, C, D]
+  tumor-selectivity:
+    gate: selectivity
+    axis_keys: [WIN, DIST, INT, SAFE]
+
+# ── inverse index 2: property -> the axes that resolve it ───────────────────────────
+properties:
+  integrated_families.abundance:
+    resolved_by:
+      - skill: tumor-presence
+        axis_key: A
+  integrated_families.cis_dosage:
+    resolved_by:
+      - skill: cis-feature-coherence
+        axis_key: CIS_DOSAGE
+  integrated_families.coverage:
+    resolved_by:
+      - skill: surface-modality-fit
+        axis_key: DENSITY
+      - skill: tumor-presence
+        axis_key: C
+    note: |
+      Two skills, two different tokens (`C`, `DENSITY`), one malignant-cell-coverage property.
+  integrated_families.essentiality:
+    resolved_by:
+      - skill: functional-requirement
+        axis_key: DEP
+  integrated_families.expression_dependency:
+    resolved_by:
+      - skill: cis-feature-coherence
+        axis_key: EXPR_DEP
+  integrated_families.methylation_silencing:
+    resolved_by:
+      - skill: cis-feature-coherence
+        axis_key: SILENCING
+  integrated_families.normal_liability:
+    resolved_by:
+      - skill: on-target-safety-liability
+        axis_key: NORMAL_TISSUE
+      - skill: surface-modality-fit
+        axis_key: SAFETY
+      - skill: tumor-selectivity
+        axis_key: SAFE
+    note: |
+      The owner's question, answered: THREE axes with THREE different display names (`NORMAL_TISSUE`, `SAFE`, `SAFETY`) resolve ONE property. Alignment is visible here without renaming any of them — which is why #2228 is additive and #2229 (the rename) is separate.
+  integrated_families.protein_presence:
+    resolved_by:
+      - skill: surface-modality-fit
+        axis_key: DENSITY
+      - skill: tumor-presence
+        axis_key: A
+    note: |
+      Two skills, two different tokens (`A`, `DENSITY`), one protein-presence property.
+  integrated_families.recurrence:
+    resolved_by:
+      - skill: genomic-alteration-profile
+        axis_key: SNV
+  integrated_families.selectivity:
+    resolved_by:
+      - skill: tumor-selectivity
+        axis_key: WIN
+  tumor_presence.malignant_cell_coverage:
+    resolved_by:
+      - skill: tumor-presence
+        axis_key: C
+  tumor_presence.patient_tumor_abundance:
+    resolved_by:
+      - skill: tumor-presence
+        axis_key: A
+  tumor_presence.tumor_elevation_breadth:
+    resolved_by:
+      - skill: tumor-presence
+        axis_key: D
+  tumor_presence.tumor_normal_selectivity:
+    resolved_by:
+      - skill: tumor-presence
+        axis_key: B
+  tumor_presence.tumor_protein_abundance:
+    resolved_by:
+      - skill: tumor-presence
+        axis_key: A
+
+population_floors:
+  skills: 15
+  axes: 55
+  distinct_axis_keys: 55
+  resolved_axes: 12
+  resolved_properties: 10
+  note: |
+    Anti-vacuity, not decoration. Floors sit at or BELOW the measured population (measured at v1.0.0: 15 skills, 61 axes, 60 distinct axis_keys, 14 resolved axes, 15 resolved properties) so that legitimate additive growth never reds, while a discovery glob that silently matches nothing does. `skills` is a FLOOR and not pinned to equality on purpose: contracts/ may not read skills' HeadlineSpecs (dependency direction), so the equality half lives in skills/_skills_common/tests/test_claim_axis_registry_coverage.py, which reds when a 16th skill declares axes with no entry here.
+
+coverage_dimensions:
+  - dimension: axes_resolving_a_catalogued_property
+    measured: 14
+    total: 61
+    is_a_gate: false
+    rationale: |
+      14 of 61 axes cite a property today, and all 14 come from the two l2a catalogs plus the l2b
+      family catalog that Wave-0a landed. The other 47 are not defects and not holes in this file: the
+      l2a catalogs for safety, dependency, genomic, selectivity and surface are Wave-1 items owned by
+      #2211-#2214 and the hands-on safety seed. A GATE on this number would either block Wave-0d behind
+      four other work items or force catalog entries to be invented ahead of the measurement they
+      record. So it is REPORTED. Fail-open promotes; an unmeasured number would be worse than a small
+      one, which is why `measured` is required to be an int and `resolves_pending:` is required on every
+      one of the 47.
+  - dimension: domains_with_a_landed_l2a_property_catalog
+    measured: 2
+    total: 15
+    is_a_gate: false
+    rationale: |
+      expression.yaml and tumor_presence.yaml are the two landed `l2a_property` files; the 13 entries in
+      integrated_families.yaml are `l2b_family` folds, not per-domain properties. This is the upstream
+      cause of the dimension above, recorded separately so a reader does not mistake sparse `resolves:`
+      coverage for sloppy registration here.
+  - dimension: skills_using_a_letter_axis_scheme
+    measured: 1
+    total: 15
+    is_a_gate: false
+    rationale: |
+      tumour-presence's A/B/C/D. Recorded as a number so #2229 has a baseline and so "the letters stay"
+      remains a legible, auditable outcome rather than a forgotten inconsistency. NOT a gate: gating it
+      would amount to this file demanding a rename it is explicitly forbidden to perform.
+
+documented_collisions:
+  - axis_key: DEP
+    skills: [functional-requirement, genomic-alteration-profile]
+    why_legal: |
+      Two different properties. In functional-requirement `DEP` is *genetic dependency* — is loss of the
+      target lethal at all — and resolves `integrated_families.essentiality`. In
+      genomic-alteration-profile `DEP` is *alteration-conferred dependency* — does carrying the
+      alteration create the requirement. They are not the same question and must not be merged.
+    why_declared: |
+      Declared rather than resolved, because resolving it means renaming a `claim_vector.<axis>` wire
+      name and that is #2229's add -> consume -> remove work, not this file's. The declaration is what
+      stops a reader inferring "same token, same biology" — the inference the collision makes false.
+    action: |
+      No action here. If #2229 renames either, the rename lands in that skill's `HeadlineSpec` first and
+      this registry follows as a MINOR addition, with the old pair retained until the remove step.
+
+related_ungoverned_vocabularies:
+  - field: CLAIM_INFORMS
+    site: skills/_skills_common/presence_claims.py
+    tokens: [A, B, C, D]
+    why_out_of_scope: |
+      The routing gloss — "which downstream lens does this axis inform" — existed in exactly ONE module
+      and covered exactly ONE skill's four axes. This file's `informs:` generalises it to all 61 axes,
+      but it does not REPLACE the live map: `presence_claims.py` still reads its own copy, and deleting
+      that is a consume-then-remove step for a later item. What is enforced today is that the live map's
+      key set is exactly the tumour-presence axis set declared here, so a 5th key added there without a
+      registry entry reds (skills-side coverage test). Note the wording is deliberately NOT pinned:
+      `CLAIM_INFORMS` values are lens names and `informs:` values are questions, and a substring pin
+      across two different shapes would be green-for-the-wrong-reason theatre.
+  - field: axis_labels
+    site: skills/*/scripts/run.py (HeadlineSpec.axis_labels)
+    tokens: [free text]
+    why_out_of_scope: |
+      The labels remain free text owned by each skill, because they are display strings and a governed
+      closed vocabulary for them would buy nothing. What IS governed is AGREEMENT: every `label:` here
+      must equal the skill's `axis_labels` entry byte-for-byte, checked by the skills-side coverage
+      test. A second copy pinned to equality is a projection; an unpinned one would be drift.
+

@@ -94,6 +94,7 @@ run "validate_property_catalog"          python validators/validate_property_cat
 run "validate_concordance_enum"          python validators/validate_concordance_enum.py --enum vocabularies/concordance_class.enum.yaml --families vocabularies/property_catalog/integrated_families.yaml
 run "validate_comparability_state"       python validators/validate_comparability_state.py --enum vocabularies/comparability_state.enum.yaml --families vocabularies/property_catalog/integrated_families.yaml --concordance-enum vocabularies/concordance_class.enum.yaml
 run "validate_expression_property_enum"  python validators/validate_expression_property_enum.py --enum vocabularies/expression_property.enum.yaml --cards cards/
+run "validate_claim_axis"                python validators/validate_claim_axis.py --enum vocabularies/claim_axis.enum.yaml --catalog vocabularies/property_catalog --skills ../skills
 
 # Drain the pool and print every gate's PASS/FAIL in launch (CI) order before the ruff/advisory
 # steps below, which stay SYNCHRONOUS (fast, and the ruff block has its own version-gate control
@@ -143,6 +144,20 @@ if git rev-parse --verify -q "$pc_base" >/dev/null; then
              --concordance-enum vocabularies/concordance_class.enum.yaml --additive-against "$pc_base"
 else
   echo "WARN  comparability-state additivity SKIPPED — '$pc_base' not fetched; set PRELAND_BASE or run 'git fetch origin main'"
+fi
+
+# --- claim-axis PAIR additivity (vocabularies/claim_axis.enum.yaml) ---
+# Fourth instance of the same shape, and the one with the sharpest failure mode. The published name here
+# is the PAIR `(skill, axis_key)`, and `claim_vector.<axis>` keys are hard-coded in question-table
+# `provenance_ref` strings and in `critical_axes` — where a mismatch degrades SILENTLY to `unmeasured`
+# rather than raising. A removed pair, a changed `label` (pinned byte-for-byte to the skill's
+# `axis_labels`) or a flipped `critical` flag are therefore all behavioural changes, not edits.
+if git rev-parse --verify -q "$pc_base" >/dev/null; then
+  run "validate_claim_axis --additive-against $pc_base" \
+      python validators/validate_claim_axis.py --enum vocabularies/claim_axis.enum.yaml \
+             --catalog vocabularies/property_catalog --skills ../skills --additive-against "$pc_base"
+else
+  echo "WARN  claim-axis additivity SKIPPED — '$pc_base' not fetched; set PRELAND_BASE or run 'git fetch origin main'"
 fi
 
 # --- ruff (.github/workflows/ruff.yml) ---
