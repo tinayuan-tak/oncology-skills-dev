@@ -141,7 +141,11 @@ methods/
     └── loaders/              # shared loader utilities (carved from batch/loaders/)
 tests/
 └── integration/              # cross-method integration smoke tests
-pixi.toml                     # heavier env: R + DESeq2 + sklearn + bioconductor + pyarrow
+pyproject.toml                # the PACKAGE definition (editable-installed by the root pixi.toml).
+                              #   There is NO methods/pixi.toml any more — SK#2145 folded this
+                              #   package's env (duckdb, xgboost, shap, R/Bioconductor) into the
+                              #   ONE workspace manifest at the repo root, so methods and skills
+                              #   are gated under a single lock and a single interpreter.
 DEVELOPMENT_GUIDELINES.md
 README.md
 ```

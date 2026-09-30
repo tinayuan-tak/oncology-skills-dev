@@ -427,8 +427,12 @@ pixi run python skills/target-profile/scripts/run.py \
     --out ~/scratch/kras-coadread-verdict-only --verdict-only
 ```
 
-The repo-root `pixi.toml` carries the env for the v2 skills + batch pipeline. The retained
-v1 `analysis-*` / `workflow-*` skills carry their own isolated `pixi.toml`.
+The repo-root `pixi.toml` is the **only** pixi manifest in the repo (SK#2145): one workspace,
+one `pixi.lock`, one interpreter (python 3.14) for `skills/`, `methods/` and `contracts/` alike.
+The batch pipeline it used to also cover was retired with the v1 root husks (#2165), and the
+former `methods/pixi.toml` — a second env that gated the same code under python 3.12 — is gone;
+`methods/pyproject.toml` remains as the package definition and is editable-installed by the root
+manifest. No per-skill or per-package `pixi.toml` exists or should be added.
 
 ---
 

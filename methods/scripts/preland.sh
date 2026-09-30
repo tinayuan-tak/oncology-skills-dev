@@ -23,6 +23,13 @@ run() { local label="$1"; shift; local out
   else echo "FAIL  $label"; echo "$out" | tail -n 30 | sed 's/^/      /'; fail=1; fi; }
 # --- the one gate (transcribed from the methods-pytest job) ---
 # --import-mode=importlib is REQUIRED: several method test files share a basename and collide under the default import mode.
-run "methods+tests" pixi run pytest methods/ tests/ -q --import-mode=importlib -n 8
+# `pixi` resolves the ONE workspace manifest at the repo root (SK#2145 deleted methods/pixi.toml);
+# `pixi run` preserves cwd, so pytest's rootdir is still methods/ and its pyproject addopts apply.
+# NO `-q` here — that addopts already carries it, and `-qq` suppresses pytest's final
+# `N passed, M skipped` line entirely (see the note on the methods-pytest job in skills-validate.yml).
+# `-rsfE`, not `-rs`: pytest's default -r value is `fE`, and passing `-rs` REPLACES it, so the
+# summary would name every SKIP and no FAILURE. This `run` helper only echoes the last 30 lines on a
+# red, which is precisely where the `FAILED <nodeid>` list needs to be.
+run "methods+tests" pixi run pytest methods/ tests/ -rsfE --import-mode=importlib -n 8
 [ $fail -eq 0 ] && echo "ALL GATES PASS" || echo "GATES FAILED"
 exit $fail

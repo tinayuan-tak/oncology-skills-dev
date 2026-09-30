@@ -37,8 +37,12 @@ repo-root/
 └── .github/workflows/           # CI (skills-validate.yml — required `pytest` check)
 ```
 
-There is a **single repo-level `pixi` environment** (`pixi.toml` at the root); skills
-do not carry their own `pixi.toml`. `methods/` and `contracts/` (the former
+There is a **single repo-level `pixi` environment** (`pixi.toml` at the root) — and since
+SK#2145 that is literally true: `pixi.toml` is the only pixi manifest in the tree, so there is
+ONE lock and ONE interpreter (python 3.14) behind every leg of the required `pytest` check.
+`methods/pixi.toml` used to be a second env gating the same code under python 3.12; it and its
+own lock are deleted. Neither skills nor packages carry their own `pixi.toml`.
+`methods/` and `contracts/` (the former
 `analysis-methods` and `target-contracts` repos, merged in-tree — SK#2063) are
 declared as editable path dependencies pointing at `./methods` / `./contracts`. The
 one remaining sibling is `data-catalog`'s `target_id_resolver` lib, an editable path

@@ -7,11 +7,52 @@ version = "0.1.0"
 
 [tasks]
 
+# ══ ONE WORKSPACE, ONE LOCK, ONE INTERPRETER (SK#2145, 2026-09-29) ════════════════════════════
+# This manifest is now the ONLY pixi manifest in the repo. `methods/pixi.toml` + `methods/pixi.lock`
+# are DELETED; `methods/pyproject.toml` remains the package definition (installed editable below).
+#
+# WHY. Until now two divergent envs were BOTH consumed by the required `pytest` fan-in:
+# skills-validate.yml's shard legs used THIS manifest (python 3.14.6) while its methods-pytest leg
+# used `methods/pixi.toml` (python >=3.11,<3.13, locking at 3.12.x). The SAME code was gated under
+# TWO interpreters, against TWO ~280KB locks, with the R/Bioconductor stack declared TWICE in two
+# different pin styles ("*" there, ranged here). The polars and scikit-learn comments below are both
+# scars from exactly that mirror-drift: a dep declared in the methods env and MISSED here, silently
+# degrading a read path in this one. Mirror drift is not a discipline problem, it is a structural
+# one — so the mirror is gone.
+#
+# ONE ENVIRONMENT, NOT features/environments. pixi could split the heavy compute deps into a
+# `methods-compute` feature sharing this lock. Deliberately NOT done: the two incidents recorded
+# below (polars → 504 packages silently dark; sklearn → the atlas re-freeze guard unrunnable) were
+# both caused by the skills env NOT BEING A SUPERSET of the methods env. A feature split re-opens
+# that exact class for duckdb/xgboost/shap — each of which is LAZY-imported behind a silent
+# `except ImportError` FALLBACK (see the xgboost/shap note at the bottom), so its absence changes
+# what a column MEANS without ever raising. A superset env costs install minutes; a feature split
+# costs correctness. Revisit only if a dep becomes genuinely mutually exclusive.
+#
+# PYTHON 3.14, NOT the old `<3.13`. The methods pin carried NO in-tree rationale and was historical:
+# verified on conda-forge/linux-64 (2026-09-29) that the three deps that could plausibly have
+# justified it all have py3.14 builds and co-solve with the full R/Bioconductor set —
+# python-duckdb 1.5.6 py314, xgboost 3.4.2 cpu_py314 (+ libxgboost), shap 0.52.0 cpu_py314.
+# No dep blocked 3.14, so the fallback (pin the WHOLE workspace down to the highest shared version)
+# was NOT needed. Two interpreters was never one of the options.
+#
+# Where the two manifests disagreed on a pin, the TIGHTER constraint won (scikit-learn, r-base,
+# r-data.table, r-arrow); `matplotlib` supersedes methods' `matplotlib-base` (matplotlib depends on
+# it), keeping methods' tighter >=3.11.1 floor. methods' `[tasks] test`/`lint` are NOT ported: both
+# had ZERO in-tree call sites (the real invocations are `scripts/preland.sh methods` and the
+# methods-pytest CI leg, which is unchanged apart from its manifest path).
+# ═════════════════════════════════════════════════════════════════════════════════════════════════
+
 # Tier-1 packaging (PR #3), updated for the SK#2063 consolidation: analysis-methods and
 # target-contracts live IN THIS REPO (methods/ and contracts/), so their editable installs
 # point in-tree — no sibling checkout or clone layout needed for them. target_id_resolver
 # still comes from the data-catalog sibling (data-catalog stays a separate repo; canonical
 # side-by-side clone layout, or DATA_CATALOG_ROOT env fallback for data access).
+#
+# SK#2145: `oncology-analysis-methods` being editable-installed HERE is what makes the methods
+# package importable in the env its own suite now runs under — `methods/pixi.toml` had an EMPTY
+# [pypi-dependencies], so the methods package was never installed in its own environment. This
+# satisfies the stated precondition of #2144 stage 1.
 [pypi-dependencies]
 oncology-analysis-methods = { path = "./methods", editable = true }
 oncology-target-contracts = { path = "./contracts", editable = true }
@@ -37,14 +78,20 @@ pytest = ">=8.0"   # T9 (2026-08-11): declared so `pixi run pytest` works in CI 
 click = ">=8.1"      # method CLI entrypoints (methods/*/cli.py)
 plotly = ">=5"       # figure emitters — plotly figure specs
 openpyxl = ">=3.1"   # Excel parsing (CPTAC clinical XLSX + SURFY) reached by some readers
-matplotlib = ">=3.8" # figure emitters — matplotlib-based card figures (e.g. dependency-lineage-selectivity)
+                     # SK#2145: floor raised 3.8 → 3.11.1 (the tighter of the two merged pins;
+                     # methods/pixi.toml pinned `matplotlib-base >=3.11.1,<4` for headless SVG
+                     # rendering, and `matplotlib` depends on `matplotlib-base`, so declaring the
+                     # full package here satisfies both — no separate -base entry).
+matplotlib = ">=3.11.1,<4" # figure emitters — matplotlib-based card figures (e.g. dependency-lineage-selectivity)
 numpy = ">=1.26"     # explicit (readers/emitters); previously only transitive via pandas/scipy
 # polars pilot (2026-09-16): hpa_normal_tissue_liability's reader parses the HPA master TSV with
 # polars. Declared in analysis-methods' pixi.toml but the mirror here was missed — so the skills
 # `.pixi/envs/default` (used by the corpus regen) lacked it, every HPA read raised ModuleNotFoundError,
 # the dispatcher's `except Exception` degraded it to hpa_normal_tissue_read_failed, and the
 # normal-tissue-liability card went silently dark on all 504 packages of a regenerated corpus.
-# Pin mirrors analysis-methods/pixi.toml exactly.
+# The pin used to be kept in sync with analysis-methods/pixi.toml BY HAND. SK#2145 deleted that
+# second manifest, so there is nothing left to mirror — this is the only declaration of polars, and
+# the incident above is no longer reachable by mirror drift.
 polars = ">=1.44.2,<2"
 # target-archetype's atlas BUILD (scripts/build_atlas.py) imports sklearn.decomposition.PCA to fit the
 # frozen linear embedding. Undeclared until 2026-09-13, which meant the freeze was not reproducible in
@@ -52,22 +99,96 @@ polars = ">=1.44.2,<2"
 # attributable — could only ever run under a system interpreter that happened to have sklearn. The import
 # is deliberately kept LOCAL to build() (not module-level) so importing build_atlas for its declarations
 # still works without it; declaring it here is what makes the rebuild half of the guard executable.
-scikit-learn = ">=1.5"
+# SK#2145: floor raised 1.5 → 1.9.0 (the tighter of the two merged pins; methods/pixi.toml had
+# `scikit-learn = ">=1.9.0,<2"` for depmap_predictability_precompute).
+scikit-learn = ">=1.9.0,<2"
+pytest-xdist = ">=3.8.0,<4"
 
-# R + Bioconductor stack for the batch DGE pipeline (batch/expression_rna_*).
-# DESeq2 + apeglm shrinkage on raw integer counts is the field-standard contract
-# the Parquet handoff is built around; arrow gives stage 04 native Parquet I/O;
-# paws.storage is the actively-maintained S3 client (preferred over aws.s3);
-# sva ships ComBat-seq for the joint-source regime (skipped when has_batch=FALSE).
+# SQL-over-parquet in 6 methods (tcga_gtex_tpm_quantiles, tcga_tpm_precompute, stemness_index,
+# progeny_pathway_activity, pair_selectivity_gate, sc_normal_expression). Each does a LAZY
+# `import duckdb` INSIDE the function that needs it, so the modules import fine and an omission
+# stays invisible — which is how it went undeclared in the first place. Merged from
+# methods/pixi.toml (SK#2145); it was previously absent from THIS env, so any duckdb-backed
+# method reached from a skills suite could only ever have failed here.
+duckdb = "*"
+
+# depmap_predictability_precompute's second model + its attribution backend. Both were UNDECLARED
+# until 2026-09-17 for the same reason duckdb was: the precompute LAZY-imports them inside
+# train_gene() behind `try: ... except ImportError`, and each guard has a silent FALLBACK, so the
+# modules import fine, the suite is green, and the omission stays invisible. It is not a cosmetic
+# gap — the shipped depmap-predictability-26q1-v3 product ran with `shap` absent and therefore
+# emitted RF impurity importances in BOTH top-feature columns while its manifest advertised XGB
+# gain importances (retracted in data-catalog, same date). A dependency whose absence silently
+# CHANGES WHAT A COLUMN MEANS has to be declared, or the artifact is not reconstructible from the
+# producing commit. NOT added to methods/pyproject.toml's `compute` extra, deliberately: like
+# scikit-learn, these are heavy BATCH-precompute deps, not read-path deps
+# (methods/depmap_predictability/read.py imports neither). Merged from methods/pixi.toml (SK#2145)
+# — and note this is THE pair whose py3.14 availability gated the interpreter decision above.
+xgboost = ">=3.4.2,<4"
+shap = ">=0.52.0,<0.53"
+
+# ── R + Bioconductor ─────────────────────────────────────────────────────────────────────────────
+# SK#2145 — this block was DECLARED TWICE (here and in methods/pixi.toml) with different pin styles;
+# it is now declared once. Its stated purpose is also CORRECTED: the previous header attributed the
+# stack to "the batch DGE pipeline (batch/expression_rna_*)", which #2165 (N2-2, retire v1 root
+# husks) DELETED. The consumers are now all under methods/:
+#   dge_deseq2/r/{live,legacy}/*.R        DESeq2 + apeglm shrinkage on raw integer counts (the
+#                                         field-standard contract the Parquet handoff is built
+#                                         around); arrow for native Parquet I/O; sva ships
+#                                         ComBat-seq for the joint-source regime (skipped when
+#                                         has_batch=FALSE); yaml/digest for provenance; BiocParallel
+#                                         for the four-cell drivers
+#   cooccurrence_fisher_pancohort/steps/  data.table/R.utils/igraph/Matrix/matrixStats/foreach/
+#                                         doParallel/BiRewire — SELECT (Mina 2020) + DISCOVER deps;
+#                                         devtools+remotes install DISCOVER from GitHub via setup.R
+#   cptac_protein_deg/steps/              MSstatsTMT (plex-batch mixed model) + limma (its eBayes
+#                                         peer dep; ALSO a CMScaller dep)
+#   subgroup_assigner_classifier/steps/   Biobase — CMScaller's ExpressionSet/NTP dependency
+#                                         (CMScaller itself is NOT in the lock: setup.R installs it
+#                                         from GitHub, so that leg always self-skips on CI)
+#
+# ⚠️ NO PACKAGE WAS DROPPED, and that is a MEASURED result, not an oversight. The three entries that
+# existed ONLY in this root block — r-yaml, r-digest, bioconductor-biocparallel — read as pure
+# batch/ residue, but each is still called by LIVE code: `library(yaml)` in 7 dge_deseq2 R scripts
+# (incl. r/live/00_load_recount3.R, 06_/07_four_cell_driver.R), `digest` in r/legacy/05_provenance.R,
+# and `BiocParallel` in r/live/06_ and 07_ plus r/legacy/03_deseq2.R. So the trim #2165 enables is
+# the removal of the SECOND DECLARATION and of the dead rationale above — not of any dependency.
+# (Known pre-existing gap, deliberately NOT fixed here: r/legacy/00_load_counts.R calls paws.storage,
+# which is declared in NEITHER manifest. Legacy path, separate decision.)
 r-base = ">=4.4"
 "r-data.table" = ">=1.16"
+# ⚠️ SK#2145 — NOT used directly by any of our R code; declared to pin a TRANSITIVE R-level bound the
+# conda solver cannot see. bioconductor-ruvseq -> EDASeq requires `rlang (>= 1.3.0)` in its
+# DESCRIPTION, but the bioconda recipe's conda `depends` carries no such bound, so the solver happily
+# kept this root lock's older r-rlang 1.2.0 and `pixi lock`/`pixi install` both SUCCEEDED while
+# `library(RUVSeq)` died with "namespace 'rlang' 1.2.0 is already loaded, but >= 1.3.0 is required".
+# This is the "in pixi.lock != installed" failure mode in its purest form: the package was in the
+# lock, on disk, and unloadable. It was invisible before this PR only because the two envs had
+# DIVERGENT R stacks — the deleted methods lock carried r-rlang 1.3.0 and was the only env that ever
+# loaded RUVSeq. Verified by loading all 27 declared/queried R packages in the built env.
+# ⇒ If you ever relock and RUVSeq/EDASeq breaks, raise this floor; do not drop the pin.
+r-rlang = ">=1.3.0"
 r-yaml = "*"
 r-optparse = "*"
 r-arrow = ">=18"
 r-digest = "*"
 r-biocmanager = "*"
+r-tidyverse = "*"       # dplyr/tidyr in the dge_deseq2 + cooccurrence R stages
+r-devtools = "*"        # cooccurrence_fisher_pancohort: install DISCOVER from GitHub via setup.R
+r-remotes = "*"         # devtools 2.5+ delegates install_github to remotes
+"r-r.utils" = "*"       # peer dep of data.table for gz reads
+r-igraph = "*"          # SELECT dependency (Mina 2020)
+r-matrix = "*"          # SELECT dependency (sparse matrices)
+r-matrixstats = "*"     # SELECT dependency (column-wise stats)
+r-foreach = "*"         # SELECT dependency (parallel loops)
+r-doparallel = "*"      # SELECT dependency (parallel backend)
 bioconductor-deseq2 = "*"
 bioconductor-apeglm = "*"
 bioconductor-sva = "*"
 bioconductor-biocparallel = "*"
-pytest-xdist = ">=3.8.0,<4"
+bioconductor-birewire = "*"     # SELECT dependency (bipartite network null model)
+bioconductor-ruvseq = "*"       # dge_deseq2 v2: RUVg latent-factor correction of the cross-cohort
+                                # (TCGA-vs-GTEx) contrast; pulls edgeR in as a declared transitive
+bioconductor-msstatstmt = "*"   # cptac_protein_deg: CPTAC TMT protein DEG, plex-batch mixed model
+bioconductor-limma = "*"        # MSstatsTMT peer dep (eBayes); ALSO a CMScaller dep
+bioconductor-biobase = "*"      # subgroup_assigner_classifier (CMS): CMScaller ExpressionSet/NTP

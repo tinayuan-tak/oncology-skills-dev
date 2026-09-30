@@ -204,6 +204,11 @@ jobs:
         with:
           pixi-version: v0.70.2
           cache: true
+          # SK#2145: this is now the ONLY pixi manifest in the repo — `methods/pixi.toml` and its
+          # separate ~280KB lock are deleted, and the methods-pytest leg below points here too. Both
+          # manifest references in this workflow therefore name the same file on purpose; if you are
+          # about to add a second manifest, read the header comment in pixi.toml first (two envs =
+          # two interpreters gating the same code, which is what this issue removed).
           manifest-path: rnd-computational-biology-oncology-claude-oncology-skills/pixi.toml
 
       # SHARDED EXECUTION. shard=core runs the four big suites under `-n auto`; shard=0..3 each run a
@@ -386,17 +391,49 @@ jobs:
           "$HOME/.pixi/bin/pixi" --version
           echo "$HOME/.pixi/bin" >> "$GITHUB_PATH"
 
-      - name: Set up pixi (methods env; reuses the pre-installed binary)
+      - name: Set up pixi (the ONE workspace env; reuses the pre-installed binary)
         uses: prefix-dev/setup-pixi@v0.8.1
         with:
           # pixi-version deliberately UNSET → setup-pixi reuses the pre-installed binary.
-          manifest-path: rnd-computational-biology-oncology-claude-oncology-skills/methods/pixi.toml
+          # SK#2145: was `.../methods/pixi.toml`. That manifest is DELETED — this leg and the
+          # pytest-shards leg above now resolve the SAME root manifest, the same lock and the same
+          # interpreter (python 3.14.6), instead of gating the same code under 3.12 here and 3.14
+          # there. The methods package itself is an editable pypi-dependency of that manifest, so it
+          # is installed in the env its own suite runs under (methods/pixi.toml never installed it).
+          manifest-path: rnd-computational-biology-oncology-claude-oncology-skills/pixi.toml
 
       - name: methods + tests suite (offline; live-S3 tests self-skip)
         working-directory: rnd-computational-biology-oncology-claude-oncology-skills/methods
-        # -rs: named skip lines — a skip is "the check did not run" and must be visible in
+        # working-directory stays `methods/` and the pytest args are UNCHANGED apart from the -q
+        # below: `pixi run <free-form cmd>` preserves the caller's cwd (verified), so pytest's
+        # rootdir is still methods/ and methods/pyproject.toml still supplies [tool.pytest.ini_options].
+        #
+        # -rsfE: named skip lines — a skip is "the check did not run" and must be visible in
         # the log, never summed into the green (see the old methods-validate.yml history).
-        run: pixi run pytest methods/ tests/ -q -rs --import-mode=importlib -n auto
+        #
+        # ⚠️ SK#2145: `fE` was ADDED to `-rs`, and that is the second half of the same bug fix.
+        # pytest's DEFAULT -r value is `fE`; passing `-rs` REPLACES it rather than adding to it, so
+        # this leg's `short test summary info` block has been listing SKIPPED lines and NOTHING
+        # about failures — no `FAILED <nodeid>` lines at all. Measured while gating this very PR:
+        # the suite reported `1 failed, 4817 passed` and the failing test was NOT NAMED anywhere in
+        # the log, so the only way to identify it was to re-read the traceback body by hand. On a
+        # sharded/parallel CI log that is the difference between a one-line diagnosis and a bisect.
+        # `-rsfE` restores the FAILED/ERROR list while keeping the named skips.
+        #
+        # ⚠️ SK#2145: the explicit `-q` was REMOVED, and that is a bug fix, not tidying.
+        # methods/pyproject.toml's addopts ALREADY carries `-q` (declared there by SK#2093), so
+        # `-q` here made it `-qq` — and at -qq pytest SUPPRESSES its final summary line. This leg
+        # has therefore been printing progress dots, a warnings block and the -rs skip list but NO
+        # `N passed, M skipped in Xs` line at all, locally AND on CI. That is the shape that reads
+        # as green to anything parsing the tail of a log, and it removed the only cardinality
+        # instrument this leg had (cf. scripts/check_skip_budget.py, whose docstring notes the
+        # summary counts are the sole instrument under -q — which is exactly why the shard legs
+        # above pass `-rs` WITHOUT `-q`). Verified on one file: with `-q` the log ends at the
+        # SKIPPED list; without it, `21 passed, 1 skipped in 3.63s`.
+        # The same redundant `-q`, and the same `-rs`-without-`fE`, remain at the contracts leg and
+        # at the skills sites in scripts/preland.sh — left alone here to keep this PR scoped
+        # (they are not this PR's env change); both are reported on #2145.
+        run: pixi run pytest methods/ tests/ -rsfE --import-mode=importlib -n auto
 
   # ── CONTRACTS GATES (ported from target-contracts' contracts-validate.yml at the SK#2063
   # consolidation; target-contracts now lives in-tree at contracts/) ───────────────────────

@@ -17,8 +17,17 @@ for the full authoring contract.
 - **`--import-mode=importlib` is required.** Several method test files share a
   basename and collide under pytest's default import mode:
   ```bash
-  pixi run pytest methods/ tests/ -q --import-mode=importlib -n 8
+  pixi run pytest methods/ tests/ -rsfE --import-mode=importlib -n 8
   ```
+  Run it from `methods/`; `pixi` resolves the ONE workspace manifest at the repo root
+  (SK#2145 deleted `methods/pixi.toml` — there is no per-package env any more), and
+  `pixi run` preserves your cwd so pytest's rootdir stays `methods/`.
+  **Do not add `-q`**: `methods/pyproject.toml`'s `addopts` already carries it, and a second
+  `-q` means `-qq`, at which pytest prints NO `N passed, M skipped` line at all — the run
+  then looks green to anything reading the tail of the log.
+  **Use `-rsfE`, not `-rs`**: pytest's default `-r` value is `fE`, and passing `-rs` *replaces*
+  it instead of adding to it — so `-rs` alone names every skip and no failure, and a red run
+  reports `1 failed` with the failing node id nowhere in the log (measured, SK#2145).
   Always run `methods/ tests/` **together** — running `methods/` alone under-collects
   and can hide a red.
 - **Live-data tests need `AWS_PROFILE=cbg`** locally; CI sets
