@@ -438,20 +438,46 @@ properties:
         unit: fraction_of_panel_highly_expressing
         source: methods/onc_methods/depmap_expression_distribution/cli.py:244
         rationale: |
-          UNKNOWN as a calibrated value, and a FLAGGED, currently-unadjudicated three-way fraction
-          divergence found while sweeping this issue: this `_classify_expression`/`expression_class`
-          knob is 0.30, but the SAME quantity (fraction of the panel highly-expressing, gating a
-          `broadly_high` word) is 0.5 in expression.yaml's `_BROADLY_HIGH_FRACTION_MIN`
-          (`expression_properties/resolve.py`) and 0.5 in the tumour twin
-          (`tcga_gtex_expression_distribution/read.py`, MEASURED to hold under #2220). #2221's
-          adjudication of the co-occurring absolute anchor (5.0 vs 5.6724) already noted this gap in
-          prose ("that 0.30 is currently recorded by no determinant at all") without formally
-          adjudicating it, because #2221's scope was the anchor, not this fraction. Recorded here
-          per the flagging rule; no follow-up issue filed yet — reported on #2218 for one.
+          UNKNOWN as a calibrated value. ADJUDICATED #2273 (2026-09-30): DOCUMENTED-INTENTIONAL,
+          this constant NOT moved — the fraction-bar counterpart to #2221's anchor adjudication,
+          following the same #809 phase-3b flip-matrix protocol. The `broadly_high` word is gated on
+          the fraction-of-samples-highly-expressing at THREE sites:
+            * site A — this `_classify_expression` knob, 0.30, over the WHOLE pan-cancer DepMap
+              panel, GUARDED (reached only inside `frac_expressed >= 0.70`, splitting broadly_high
+              from broadly_moderate);
+            * site B — `expression_properties/resolve.py::_BROADLY_HIGH_FRACTION_MIN`, 0.50, reading
+              the IDENTICAL `fraction_highly_expressed` field off the SAME summary dict at the SAME
+              5.0 floor, UNGUARDED (`_prevalence`'s first rung -> broad; one OR-condition in
+              `_magnitude` -> high);
+            * site C — the tumour twin `tcga_gtex_expression_distribution/read.py::
+              _classify_tumor_expression` inline 0.50, the SAME concept on a DIFFERENT denominator
+              (one indication's tumour patients) and a DIFFERENT high floor (HIGH_LOG2TPM = 5.6724,
+              the #2221 divergence), UNGUARDED first rung.
+          Sites A and B are therefore a REAL same-quantity, same-panel divergence (0.30 vs 0.50),
+          not the #2220 shared-numeral illusion; site C is the same concept on another panel/floor.
+          Measured on the 11 committed cell-line vectors + the tumour anchor/panel fixtures (see
+          `flip_matrix`): (1) the divergence is STRUCTURAL as well as numeric — at a shared 0.50 bar
+          site A's guarded word and site B's unguarded word still disagree (APC, ERBB2), because B's
+          `broad` also fires on the `frac_expressed >= 0.70` breadth rung A never uses; so
+          harmonising the NUMBER alone would not converge the words (the #2221 shape of finding).
+          (2) Costs: raising A 0.30->0.50 demotes ERBB2 + MET broadly_high->broadly_moderate — and
+          `expression_class` feeds THIS property, so it moves the tumour-presence golden (FORBIDDEN
+          this arc, #2061 / #1984 PR-B; #2227 filed-blocked). Lowering C 0.50->0.30 promotes 6
+          tumour reads to broadly_high — also golden-touching, FORBIDDEN. The only golden-safe
+          direction, lowering B 0.50->0.30, moves EPCAM/MET/TACSTD2 prevalence subset->broad (and 4
+          magnitude reads), and REVERSES resolve.py's OWN documented arm-mirror of the tumour twin.
+          (3) In `_magnitude` the `fh>=0.5` OR-condition is redundant today (fh>=0.5 forces
+          median>=5.0), so B's 0.50 bites only in `_prevalence`; lowering it would broaden the reach.
+          NO CHANGE because two of three directions touch the forbidden golden and the third is not a
+          mechanical fix but an OWNER CALL — should resolve.py's pan-cancer bar mirror the tumour
+          twin's NUMBER (0.50, agreement-by-value, current) or the cell-line classifier's
+          DENOMINATOR-appropriate bar (0.30, since a pan-cancer panel dilutes)? Neither bar is
+          calibrated and the deciding panel-composition noise floor is unmeasured for this panel
+          (same honest limit as #2221). Routed up, not guessed. Same posture and answer as #2221/#2222.
         calibration:
           controls: null
-          flip_matrix: null
-          adjudication: "#2218"
+          flip_matrix: methods/tests/calibration/threshold_adjudication/broadly_high_fraction_flip_matrix.json
+          adjudication: "#2273"
       - name: lineage_restricted_min_fraction
         value: 0.10
         unit: fraction_of_panel_above_detection_floor

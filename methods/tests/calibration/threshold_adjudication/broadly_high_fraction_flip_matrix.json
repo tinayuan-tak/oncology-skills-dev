@@ -1,0 +1,885 @@
+{
+ "_meta": {
+  "what": "Counterfactual for the `broadly_high_fraction` cut (claude-oncology-skills#2273, epic #2210), under the #809 phase-3b flip-matrix protocol. Sibling of #2222 (broadly_low) and #2221 (the high anchor).",
+  "verdict": "DOCUMENTED-INTENTIONAL. No threshold moved. Two of the three harmonisation directions touch the FORBIDDEN tumour-presence golden; the third reverses a deliberate documented arm-mirror and is an owner call. See `adjudication`.",
+  "ground_truth": "MEASURED: the per-cell-line log2(TPM+1) vectors and the tumour anchor fraction triples. DERIVED and re-derived by the test rather than trusted: every summary scalar, arm-A class and arm-B class. Arm A is the PRODUCTION call (compute_summary_stats / _classify_expression / _classify_tumor_expression / resolve._magnitude / resolve._prevalence); the counterfactual ladders are required to reproduce it bit-for-bit at their status-quo bar.",
+  "offline": "No S3, no credentials. Every input is a committed artifact of this repo.",
+  "regenerated_by": "methods/tests/calibration/threshold_adjudication/regenerate_broadly_high_fraction_flip_matrix.py",
+  "generated_utc": "2026-09-30T13:09:15.493841+00:00",
+  "repo_sha": "821a7402",
+  "release_pin": "26q1 (cell line) / recount3 TCGA slice (tumour)",
+  "line_numbers_are_informational": "The `sites` entries carry a `source` path but no pinned line number: the test pins each cut BEHAVIOURALLY by driving the real classifier across it, so a moved line never reds and a moved CONSTANT always does."
+ },
+ "sites": [
+  {
+   "site_id": "siteA_cellline_expression_class_broadly_high",
+   "source": "methods/onc_methods/depmap_expression_distribution/cli.py::_classify_expression",
+   "token": "broadly_high",
+   "constant": 0.3,
+   "constant_form": "keyword default `broadly_high_fraction`",
+   "quantity": "fraction_highly_expressed",
+   "unit": "fraction of samples with log2(TPM+1) >= highly_expressed_threshold",
+   "high_floor_log2tpm": 5.0,
+   "denominator": "the WHOLE pan-cancer DepMap panel, every lineage (2446 models at 26q1)",
+   "predicate": "frac_highly >= broadly_high_fraction (= 0.30) AND frac_expressed >= 0.70",
+   "ladder_position": "a GUARDED sub-decision: reached ONLY inside the `frac_expressed >= 0.70` (broadly-expressed) band, where it splits broadly_high from broadly_moderate. A target below the breadth gate is never broadly_high no matter how high frac_highly is."
+  },
+  {
+   "site_id": "siteB_expression_property_magnitude_and_prevalence",
+   "source": "methods/onc_methods/expression_properties/resolve.py::_BROADLY_HIGH_FRACTION_MIN",
+   "token": "prevalence=broad / magnitude=high",
+   "constant": 0.5,
+   "constant_form": "module constant `_BROADLY_HIGH_FRACTION_MIN`",
+   "quantity": "fraction_highly_expressed",
+   "unit": "fraction of samples with log2(TPM+1) >= _HIGHLY_EXPRESSED_LOG2TPM",
+   "high_floor_log2tpm": 5.0,
+   "denominator": "the SAME pan-cancer DepMap summary dict site A reads",
+   "predicate": "fraction_highly_expressed >= 0.50",
+   "ladder_position": "UNGUARDED. `_prevalence`'s FIRST rung (`fh >= 0.5 -> broad`), and one of three OR-conditions in `_magnitude` (`fh >= 0.5 -> high`). No breadth gate precedes it.",
+   "note": "This reads the IDENTICAL `fraction_highly_expressed` key site A's classifier reads, at the IDENTICAL 5.0 floor (_HIGHLY_EXPRESSED_LOG2TPM mirrors the cli default). Same quantity, same panel, same floor \u2014 a REAL divergence, 0.30 vs 0.50.",
+   "magnitude_redundancy": "In `_magnitude` the `fh >= 0.5` OR-condition is SUBSUMED by `med >= 5.0`: fh >= 0.5 forces both central order statistics >= 5.0, hence median >= 5.0. So today the 0.50 bites ONLY in `_prevalence`; lowering it to 0.30 would newly bite in `_magnitude` for a target with fh in [0.30, 0.50) and median < 5.0."
+  },
+  {
+   "site_id": "siteC_tumour_broadly_high",
+   "source": "methods/onc_methods/tcga_gtex_expression_distribution/read.py::_classify_tumor_expression",
+   "token": "broadly_high",
+   "constant": 0.5,
+   "constant_form": "inline literal (no module-level name)",
+   "quantity": "high_fraction",
+   "unit": "fraction of samples with log2(TPM+1) >= HIGH_LOG2TPM",
+   "high_floor_log2tpm": 5.6724,
+   "denominator": "the tumour patients of ONE indication (recount3 TCGA slice) \u2014 NOT a pan-cancer panel",
+   "predicate": "high_fraction >= 0.5",
+   "ladder_position": "UNGUARDED first rung -> broadly_high, pre-empting every other rung.",
+   "note": "Same CONCEPT as sites A/B but a DIFFERENT denominator (one indication) and a DIFFERENT high floor (HIGH_LOG2TPM = 5.6724 = log2(51), vs the cell-line 5.0 \u2014 the #2221 anchor divergence, already adjudicated documented-intentional). Move FORBIDDEN this arc (#2061 / #1984 PR-B own the tumour-presence golden)."
+  },
+  {
+   "site_id": "not_a_broadly_high_cut__presence_supported_fraction",
+   "source": "methods/onc_methods/expression_properties/resolve.py::_PRESENCE_SUPPORTED_FRACTION",
+   "token": "presence=supported",
+   "constant": 0.5,
+   "quantity": "fraction_expressed",
+   "why_listed": "A `0.50` in the same module, but on a DIFFERENT quantity \u2014 fraction_EXPRESSED (detection floor log2(TPM+1) >= 1.0), not fraction_HIGHLY_EXPRESSED (floor 5.0). Listed to forestall the #2220 error of treating a shared numeral as a shared bar."
+  }
+ ],
+ "adjudication": {
+  "protocol": "#809 phase 3b flip matrix; arc policy document-all / adjudicate-flagged.",
+  "outcome": "DOCUMENTED-INTENTIONAL \u2014 no threshold changed.",
+  "finding_1_the_three_values_confirmed_same_quantity_two_panels": "Sites A and B read the IDENTICAL `fraction_highly_expressed` field off the SAME compute_summary_stats dict over the SAME pan-cancer vector at the SAME 5.0 floor, so 0.30 (A) vs 0.50 (B) is a genuine same-quantity, same-panel divergence \u2014 NOT the #2220 shared-numeral illusion. Site C cuts the same CONCEPT (fraction highly-expressing) but on a different denominator (one indication's tumour patients) and a different high floor (HIGH_LOG2TPM = 5.6724 vs 5.0 \u2014 the #2221 divergence). Verified by construction and on the committed panel.",
+  "finding_2_the_divergence_is_structural_not_only_numeric": "Site A's 0.30 is a GUARDED sub-decision reached only inside `frac_expressed >= 0.70`; sites B and C fire UNGUARDED as a first rung. So the number alone does not make the words converge: at a shared 0.50 bar site A (guarded) and site B (unguarded `_prevalence`) still disagree on the measured panel wherever a target clears 0.50 highly-expressed but sits below the 0.70 breadth gate. Harmonising the NUMBER without reconciling the LADDER POSITION would leave the words no closer \u2014 the same shape of finding as #2221's 'moving the anchor pushes the two broadly_high words further apart'.",
+  "finding_3_what_each_harmonisation_costs_on_measured_data": "Direction A-up (0.30 -> 0.50): demotes cell-line broadly_high -> broadly_moderate for the targets recorded in grain_pan_cancer.measured.siteA_mover_ids. expression_class feeds tumor-presence `model_expression_structure`, so this MOVES THE TUMOUR-PRESENCE GOLDEN \u2014 FORBIDDEN this arc (#2061 / #1984 PR-B). Direction C-down (0.50 -> 0.30): promotes the tumour reads in grain_tumour.measured.mover_ids to broadly_high; also golden-touching, FORBIDDEN. Direction B-down (0.50 -> 0.30): moves the prevalence/magnitude reads in siteB_*_mover_ids; does NOT touch expression_class, but reverses resolve.py's OWN documented arm-mirror (`_BROADLY_HIGH_FRACTION_MIN` comment: 'Mirrors read.py:860 high_fraction >= 0.5').",
+  "finding_4_the_magnitude_or_condition_is_redundant_today": "In `_magnitude`, `fh >= 0.5` is subsumed by `med >= 5.0` (fh >= 0.5 forces median >= 5.0 by the central-order-statistic bound), so the 0.50 bites only in `_prevalence` today. That is an argument for care, not for a move: lowering B to 0.30 would make the fraction bite in `_magnitude` too (fh in [0.30, 0.50) with median < 5.0), broadening the change beyond prevalence.",
+  "why_no_change_here": "Two of the three harmonisation directions (A-up, C-down) move a `broadly_high` word that the tumour-presence golden captures, and regenerating that golden is out of scope for this arc (#2061 / #1984 PR-B; #2227 is filed blocked for exactly this). The only golden-safe direction, B-down, is not a mechanical fix: it turns on whether resolve.py's pan-cancer prevalence/magnitude bar should mirror the tumour twin's NUMBER (0.50, arm-agreement by value, the current deliberate choice) or the cell-line classifier's DENOMINATOR-appropriate bar (0.30, since a pan-cancer panel dilutes a target broadly-high in its relevant lineages). Because sites A/B/C read three different (panel, floor, guard) contexts, 'agreement' is not simply a shared number, and picking a direction is an owner call about what the pan-cancer `broad` word should MEAN \u2014 routed up, not guessed here. Same posture and same answer as #2221 and #2222.",
+  "direction_routed_up": "OWNER CALL: should `expression_properties/resolve.py::_BROADLY_HIGH_FRACTION_MIN` keep mirroring the tumour twin's 0.50 (agreement-by-value across arms) or adopt the cell-line classifier's 0.30 (agreement-by-denominator, since it reads the pan-cancer panel A reads)? The measurement cannot decide it \u2014 neither bar is calibrated against a curated panel, and the honest gap is the same panel-composition NOISE FLOOR #2221 flagged as unmeasured for this panel.",
+  "catalog_write": "This PR writes this adjudication (rationale + non-null `calibration.flip_matrix`) onto the `broadly_high_fraction` determinant of tumor_presence.yaml's `model_expression_structure` (where #2218 declared it \u2014 the issue's dispatch said expression.yaml, but the determinant is in tumor_presence.yaml; overridden), superseding #2218's placeholder flag."
+ },
+ "grain_pan_cancer": {
+  "what": "site A (guarded cell-line expression_class) vs site B (unguarded expression_property magnitude/prevalence) on the IDENTICAL committed per-cell-line vector, reading the SAME `fraction_highly_expressed` field. Establishes the same-quantity claim and measures both harmonisation directions on the pan-cancer grain.",
+  "measured": {
+   "targets": 11,
+   "siteA_broadly_high_today": 3,
+   "siteA_movers_up_to_0_50": 2,
+   "siteA_mover_ids": [
+    "ERBB2:broadly_high->broadly_moderate",
+    "MET:broadly_high->broadly_moderate"
+   ],
+   "siteB_prevalence_broad_today": 3,
+   "siteB_prevalence_movers_down_to_0_30": 3,
+   "siteB_prevalence_mover_ids": [
+    "EPCAM:subset->broad",
+    "MET:subset->broad",
+    "TACSTD2:subset->broad"
+   ],
+   "siteB_magnitude_movers_down_to_0_30": 4,
+   "siteB_magnitude_mover_ids": [
+    "EPCAM:moderate->high",
+    "ERBB2:moderate->high",
+    "MET:moderate->high",
+    "TACSTD2:low->high"
+   ],
+   "targets_where_guarded_A_and_unguarded_B_disagree_at_the_same_0_50_bar": [
+    "APC",
+    "ERBB2"
+   ]
+  },
+  "rows": [
+   {
+    "target": "APC",
+    "vector_fixture": "../recomputation/expression_vectors/apc_26q1.cellline_rna_distribution.parquet",
+    "n_cell_lines": 2446,
+    "median_log2tpm_panel": 2.9727365970611572,
+    "fraction_expressed": 0.9795584627964022,
+    "fraction_highly_expressed": 0.008994276369582993,
+    "n_lineage_restricted_lineages": 0,
+    "siteA_expression_class": "broadly_moderate",
+    "siteA_at_0_50": "broadly_moderate",
+    "siteB_presence": "supported",
+    "siteB_magnitude": "moderate",
+    "siteB_prevalence": "broad",
+    "siteB_magnitude_at_0_30": "moderate",
+    "siteB_prevalence_at_0_30": "broad"
+   },
+   {
+    "target": "CD3D",
+    "vector_fixture": "../recomputation/expression_vectors/cd3d_26q1.cellline_rna_distribution.parquet",
+    "n_cell_lines": 2446,
+    "median_log2tpm_panel": 0.0,
+    "fraction_expressed": 0.06827473426001636,
+    "fraction_highly_expressed": 0.029435813573180702,
+    "n_lineage_restricted_lineages": 1,
+    "siteA_expression_class": "broadly_low",
+    "siteA_at_0_50": "broadly_low",
+    "siteB_presence": "absent",
+    "siteB_magnitude": "unmeasured",
+    "siteB_prevalence": "rare",
+    "siteB_magnitude_at_0_30": "unmeasured",
+    "siteB_prevalence_at_0_30": "rare"
+   },
+   {
+    "target": "CEACAM5",
+    "vector_fixture": "../recomputation/expression_vectors/ceacam5_26q1.cellline_rna_distribution.parquet",
+    "n_cell_lines": 2446,
+    "median_log2tpm_panel": 0.14739852398633957,
+    "fraction_expressed": 0.2624693376941946,
+    "fraction_highly_expressed": 0.13982011447260834,
+    "n_lineage_restricted_lineages": 3,
+    "siteA_expression_class": "lineage_restricted",
+    "siteA_at_0_50": "lineage_restricted",
+    "siteB_presence": "weak",
+    "siteB_magnitude": "low",
+    "siteB_prevalence": "subset",
+    "siteB_magnitude_at_0_30": "low",
+    "siteB_prevalence_at_0_30": "subset"
+   },
+   {
+    "target": "EPCAM",
+    "vector_fixture": "../recomputation/expression_vectors/epcam_26q1.cellline_rna_distribution.parquet",
+    "n_cell_lines": 2446,
+    "median_log2tpm_panel": 2.513846755027771,
+    "fraction_expressed": 0.6308258381030254,
+    "fraction_highly_expressed": 0.4345870809484873,
+    "n_lineage_restricted_lineages": 0,
+    "siteA_expression_class": "broadly_moderate",
+    "siteA_at_0_50": "broadly_moderate",
+    "siteB_presence": "supported",
+    "siteB_magnitude": "moderate",
+    "siteB_prevalence": "subset",
+    "siteB_magnitude_at_0_30": "high",
+    "siteB_prevalence_at_0_30": "broad"
+   },
+   {
+    "target": "ERBB2",
+    "vector_fixture": "../recomputation/expression_vectors/erbb2_26q1.cellline_rna_distribution.parquet",
+    "n_cell_lines": 2446,
+    "median_log2tpm_panel": 4.543644189834595,
+    "fraction_expressed": 0.9836467702371219,
+    "fraction_highly_expressed": 0.36017988552739166,
+    "n_lineage_restricted_lineages": 0,
+    "siteA_expression_class": "broadly_high",
+    "siteA_at_0_50": "broadly_moderate",
+    "siteB_presence": "supported",
+    "siteB_magnitude": "moderate",
+    "siteB_prevalence": "broad",
+    "siteB_magnitude_at_0_30": "high",
+    "siteB_prevalence_at_0_30": "broad"
+   },
+   {
+    "target": "KLK3",
+    "vector_fixture": "../recomputation/expression_vectors/klk3_26q1.cellline_rna_distribution.parquet",
+    "n_cell_lines": 2446,
+    "median_log2tpm_panel": 0.0,
+    "fraction_expressed": 0.03188879803761243,
+    "fraction_highly_expressed": 0.003270645952575634,
+    "n_lineage_restricted_lineages": 0,
+    "siteA_expression_class": "broadly_low",
+    "siteA_at_0_50": "broadly_low",
+    "siteB_presence": "absent",
+    "siteB_magnitude": "unmeasured",
+    "siteB_prevalence": "rare",
+    "siteB_magnitude_at_0_30": "unmeasured",
+    "siteB_prevalence_at_0_30": "rare"
+   },
+   {
+    "target": "MET",
+    "vector_fixture": "../recomputation/expression_vectors/met_26q1.cellline_rna_distribution.parquet",
+    "n_cell_lines": 2446,
+    "median_log2tpm_panel": 4.747212886810303,
+    "fraction_expressed": 0.7894521668029436,
+    "fraction_highly_expressed": 0.45748160261651677,
+    "n_lineage_restricted_lineages": 0,
+    "siteA_expression_class": "broadly_high",
+    "siteA_at_0_50": "broadly_moderate",
+    "siteB_presence": "supported",
+    "siteB_magnitude": "moderate",
+    "siteB_prevalence": "subset",
+    "siteB_magnitude_at_0_30": "high",
+    "siteB_prevalence_at_0_30": "broad"
+   },
+   {
+    "target": "MSLN",
+    "vector_fixture": "../recomputation/expression_vectors/msln_26q1.cellline_rna_distribution.parquet",
+    "n_cell_lines": 2446,
+    "median_log2tpm_panel": 0.2526802271604538,
+    "fraction_expressed": 0.33074407195421096,
+    "fraction_highly_expressed": 0.1312346688470973,
+    "n_lineage_restricted_lineages": 6,
+    "siteA_expression_class": "lineage_restricted",
+    "siteA_at_0_50": "lineage_restricted",
+    "siteB_presence": "weak",
+    "siteB_magnitude": "low",
+    "siteB_prevalence": "subset",
+    "siteB_magnitude_at_0_30": "low",
+    "siteB_prevalence_at_0_30": "subset"
+   },
+   {
+    "target": "PRM1",
+    "vector_fixture": "../recomputation/expression_vectors/prm1_26q1.cellline_rna_distribution.parquet",
+    "n_cell_lines": 2446,
+    "median_log2tpm_panel": 0.0,
+    "fraction_expressed": 0.0008176614881439084,
+    "fraction_highly_expressed": 0.0,
+    "n_lineage_restricted_lineages": 0,
+    "siteA_expression_class": "broadly_low",
+    "siteA_at_0_50": "broadly_low",
+    "siteB_presence": "absent",
+    "siteB_magnitude": "unmeasured",
+    "siteB_prevalence": "rare",
+    "siteB_magnitude_at_0_30": "unmeasured",
+    "siteB_prevalence_at_0_30": "rare"
+   },
+   {
+    "target": "RPL3",
+    "vector_fixture": "../recomputation/expression_vectors/rpl3_26q1.cellline_rna_distribution.parquet",
+    "n_cell_lines": 2446,
+    "median_log2tpm_panel": 10.956626415252686,
+    "fraction_expressed": 1.0,
+    "fraction_highly_expressed": 1.0,
+    "n_lineage_restricted_lineages": 0,
+    "siteA_expression_class": "broadly_high",
+    "siteA_at_0_50": "broadly_high",
+    "siteB_presence": "supported",
+    "siteB_magnitude": "high",
+    "siteB_prevalence": "broad",
+    "siteB_magnitude_at_0_30": "high",
+    "siteB_prevalence_at_0_30": "broad"
+   },
+   {
+    "target": "TACSTD2",
+    "vector_fixture": "../recomputation/expression_vectors/tacstd2_26q1.cellline_rna_distribution.parquet",
+    "n_cell_lines": 2446,
+    "median_log2tpm_panel": 0.6049379110336304,
+    "fraction_expressed": 0.437448896156991,
+    "fraction_highly_expressed": 0.31561733442354867,
+    "n_lineage_restricted_lineages": 8,
+    "siteA_expression_class": "lineage_restricted",
+    "siteA_at_0_50": "lineage_restricted",
+    "siteB_presence": "weak",
+    "siteB_magnitude": "low",
+    "siteB_prevalence": "subset",
+    "siteB_magnitude_at_0_30": "high",
+    "siteB_prevalence_at_0_30": "broad"
+   }
+  ]
+ },
+ "grain_tumour": {
+  "what": "site C's grain: tumour-patient (target, indication) reads. Arm B lowers site C's broadly_high bar to the cell-line sibling's 0.30 \u2014 the FORBIDDEN direction (moves tumour classes -> needs the tumour-presence golden). Measured, not applied.",
+  "measured": {
+   "anchors": 10,
+   "anchors_reproducing_their_pinned_class": 10,
+   "panel_pairs": 25,
+   "panel_pairs_excluded": 34,
+   "arm_a_broadly_high": 16,
+   "movers_down_to_0_30": 6,
+   "mover_ids": [
+    "MAGEA4/LUSC:subset_high->broadly_high",
+    "ERBB2/STAD:broadly_detected->broadly_high",
+    "MAGEA3/SKCM:subset_high->broadly_high",
+    "CLDN6/OV:broadly_detected->broadly_high",
+    "CD276/PAAD:broadly_detected->broadly_high",
+    "MET/COADREAD:broadly_detected->broadly_high"
+   ],
+   "byte_identical": 29,
+   "high_fraction_never_exceeds_detectable_fraction": true
+  },
+  "excluded": [
+   {
+    "target": "ADAR",
+    "code": "COADREAD",
+    "det": 1.0,
+    "reason": "high_fraction not captured; the broadly_high rung this adjudication turns on is undecidable from the stored record"
+   },
+   {
+    "target": "AURKA",
+    "code": "SCLC",
+    "det": 1.0,
+    "reason": "high_fraction not captured; the broadly_high rung this adjudication turns on is undecidable from the stored record"
+   },
+   {
+    "target": "BRAF",
+    "code": "SKCM",
+    "det": 0.9320388349514563,
+    "reason": "high_fraction not captured; the broadly_high rung this adjudication turns on is undecidable from the stored record"
+   },
+   {
+    "target": "CDS2",
+    "code": "COADREAD",
+    "det": 1.0,
+    "reason": "high_fraction not captured; the broadly_high rung this adjudication turns on is undecidable from the stored record"
+   },
+   {
+    "target": "CEACAM5",
+    "code": "LUAD",
+    "det": 0.9666666666666667,
+    "reason": "high_fraction not captured; the broadly_high rung this adjudication turns on is undecidable from the stored record"
+   },
+   {
+    "target": "CHEK1",
+    "code": "COADREAD",
+    "det": 0.9970104633781763,
+    "reason": "high_fraction not captured; the broadly_high rung this adjudication turns on is undecidable from the stored record"
+   },
+   {
+    "target": "CNDP2",
+    "code": "COADREAD",
+    "det": 1.0,
+    "reason": "high_fraction not captured; the broadly_high rung this adjudication turns on is undecidable from the stored record"
+   },
+   {
+    "target": "DLL3",
+    "code": "SCLC",
+    "det": 0.9135802469135802,
+    "reason": "high_fraction not captured; the broadly_high rung this adjudication turns on is undecidable from the stored record"
+   },
+   {
+    "target": "EGFR",
+    "code": "LUAD",
+    "det": 0.9888888888888889,
+    "reason": "high_fraction not captured; the broadly_high rung this adjudication turns on is undecidable from the stored record"
+   },
+   {
+    "target": "EPAS1",
+    "code": "COADREAD",
+    "det": 1.0,
+    "reason": "high_fraction not captured; the broadly_high rung this adjudication turns on is undecidable from the stored record"
+   },
+   {
+    "target": "ERBB2",
+    "code": "BRCA",
+    "det": 0.9991126885536823,
+    "reason": "high_fraction not captured; the broadly_high rung this adjudication turns on is undecidable from the stored record"
+   },
+   {
+    "target": "FOLR1",
+    "code": "OV",
+    "det": 1.0,
+    "reason": "high_fraction not captured; the broadly_high rung this adjudication turns on is undecidable from the stored record"
+   },
+   {
+    "target": "GRIN2D",
+    "code": "STAD",
+    "det": 0.9302884615384616,
+    "reason": "high_fraction not captured; the broadly_high rung this adjudication turns on is undecidable from the stored record"
+   },
+   {
+    "target": "IDO1",
+    "code": "SKCM",
+    "det": 0.5533980582524272,
+    "reason": "high_fraction not captured; the broadly_high rung this adjudication turns on is undecidable from the stored record"
+   },
+   {
+    "target": "KAT7",
+    "code": "COADREAD",
+    "det": 0.9985052316890882,
+    "reason": "high_fraction not captured; the broadly_high rung this adjudication turns on is undecidable from the stored record"
+   },
+   {
+    "target": "KIF11",
+    "code": "COADREAD",
+    "det": 0.9985052316890882,
+    "reason": "high_fraction not captured; the broadly_high rung this adjudication turns on is undecidable from the stored record"
+   },
+   {
+    "target": "KRAS",
+    "code": "COADREAD",
+    "det": 1.0,
+    "reason": "high_fraction not captured; the broadly_high rung this adjudication turns on is undecidable from the stored record"
+   },
+   {
+    "target": "MCL1",
+    "code": "SCLC",
+    "det": 1.0,
+    "reason": "high_fraction not captured; the broadly_high rung this adjudication turns on is undecidable from the stored record"
+   },
+   {
+    "target": "MMP9",
+    "code": "COADREAD",
+    "det": 0.9940209267563528,
+    "reason": "high_fraction not captured; the broadly_high rung this adjudication turns on is undecidable from the stored record"
+   },
+   {
+    "target": "MUC13",
+    "code": "COADREAD",
+    "det": 0.9985052316890882,
+    "reason": "high_fraction not captured; the broadly_high rung this adjudication turns on is undecidable from the stored record"
+   },
+   {
+    "target": "NECTIN4",
+    "code": "BLCA",
+    "det": 0.9830917874396136,
+    "reason": "high_fraction not captured; the broadly_high rung this adjudication turns on is undecidable from the stored record"
+   },
+   {
+    "target": "NOX1",
+    "code": "COADREAD",
+    "det": 0.9880418535127056,
+    "reason": "high_fraction not captured; the broadly_high rung this adjudication turns on is undecidable from the stored record"
+   },
+   {
+    "target": "PARP1",
+    "code": "OV",
+    "det": 1.0,
+    "reason": "high_fraction not captured; the broadly_high rung this adjudication turns on is undecidable from the stored record"
+   },
+   {
+    "target": "PELO",
+    "code": "COADREAD",
+    "det": 1.0,
+    "reason": "high_fraction not captured; the broadly_high rung this adjudication turns on is undecidable from the stored record"
+   },
+   {
+    "target": "PLK1",
+    "code": "COADREAD",
+    "det": 1.0,
+    "reason": "high_fraction not captured; the broadly_high rung this adjudication turns on is undecidable from the stored record"
+   },
+   {
+    "target": "RBM39",
+    "code": "COADREAD",
+    "det": 1.0,
+    "reason": "high_fraction not captured; the broadly_high rung this adjudication turns on is undecidable from the stored record"
+   },
+   {
+    "target": "RIPK1",
+    "code": "COADREAD",
+    "det": 1.0,
+    "reason": "high_fraction not captured; the broadly_high rung this adjudication turns on is undecidable from the stored record"
+   },
+   {
+    "target": "SCD",
+    "code": "COADREAD",
+    "det": 1.0,
+    "reason": "high_fraction not captured; the broadly_high rung this adjudication turns on is undecidable from the stored record"
+   },
+   {
+    "target": "SKP2",
+    "code": "SCLC",
+    "det": 1.0,
+    "reason": "high_fraction not captured; the broadly_high rung this adjudication turns on is undecidable from the stored record"
+   },
+   {
+    "target": "SMARCA2",
+    "code": "LUAD",
+    "det": 0.9944444444444445,
+    "reason": "high_fraction not captured; the broadly_high rung this adjudication turns on is undecidable from the stored record"
+   },
+   {
+    "target": "STEAP1",
+    "code": "PRAD",
+    "det": 1.0,
+    "reason": "high_fraction not captured; the broadly_high rung this adjudication turns on is undecidable from the stored record"
+   },
+   {
+    "target": "TACSTD2",
+    "code": "BRCA",
+    "det": 0.9946761313220941,
+    "reason": "high_fraction not captured; the broadly_high rung this adjudication turns on is undecidable from the stored record"
+   },
+   {
+    "target": "WEE1",
+    "code": "OV",
+    "det": 0.9976303317535545,
+    "reason": "high_fraction not captured; the broadly_high rung this adjudication turns on is undecidable from the stored record"
+   },
+   {
+    "target": "WRN",
+    "code": "COADREAD",
+    "det": 0.9820627802690582,
+    "reason": "high_fraction not captured; the broadly_high rung this adjudication turns on is undecidable from the stored record"
+   }
+  ],
+  "anchors": [
+   {
+    "target": "APC",
+    "code": "COADREAD",
+    "anchor": "apc_coadread.tumor_rna_distribution.json",
+    "det": 0.9207772795216741,
+    "high": 0.0,
+    "pat": "continuous",
+    "mod": 0.014947683109118086,
+    "pinned_class": "broadly_moderate",
+    "A": "broadly_moderate",
+    "B_0.30": "broadly_moderate"
+   },
+   {
+    "target": "CEACAM5",
+    "code": "COADREAD",
+    "anchor": "ceacam5_coadread.tumor_rna_distribution.json",
+    "det": 1.0,
+    "high": 0.9955156950672646,
+    "pat": "continuous",
+    "mod": 0.9985052316890882,
+    "pinned_class": "broadly_high",
+    "A": "broadly_high",
+    "B_0.30": "broadly_high"
+   },
+   {
+    "target": "DLL3",
+    "code": "SCLC",
+    "anchor": "dll3_sclc.tumor_rna_distribution.json",
+    "det": 0.9135802469135802,
+    "high": 0.5185185185185185,
+    "pat": "continuous",
+    "mod": 0.7777777777777778,
+    "pinned_class": "broadly_high",
+    "A": "broadly_high",
+    "B_0.30": "broadly_high"
+   },
+   {
+    "target": "EPCAM",
+    "code": "COADREAD",
+    "anchor": "epcam_coadread.tumor_rna_distribution.json",
+    "det": 1.0,
+    "high": 0.9970104633781763,
+    "pat": "continuous",
+    "mod": 1.0,
+    "pinned_class": "broadly_high",
+    "A": "broadly_high",
+    "B_0.30": "broadly_high"
+   },
+   {
+    "target": "ERBB2",
+    "code": "BRCA",
+    "anchor": "erbb2_brca.tumor_rna_distribution.json",
+    "det": 0.9991126885536823,
+    "high": 0.707187222715173,
+    "pat": "continuous",
+    "mod": 0.9787045252883763,
+    "pinned_class": "broadly_high",
+    "A": "broadly_high",
+    "B_0.30": "broadly_high"
+   },
+   {
+    "target": "FOLR1",
+    "code": "OV",
+    "anchor": "folr1_ov.tumor_rna_distribution.json",
+    "det": 1.0,
+    "high": 0.9123222748815166,
+    "pat": "continuous",
+    "mod": 0.990521327014218,
+    "pinned_class": "broadly_high",
+    "A": "broadly_high",
+    "B_0.30": "broadly_high"
+   },
+   {
+    "target": "KLK3",
+    "code": "PRAD",
+    "anchor": "klk3_prad.tumor_rna_distribution.json",
+    "det": 1.0,
+    "high": 1.0,
+    "pat": "continuous",
+    "mod": 1.0,
+    "pinned_class": "broadly_high",
+    "A": "broadly_high",
+    "B_0.30": "broadly_high"
+   },
+   {
+    "target": "MET",
+    "code": "COADREAD",
+    "anchor": "met_coadread.tumor_rna_distribution.json",
+    "det": 1.0,
+    "high": 0.3602391629297459,
+    "pat": "continuous",
+    "mod": 0.9820627802690582,
+    "pinned_class": "broadly_detected",
+    "A": "broadly_detected",
+    "B_0.30": "broadly_high"
+   },
+   {
+    "target": "MSLN",
+    "code": "PAAD",
+    "anchor": "msln_paad.tumor_rna_distribution.json",
+    "det": 0.9438202247191011,
+    "high": 0.8089887640449438,
+    "pat": "continuous",
+    "mod": 0.8820224719101124,
+    "pinned_class": "broadly_high",
+    "A": "broadly_high",
+    "B_0.30": "broadly_high"
+   },
+   {
+    "target": "TACSTD2",
+    "code": "COADREAD",
+    "anchor": "tacstd2_coadread.tumor_rna_distribution.json",
+    "det": 0.922272047832586,
+    "high": 0.19581464872944693,
+    "pat": "continuous",
+    "mod": 0.48878923766816146,
+    "pinned_class": "broadly_moderate",
+    "A": "broadly_moderate",
+    "B_0.30": "broadly_moderate"
+   }
+  ],
+  "panel": [
+   {
+    "target": "ROR1",
+    "code": "LUAD",
+    "det": 0.7703703703703704,
+    "high": 0.0,
+    "pat": "continuous",
+    "live_measured_class": "broadly_moderate",
+    "A": "broadly_detected",
+    "B_0.30": "broadly_detected"
+   },
+   {
+    "target": "TERT",
+    "code": "SKCM",
+    "det": 0.11650485436893204,
+    "high": 0.0,
+    "pat": "continuous",
+    "live_measured_class": "broadly_low",
+    "A": "broadly_low",
+    "B_0.30": "broadly_low"
+   },
+   {
+    "target": "FGFR2",
+    "code": "STAD",
+    "det": 0.9278846153846154,
+    "high": 0.028846153846153848,
+    "pat": "continuous",
+    "live_measured_class": "broadly_moderate",
+    "A": "broadly_detected",
+    "B_0.30": "broadly_detected"
+   },
+   {
+    "target": "LY6K",
+    "code": "LUSC",
+    "det": 0.9345238095238095,
+    "high": 0.057539682539682536,
+    "pat": "continuous",
+    "live_measured_class": "broadly_moderate",
+    "A": "broadly_detected",
+    "B_0.30": "broadly_detected"
+   },
+   {
+    "target": "CTAG1B",
+    "code": "SKCM",
+    "det": 0.22330097087378642,
+    "high": 0.05825242718446602,
+    "pat": "long_tail",
+    "live_measured_class": "broadly_low",
+    "A": "broadly_low",
+    "B_0.30": "broadly_low"
+   },
+   {
+    "target": "SSTR2",
+    "code": "SCLC",
+    "det": 0.9135802469135802,
+    "high": 0.08641975308641975,
+    "pat": "continuous",
+    "live_measured_class": "broadly_moderate",
+    "A": "broadly_detected",
+    "B_0.30": "broadly_detected"
+   },
+   {
+    "target": "DLK1",
+    "code": "LIHC",
+    "det": 0.18867924528301888,
+    "high": 0.09703504043126684,
+    "pat": "long_tail",
+    "live_measured_class": "broadly_low",
+    "A": "broadly_low",
+    "B_0.30": "broadly_low"
+   },
+   {
+    "target": "MAGEA3",
+    "code": "LUAD",
+    "det": 0.29074074074074074,
+    "high": 0.12962962962962962,
+    "pat": "long_tail",
+    "live_measured_class": "subset_high",
+    "A": "subset_high",
+    "B_0.30": "subset_high"
+   },
+   {
+    "target": "MET",
+    "code": "STAD",
+    "det": 0.9975961538461539,
+    "high": 0.2091346153846154,
+    "pat": "continuous",
+    "live_measured_class": "broadly_detected",
+    "A": "broadly_detected",
+    "B_0.30": "broadly_detected"
+   },
+   {
+    "target": "AFP",
+    "code": "LIHC",
+    "det": 0.8247978436657682,
+    "high": 0.22371967654986524,
+    "pat": "continuous",
+    "live_measured_class": "broadly_moderate",
+    "A": "broadly_detected",
+    "B_0.30": "broadly_detected"
+   },
+   {
+    "target": "MUC16",
+    "code": "OV",
+    "det": 0.9715639810426541,
+    "high": 0.26540284360189575,
+    "pat": "continuous",
+    "live_measured_class": "broadly_detected",
+    "A": "broadly_detected",
+    "B_0.30": "broadly_detected"
+   },
+   {
+    "target": "MAGEA4",
+    "code": "LUSC",
+    "det": 0.623015873015873,
+    "high": 0.3253968253968254,
+    "pat": "bimodal",
+    "live_measured_class": "subset_high",
+    "A": "subset_high",
+    "B_0.30": "broadly_high"
+   },
+   {
+    "target": "ERBB2",
+    "code": "STAD",
+    "det": 1.0,
+    "high": 0.3317307692307692,
+    "pat": "continuous",
+    "live_measured_class": "broadly_detected",
+    "A": "broadly_detected",
+    "B_0.30": "broadly_high"
+   },
+   {
+    "target": "MAGEA3",
+    "code": "SKCM",
+    "det": 0.6893203883495146,
+    "high": 0.36893203883495146,
+    "pat": "bimodal",
+    "live_measured_class": "subset_high",
+    "A": "subset_high",
+    "B_0.30": "broadly_high"
+   },
+   {
+    "target": "CLDN6",
+    "code": "OV",
+    "det": 0.9241706161137441,
+    "high": 0.44786729857819907,
+    "pat": "continuous",
+    "live_measured_class": "broadly_detected",
+    "A": "broadly_detected",
+    "B_0.30": "broadly_high"
+   },
+   {
+    "target": "CD276",
+    "code": "PAAD",
+    "det": 1.0,
+    "high": 0.47191011235955055,
+    "pat": "continuous",
+    "live_measured_class": "broadly_detected",
+    "A": "broadly_detected",
+    "B_0.30": "broadly_high"
+   },
+   {
+    "target": "CLDN18",
+    "code": "STAD",
+    "det": 0.9110576923076923,
+    "high": 0.6298076923076923,
+    "pat": "continuous",
+    "live_measured_class": "broadly_high",
+    "A": "broadly_high",
+    "B_0.30": "broadly_high"
+   },
+   {
+    "target": "GPC3",
+    "code": "LIHC",
+    "det": 0.9757412398921833,
+    "high": 0.7008086253369272,
+    "pat": "continuous",
+    "live_measured_class": "broadly_high",
+    "A": "broadly_high",
+    "B_0.30": "broadly_high"
+   },
+   {
+    "target": "MSLN",
+    "code": "PAAD",
+    "det": 0.9438202247191011,
+    "high": 0.8089887640449438,
+    "pat": "continuous",
+    "live_measured_class": "broadly_high",
+    "A": "broadly_high",
+    "B_0.30": "broadly_high"
+   },
+   {
+    "target": "PRAME",
+    "code": "SKCM",
+    "det": 0.970873786407767,
+    "high": 0.8737864077669902,
+    "pat": "continuous",
+    "live_measured_class": "broadly_high",
+    "A": "broadly_high",
+    "B_0.30": "broadly_high"
+   },
+   {
+    "target": "FOLH1",
+    "code": "PRAD",
+    "det": 1.0,
+    "high": 0.8891089108910891,
+    "pat": "continuous",
+    "live_measured_class": "broadly_high",
+    "A": "broadly_high",
+    "B_0.30": "broadly_high"
+   },
+   {
+    "target": "CEACAM6",
+    "code": "PAAD",
+    "det": 0.9775280898876404,
+    "high": 0.8932584269662921,
+    "pat": "continuous",
+    "live_measured_class": "broadly_high",
+    "A": "broadly_high",
+    "B_0.30": "broadly_high"
+   },
+   {
+    "target": "SLC34A2",
+    "code": "LUAD",
+    "det": 0.9944444444444445,
+    "high": 0.9074074074074074,
+    "pat": "continuous",
+    "live_measured_class": "broadly_high",
+    "A": "broadly_high",
+    "B_0.30": "broadly_high"
+   },
+   {
+    "target": "MSLN",
+    "code": "OV",
+    "det": 1.0,
+    "high": 0.9644549763033176,
+    "pat": "continuous",
+    "live_measured_class": "broadly_high",
+    "A": "broadly_high",
+    "B_0.30": "broadly_high"
+   },
+   {
+    "target": "KLK3",
+    "code": "PRAD",
+    "det": 1.0,
+    "high": 1.0,
+    "pat": "continuous",
+    "live_measured_class": "broadly_high",
+    "A": "broadly_high",
+    "B_0.30": "broadly_high"
+   }
+  ]
+ }
+}
