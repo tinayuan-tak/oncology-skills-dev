@@ -91,6 +91,7 @@ _L1_ACCURACY_EVIDENCE = {
     "batch_c_test": "skills/tumor-presence/tests/test_scorecard_l1_accuracy_rederivation_batch_c.py",
     "batch_d_test": "skills/tumor-presence/tests/test_scorecard_l1_accuracy_rederivation_batch_d.py",
     "batch_e_test": "skills/tumor-presence/tests/test_scorecard_l1_accuracy_rederivation_batch_e.py",
+    "batch_f_test": "skills/tumor-presence/tests/test_scorecard_l1_accuracy_rederivation_batch_f.py",
     "cards_covered": [
         "cellline-rna-distribution",
         "tumor-scrna-celltype-expression",
@@ -105,16 +106,15 @@ _L1_ACCURACY_EVIDENCE = {
         "hpa-pathology-cancer-ihc",
         "sc-normal-celltype-expression",
         "normal-tissue-liability",
-    ],
-    # 13 of 17. The remaining 4 are the by-subtype distribution trio + the ProCan cell-line protein
-    # abundance card — NOT closed by batch E (#2047's own "15/17->17/17, closes the roster" framing
-    # is stale against the committed 11/17 baseline batch D actually landed; corrected here).
-    "cards_not_yet_covered": [
         "tumor-rna-distribution-by-subtype",
         "cellline-rna-distribution-by-subtype",
         "tumor-protein-distribution-by-subtype",
         "cellline-protein-abundance-procan",
     ],
+    # 17 of 17 — the roster is CLOSED (batch F, #2088). Batch F enrolled the final four (the
+    # by-subtype distribution trio + the ProCan cell-line protein card) via analysis-methods
+    # subtype-panorama / procan recomputation anchors bridged to the EPCAM/COADREAD golden.
+    "cards_not_yet_covered": [],
     "raw_substrate": {
         "cellline-rna-distribution": "analysis-methods anchor epcam_26q1.cellline_rna_distribution.json "
         "+ expression_vectors/epcam_26q1.cellline_rna_distribution.parquet (2446-model raw log2(TPM+1) "
@@ -187,6 +187,58 @@ _L1_ACCURACY_EVIDENCE = {
         "read_gene_celltype_rows S3-load seam mocked). DO-NOT-REFILE: the Tier-1 product's cross-donor "
         "aggregate is an UNWEIGHTED cross-donor median BY DESIGN (data-catalog's Tier-2->Tier-1 build, "
         "out of scope for this anchor, which validates the READ + CLASSIFY path only).",
+        "cellline-protein-abundance-procan": "analysis-methods anchor epcam.procan_protein_abundance.json "
+        "(batch F, #2088) + procan_vectors/epcam.procan_rows.parquet (the accession's per-model raw "
+        "ProCan DIA/SWATH log_abundance rows, uniprot_base==P16422) + procan_vectors/"
+        "procan_allprotein_median_null.parquet (the panel-wide all-protein median null, one row per "
+        "protein at its median — the percentile + broadly_high denominators the product ships no "
+        "sidecar for); re-derived through onc_methods.procan_protein_abundance.cli.load_and_classify"
+        "(product_path=, null_path=) with the symbol->UniProt lookup pinned to the captured accession. "
+        "HONEST DRIFT (pinned, cross-linked #2061/#2261, golden NOT regenerated): every numeric field "
+        "(median/p5/p25/p75/p95/IQR/fraction_detected/allgene_percentile) is BYTE-EXACT vs the golden, "
+        "but protein_expression_class re-derives lineage_restricted->sub_broad_detection (the golden "
+        "predates the current detection-band classifier, which also emits the new "
+        "protein_high_abundance_class_cutoff key) — a pure classifier evolution over identical substrate.",
+        "cellline-rna-distribution-by-subtype": "analysis-methods anchor "
+        "epcam_coadread.cellline_rna_subtype.json (batch F, #2088) + subtype_panorama_vectors/"
+        "epcam.depmap_tpm_26q3.json (the gene's full per-ModelID DepMap 26Q3 log2(TPM+1) dict) + "
+        "subtype_panorama_vectors/coadread.depmap_subgroup_assignments.parquet (the DepMap-side MSI "
+        "assignment shard); re-derived through onc_methods.depmap_expression_distribution.read."
+        "build_expression_subtype_panorama (seams _cached_tpm + subgroup_common.scoping.load_assignments "
+        "mocked). HONEST DRIFT (pinned, cross-linked #2061, golden NOT regenerated across the vintage "
+        "boundary — an owner call): the golden is DepMap-26Q1, the live reader 26Q3 (subgroup_n 27->28, "
+        "median 9.6038->9.6131, pooled 9.8646->9.8724, source_cohort/_data_source 26q1->26q3); plus the "
+        "finer AM#659 exploratory grade (underpowered->exploratory, same not-`measured` state), the "
+        "now-emitted subtype_enrich_log2_delta (None->1.0), and the new assignment_manifest stamp. The "
+        "verdict-bearing subtype_stratification_class / n_subtypes_measured + per-stratum class / "
+        "fraction_expressed / subtype_signal are byte-stable.",
+        "tumor-protein-distribution-by-subtype": "analysis-methods anchor "
+        "epcam_coadread.tumor_protein_subtype.json (batch F, #2088) + subtype_panorama_vectors/"
+        "epcam.cptac_per_sample.parquet (the target's raw per-aliquot CPTAC tumor-vs-reference "
+        "log2_ratio rows) + subtype_panorama_vectors/coadread.cptac_subgroup_assignments.parquet (the "
+        "CPTAC MSI assignment shard); re-derived through onc_methods.cptac_protein_distribution.read."
+        "build_protein_subtype_panorama (seams cptac_protein_deg.read.read_per_sample + "
+        "subgroup_common.scoping.load_assignments mocked). Every measured value (median_log2_ratio / "
+        "class / detectable_fraction / subgroup_n / subtype_signal / pooled_cohort_median) is BYTE-EXACT "
+        "vs the golden; HONEST DRIFT (pinned, cross-linked #2061): the finer exploratory grade "
+        "(underpowered->exploratory), the now-emitted subtype_enrich_log2_delta (None->0.25), and the "
+        "new assignment_manifest stamp.",
+        "tumor-rna-distribution-by-subtype": "analysis-methods anchor "
+        "epcam_coadread.tumor_rna_subtype.json (batch F, #2088) + subtype_panorama_vectors/"
+        "epcam.tcga_long_tcga.parquet + epcam.gtex_long.parquet (the tumor + matched-normal per-sample "
+        "log2(TPM+1) slices, the _read_gene seam) + tcga_uuid_barcode_sidecar.parquet (UUID->barcode "
+        "case bridge) + coadread.tcga_subtype_assignments_union.parquet (the unioned molecular+MAF "
+        "assignment shard) + pancanatlas_purity_by_case.json + epcam_coadread.tumor_allgene_percentile.json; "
+        "re-derived through onc_methods.tcga_gtex_expression_distribution.cli.build_subtype_panorama "
+        "(seams _read_gene, _load_sidecar, _load_subtype_assignments, _tumor_allgene_percentile, "
+        "expression_purity_confound.read._load_purity_by_case, and scoping.load_assignments [the "
+        "per-stratum join-coverage guard's independent second load] all mocked). ALL 25 scalar rollup "
+        "fields + every per-stratum median/percentile/class/subtype_signal across all 14 strata are "
+        "BYTE-EXACT vs the golden; HONEST DRIFT (pinned, cross-linked #2061, ADDITIVE): the golden's "
+        "vintage dropped the per-stratum five-number spread (p5/q1/mean/q3/sd_log2tpm, AM#857) + the "
+        "applied subtype_enrich_log2_delta (TC#811) — all None in the golden, values in the current "
+        "reader on every stratum (one coefficient_of_variation differs only by ~1e-15 float "
+        "re-association).",
         "normal-tissue-liability": "analysis-methods anchor epcam_coadread.hpa_normal_tissue_liability.json "
         "(batch E, #2047) + hpa_normal_liability_rows/epcam.hpa_normal_tissue_liability.row.json (the "
         "target's single raw HPA master-TSV row); re-derived through "
@@ -232,7 +284,14 @@ _L1_ACCURACY_EVIDENCE = {
         "recompute and tests/fixtures/epcam_coadread_decision.json (the two concordance ci95 bounds + the "
         "purity correlation coefficients are honestly-pinned verdict-inert drifts from batch D, and the "
         "sc-normal safety-essential-panel growth + normal-tissue-liability essential_tissue_flag flip are "
-        "honestly-pinned drifts from batch E, see boundary)"
+        "honestly-pinned drifts from batch E, see boundary); and batch F (#2088, the ROSTER CLOSER): the "
+        "procan numeric distribution (median/p5/p25/p75/p95/IQR/fraction_detected/allgene_percentile), the "
+        "cellline-rna-by-subtype + tumor-protein-by-subtype rollup class + per-stratum measured values, and "
+        "ALL 25 tumor-rna-by-subtype scalar rollup fields + every per-stratum median/percentile/class/"
+        "subtype_signal across the 14 strata all match at full precision; the batch-F drifts (procan class "
+        "reclassification, the cell-line 26Q1->26Q3 vintage, the finer exploratory grade, the now-emitted "
+        "subtype_enrich_log2_delta + five-number spread, and the new assignment_manifest / "
+        "protein_high_abundance_class_cutoff stamps) are honestly-pinned verdict-inert drifts, see boundary)"
     ),
     "boundary": (
         "Anchors validate the read/aggregation path, NOT the upstream DESeq2/DEG runs (that provenance "
@@ -299,7 +358,30 @@ _L1_ACCURACY_EVIDENCE = {
         "reliability) are new and absent from the golden entirely. normal_tissue_breadth_class/"
         "hpa_tissue_distribution/hpa_tissue_specificity/n_specific_tissues/specific_tissues/"
         "method_version are byte-exact (pinned by "
-        "test_hpa_liability_essential_tissue_flag_drift_is_pinned_verdict_inert_and_cross_linked_2061)."
+        "test_hpa_liability_essential_tissue_flag_drift_is_pinned_verdict_inert_and_cross_linked_2061). "
+        "BATCH F (#2088) — ROSTER CLOSER, FOUR HONESTLY-RECORDED verdict-inert DRIFTS (golden NOT "
+        "regenerated — full structural regen incl. the cell-line 26Q1->26Q3 vintage boundary, a "
+        "product-semantics OWNER call, tracked in #2061): (1) cellline-protein-abundance-procan's "
+        "protein_expression_class re-derives lineage_restricted->sub_broad_detection over a BYTE-EXACT "
+        "numeric substrate (the golden predates the current detection-band classifier + its new "
+        "protein_high_abundance_class_cutoff key, #2261) — pinned by "
+        "test_procan_class_drift_is_pinned_classifier_evolution_cross_linked_2061. (2) "
+        "cellline-rna-distribution-by-subtype is DepMap-26Q1 in the golden vs 26Q3 live (subgroup_n "
+        "27->28, median 9.6038->9.6131, pooled 9.8646->9.8724, source_cohort/_data_source 26q1->26q3) "
+        "plus the finer AM#659 exploratory grade + the now-emitted subtype_enrich_log2_delta (None->1.0) "
+        "+ the new assignment_manifest stamp; class/fraction_expressed/subtype_signal + the verdict-"
+        "bearing rollup are byte-stable (pinned by "
+        "test_cellline_rna_drift_is_vintage_and_emission_and_grade_pinned_2061). (3) "
+        "tumor-protein-distribution-by-subtype's measured values are BYTE-EXACT; only the finer "
+        "exploratory grade + the now-emitted subtype_enrich_log2_delta (None->0.25) + the new "
+        "assignment_manifest stamp drift (pinned by "
+        "test_cptac_protein_drift_is_grade_and_emission_and_stamp_pinned_2061). (4) "
+        "tumor-rna-distribution-by-subtype's 25 scalar rollup fields + every per-stratum median/"
+        "percentile/class/subtype_signal across all 14 strata are BYTE-EXACT; the golden's vintage "
+        "dropped the per-stratum five-number spread (p5/q1/q3/mean/sd_log2tpm, AM#857) + the applied "
+        "subtype_enrich_log2_delta (TC#811), all None in the golden and values in the current reader on "
+        "every stratum, ADDITIVE-only (one coefficient_of_variation differs by ~1e-15 float "
+        "re-association) (pinned by test_tumor_rna_additive_spread_and_delta_drift_is_pinned_2061)."
     ),
     "teeth": (
         "test_cellline_rna_distribution_teeth_mutated_input_breaks_the_golden_match, "
@@ -318,11 +400,16 @@ _L1_ACCURACY_EVIDENCE = {
         "read to data_unavailable; and the batch-E (#2047) teeth — dropping every row for the named "
         "essential-organ driver cell type moves sc_normal_safety_essential_class off the golden's "
         "critical_organ_liability, and blanking the HPA specific-intensity column moves "
-        "essential_tissue_flag/essential_tissues_flagged off their live-derived values — "
-        "mutate the raw input and assert the "
+        "essential_tissue_flag/essential_tissues_flagged off their live-derived values; and the batch-F "
+        "(#2088) teeth — emptying the frozen procan rows collapses protein_expression_class to "
+        "data_unavailable (and its median off the golden), zeroing the frozen per-ModelID DepMap TPM "
+        "moves the cellline-rna MSS stratum's class off broadly_high, emptying the CPTAC per-aliquot "
+        "frame collapses tumor-protein n_subtypes_measured off the golden, and zeroing the frozen "
+        "per-sample tumor log2(TPM+1) moves the tumor-rna CIMP_High stratum's median_log2tpm off the "
+        "golden — mutate the raw input and assert the "
         "match breaks — proving the reconciliation is a live function of substrate, not a self-echo"
     ),
-    "status_as_of": "2026-09-29",
+    "status_as_of": "2026-09-30",
 }
 
 _L1_UTILIZATION_EVIDENCE = {
@@ -795,19 +882,19 @@ def build_shard() -> cs.SkillShard:
             "L1 = the 17 cards (OBSERVATIONAL_PROPERTY): 7 ladder-verdict-bearing + 3 L2b-island "
             "substrate + 3 corroboration/certainty-bearing + 1 verdict-adjacent (hpa-pathology-cancer-ihc) "
             "+ 2 safety-comparators + 1 (cellline-protein-abundance-procan, corroboration-bearing). "
-            "accuracy measured for 13 of the 17 cards with a landed analysis-methods T3 anchor bridged to "
-            "the EPCAM/COADREAD golden (cellline-rna-distribution, tumor-scrna-celltype-expression; "
+            "accuracy measured for ALL 17 of the 17 cards with a landed analysis-methods T3 anchor bridged "
+            "to the EPCAM/COADREAD golden (cellline-rna-distribution, tumor-scrna-celltype-expression; "
             "tumor-rna-distribution + cellline-protein-abundance — batch A, #2043; tumor-rna-vs-adjacent "
             "+ tumor-elevation-breadth — batch B, #2044; tumor-protein-abundance-cptac — batch C, #2045; "
             "cellline-rna-protein-concordance + rna-protein-concordance-tumor + expression-purity-confound "
             "+ hpa-pathology-cancer-ihc — batch D, #2046; sc-normal-celltype-expression + "
-            "normal-tissue-liability — batch E, #2047). Batch D completed ALL 7 ladder-verdict-bearing "
-            "cards PLUS 4 non-verdict cards (2 rna-proxy concordance, the purity confounder, and the "
-            "verdict-adjacent HPA IHC); batch E enrolls the 2 normal-tissue safety-comparator cards. "
-            "CORRECTED (batch E's own issue title claimed '15/17->17/17, closes the roster' against a "
-            "stale premise — the true baseline batch D landed was 11/17): the remaining 4 of 17 (the "
-            "by-subtype distribution trio + cellline-protein-abundance-procan) have no anchor yet — the "
-            "roster is NOT closed (see accuracy evidence cards_covered / cards_not_yet_covered)."
+            "normal-tissue-liability — batch E, #2047; the by-subtype distribution trio "
+            "[tumor-rna-distribution-by-subtype, cellline-rna-distribution-by-subtype, "
+            "tumor-protein-distribution-by-subtype] + cellline-protein-abundance-procan — batch F, #2088). "
+            "Batch F is the ROSTER CLOSER: 13 -> 17/17, cards_not_yet_covered -> []. The four subtype/procan "
+            "anchors re-derive through their real subtype-panorama / procan readers offline and bridge to "
+            "the golden's stable subset, with the vintage/grade/emission/classifier drifts honestly pinned "
+            "(golden NOT regenerated; see boundary + cross-link #2061)."
         ),
     )
 

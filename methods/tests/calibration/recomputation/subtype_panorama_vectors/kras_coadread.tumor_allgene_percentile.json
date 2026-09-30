@@ -1,0 +1,9 @@
+{
+  "allgene_percentile": 84.46114349365234,
+  "allgene_percentile_by_study": {
+    "COAD": 84.97,
+    "READ": 83.95
+  },
+  "allgene_percentile_class": "mid",
+  "allgene_percentile_context": "tcga_tumor:COAD,READ all-gene median rank (allgene-tumor-rank-v1; mean of 2 study null(s))"
+}

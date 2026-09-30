@@ -1,0 +1,60 @@
+{
+  "target": "KRAS",
+  "indication": "COADREAD",
+  "skill": "tumor-presence",
+  "card_id": "cellline-rna-distribution-by-subtype",
+  "manifest": "depmap-subgroup-assignments-coadread-v1",
+  "strata": [
+    "MSI_H",
+    "MSS"
+  ],
+  "release_pin": "26q3",
+  "tpm_fixture": "subtype_panorama_vectors/kras.depmap_tpm_26q3.json",
+  "assignments_fixture": "subtype_panorama_vectors/coadread.depmap_subgroup_assignments.parquet",
+  "tpm_md5": "b1657ff18673a22633ff3a0bafd40857",
+  "assignments_md5": "5c8df15e6d2e2b3506728909b8279ebf",
+  "expected": {
+    "target": "KRAS",
+    "indication": "COADREAD",
+    "per_subgroup_metrics": [
+      {
+        "stratum": "MSI_H",
+        "class": "broadly_detected",
+        "evidence_state": "exploratory",
+        "median_log2tpm": 4.6397,
+        "fraction_expressed": 1.0,
+        "subgroup_n": 28,
+        "subgroup_n_floor_met": false,
+        "subtype_defining_data": "genomic",
+        "subtype_signal": null,
+        "subtype_enrich_log2_delta": null,
+        "source_cohort": "DepMap-26q3"
+      },
+      {
+        "stratum": "MSS",
+        "class": "broadly_detected",
+        "evidence_state": "measured",
+        "median_log2tpm": 4.4094,
+        "fraction_expressed": 1.0,
+        "subgroup_n": 100,
+        "subgroup_n_floor_met": true,
+        "subtype_defining_data": "genomic",
+        "subtype_signal": "subtype_uniform",
+        "subtype_enrich_log2_delta": 1.0,
+        "source_cohort": "DepMap-26q3"
+      }
+    ],
+    "subtype_axis_available": true,
+    "subtype_axis_quality": "exploratory",
+    "n_subtypes_measured": 1,
+    "n_subtypes_enriched": 0,
+    "n_subtypes_depleted": 0,
+    "subtype_stratification_class": "pan_subtype_uniform",
+    "spotlight_subtype": null,
+    "pooled_lineage_median_log2tpm": 4.4676,
+    "assignment_manifest": "depmap-subgroup-assignments-coadread-v1",
+    "_data_source": "DepMap-26q3 expression (subgroup-stratified)"
+  },
+  "_captured_at": "2026-09-30T22:34:19.402359+00:00",
+  "_provenance": "live cbg read via depmap_expression_distribution.read.build_expression_subtype_panorama('KRAS', 'COADREAD', strata=['MSI_H', 'MSS'], manifest='depmap-subgroup-assignments-coadread-v1'); fixtures = the target's per-ModelID log2(TPM+1) dict (_cached_tpm seam) + the DepMap subgroup-assignments shard (subgroup_common.scoping.load_assignments seam); re-derive by monkeypatching rd._cached_tpm and scoping.load_assignments."
+}

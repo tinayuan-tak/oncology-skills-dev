@@ -1,0 +1,55 @@
+{
+  "target": "EPCAM",
+  "indication": "COADREAD",
+  "skill": "tumor-presence",
+  "card_id": "tumor-protein-distribution-by-subtype",
+  "manifest": "cptac-subgroup-assignments-coadread-v1",
+  "strata": [
+    "MSI_H",
+    "MSS"
+  ],
+  "sample_fixture": "subtype_panorama_vectors/epcam.cptac_per_sample.parquet",
+  "assignments_fixture": "subtype_panorama_vectors/coadread.cptac_subgroup_assignments.parquet",
+  "sample_md5": "534d3b1ef0065c2f7554a7edc4f68bc0",
+  "assignments_md5": "c00a28a386b475894ab2676ef8b9e654",
+  "expected": {
+    "target": "EPCAM",
+    "indication": "COADREAD",
+    "per_subgroup_metrics": [
+      {
+        "stratum": "MSI_H",
+        "class": "protein_neutral",
+        "evidence_state": "exploratory",
+        "median_log2_ratio": -0.1222,
+        "detectable_fraction": 1.0,
+        "subgroup_n": 20,
+        "subgroup_n_floor_met": false,
+        "subtype_signal": null,
+        "subtype_enrich_log2_delta": null,
+        "source_cohort": "CPTAC-COAD"
+      },
+      {
+        "stratum": "MSS",
+        "class": "protein_neutral",
+        "evidence_state": "measured",
+        "median_log2_ratio": 0.1569,
+        "detectable_fraction": 1.0,
+        "subgroup_n": 34,
+        "subgroup_n_floor_met": true,
+        "subtype_signal": "subtype_uniform",
+        "subtype_enrich_log2_delta": 0.25,
+        "source_cohort": "CPTAC-COAD"
+      }
+    ],
+    "subtype_axis_available": true,
+    "subtype_axis_quality": "exploratory",
+    "n_subtypes_measured": 1,
+    "n_subtypes_enriched": 0,
+    "n_subtypes_depleted": 0,
+    "subtype_stratification_class": "pan_subtype_uniform",
+    "pooled_cohort_median_log2_ratio": -0.0352,
+    "assignment_manifest": "cptac-subgroup-assignments-coadread-v1"
+  },
+  "_captured_at": "2026-09-30T22:34:20.042745+00:00",
+  "_provenance": "live cbg read via cptac_protein_distribution.read.build_protein_subtype_panorama('EPCAM', 'COADREAD', strata=['MSI_H', 'MSS'], manifest='cptac-subgroup-assignments-coadread-v1'); fixtures = cptac_protein_deg.read.read_per_sample(target)'s per-aliquot rows + the CPTAC subgroup-assignments shard; re-derive by monkeypatching deg_read.read_per_sample and subgroup_common.scoping.load_assignments."
+}
