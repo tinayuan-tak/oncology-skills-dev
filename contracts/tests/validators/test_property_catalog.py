@@ -266,6 +266,47 @@ def test_teeth_determinant_line_drift_is_tolerated(tmp_path):
     assert _run(tmp_path, "tumor_presence.yaml", doc) == []
 
 
+def test_teeth_calibration_flip_matrix_path_moved(tmp_path):
+    """Defends against the citation that resolves to nothing. `calibration.flip_matrix` and
+    `calibration.controls` are how a determinant claims "this number was MEASURED, here is where" —
+    a claim that reads identically whether the artifact exists or was deleted three refactors ago.
+    Null is legal (nothing recorded yet); a non-empty value pointing nowhere is the defect."""
+    doc = _l2a_doc()
+    det = doc["properties"]["patient_tumor_abundance"]["determinants"][0]
+    det["calibration"]["flip_matrix"] = "methods/tests/calibration/gone/matrix.json"
+    errs = _run(tmp_path, "tumor_presence.yaml", doc)
+    assert any("flip_matrix" in e and "does not exist" in e for e in errs), errs
+
+
+def test_teeth_calibration_controls_path_moved(tmp_path):
+    """Same clause, the other key — pinned separately so dropping one key from the loop cannot stay
+    green on the strength of the other."""
+    doc = _l2a_doc()
+    det = doc["properties"]["patient_tumor_abundance"]["determinants"][0]
+    det["calibration"]["controls"] = "methods/methods/gone_controls/read.py"
+    errs = _run(tmp_path, "tumor_presence.yaml", doc)
+    assert any("controls" in e and "does not exist" in e for e in errs), errs
+
+
+def test_teeth_null_calibration_stays_legal(tmp_path):
+    """Deliberate NON-failure #1: most determinants have no calibration artifact yet, and saying so
+    honestly with `null` must not be punished — otherwise the pressure is to invent a citation."""
+    doc = _l2a_doc()
+    det = doc["properties"]["patient_tumor_abundance"]["determinants"][0]
+    det["calibration"]["flip_matrix"] = None
+    det["calibration"]["controls"] = None
+    assert _run(tmp_path, "tumor_presence.yaml", doc) == []
+
+
+def test_teeth_calibration_line_suffix_is_tolerated(tmp_path):
+    """Deliberate NON-failure #2: a calibration reference may carry a `:line` suffix like `source`
+    does, and line numbers drift on every unrelated edit."""
+    doc = _l2a_doc()
+    det = doc["properties"]["patient_tumor_abundance"]["determinants"][0]
+    det["calibration"]["controls"] = "methods/methods/tumor_presence_controls/read.py:999999"
+    assert _run(tmp_path, "tumor_presence.yaml", doc) == []
+
+
 def test_teeth_fleet_deferred_with_observables(tmp_path):
     """Defends against a property claiming to be unresolvable while quietly resolving something."""
     doc = copy.deepcopy(yaml.safe_load((CATALOG / "expression.yaml").read_text()))

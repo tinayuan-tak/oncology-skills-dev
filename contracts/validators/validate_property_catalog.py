@@ -220,7 +220,11 @@ def _check_determinants(r: Report, where: str, dets) -> None:
         src = d.get("source")
         if isinstance(src, str) and src.strip():
             # `path` or `path:line` — verify the PATH only. Line numbers drift; a moved module is
-            # the failure worth catching.
+            # the failure worth catching. (#2221 MEASURED the cost of that deliberate tolerance —
+            # a comment-only edit above a constant silently falsified 17 of this catalog's 20
+            # citations, and one citation is stale on trunk today — but tightening it is a design
+            # fork owned by `test_teeth_determinant_line_drift_is_tolerated`, not a bug to fix
+            # here. #2221 instead keeps its own edits LINE-COUNT NEUTRAL; see that issue.)
             path_part = src.split(":", 1)[0]
             if not (REPO_ROOT / path_part).exists():
                 r.err(f"{w}: `source` path `{path_part}` does not exist (relative to the repo root)")
@@ -232,6 +236,21 @@ def _check_determinants(r: Report, where: str, dets) -> None:
         for k in sorted(CALIBRATION_KEYS):
             if k not in cal:
                 r.err(f"{w}.calibration: missing `{k}` (write `null` when there is none)")
+        # `controls` and `flip_matrix` are PATH citations when they are non-null. An unresolvable
+        # citation is a false provenance claim that reads exactly like a real one — the same failure
+        # `source` above is checked for. Same treatment: verify the PATH, ignore any `:line` suffix.
+        # `null` stays legal (nothing recorded yet); it is a non-empty value pointing nowhere that is
+        # the defect. (#2221 is the first determinant to carry a non-null `flip_matrix`.)
+        for key in ("controls", "flip_matrix"):
+            ref = cal.get(key)
+            if isinstance(ref, str) and ref.strip():
+                ref_path = ref.split(":", 1)[0]
+                if not (REPO_ROOT / ref_path).exists():
+                    r.err(
+                        f"{w}.calibration: `{key}` cites `{ref_path}`, which does not exist "
+                        f"(relative to the repo root) — a calibration reference that resolves to "
+                        f"nothing is worse than `null`"
+                    )
         rationale = d.get("rationale") or ""
         if "UNKNOWN" in rationale and not cal.get("adjudication"):
             r.err(

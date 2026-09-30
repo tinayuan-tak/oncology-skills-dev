@@ -189,17 +189,60 @@ properties:
         unit: log2_tpm_plus_1
         source: methods/methods/expression_properties/resolve.py:63
         rationale: |
-          Mirrors methods/depmap_expression_distribution's `highly expressed` floor. CONFIRMED
-          divergence (measured 2026-09-29): the tumour path anchors "high" at
-          `HIGH_LOG2TPM = 5.6724` (tcga_gtex_expression_distribution/stats.py:24), derived as
-          log2(51) — a round number in LINEAR TPM (TPM 50). This 5.0 is a round number in LOG
-          space (TPM ~31). Two different rounding conventions, ~1.6x apart in linear TPM, both
-          labelled "highly expressed" — and both then fractioned at the same 0.5 bar to produce
-          the same `broadly_high` token. So the divergence is upstream of the fraction bar, in
-          what is being counted. Nothing records which convention is right.
+          Mirrors methods/depmap_expression_distribution's `highly expressed` floor (the same 5.0
+          is the `compute_summary_stats` default and `depmap_expression_distribution/read.py`'s
+          `_HIGHLY_EXPRESSED`). CONFIRMED divergence from the tumour path's
+          `HIGH_LOG2TPM = 5.6724` (tcga_gtex_expression_distribution/stats.py:24): 5.6724 is
+          log2(51), a round number in LINEAR TPM (TPM 50); this 5.0 is a round number in LOG
+          space (TPM ~31). Two rounding conventions ~1.6x apart in linear TPM, both labelled
+          "highly expressed", and both cutting the SAME quantity — the fraction of samples at or
+          above the bar — which is what makes the divergence real rather than (as in #2220) two
+          bars on different quantities.
+
+          ADJUDICATED #2221 (2026-09-30): DOCUMENTED-INTENTIONAL, NEITHER CONSTANT MOVED.
+          Measured on the live 61-pair tumour-presence panel (59 tumour units / 58 cell-line
+          units / 2 excluded for no samples), two-arm counterfactual, see `flip_matrix` below:
+            * tumour arm 5.6724 -> 5.0: 8/59 units move, all promotions (the bar is monotone);
+              max |delta high_fraction| 0.3602. 7 of the 8 are EXACTLY the units whose panel
+              median lies in the [5.0, 5.6724) gap.
+            * cell-line arm 5.0 -> 5.6724: 8/58 units move, all demotions; cell-line
+              `broadly_high` falls 17/58 -> 11/58 and the bimodal count falls 4 -> 3.
+          Three findings block a harmonisation rather than support one:
+            (a) NEITHER value is calibrated. Both are rounding artefacts, in different spaces,
+                and no curated high/low panel exists for either, so the measurement cannot say
+                which bar is more truthful — only how much would move.
+            (b) THE ANCHOR IS NOT THE ONLY DIVERGENCE, so moving it alone does not converge the
+                two `broadly_high` words. The fraction bar applied to the same quantity is 0.30
+                in `depmap_expression_distribution/cli.py::_classify_expression`
+                (`broadly_high_fraction`) but 0.50 here (`_BROADLY_HIGH_FRACTION_MIN`) and 0.50
+                in the tumour twin. Raising this anchor to 5.6724 moves cell-line `broadly_high`
+                to 11/58 while the tumour arm stays at 21/59 — i.e. the two words get FURTHER
+                apart, not closer. That 0.30 is currently recorded by no determinant at all.
+            (c) The two directions have asymmetric, out-of-scope costs: lowering the tumour bar
+                moves 8/59 tumour classes and so needs the tumour-presence golden regenerated
+                (owned by #2061 / #1984 PR-B), and raising this bar removes MET's bimodal call —
+                the buried-signal rescue this resolver exists for.
+          NOT measured here, and the honest limit of this adjudication: the panel-composition
+          NOISE FLOOR. #2223 ran the analogous comparison on the protein arm and found its
+          re-anchoring effect (4.0% of classes) sat well BELOW its own composition noise
+          (17.1%), i.e. a reshuffle rather than an improvement. The move measured here is
+          13.6% / 13.8%, but no composition-noise baseline exists for this panel, so the
+          decisive ratio cannot be formed. Any future proposal to move either anchor should
+          measure that floor first.
+
+          The direction is therefore an owner call on what "highly expressed" should MEAN
+          (round-in-linear-TPM vs round-in-log-space), not a measurement question; #2221 carries
+          the fork. Until it is answered the divergence is deliberate and documented HERE, and
+          `methods/tests/calibration/high_anchor_flip_matrix/` reds if either constant moves so
+          this paragraph cannot describe a tree that no longer exists.
+
+          Co-existing third value, recorded with its denominator rather than as a bug (it is
+          documented deliberate at its site): `skills/_skills_common/presence_tiers.py`'s
+          `ABUNDANCE_STRONG_LOG2TPM = 5.0` cuts a TUMOUR median in the skills layer while the
+          tumour card's own anchor is 5.6724. 7/59 panel units have medians in that gap.
         calibration:
           controls: null
-          flip_matrix: null
+          flip_matrix: methods/tests/calibration/high_anchor_flip_matrix/matrix.json
           adjudication: "#2221"
     consumers:
       - skill: tumor-presence

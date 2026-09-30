@@ -15,8 +15,8 @@ twin, which DOES consume shape, reads `subset_high`. This resolver makes the sam
 resolve `heterogeneity=high` + `prevalence=subset` for EPCAM, recovering the dropped signal WITHOUT
 touching `expression_class` (which stays byte-identical — the pilot's verdict-inert invariant).
 
-ARM AGREEMENT. The prevalence/heterogeneity "distinct high subset" call reuses the tumor twin's
-`subset_high` shape thresholds so the two arms agree on the same distribution:
+ARM AGREEMENT — PARTIAL. The "distinct high subset" call reuses the tumor twin's `subset_high`
+FRACTION thresholds (the absolute anchor is NOT shared — see the #2221 note at the foot of this file):
   - tumor: `_classify_tumor_expression` @ tcga_gtex_expression_distribution/read.py:862 —
     `pattern ∈ {bimodal, long_tail} ∧ high_fraction >= 0.1` → `subset_high`
     (and `high_fraction >= 0.5` → `broadly_high`, `detectable >= 0.7` → broadly detected).
@@ -240,3 +240,19 @@ def resolve_expression_properties(summary: Optional[dict]) -> dict:
     for name in _FLEET_DEFERRED:
         props[name] = "unmeasured"
     return props
+
+
+# ── #2221: WHAT "ARM AGREEMENT" ABOVE DOES *NOT* COVER ────────────────────────────────────────────
+# (deliberately placed at the FOOT of this module: every `source: ...resolve.py:<line>` citation in
+#  contracts/vocabularies/property_catalog/expression.yaml and in the skills' field_disposition.yaml
+#  is a LINE NUMBER, so prose inserted anywhere above would silently falsify ~20 of them.)
+# Mirrored: the FRACTION bars (0.1 / 0.5). NOT mirrored: the absolute anchor those fractions are
+# computed against — `_HIGHLY_EXPRESSED_LOG2TPM = 5.0` here vs the tumor twin's
+# `HIGH_LOG2TPM = 5.6724` (log2(51)). Same quantity, two rounding conventions ~1.6x apart in linear
+# TPM. Adjudicated #2221: DOCUMENTED-INTENTIONAL, neither constant moved, because harmonising the
+# anchor alone pushes the two `broadly_high` words FURTHER apart — the same-quantity fraction bar is
+# itself 0.30 in depmap_expression_distribution/cli.py::_classify_expression against 0.5 here — and
+# because raising this anchor to 5.6724 costs MET its bimodal call (8/58 cell-line units move).
+# Evidence: methods/tests/calibration/high_anchor_flip_matrix/ (two-arm matrix, 59 tumour + 58
+# cell-line units). Rationale of record:
+# contracts/vocabularies/property_catalog/expression.yaml::magnitude::_HIGHLY_EXPRESSED_LOG2TPM.

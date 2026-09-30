@@ -91,9 +91,29 @@ properties:
         rationale: |
           log2(51), i.e. a round TPM 50 in LINEAR space. Diverges from the cell-line twin's 5.0
           (round in LOG space, TPM ~31) — see expression.yaml::magnitude and #2221.
+
+          ADJUDICATED #2221 (2026-09-30): DOCUMENTED-INTENTIONAL, THIS CONSTANT NOT MOVED. The
+          two bars were confirmed to cut the SAME quantity (fraction of samples at or above),
+          unlike #2220's pair, so the divergence is real; but neither value is calibrated, both
+          are rounding artefacts in different spaces, and the same-quantity FRACTION bar also
+          diverges (0.30 in the cell-line card vs 0.50 here and in the cell-line resolver), so
+          moving this anchor alone would push the two `broadly_high` words further apart. Lowering
+          it to 5.0 moves 8/59 units on the live panel, all promotions, which would additionally
+          require the tumour-presence golden regenerated (#2061 / #1984 PR-B). Full per-mover
+          measurement and the two-arm matrix: see `flip_matrix` below and
+          expression.yaml::magnitude::_HIGHLY_EXPRESSED_LOG2TPM. The direction is an owner call
+          on what "highly expressed" should mean; the fork is on #2221.
+
+          Sub-question also settled by the same measurement: the rounding note on
+          cards/tumor-rna-distribution.card.yaml (the card declares a rounded 5.67 while this
+          constant is 5.6724, so a value in [5.6700, 5.6724) displays as at-or-above while the
+          code puts it below) describes a real gap that NO measured unit occupies at median grain
+          — 0 of 117 panel medians fall in the sliver, nearest is 0.0142 away, ~6x the sliver
+          width. It IS populated at per-sample grain (7 values), so the note is a live
+          display-precision hazard for fractions, not a hidden class flip.
         calibration:
           controls: methods/methods/tumor_presence_controls/read.py
-          flip_matrix: null
+          flip_matrix: methods/tests/calibration/high_anchor_flip_matrix/matrix.json
           adjudication: "#2221"
       - name: MODERATE_LOG2TPM
         value: 3.4594
@@ -109,8 +129,13 @@ properties:
       - name: BROADLY_DETECTED_MODERATE_FRACTION_MIN
         value: 0.5
         unit: fraction_of_tumors_above_moderate
-        source: methods/methods/tcga_gtex_expression_distribution/read.py:898
+        source: methods/methods/tcga_gtex_expression_distribution/read.py:884
         rationale: |
+          (Citation re-pointed 898 -> 884 by #2221: the cited line had drifted off the constant.
+          Nothing in the gates checks a `:line` suffix — deliberately, see
+          `test_teeth_determinant_line_drift_is_tolerated` — so this was found by hand-reading, and
+          #2221 carries the question of whether that tolerance should be tightened. The value and
+          the reasoning below are unchanged.)
           The detected-is-not-expressed guard (tumor-presence expert review, finding G4): a
           target sitting at the TPM~1 transcriptional-background floor in most tumours is
           "present but low-level", and must NOT inherit the `tumor_broadly_expressed` word that

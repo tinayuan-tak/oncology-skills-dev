@@ -5,9 +5,9 @@ Shared across Q1 (tumor distribution), Q2 (tumor-vs-normal percentile-crossing e
 
 Cutoff convention (plan-decided, DUAL — routed by metric type):
   - ABSOLUTE questions (detectable/moderate/high fraction) → fixed TPM-anchored cutoffs on
-    log2(TPM+1), anchored to DepMap's expressed/highly-expressed convention for cross-target/
-    cross-indication consistency: detectable ≥1.0 (TPM≈1), moderate ≥3.46 (TPM≈10), high ≥5.67
-    (TPM≈50).
+    log2(TPM+1): detectable ≥1.0 (TPM≈1) DOES match DepMap's `expressed`; moderate ≥3.46 (TPM≈10)
+    is local; high ≥5.67 (TPM≈50) does NOT match DepMap's `highly expressed` 5.0 — a measured,
+    adjudicated divergence (#2221), not a shared anchor. Details on the constant below.
   - ENRICHMENT questions (fraction of tumors above the Nth percentile of NORMAL) → normal-relative
     cutoffs, target-specific, tied to the therapeutic-window framing.
 All cutoffs are parameters here and are surfaced in the card's `thresholds:` block (reviewable).
@@ -17,11 +17,11 @@ from __future__ import annotations
 
 from methods.normal_tissue_safety_common import GTEX_ESSENTIAL_TISSUES
 
-# log2(TPM+1) absolute cutoffs anchored to DepMap's convention (detectable/high match
-# depmap_expression_distribution; moderate added for the spec's detectable/moderate/high tiers).
+# log2(TPM+1) absolute cutoffs. ⚠️ `high` is NOT DepMap's 5.0 (LINEAR-TPM vs LOG-space rounding) —
+# adjudicated #2221, neither moved; evidence: methods/tests/calibration/high_anchor_flip_matrix/.
 DETECTABLE_LOG2TPM = 1.0  # TPM ≈ 1
 MODERATE_LOG2TPM = 3.4594  # log2(11) ≈ TPM 10
-HIGH_LOG2TPM = 5.6724  # log2(51) ≈ TPM 50
+HIGH_LOG2TPM = 5.6724  # log2(51) ≈ TPM 50; NOT depmap's 5.0 (#2221) — moving it reds that suite
 
 
 def five_number(values) -> dict:
