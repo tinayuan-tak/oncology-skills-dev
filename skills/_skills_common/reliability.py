@@ -39,9 +39,17 @@ WHAT EMITS AT THIS STEP, HONESTLY (1a safety + 1b dependency):
                            `build_tumor_rank.py`/`build_depmap_rank.py` and surfaced through
                            `lookup.py`, #2328), so it is proven though it does not fire on any 1a/1b
                            property today.
-  * `detection_strength` — OMITTED for every 1a/1b property. DEFERRED (#2306 follow-on): its cutpoints are
-                           uncalibrated and no 1a/1b property is detection/abundance-kind, so the optional
-                           key is not carried (the byte-stable conditional-key idiom).
+  * `detection_strength` — OMITTED for every 1a/1b property (none is detection/abundance-kind, so no
+                           1a/1b spec names a `detection_strength_scheme`). Its cutpoints are now
+                           CALIBRATED (#2329): a property whose spec names a `detection_strength_scheme`
+                           + `detection_strength_anchor` projects that anchor's detection datum onto the
+                           `weak|moderate|strong` ordinal via
+                           onc_methods.reliability_calibration.detection_strength (each scheme mirrors
+                           its own method's detection cuts, single-sourced). Below the detection floor
+                           (or absent) -> the optional key is OMITTED (byte-stable conditional-key
+                           idiom), never a fabricated strength. Exercised on SYNTHETIC anchors today
+                           (presence/selectivity/surface L2a emission — #2212-#2214 — is not landed),
+                           exactly like the floor-tie path.
 """
 
 from __future__ import annotations
@@ -82,6 +90,25 @@ def _powered_floor_for(n_effective_anchor: "str | None") -> "int | None":
     return powered_floor_for(n_effective_anchor)
 
 
+def _detection_strength_for(scheme: "str | None", value) -> "str | None":
+    """The calibrated `weak|moderate|strong` ordinal for a detection datum under `scheme`, or None.
+
+    Single-sourced (never re-declared) from onc_methods.reliability_calibration.detection_strength
+    (#2329), where each scheme mirrors its own detection method's classification cuts. Imported LAZILY —
+    exactly like `_powered_floor_for` — so no production path that names no `detection_strength_scheme`
+    (every 1a/1b property) pulls methods, and an unavailable calibration source degrades HONESTLY to
+    None -> the optional key is OMITTED (governance.honest_degradation), never a crash: detection_strength
+    is verdict-inert, so a missing source is an absence, not a failure.
+    """
+    if not scheme:
+        return None
+    try:
+        from onc_methods.reliability_calibration.detection_strength import detection_strength_for
+    except ImportError:
+        return None
+    return detection_strength_for(scheme, value)
+
+
 # NO L2b island attachment at this step. The locked #2306 shape derives an L2b arm's reliability FROM
 # THAT ARM'S OWN anchors / `retained_quantitative`, and says the island does not RESTATE the L2a values.
 # The safety/dependency concordance islands (`_essentiality_concordance_claim`,
@@ -116,6 +143,16 @@ def _derive_reliability(anchors, spec: dict) -> dict:
                                     flag — never recomputed here (governance.derivation_is_a_projection).
                                     None/absent for every 1a/1b property (none resolve from
                                     `allgene_percentile`) -> [].
+          detection_strength_scheme : the calibration scheme for a detection/abundance-kind property
+                                    (`ihc_protein_presence_class` / `sc_malignant_detection_fraction` /
+                                    `surface_absolute_density`; see
+                                    onc_methods.reliability_calibration.detection_strength). None/absent
+                                    for every non-detection property -> the OPTIONAL `detection_strength`
+                                    key is OMITTED (byte-stable).
+          detection_strength_anchor : the field name of the detection datum the scheme reads (the
+                                    upstream class token or the numeric detection value). Read from the
+                                    same `by_field` projection; a value below the scheme's detection
+                                    floor, absent, or an unknown scheme -> key OMITTED.
 
     Returns the `reliability` dict. `powered`, `confound_flags` and `artifact_flags` are always present
     (required by the enum); `n_effective` and `detection_strength` are conditionally carried.
@@ -161,6 +198,14 @@ def _derive_reliability(anchors, spec: dict) -> dict:
         artifact_flags.append(_FLOOR_TIE_PERCENTILE)
     out["artifact_flags"] = artifact_flags
 
-    # detection_strength — DEFERRED (#2306 follow-on): cutpoints uncalibrated and no 1a/1b property is
-    # detection/abundance-kind, so the OPTIONAL key is OMITTED (byte-stable conditional-key idiom).
+    # detection_strength — OPTIONAL, detection/abundance-kind properties only (#2329). PROJECTS the
+    # property's own detection datum (an upstream class token or a numeric detection value) onto the
+    # weak|moderate|strong ordinal via the calibrated, single-sourced scheme the spec names — never a
+    # recompute. OMITTED (byte-stable) when the spec names no scheme, the anchor is absent, or the datum
+    # is below the scheme's detection floor (honest_degradation: absence OUTRANKS a fabricated strength).
+    strength = _detection_strength_for(
+        spec.get("detection_strength_scheme"), by_field.get(spec.get("detection_strength_anchor"))
+    )
+    if strength is not None:
+        out["detection_strength"] = strength
     return out

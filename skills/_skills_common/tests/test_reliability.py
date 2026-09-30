@@ -208,10 +208,127 @@ def test_artifact_flags_floor_tie_omitted_when_named_anchor_absent():
     assert out["artifact_flags"] == []
 
 
-# ── detection_strength: DEFERRED, always OMITTED this step ────────────────────────────────────────
-def test_detection_strength_omitted():
-    # MUTANT: `out["detection_strength"] = "strong"` reds this — cutpoints uncalibrated, key omitted.
+# ── detection_strength: OPTIONAL; emitted only when the spec names a calibrated scheme (#2329) ────
+def test_detection_strength_omitted_when_spec_names_no_scheme():
+    # THE 1a/1b PATH: no detection_strength_scheme -> key OMITTED (byte-stable) even with anchors present.
+    # MUTANT: `out["detection_strength"] = "strong"` on no scheme reds this.
     out = _derive_reliability([_anchor("n_tissues_tested", 30)], {"n_effective_anchor": "n_tissues_tested"})
+    assert "detection_strength" not in out
+
+
+def test_detection_strength_ihc_low_is_weak_the_cd274_exemplar():
+    # The canonical #2306 case: CD274 IHC (n_high=1,n_medium=1,n_not_detected=10 of 12 -> fraction 0.167
+    # -> ihc_detected_low). The deriver PROJECTS the upstream protein_presence_class token -> weak.
+    # MUTANT: map ihc_detected_low -> moderate/strong (or drop it) reds this.
+    out = _derive_reliability(
+        [_anchor("protein_presence_class", "ihc_detected_low")],
+        {
+            "detection_strength_scheme": "ihc_protein_presence_class",
+            "detection_strength_anchor": "protein_presence_class",
+        },
+    )
+    assert out["detection_strength"] == "weak"
+
+
+def test_detection_strength_ihc_high_and_moderate():
+    # MUTANT: swap the high/moderate mapping reds one of these.
+    hi = _derive_reliability(
+        [_anchor("protein_presence_class", "ihc_detected_high")],
+        {
+            "detection_strength_scheme": "ihc_protein_presence_class",
+            "detection_strength_anchor": "protein_presence_class",
+        },
+    )
+    mod = _derive_reliability(
+        [_anchor("protein_presence_class", "ihc_detected_moderate")],
+        {
+            "detection_strength_scheme": "ihc_protein_presence_class",
+            "detection_strength_anchor": "protein_presence_class",
+        },
+    )
+    assert hi["detection_strength"] == "strong"
+    assert mod["detection_strength"] == "moderate"
+
+
+def test_detection_strength_ihc_not_detected_omits_the_key():
+    # A MEASURED zero-detection read has nothing to grade -> key OMITTED, never a fabricated "weak".
+    # MUTANT: mapping ihc_not_detected -> weak reds this.
+    out = _derive_reliability(
+        [_anchor("protein_presence_class", "ihc_not_detected")],
+        {
+            "detection_strength_scheme": "ihc_protein_presence_class",
+            "detection_strength_anchor": "protein_presence_class",
+        },
+    )
+    assert "detection_strength" not in out
+
+
+def test_detection_strength_sc_fraction_bins_strong_moderate_weak():
+    # Single-cell malignant detection fraction, binned at the sc method's OWN cuts (0.5 / 0.10 / 0.05).
+    # MUTANT: shift any cut (>= -> >, or a wrong constant) reds one of these three.
+    def _sc(frac):
+        return _derive_reliability(
+            [_anchor("malignant_detection_fraction", frac)],
+            {
+                "detection_strength_scheme": "sc_malignant_detection_fraction",
+                "detection_strength_anchor": "malignant_detection_fraction",
+            },
+        )
+
+    assert _sc(0.76)["detection_strength"] == "strong"  # ceacam5-style broadly detected
+    assert _sc(0.156)["detection_strength"] == "moderate"  # apc-style subset detected
+    assert _sc(0.07)["detection_strength"] == "weak"  # low but above the undetected floor
+
+
+def test_detection_strength_sc_below_floor_omits_the_key():
+    # <= BROADLY_LOW_MAX (0.05) == effectively undetected -> key OMITTED. MUTANT: emit "weak" reds this.
+    out = _derive_reliability(
+        [_anchor("malignant_detection_fraction", 0.03)],
+        {
+            "detection_strength_scheme": "sc_malignant_detection_fraction",
+            "detection_strength_anchor": "malignant_detection_fraction",
+        },
+    )
+    assert "detection_strength" not in out
+
+
+def test_detection_strength_surface_density_band():
+    # Surface copies/cell, classified by the surface method's OWN _classify (100/1000/10000).
+    # MUTANT: map the very_low band to weak (instead of OMIT) reds the last assertion.
+    def _surf(value):
+        return _derive_reliability(
+            [_anchor("absolute_density_copies_per_cell", value)],
+            {
+                "detection_strength_scheme": "surface_absolute_density",
+                "detection_strength_anchor": "absolute_density_copies_per_cell",
+            },
+        )
+
+    assert _surf(50000)["detection_strength"] == "strong"  # > 10000
+    assert _surf(5000)["detection_strength"] == "moderate"  # [1000, 10000]
+    assert _surf(500)["detection_strength"] == "weak"  # [100, 1000)
+    assert "detection_strength" not in _surf(50)  # very_low -> OMIT
+
+
+def test_detection_strength_omitted_when_anchor_absent_though_scheme_named():
+    # The spec names a scheme but no anchor with that field is in the list -> value None -> OMIT
+    # (honest_degradation, never a fabricated strength). MUTANT: emit on a None datum reds this.
+    out = _derive_reliability(
+        [_anchor("some_other_field", "ihc_detected_high")],
+        {
+            "detection_strength_scheme": "ihc_protein_presence_class",
+            "detection_strength_anchor": "protein_presence_class",
+        },
+    )
+    assert "detection_strength" not in out
+
+
+def test_detection_strength_omitted_for_unknown_scheme():
+    # A scheme string the calibration does not know -> None -> OMIT (never a crash).
+    out = _derive_reliability(
+        [_anchor("protein_presence_class", "ihc_detected_high")],
+        {"detection_strength_scheme": "not_a_real_scheme", "detection_strength_anchor": "protein_presence_class"},
+    )
     assert "detection_strength" not in out
 
 
@@ -235,6 +352,12 @@ def test_emitted_tokens_are_governed():
     powered_tokens = {t["token"] for t in by_field["powered"]["tokens"]}
     confound_tokens = {t["token"] for t in by_field["confound_flags"]["tokens"]}
     artifact_tokens = {t["token"] for t in by_field["artifact_flags"]["tokens"]}
+    detection_tokens = {t["token"] for t in by_field["detection_strength"]["tokens"]}
     assert "unmeasured" in powered_tokens  # the sentinel this deriver emits uniformly on 1a/1b
     assert _MICROENVIRONMENT_WEIGHTED in confound_tokens
     assert _FLOOR_TIE_PERCENTILE in artifact_tokens
+    # every detection_strength value the calibration can emit is a governed enum token (drift in either
+    # the calibration ordinal or the enum reds).
+    from onc_methods.reliability_calibration.detection_strength import MODERATE, STRONG, WEAK
+
+    assert {WEAK, MODERATE, STRONG} <= detection_tokens

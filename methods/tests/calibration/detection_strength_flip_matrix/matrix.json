@@ -1,0 +1,74 @@
+{
+ "_meta": {
+  "what": "Descriptive flip matrix for #2329: reliability.detection_strength = the weak|moderate|strong ordinal projected from a detection/abundance property's own detection datum, over the framework's committed measured observations. The cutpoints are each scheme's method's OWN detection cuts (single-sourced). detection_strength is verdict-inert (SK#2091) and OPTIONAL (omitted below the detection floor).",
+  "ground_truth": "MEASURED/STORED: the observed detection datum per committed unit (the upstream class token / the numeric fraction). DERIVED (re-computed in the test, never trusted from here): detection_strength, via the SAME detection_strength_for the deriver uses. The cuts are re-read from each method's constant/classifier both directions, never stored.",
+  "schemes": [
+   "ihc_protein_presence_class",
+   "sc_malignant_detection_fraction",
+   "surface_absolute_density"
+  ],
+  "repo_sha": "3d6274af",
+  "captured_utc": "2026-09-30T23:34:34Z",
+  "regenerated_by": "methods/tests/calibration/detection_strength_flip_matrix/regenerate.py"
+ },
+ "schemes": {
+  "ihc_protein_presence_class": {
+   "n_observations": 2,
+   "distribution": {
+    "strong": 2
+   },
+   "observations": [
+    {
+     "source": "anchors/epcam_coadread.hpa_pathology_cancer_ihc.json",
+     "datum": "ihc_detected_high"
+    },
+    {
+     "source": "anchors/kras_coadread.hpa_pathology_cancer_ihc.json",
+     "datum": "ihc_detected_high"
+    }
+   ]
+  },
+  "sc_malignant_detection_fraction": {
+   "n_observations": 7,
+   "distribution": {
+    "moderate": 4,
+    "strong": 3
+   },
+   "observations": [
+    {
+     "source": "anchors/apc_coadread.sc_celltype.json",
+     "datum": 0.15598
+    },
+    {
+     "source": "anchors/ceacam5_coadread.sc_celltype.json",
+     "datum": 0.75883
+    },
+    {
+     "source": "anchors/epcam_coadread.sc_celltype.json",
+     "datum": 0.89476
+    },
+    {
+     "source": "anchors/folr1_ov.sc_celltype.json",
+     "datum": 0.603448
+    },
+    {
+     "source": "anchors/met_coadread.sc_celltype.json",
+     "datum": 0.39323
+    },
+    {
+     "source": "anchors/msln_paad.sc_celltype.json",
+     "datum": 0.349074
+    },
+    {
+     "source": "anchors/tacstd2_coadread.sc_celltype.json",
+     "datum": 0.11238
+    }
+   ]
+  },
+  "surface_absolute_density": {
+   "n_observations": 0,
+   "distribution": {},
+   "observations": []
+  }
+ }
+}
