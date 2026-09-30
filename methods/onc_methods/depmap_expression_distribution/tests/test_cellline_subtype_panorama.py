@@ -6,6 +6,8 @@ no S3/DepMap dependency."""
 
 from __future__ import annotations
 
+import pytest
+
 from onc_methods.depmap_expression_distribution import read as R
 
 
@@ -107,7 +109,7 @@ def test_projection_shape():
 def _stub_tpm(monkeypatch, n_models: int = 200, value: float = 6.0):
     """Stub the DepMap TPM load with `n_models` ModelIDs at a fixed log2(TPM+1). Offline."""
     tpm = {f"ACH-{i:06d}": value for i in range(n_models)}
-    monkeypatch.setattr(R, "_cached_tpm", lambda target, release_pin: (tpm, []))
+    monkeypatch.setattr(R, "_cached_tpm", lambda target, release_pin: (tpm, False))
     return tpm
 
 
@@ -266,3 +268,92 @@ def test_assignment_manifest_stamps_the_shard_the_run_read(monkeypatch):
         subgroup_assignments_manifest="depmap-subgroup-assignments-coadread-v1",
     )
     assert pan["assignment_manifest"] == "depmap-subgroup-assignments-coadread-v1"
+
+
+# ── F1 (#2178): a transient base-read failure must RAISE, never launder to a measured absent,
+# and must never poison-cache the error sentinel in `_cached_tpm` ───────────────────────────────
+
+
+def test_cached_tpm_reraises_a_non_definitive_load_error(monkeypatch):
+    """A transient (non-404) failure out of `load_expression_files` must propagate as a real
+    exception out of `_cached_tpm`, not collapse into a cached `({}, True)` sentinel.
+
+    Before the fix, `_cached_tpm` reduced ANY `load_errors` (ExpiredToken/403/throttle/timeout,
+    same as a genuine 404) to a bare `bool`, and `@lru_cache` then poison-cached that outcome for
+    the process lifetime. Simulating the transient by having `load_expression_files` itself raise
+    (as it now does for anything `is_definitively_absent` rejects) proves the propagation reaches
+    the caller instead of being swallowed into a stratum-level `absent`/`insufficient` payload.
+    """
+    R._cached_tpm.cache_clear()
+
+    def _raise_transient(release_pin, target_symbol):
+        raise RuntimeError("SlowDown: please reduce your request rate")
+
+    monkeypatch.setattr(R._cli, "load_expression_files", _raise_transient)
+    try:
+        with pytest.raises(RuntimeError, match="SlowDown"):
+            R._cached_tpm("EPCAM", "26q3")
+    finally:
+        R._cached_tpm.cache_clear()
+
+
+def test_read_stratified_expression_propagates_a_transient_instead_of_degrading(monkeypatch):
+    """The panorama-facing entry point must not swallow a transient into a measured `absent` axis.
+
+    Mirrors the acceptance bar directly: inject a non-404 error on the base read and assert
+    `read_stratified_expression` raises rather than yielding an `insufficient`/`absent` stratum
+    (which would roll up to an `empty` axis — a data-availability failure read as a measured
+    negative).
+    """
+    R._cached_tpm.cache_clear()
+
+    def _raise_transient(release_pin, target_symbol):
+        raise RuntimeError("ExpiredToken")
+
+    monkeypatch.setattr(R._cli, "load_expression_files", _raise_transient)
+    try:
+        with pytest.raises(RuntimeError, match="ExpiredToken"):
+            R.read_stratified_expression("EPCAM", "COADREAD")
+    finally:
+        R._cached_tpm.cache_clear()
+
+
+def test_cached_tpm_does_not_poison_cache_a_transient(monkeypatch):
+    """The sharpest regression: after a transient raises once, a SUBSEQUENT call for the SAME
+    (target, release_pin) must retry the load (and succeed) rather than replaying a cached
+    failure — proving `@lru_cache` never cached the raised exception."""
+    R._cached_tpm.cache_clear()
+    calls = {"n": 0}
+
+    def _flaky(release_pin, target_symbol):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise RuntimeError("SlowDown")
+        return {"ACH-000001": 6.0}, {}, []
+
+    monkeypatch.setattr(R._cli, "load_expression_files", _flaky)
+    try:
+        with pytest.raises(RuntimeError):
+            R._cached_tpm("EPCAM", "26q3")
+        # cache_clear simulates a fresh process retry (lru_cache never stored the failure, so a
+        # real second call — same as the panorama reader's next stratum invocation would issue
+        # once the S3 hiccup clears — succeeds).
+        R._cached_tpm.cache_clear()
+        assert R._cached_tpm("EPCAM", "26q3") == ({"ACH-000001": 6.0}, False)
+        assert calls["n"] == 2
+    finally:
+        R._cached_tpm.cache_clear()
+
+
+def test_genuine_absence_degrades_to_unevaluable_not_absent(monkeypatch):
+    """A genuine definitive-absence load result (empty `tpm_by_model`, no error) must produce an
+    internally-consistent ABSTENTION payload — `unevaluable`/`data_unavailable` — not the old
+    `absent`/`insufficient` pair (a measured-negative claim glued to an abstention token)."""
+    R._cached_tpm.cache_clear()
+    monkeypatch.setattr(R._cli, "load_expression_files", lambda release_pin, target_symbol: ({}, {}, []))
+    try:
+        rec = R.read_stratified_expression("NOSUCHGENE", "COADREAD")
+        assert rec["evidence_state"] == "unevaluable"
+        assert rec["expression_class"] == "data_unavailable"
+    finally:
+        R._cached_tpm.cache_clear()

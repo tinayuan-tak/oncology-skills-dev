@@ -143,6 +143,14 @@ def load_expression_files(release_pin: str, target_symbol: str) -> tuple[dict, d
         )
         return {}, {}, load_errors
     except Exception as e:
+        # Genuine object-absence (NoSuchKey/404) -> honest data_unavailable. A transient
+        # (ExpiredToken/403/throttle/timeout) or a broken-env error must NOT be masked as
+        # "no expression data" -- re-raise so it surfaces as an actual exception instead of a
+        # load_errors entry that _cached_tpm (read.py) would otherwise poison-cache forever.
+        from onc_methods.target_id_sidecar import is_definitively_absent
+
+        if not is_definitively_absent(e):
+            raise
         load_errors.append(
             {
                 "_live_read_error": "s3_read_failed",

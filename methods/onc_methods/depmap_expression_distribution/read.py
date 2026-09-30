@@ -112,11 +112,22 @@ def read_expression_distribution(
 
 
 @lru_cache(maxsize=64)
-def _cached_tpm(target: str, release_pin: str):
+def _cached_tpm(target: str, release_pin: str) -> tuple[dict, bool]:
     """Load per-ModelID log2(TPM+1) for target ONCE per (target, release_pin); the panorama
-    reader is called per-stratum by @subgroup_iterable, so cache the S3/parquet load."""
-    tpm, _meta, errs = _cli.load_expression_files(release_pin, target)
-    return (tpm or {}), bool(errs)
+    reader is called per-stratum by @subgroup_iterable, so cache the S3/parquet load.
+
+    Returns (tpm_by_model, is_definitive_absence) -- PRESERVES the historical 2-tuple return
+    contract (external consumers, e.g. tests/calibration/threshold_adjudication, monkeypatch
+    this attribute and rely on unpacking a 2-tuple). What changed is what REACHES this return:
+    `load_expression_files` (cli.py) now re-raises any load failure that is not a genuine
+    definitive absence (is_definitively_absent) -- a transient S3/creds error propagates as a
+    real exception instead of a `load_errors` entry. `@lru_cache` never caches a raised
+    exception, so a transient here is never poison-cached: the next call for the same
+    (target, release_pin) retries the load instead of replaying a stale failure forever. Only a
+    genuine absence (`is_definitive_absence=True`, `{}`) or a real result reaches this return.
+    """
+    tpm_by_model, _model_metadata, load_errors = _cli.load_expression_files(release_pin, target)
+    return (tpm_by_model or {}), bool(load_errors)
 
 
 def _expression_class(median: Optional[float]) -> str:
@@ -147,8 +158,14 @@ def read_stratified_expression(
     """
     import numpy as np
 
-    tpm_by_model, errs = _cached_tpm(target, release_pin)
-    if errs or not tpm_by_model:
+    tpm_by_model, is_definitive_absence = _cached_tpm(target, release_pin)
+    if is_definitive_absence or not tpm_by_model:
+        # A definitive load failure (or a genuinely-empty result) reaches here -- a transient
+        # S3/creds error already propagated as a raised exception out of _cached_tpm (see its
+        # docstring) instead of landing here. This is therefore an ABSTENTION ("we could not
+        # evaluate this stratum"), not a measured negative, so evidence_state/expression_class
+        # must agree on that (not the previous absent/insufficient mismatch, where `absent` is a
+        # positive measured claim and `insufficient` is an abstention).
         return {
             "target": target,
             "indication": indication,
@@ -156,8 +173,8 @@ def read_stratified_expression(
             "median_log2tpm": None,
             "fraction_expressed": None,
             "subgroup_n_floor_met": False,
-            "evidence_state": "absent",
-            "expression_class": "insufficient",
+            "evidence_state": "unevaluable",
+            "expression_class": "data_unavailable",
             "source_cohort": f"DepMap-{release_pin}",
             "_data_note": f"no DepMap {release_pin} expression for {target!r}",
         }
@@ -243,14 +260,17 @@ def _pooled_lineage_median(
     (the lineage's assigned cell lines) — the baseline each stratum's enrichment is measured against."""
     import numpy as np
 
-    tpm_by_model, errs = _cached_tpm(target, release_pin)
-    if errs or not tpm_by_model:
+    tpm_by_model, is_definitive_absence = _cached_tpm(target, release_pin)
+    if is_definitive_absence or not tpm_by_model:
         return None
     members: set = set()
     for sg in subgroups:
         try:
             members |= set(resolve_subgroup_cohort(manifest, sg, data_catalog_repo=catalog_repo) or [])
-        except Exception:  # noqa: BLE001 — a missing stratum shard shouldn't sink the baseline
+        except FileNotFoundError:
+            # genuine absence (no landed shard for this stratum) — a transient (ExpiredToken/
+            # 403/throttle/timeout) is no longer masked as FileNotFoundError by load_assignments
+            # (#2301/F2), so it propagates here instead of silently thinning the baseline.
             continue
     vals = [v for m, v in tpm_by_model.items() if m in members]
     return float(np.median(vals)) if vals else None
