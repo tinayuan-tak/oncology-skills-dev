@@ -240,7 +240,12 @@ def _pkg_files(top: str) -> list[Path]:
         files.append(AM / "onc_methods" / f"{top}.py")
     pkg = AM / "onc_methods" / top
     if pkg.is_dir():
-        files += list(pkg.rglob("*.py"))
+        # sorted() so the walk order is deterministic, not filesystem-inode dependent. Without it the
+        # per-file constant scope below still resolves each file's own reads correctly, but the walk
+        # order would otherwise vary between a CI checkout and a local clone — the exact shape that let
+        # a package-wide constant collision (two files defining the same name) regenerate a DIFFERENT
+        # committed ledger on CI vs locally (hpa-rna-tissue-consensus-v25-1 drift). Deterministic here.
+        files += sorted(pkg.rglob("*.py"))
     return files
 
 
@@ -310,8 +315,19 @@ def reads_for_card(mods: set[str], dirs: set[str]) -> tuple[set[str], set[str], 
         worklist |= _imported_methods_pkgs(trees, dirs) - scanned
     literals, templates, opaque = set(), set(), 0
     for trees in trees_by_pkg.values():
-        consts: dict[str, str] = {}  # package-wide str-constant map (cross-file within the package)
+        # Constant scope is PER FILE with a package-wide FALLBACK, not a single shared package-wide map.
+        # A shared map made whichever file was walked LAST win a given name, so two files in one package
+        # each defining `MANIFEST_ID = "<their own id>"` (e.g. tcga_gtex_tpm_quantiles/marrow.py ->
+        # "hpa-rna-tissue-consensus-v25-1" and read.py -> "tcga-gtex-tpm-tissue-quantiles-v1") both
+        # resolved to the last writer's value — dropping the other file's read entirely, with the winner
+        # decided by unsorted rglob order (CI captured hpa-rna, a local clone did not: the drift this
+        # fixes). Resolving each file's calls against its OWN constants first, falling back to the
+        # package-wide map only for names it does not define locally, keeps genuine cross-file constants
+        # working while making a same-name collision resolve correctly and deterministically.
+        file_consts: list[tuple[ast.AST, dict[str, str]]] = []
+        pkg_consts: dict[str, str] = {}  # package-wide fallback (last-writer) for true cross-file names
         for t in trees:
+            fc: dict[str, str] = {}
             for node in ast.walk(t):
                 if (
                     isinstance(node, ast.Assign)
@@ -320,8 +336,11 @@ def reads_for_card(mods: set[str], dirs: set[str]) -> tuple[set[str], set[str], 
                 ):
                     for tg in node.targets:
                         if isinstance(tg, ast.Name):
-                            consts[tg.id] = node.value.value
-        for t in trees:
+                            fc[tg.id] = node.value.value
+            file_consts.append((t, fc))
+            pkg_consts.update(fc)
+        for t, fc in file_consts:
+            consts = {**pkg_consts, **fc}  # file-local names take precedence over the package-wide fallback
             for node in ast.walk(t):
                 if isinstance(node, ast.Call) and _callee(node.func) in CATALOG_FUNCS and node.args:
                     r = _resolve_arg(node.args[0], consts)
