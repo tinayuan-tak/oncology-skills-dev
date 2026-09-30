@@ -28,6 +28,11 @@ SKILL_DIR = Path(__file__).resolve().parent.parent
 SKILLS_ROOT = SKILL_DIR.parent
 RUN_PY = SKILL_DIR / "scripts" / "run.py"
 FIXTURE = SKILL_DIR / "tests" / "fixtures" / "kras_coadread.yaml"
+# NEGATIVE-DIRECTION fixture (issue #1833): a hand-constructed non-dependent target whose queried
+# indication (COADREAD -> Bowel) is screened at adequate power but above the dependency cut, so the
+# preprocessor writes indication_dependency_class == not_dependent_in_indication and the indication VETO
+# rung (not-dependent-in-indication-killer, resolver rung 10) is exercised end-to-end.
+NEG_FIXTURE = SKILL_DIR / "tests" / "fixtures" / "not_dependent_in_indication.yaml"
 
 if str(SKILLS_ROOT) not in sys.path:
     sys.path.insert(0, str(SKILLS_ROOT))
@@ -79,6 +84,72 @@ def kras_decision(tmp_path_factory):
     return json.loads(decision_path.read_text())
 
 
+def _replay_decision(frozen_path: Path, target: str, indication: str, tmp_path_factory) -> dict:
+    """Replay an arbitrary frozen card-summary fixture THROUGH THE REAL run.py (dispatcher monkeypatched),
+    identical mechanics to the KRAS fixture. Shared so the positive (KRAS) and negative
+    (not_dependent_in_indication) replays exercise the same production preprocessor->rule->resolver chain."""
+    if not frozen_path.exists():
+        pytest.skip(f"no frozen fixture at {frozen_path}")
+    frozen = yaml.safe_load(frozen_path.read_text()) or {}
+    import _skills_common as skc
+
+    def _factory_read(card_id, tgt, ind, *a, **k):
+        s = frozen.get(card_id)
+        return copy.deepcopy(s) if _real(s) else None
+
+    out_dir = tmp_path_factory.mktemp(f"fr-replay-{target}-{indication}")
+    mp = pytest.MonkeyPatch()
+    mp.delenv("FRAMEWORK_HEALTH_SMOKE", raising=False)
+    mp.setattr(skc, "_import_dispatcher", lambda: _factory_read)
+    mp.setattr(sys, "argv", ["run.py", "--target", target, "--indication", indication, "--out", str(out_dir)])
+    try:
+        runpy.run_path(str(RUN_PY), run_name="__main__")
+    except SystemExit as e:
+        assert e.code in (0, None), f"run.py exited non-zero ({e.code}) on the {frozen_path.name} replay"
+    finally:
+        mp.undo()
+    decision_path = out_dir / "decision.json"
+    assert decision_path.exists(), f"run.py wrote no decision.json on the {frozen_path.name} replay"
+    return json.loads(decision_path.read_text())
+
+
+@pytest.fixture(scope="module")
+def not_dependent_decision(tmp_path_factory):
+    return _replay_decision(NEG_FIXTURE, "SYNTHNDEP", "COADREAD", tmp_path_factory)
+
+
+def test_negative_fixture_vetoes_in_indication(not_dependent_decision):
+    """THE VETO-PATH DRIFT GUARD (issue #1833): the indication VETO direction had ZERO end-to-end
+    coverage. `not_dependent_in_indication` appeared only in synthetic/direct-read tests that never drive
+    the preprocessor->rule-firing->resolver chain, so a silent revert of the Stage-5b preprocessor would
+    let a target that SHOULD be vetoed-in-indication fall through to the pooled verdict, UNCAUGHT.
+
+    This replays a NON-dependent target whose queried indication (COADREAD -> Bowel) is screened at
+    adequate power above the dependency cut. WITH the preprocessor: indication_dependency_class ==
+    not_dependent_in_indication -> `not-dependent-in-indication-killer` (resolver rung 10) WINS ->
+    dependency_verdict == not_dependent_in_indication. WITHOUT it (a no-op revert): the field is never
+    written, the killer cannot fire, and the run falls through to the pooled `non-dependent-killer` ->
+    non_dependent — so pinning the veto token + driving rule reds on exactly that revert."""
+    assert not_dependent_decision["skill"] == "functional-requirement"
+    h = not_dependent_decision.get("headline") or {}
+    verdict = h.get("dependency_verdict")
+    assert verdict == "not_dependent_in_indication", (
+        f"dependency_verdict={verdict!r} — expected the indication VETO token 'not_dependent_in_indication'. "
+        "A fall-through to the pooled 'non_dependent' means the indication killer stopped firing (preprocessor "
+        f"no longer writing indication_dependency_class). driving_rule_id={h.get('driving_rule_id')!r}"
+    )
+    assert h.get("driving_rule_id") == "not-dependent-in-indication-killer", (
+        f"driving_rule_id={h.get('driving_rule_id')!r} — expected 'not-dependent-in-indication-killer' "
+        "(resolver rung 10, the measured indication-grain veto)."
+    )
+    # the by-scope indication rung must independently classify the veto (the _indication_lineage_read path)
+    by = h.get("dependency_verdict_by_scope") or {}
+    assert (by.get("indication") or {}).get("class") == "not_dependent_in_indication", (
+        f"by_scope.indication.class={(by.get('indication') or {}).get('class')!r} — the independent "
+        "_indication_lineage_read path disagrees with the resolver veto; the two indication reads have diverged."
+    )
+
+
 def test_fixture_is_nonvacuous():
     frozen = _load_fixture()
     real = [c for c, s in frozen.items() if _real(s)]
@@ -109,7 +180,15 @@ def test_replay_conforms_to_data_product_schema(kras_decision):
 def test_replay_verdict_is_a_positive_dependency_call(kras_decision):
     """THE VERDICT-PATH DRIFT GUARD: rules fire over the REAL frozen summaries. KRAS is a bona fide
     COADREAD dependency, so dependency_verdict must be a POSITIVE dependency call with a real driving
-    rule — a reader field-rename that a rule keys on would collapse it to insufficient/non_dependent."""
+    rule — a reader field-rename that a rule keys on would collapse it to insufficient/non_dependent.
+
+    PINS THE EXACT PROMOTED TOKEN (issue #1833): since the Stage-5b preprocessor went live (skills #1480,
+    25e170eb) `_dependency_preprocess` writes `indication_dependency_class == selective_in_indication` for
+    KRAS/COADREAD (Bowel IS an enriched lineage), so the indication rung `dependency-in-indication-
+    selective-supportive` (resolver rung 4) WINS and the emitted verdict is `lineage_selective_in_indication`
+    — NOT the pre-Stage-5b pooled `lineage_selective`. Membership in the positive set is too weak to catch a
+    silent revert (BOTH tokens are positive); pinning the exact token + driving rule reds if the preprocessor
+    stops writing the field, a rule keys on a renamed field, or the indication rung otherwise stops firing."""
     assert kras_decision["skill"] == "functional-requirement"
     h = kras_decision.get("headline") or {}
     verdict = h.get("dependency_verdict")
@@ -117,7 +196,22 @@ def test_replay_verdict_is_a_positive_dependency_call(kras_decision):
         f"dependency_verdict={verdict!r} is not a positive dependency call for KRAS/COADREAD — suspect "
         f"a rule that stopped firing on a renamed reader field. driving_rule_id={h.get('driving_rule_id')!r}"
     )
-    assert h.get("driving_rule_id"), "positive verdict but empty driving_rule_id — inconsistent spine."
+    assert verdict == "lineage_selective_in_indication", (
+        f"dependency_verdict={verdict!r} — expected the LIVE indication-grain token "
+        "'lineage_selective_in_indication'. A collapse to the pre-Stage-5b pooled 'lineage_selective' means "
+        "the indication rung stopped firing (preprocessor no longer writing indication_dependency_class, or a "
+        f"rule keyed on a renamed reader field). driving_rule_id={h.get('driving_rule_id')!r}"
+    )
+    assert h.get("driving_rule_id") == "dependency-in-indication-selective-supportive", (
+        f"driving_rule_id={h.get('driving_rule_id')!r} — expected the indication rung "
+        "'dependency-in-indication-selective-supportive' (resolver rung 4). A different rule id means a higher-"
+        "or lower-priority rung won, i.e. the indication verdict spine drifted."
+    )
+    # the headline_block projection MUST agree with the spine (verdict-inert projection contract)
+    block = h.get("headline_block") or {}
+    assert (block.get("verdict") or {}).get("call") == verdict, (
+        "headline_block.verdict.call diverged from dependency_verdict — the projection is no longer inert."
+    )
 
 
 def test_replay_headline_resolves_broadly(kras_decision):

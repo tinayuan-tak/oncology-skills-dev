@@ -875,7 +875,14 @@ def _dependency_verdict_by_scope(cards, verdict_pair) -> dict:
         "pan_cancer": {
             "verdict": v,
             "driving_rule_id": drv,
-            "_note": "pooled target-grain verdict (the byte-stable dependency_verdict)",
+            # This slot carries the EMITTED headline dependency_verdict at whatever grain the run resolved.
+            # It is NOT necessarily pooled/target-grain: since the Stage-5b preprocessor went live (skills
+            # #1480), an indication-scoped run can resolve an INDICATION-grain token here (e.g.
+            # lineage_selective_in_indication / not_dependent_in_indication when an indication rung wins),
+            # and the value moved from the pre-Stage-5b pooled token — so the former
+            # "pooled target-grain / byte-stable" label was inaccurate on both counts (issue #1833 Part B).
+            "_note": "the emitted headline dependency_verdict, at whatever grain the run resolved "
+            "(pooled/target-grain on a target-grain run; indication-grain when an indication rung wins)",
         },
         "indication": _indication_lineage_read(cards, _infer_indication(cards)),
         "subtype": {

@@ -37,6 +37,14 @@
       "rationale_summary": "\u22651 lineage is significantly more dependent on the target than the rest of the"
     },
     {
+      "rule_id": "dependency-in-indication-selective-supportive",
+      "card_id": "dependency-lineage-selectivity",
+      "field": "indication_dependency_class",
+      "value": "selective_in_indication",
+      "dominant": true,
+      "rationale_summary": "The QUERIED indication's lineage is itself among the significantly enriched lineages"
+    },
+    {
       "rule_id": "recommended-models-well-modeled-supportive",
       "card_id": "recommended-models",
       "field": "correspondence_class",
@@ -1014,10 +1022,10 @@
     ],
     "headline_block": {
       "verdict": {
-        "call": "lineage_selective",
-        "phrase": "Lineage-selective dependency",
+        "call": "lineage_selective_in_indication",
+        "phrase": "Lineage-selective dependency in this indication",
         "gate": "dependency",
-        "driving_rule_id": "lineage-selective-supportive",
+        "driving_rule_id": "dependency-in-indication-selective-supportive",
         "polarity": "positive"
       },
       "confidence": {
@@ -1034,12 +1042,12 @@
         "source": "key_signals.caveat",
         "severity": 1
       },
-      "headline_text": "Lineage-selective dependency \u2014 strong confidence; tension: Strong paralog buffering (NRAS) \u2014 the single-gene dependency may be redundancy-masked; combined paralog loss or an upstream pan-family node may be required [paralog-buffering].",
+      "headline_text": "Lineage-selective dependency in this indication \u2014 strong confidence; tension: Strong paralog buffering (NRAS) \u2014 the single-gene dependency may be redundancy-masked; combined paralog loss or an upstream pan-family node may be required [paralog-buffering].",
       "hero": {
         "kind": "headline_hero",
         "verdict": {
-          "call": "lineage_selective",
-          "phrase": "Lineage-selective dependency",
+          "call": "lineage_selective_in_indication",
+          "phrase": "Lineage-selective dependency in this indication",
           "gate": "dependency",
           "polarity": "positive"
         },
@@ -1133,8 +1141,8 @@
       ],
       "_disclaimer": "Canonical headline (verdict + confidence + top-tension) \u2014 a verdict-INERT projection over the computed decision. Confidence is weakest-link over the claim vector's corroboration (measured axes), capped by conflict and coverage; it never moves the verdict."
     },
-    "driving_rule_id": "lineage-selective-supportive",
-    "dependency_verdict": "lineage_selective",
+    "driving_rule_id": "dependency-in-indication-selective-supportive",
+    "dependency_verdict": "lineage_selective_in_indication",
     "presence_verdict": null,
     "verdict": null,
     "confidence": null,

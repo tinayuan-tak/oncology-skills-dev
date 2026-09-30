@@ -1,0 +1,75 @@
+# NEGATIVE-DIRECTION offline-replay fixture for the indication VETO rung (issue #1833).
+#
+# Unlike kras_coadread.yaml (a REAL live freeze of a positive dependency), this is a HAND-CONSTRUCTED
+# minimal card-summary set: a target that is NON-dependent pan-cancer AND whose queried indication's
+# DepMap lineage is screened at adequate power but sits above the dependency cut. It exists to give the
+# indication veto path — `_dependency_preprocess` -> `indication_dependency_class == not_dependent_in_indication`
+# -> `not-dependent-in-indication-killer` (dependency.resolver.yaml rung 10) -> `dependency_verdict ==
+# not_dependent_in_indication` — the END-TO-END coverage it lacked. All other FR replay fixtures that
+# carry `not_dependent_in_indication` are DIRECT-read/synthetic and never drive the preprocessor->rule
+# ->resolver chain (see issue #1833 Part A).
+#
+# Why the killer WINS here (and why this is a real drift guard): the pooled arms are non-dependent so no
+# priority 0-9 rung fires (no pan-essential, no concordant_dependent, no *_in_indication positive, no
+# partner-conditional / chemical-genetic / paralog-buffering rescue). With the preprocessor the killer
+# (priority 10) wins -> not_dependent_in_indication; if the preprocessor is reverted to a no-op the field
+# is never written, the killer cannot fire, and the run falls THROUGH to the pooled `non-dependent-killer`
+# (priority 23) -> non_dependent. The negative-direction replay test pins the veto token + driving rule,
+# so that silent revert reds.
+#
+# COADREAD -> Bowel is a SHARED coarse lineage (depmap_oncotree_codes present), but we deliberately omit
+# `per_oncotree_code_stats`, so `_sublineage_read` returns None and the read falls back to the coarse
+# per_lineage_stats path (the offline-fixture path) — Bowel median above the cut -> not_dependent_in_indication.
+
+pan-cancer-crispr-dependency-distribution:
+  dependency_class: non_dependent
+  distribution_shape: unimodal_non_essential
+  median_chronos_panel: -0.0512
+  n_cell_lines_evaluated: 1538
+  fraction_strongly_dependent: 0.0071
+  fraction_moderately_dependent: 0.0384
+  fraction_non_essential: 0.9545
+  dep_control_position_class: non_dependent
+  selectivity_index: 0.0455
+pan-cancer-rnai-dependency-distribution:
+  rnai_dependency_class: non_dependent
+  rnai_distribution_shape: unimodal_non_essential
+  rnai_median_dep_score: 0.0129
+  rnai_n_cell_lines_evaluated: 701
+  rnai_fraction_strongly_dependent: 0.0057
+  rnai_fraction_non_dependent: 0.9629
+crispr-rnai-dependency-concordance:
+  concordance_class: moderately_concordant_non_dependent
+  fraction_agree: 0.9312
+  fraction_dependent_in_both: 0.0064
+  n_agree_non_dependent: 517
+  n_agree_dependent: 4
+  n_in_both: 556
+  n_total: 1683
+dependency-lineage-selectivity:
+  enrichment_class: no_lineage_enrichment
+  enriched_lineages: []
+  n_enriched_lineages: 0
+  median_chronos_panel: -0.0512
+  n_cell_lines_panel: 1538
+  n_lineages_evaluated: 26
+  per_lineage_stats:
+  - lineage: Bowel
+    n: 88
+    median_chronos: -0.1174
+  - lineage: Pancreas
+    n: 74
+    median_chronos: -0.0231
+  - lineage: Lung
+    n: 141
+    median_chronos: -0.0489
+  - lineage: Breast
+    n: 73
+    median_chronos: 0.0113
+recommended-models:
+  correspondence_class: well_modeled_in_lineage
+  depmap_lineage: Bowel
+  indication: COADREAD
+  n_lineage_models: 131
+  n_positive_models_in_lineage: 61
+  release_pin: 26q1

@@ -183,6 +183,12 @@ def test_driving_card_chain(eg_graph):
 
 
 def test_verdict_node_matches_spine(eg_graph, eg_decision):
-    assert eg_graph["verdict"]["id"] == eg_decision["headline"]["dependency_verdict"] == "lineage_selective"
-    assert eg_graph["verdict"]["driving_rule_id"] == "lineage-selective-supportive"
+    # Pinned to the LIVE indication-grain token (issue #1833): the committed golden was re-captured to the
+    # already-shipped reality — KRAS/COADREAD resolves the indication rung (Bowel is enriched) to
+    # `lineage_selective_in_indication`, not the pre-Stage-5b pooled `lineage_selective`. The invariant is
+    # that the graph verdict node id equals the decision spine; the literal records the shipped value.
+    assert (
+        eg_graph["verdict"]["id"] == eg_decision["headline"]["dependency_verdict"] == "lineage_selective_in_indication"
+    )
+    assert eg_graph["verdict"]["driving_rule_id"] == "dependency-in-indication-selective-supportive"
     assert eg_graph["verdict"]["polarity"] == "supportive"  # canonical (was legacy "positive")
