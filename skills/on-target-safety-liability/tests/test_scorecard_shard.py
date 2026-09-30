@@ -12,7 +12,10 @@ promises siblings:
      placeholder residue — a partial or hand-typed panel cannot ship as GREEN;
   3. the panel checks have TEETH: fed a doctored panel (every target emitting one constant class),
      `collect_panel_rows` reds its own checks — the GREEN is a live function of the package bytes.
-  4. L2a/L2b/L3/L4 are all NOT_BUILT for this skill (no exported envelope sections exist).
+  4. the layer states are honest: L2a/L2b are BUILT (PR-1a of epic SK#2210 / #1507 built the exported
+     source_properties / integrated_properties sections) but UNMEASURED — every criterion NULL with a
+     reason, never promoted on the strength of the layer merely existing — while L3/L4 stay NOT_BUILT
+     (safety emits no l3d, and there is no L4 layer here).
 """
 
 from __future__ import annotations
@@ -45,7 +48,20 @@ def _shard_dict() -> dict:
 
 def test_shard_validates_and_upper_layers_are_not_built():
     shard = cs.shard_from_dict(_shard_dict(), expected_skill="on-target-safety-liability")
-    for layer in ("L2a", "L2b", "L3", "L4"):
+    # PR-1a (epic SK#2210 / #1507) BUILT L2a/L2b for this skill, so NOT_BUILT would now be a false
+    # statement about the artifact. They must be built=True AND fully NULL: building a layer is not
+    # measuring it, and a criterion that goes GREEN because the layer exists is the fail-open promotion
+    # the rollup refuses. Each NULL must say WHY, or the cell is an undated blank.
+    for layer in ("L2a", "L2b"):
+        cell = shard.cells[layer]
+        assert cell.built is True, f"{layer} is exported by run.py::_evidence_sections — built must be True"
+        assert cs.cell_rollup(cell) == cs.NULL, f"{layer} rolled up {cs.cell_rollup(cell)}, expected NULL (unmeasured)"
+        for name in cs.CRITERIA:
+            crit = cell.criteria[name]
+            assert crit.status == cs.NULL, f"{layer}/{name} claims {crit.status} with no measurement built"
+            assert (crit.evidence or {}).get("null_reason"), f"{layer}/{name} is NULL with no reason recorded"
+    # Safety emits no l3d section and has no L4 layer — both remain architecture gaps by design.
+    for layer in ("L3", "L4"):
         assert cs.cell_rollup(shard.cells[layer]) == cs.NOT_BUILT
     # L1: utilization/fail_open are always measured (never NULL); accuracy is deliberately NULL
     # (re-derivation is covered by #1792/#1793/#1794, not this issue). panel_consistency is measured

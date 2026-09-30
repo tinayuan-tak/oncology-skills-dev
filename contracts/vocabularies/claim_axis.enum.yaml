@@ -55,7 +55,12 @@
 # the skills' ASTs fail-loud and reconciles both directions.
 
 enum_id: claim_axis
-version: 1.0.0
+# 1.1.0 — arc #2210 Wave-1a (the hands-on safety seed) landed
+# contracts/vocabularies/property_catalog/safety.yaml, so six on-target-safety-liability axes now cite
+# the eight properties it declares. MINOR per `governance.versioning`: `resolves:` entries added, none
+# removed, no label or `critical` flag touched. PAN_ESSENTIAL is the one safety axis still empty, and
+# its `resolves_pending:` now says WHY rather than pointing at a wave that has already landed.
+version: 1.1.0
 
 description: |
   One governed entry per (skill, axis_key): the display label, the decision question the axis informs,
@@ -400,45 +405,41 @@ axes:
     informs: |
       Is the gene under selective constraint against loss of function in humans?
     critical: true
-    resolves: []
-    resolves_pending: |
-      arc #2210 Wave-1a (safety l2a catalog, hands-on seed item)
+    resolves:
+      - safety.dominant_lof_selection
+      - safety.germline_lof_constraint
   - skill: on-target-safety-liability
     axis_key: BURDEN
     label: "population gene-burden"
     informs: |
       Does population sequencing show loss-of-function variation is tolerated?
     critical: true
-    resolves: []
-    resolves_pending: |
-      arc #2210 Wave-1a (safety l2a catalog, hands-on seed item)
+    resolves:
+      - safety.population_burden_liability
   - skill: on-target-safety-liability
     axis_key: DOSAGE
     label: "ClinGen dosage"
     informs: |
       Has a clinical dosage-sensitivity verdict been curated for the gene?
     critical: true
-    resolves: []
-    resolves_pending: |
-      arc #2210 Wave-1a (safety l2a catalog, hands-on seed item)
+    resolves:
+      - safety.dosage_sensitivity
   - skill: on-target-safety-liability
     axis_key: CLINVAR
     label: "germline pathogenicity"
     informs: |
       Do germline variants in the gene cause Mendelian disease?
     critical: true
-    resolves: []
-    resolves_pending: |
-      arc #2210 Wave-1a (safety l2a catalog, hands-on seed item)
+    resolves:
+      - safety.germline_pathogenicity
   - skill: on-target-safety-liability
     axis_key: MOUSE_KO
     label: "mouse-KO phenotype"
     informs: |
       What phenotype does knocking the gene out produce in mouse?
     critical: true
-    resolves: []
-    resolves_pending: |
-      arc #2210 Wave-1a (safety l2a catalog, hands-on seed item)
+    resolves:
+      - safety.ko_organismal_phenotype
   - skill: on-target-safety-liability
     axis_key: PAN_ESSENTIAL
     label: "DepMap pan-essentiality"
@@ -447,7 +448,13 @@ axes:
     critical: true
     resolves: []
     resolves_pending: |
-      arc #2210 Wave-1a (safety l2a catalog, hands-on seed item)
+      NOT Wave-1a, and not an oversight: safety.yaml (landed by the Wave-1a seed) deliberately
+      catalogues no DepMap pan-essentiality property. The substrate is the dependency domain's, whose
+      l2a catalog is #2212; cataloguing it here would file the SAME biological property twice under two
+      catalog_ids and make the `properties:` inverse index below claim two independent properties where
+      there is one. The correct shape is a dependency-domain entry that BOTH this axis and
+      functional-requirement's `DEP` cite, which is #2212's call to make, not this seed's. Until then
+      this axis resolves nothing — which is an honest empty set, not a measurement of zero.
   - skill: on-target-safety-liability
     axis_key: NORMAL_TISSUE
     label: "normal-tissue protein (HPA-IHC)"
@@ -456,6 +463,8 @@ axes:
     critical: true
     resolves:
       - integrated_families.normal_liability
+      - safety.normal_tissue_protein_liability
+      - safety.normal_tissue_rna_liability
 
   # ── surface-modality-fit (gate: surface_modality) ───────────────────────────────────────────────
   - skill: surface-modality-fit
@@ -786,6 +795,50 @@ properties:
     resolved_by:
       - skill: tumor-selectivity
         axis_key: WIN
+  safety.dominant_lof_selection:
+    resolved_by:
+      - skill: on-target-safety-liability
+        axis_key: CONSTRAINT
+    note: |
+      With `safety.germline_lof_constraint`, the SECOND of two properties one axis resolves: gnomAD's
+      LoF-observed/expected constraint and s_het's dominant-LoF selection coefficient are two
+      substrates answering two questions the headline reports through one token. Recorded here so the
+      axis is not read as resolving a single property — see safety.yaml's `dependence_note`, which is
+      where the (non-)independence of the two reads is governed.
+  safety.dosage_sensitivity:
+    resolved_by:
+      - skill: on-target-safety-liability
+        axis_key: DOSAGE
+  safety.germline_lof_constraint:
+    resolved_by:
+      - skill: on-target-safety-liability
+        axis_key: CONSTRAINT
+  safety.germline_pathogenicity:
+    resolved_by:
+      - skill: on-target-safety-liability
+        axis_key: CLINVAR
+  safety.ko_organismal_phenotype:
+    resolved_by:
+      - skill: on-target-safety-liability
+        axis_key: MOUSE_KO
+  safety.normal_tissue_protein_liability:
+    resolved_by:
+      - skill: on-target-safety-liability
+        axis_key: NORMAL_TISSUE
+    note: |
+      The per-source (l2a) protein read, NOT the same thing as `integrated_families.normal_liability`
+      (l2b) which the same axis also resolves: the l2a entries are the two independent substrate reads
+      (HPA-IHC protein, GTEx RNA), the l2b family is the FOLD across them plus sc-normal. One axis
+      legitimately cites all three because the headline token is the end of that whole chain; the
+      distinction is the layer, not the biology.
+  safety.normal_tissue_rna_liability:
+    resolved_by:
+      - skill: on-target-safety-liability
+        axis_key: NORMAL_TISSUE
+  safety.population_burden_liability:
+    resolved_by:
+      - skill: on-target-safety-liability
+        axis_key: BURDEN
   tumor_presence.malignant_cell_coverage:
     resolved_by:
       - skill: tumor-presence
@@ -811,34 +864,35 @@ population_floors:
   skills: 15
   axes: 55
   distinct_axis_keys: 55
-  resolved_axes: 12
-  resolved_properties: 10
+  resolved_axes: 17
+  resolved_properties: 18
   note: |
-    Anti-vacuity, not decoration. Floors sit at or BELOW the measured population (measured at v1.0.0: 15 skills, 61 axes, 60 distinct axis_keys, 14 resolved axes, 15 resolved properties) so that legitimate additive growth never reds, while a discovery glob that silently matches nothing does. `skills` is a FLOOR and not pinned to equality on purpose: contracts/ may not read skills' HeadlineSpecs (dependency direction), so the equality half lives in skills/_skills_common/tests/test_claim_axis_registry_coverage.py, which reds when a 16th skill declares axes with no entry here.
+    Anti-vacuity, not decoration. Floors sit at or BELOW the measured population (measured at v1.1.0: 15 skills, 61 axes, 60 distinct axis_keys, 19 resolved axes, 23 resolved properties; at v1.0.0 the last two were 14 and 15) so that legitimate additive growth never reds, while a discovery glob that silently matches nothing does. The two resolve-floors are RATCHETED with each wave that populates `resolves:`, preserving their v1.0.0 margin below measured (2 and 5): a floor left at the pre-wave number would still pass on a registry that had silently lost everything the wave added, which is precisely the shrink a floor exists to catch. `skills` is a FLOOR and not pinned to equality on purpose: contracts/ may not read skills' HeadlineSpecs (dependency direction), so the equality half lives in skills/_skills_common/tests/test_claim_axis_registry_coverage.py, which reds when a 16th skill declares axes with no entry here.
 
 coverage_dimensions:
   - dimension: axes_resolving_a_catalogued_property
-    measured: 14
+    measured: 19
     total: 61
     is_a_gate: false
     rationale: |
-      14 of 61 axes cite a property today, and all 14 come from the two l2a catalogs plus the l2b
-      family catalog that Wave-0a landed. The other 47 are not defects and not holes in this file: the
-      l2a catalogs for safety, dependency, genomic, selectivity and surface are Wave-1 items owned by
-      #2211-#2214 and the hands-on safety seed. A GATE on this number would either block Wave-0d behind
-      four other work items or force catalog entries to be invented ahead of the measurement they
-      record. So it is REPORTED. Fail-open promotes; an unmeasured number would be worse than a small
-      one, which is why `measured` is required to be an int and `resolves_pending:` is required on every
-      one of the 47.
+      19 of 61 axes cite a property today (14 at v1.0.0, +5 from Wave-1a's safety.yaml: CONSTRAINT,
+      BURDEN, DOSAGE, CLINVAR, MOUSE_KO — NORMAL_TISSUE already resolved its l2b family and gained two
+      l2a properties without changing this count). They come from the three landed l2a catalogs plus
+      the l2b family catalog Wave-0a landed. The other 42 are not defects and not holes in this file:
+      the l2a catalogs for dependency, genomic, selectivity and surface are Wave-1 items owned by
+      #2211-#2214. A GATE on this number would either block the wave behind its own successors or force
+      catalog entries to be invented ahead of the measurement they record. So it is REPORTED. Fail-open
+      promotes; an unmeasured number would be worse than a small one, which is why `measured` is
+      required to be an int and `resolves_pending:` is required on every one of the 42.
   - dimension: domains_with_a_landed_l2a_property_catalog
-    measured: 2
+    measured: 3
     total: 15
     is_a_gate: false
     rationale: |
-      expression.yaml and tumor_presence.yaml are the two landed `l2a_property` files; the 13 entries in
-      integrated_families.yaml are `l2b_family` folds, not per-domain properties. This is the upstream
-      cause of the dimension above, recorded separately so a reader does not mistake sparse `resolves:`
-      coverage for sloppy registration here.
+      expression.yaml, tumor_presence.yaml and — as of Wave-1a — safety.yaml are the three landed
+      `l2a_property` files; the 13 entries in integrated_families.yaml are `l2b_family` folds, not
+      per-domain properties. This is the upstream cause of the dimension above, recorded separately so
+      a reader does not mistake sparse `resolves:` coverage for sloppy registration here.
   - dimension: skills_using_a_letter_axis_scheme
     measured: 1
     total: 15

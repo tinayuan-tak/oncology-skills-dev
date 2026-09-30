@@ -90,48 +90,96 @@
       "notes": "L1 = run.py::CARDS + their field_disposition.yaml ledger. accuracy = NULL by design per #1990 (re-derivation is covered by the #1792/#1793/#1794 verification work, not this issue). fail_open re-asserts the #1792/#1793/#1794 open-world regression class with seeded teeth on the claim-record shadow."
     },
     "L2a": {
-      "built": false,
+      "built": true,
       "criteria": {
         "accuracy": {
-          "evidence": null,
+          "evidence": {
+            "null_reason": "PR-1a (epic SK#2210 / #1507) BUILT this layer for on-target-safety-liability but did not build a measurement for it. The exemplar's machinery (skills/tumor-presence/scripts/scorecard_adapter.py `envelope_rows`/`envelope_checks`: --emit-envelope across the 5-target roster, then per-criterion checks over the emitted section bytes) has no safety counterpart, so there is nothing to report here that would not be a claim about un-run checks. Left NULL rather than promoted on the strength of the layer existing. The structural pins that DO exist are cited in `structural_pins` below; they are correctness guards on the export, not a measurement of this criterion.",
+            "structural_pins": [
+              "skills/on-target-safety-liability/tests/test_evidence_package_sections.py",
+              "contracts/tests/validators/test_property_catalog.py (sweeps safety.yaml)"
+            ]
+          },
           "status": "NULL"
         },
         "fail_open": {
-          "evidence": null,
+          "evidence": {
+            "null_reason": "PR-1a (epic SK#2210 / #1507) BUILT this layer for on-target-safety-liability but did not build a measurement for it. The exemplar's machinery (skills/tumor-presence/scripts/scorecard_adapter.py `envelope_rows`/`envelope_checks`: --emit-envelope across the 5-target roster, then per-criterion checks over the emitted section bytes) has no safety counterpart, so there is nothing to report here that would not be a claim about un-run checks. Left NULL rather than promoted on the strength of the layer existing. The structural pins that DO exist are cited in `structural_pins` below; they are correctness guards on the export, not a measurement of this criterion.",
+            "structural_pins": [
+              "skills/on-target-safety-liability/tests/test_evidence_package_sections.py",
+              "contracts/tests/validators/test_property_catalog.py (sweeps safety.yaml)"
+            ]
+          },
           "status": "NULL"
         },
         "panel_consistency": {
-          "evidence": null,
+          "evidence": {
+            "null_reason": "PR-1a (epic SK#2210 / #1507) BUILT this layer for on-target-safety-liability but did not build a measurement for it. The exemplar's machinery (skills/tumor-presence/scripts/scorecard_adapter.py `envelope_rows`/`envelope_checks`: --emit-envelope across the 5-target roster, then per-criterion checks over the emitted section bytes) has no safety counterpart, so there is nothing to report here that would not be a claim about un-run checks. Left NULL rather than promoted on the strength of the layer existing. The structural pins that DO exist are cited in `structural_pins` below; they are correctness guards on the export, not a measurement of this criterion.",
+            "structural_pins": [
+              "skills/on-target-safety-liability/tests/test_evidence_package_sections.py",
+              "contracts/tests/validators/test_property_catalog.py (sweeps safety.yaml)"
+            ]
+          },
           "status": "NULL"
         },
         "utilization": {
-          "evidence": null,
+          "evidence": {
+            "null_reason": "PR-1a (epic SK#2210 / #1507) BUILT this layer for on-target-safety-liability but did not build a measurement for it. The exemplar's machinery (skills/tumor-presence/scripts/scorecard_adapter.py `envelope_rows`/`envelope_checks`: --emit-envelope across the 5-target roster, then per-criterion checks over the emitted section bytes) has no safety counterpart, so there is nothing to report here that would not be a claim about un-run checks. Left NULL rather than promoted on the strength of the layer existing. The structural pins that DO exist are cited in `structural_pins` below; they are correctness guards on the export, not a measurement of this criterion.",
+            "structural_pins": [
+              "skills/on-target-safety-liability/tests/test_evidence_package_sections.py",
+              "contracts/tests/validators/test_property_catalog.py (sweeps safety.yaml)"
+            ]
+          },
           "status": "NULL"
         }
       },
-      "notes": "not built for on-target-safety-liability: this skill has no exported source_properties / integrated_properties / l3d evidence-package sections (the SK#1941 grain tumor-presence's L2a/L2b/L3 rests on) and no L4 synthesis/decision-view layer \u2014 an architecture gap by design, not a defect. built=false; no criterion may be measured on an unbuilt layer."
+      "notes": "L2a = source_properties (SK#1941-shape EXPORTED section, --emit-envelope), built by PR-1a of epic SK#2210 / #1507: 8 per-source observational properties (safety_claims.py::_SOURCE_PROPERTY_RECIPES_SAFETY), governed by contracts/vocabularies/property_catalog/safety.yaml. BUILT, NOT MEASURED \u2014 every criterion NULL with its reason; see _L2_UNMEASURED_NULL_REASON."
     },
     "L2b": {
-      "built": false,
+      "built": true,
       "criteria": {
         "accuracy": {
-          "evidence": null,
+          "evidence": {
+            "null_reason": "PR-1a (epic SK#2210 / #1507) BUILT this layer for on-target-safety-liability but did not build a measurement for it. The exemplar's machinery (skills/tumor-presence/scripts/scorecard_adapter.py `envelope_rows`/`envelope_checks`: --emit-envelope across the 5-target roster, then per-criterion checks over the emitted section bytes) has no safety counterpart, so there is nothing to report here that would not be a claim about un-run checks. Left NULL rather than promoted on the strength of the layer existing. The structural pins that DO exist are cited in `structural_pins` below; they are correctness guards on the export, not a measurement of this criterion.",
+            "structural_pins": [
+              "skills/on-target-safety-liability/tests/test_evidence_package_sections.py",
+              "contracts/tests/validators/test_property_catalog.py (sweeps safety.yaml)"
+            ]
+          },
           "status": "NULL"
         },
         "fail_open": {
-          "evidence": null,
+          "evidence": {
+            "null_reason": "PR-1a (epic SK#2210 / #1507) BUILT this layer for on-target-safety-liability but did not build a measurement for it. The exemplar's machinery (skills/tumor-presence/scripts/scorecard_adapter.py `envelope_rows`/`envelope_checks`: --emit-envelope across the 5-target roster, then per-criterion checks over the emitted section bytes) has no safety counterpart, so there is nothing to report here that would not be a claim about un-run checks. Left NULL rather than promoted on the strength of the layer existing. The structural pins that DO exist are cited in `structural_pins` below; they are correctness guards on the export, not a measurement of this criterion.",
+            "structural_pins": [
+              "skills/on-target-safety-liability/tests/test_evidence_package_sections.py",
+              "contracts/tests/validators/test_property_catalog.py (sweeps safety.yaml)"
+            ]
+          },
           "status": "NULL"
         },
         "panel_consistency": {
-          "evidence": null,
+          "evidence": {
+            "null_reason": "PR-1a (epic SK#2210 / #1507) BUILT this layer for on-target-safety-liability but did not build a measurement for it. The exemplar's machinery (skills/tumor-presence/scripts/scorecard_adapter.py `envelope_rows`/`envelope_checks`: --emit-envelope across the 5-target roster, then per-criterion checks over the emitted section bytes) has no safety counterpart, so there is nothing to report here that would not be a claim about un-run checks. Left NULL rather than promoted on the strength of the layer existing. The structural pins that DO exist are cited in `structural_pins` below; they are correctness guards on the export, not a measurement of this criterion.",
+            "structural_pins": [
+              "skills/on-target-safety-liability/tests/test_evidence_package_sections.py",
+              "contracts/tests/validators/test_property_catalog.py (sweeps safety.yaml)"
+            ]
+          },
           "status": "NULL"
         },
         "utilization": {
-          "evidence": null,
+          "evidence": {
+            "null_reason": "PR-1a (epic SK#2210 / #1507) BUILT this layer for on-target-safety-liability but did not build a measurement for it. The exemplar's machinery (skills/tumor-presence/scripts/scorecard_adapter.py `envelope_rows`/`envelope_checks`: --emit-envelope across the 5-target roster, then per-criterion checks over the emitted section bytes) has no safety counterpart, so there is nothing to report here that would not be a claim about un-run checks. Left NULL rather than promoted on the strength of the layer existing. The structural pins that DO exist are cited in `structural_pins` below; they are correctness guards on the export, not a measurement of this criterion.",
+            "structural_pins": [
+              "skills/on-target-safety-liability/tests/test_evidence_package_sections.py",
+              "contracts/tests/validators/test_property_catalog.py (sweeps safety.yaml)"
+            ]
+          },
           "status": "NULL"
         }
       },
-      "notes": "not built for on-target-safety-liability: this skill has no exported source_properties / integrated_properties / l3d evidence-package sections (the SK#1941 grain tumor-presence's L2a/L2b/L3 rests on) and no L4 synthesis/decision-view layer \u2014 an architecture gap by design, not a defect. built=false; no criterion may be measured on an unbuilt layer."
+      "notes": "L2b = integrated_properties (SK#1941-shape EXPORTED section), built by PR-1a of epic SK#2210 / #1507: the normal_liability_concordance island (#1546, GTEx bulk x sc-normal x HPA-IHC). BUILT, NOT MEASURED \u2014 every criterion NULL with its reason."
     },
     "L3": {
       "built": false,
@@ -153,7 +201,7 @@
           "status": "NULL"
         }
       },
-      "notes": "not built for on-target-safety-liability: this skill has no exported source_properties / integrated_properties / l3d evidence-package sections (the SK#1941 grain tumor-presence's L2a/L2b/L3 rests on) and no L4 synthesis/decision-view layer \u2014 an architecture gap by design, not a defect. built=false; no criterion may be measured on an unbuilt layer."
+      "notes": "not built for on-target-safety-liability: safety emits no l3d section (no within-domain story object \u2014 a deliberate PR-1a decision, pinned by tests/test_evidence_package_sections.py) and has no L4 synthesis/decision-view layer \u2014 an architecture gap by design, not a defect. built=false; no criterion may be measured on an unbuilt layer."
     },
     "L4": {
       "built": false,
@@ -175,7 +223,7 @@
           "status": "NULL"
         }
       },
-      "notes": "not built for on-target-safety-liability: this skill has no exported source_properties / integrated_properties / l3d evidence-package sections (the SK#1941 grain tumor-presence's L2a/L2b/L3 rests on) and no L4 synthesis/decision-view layer \u2014 an architecture gap by design, not a defect. built=false; no criterion may be measured on an unbuilt layer."
+      "notes": "not built for on-target-safety-liability: safety emits no l3d section (no within-domain story object \u2014 a deliberate PR-1a decision, pinned by tests/test_evidence_package_sections.py) and has no L4 synthesis/decision-view layer \u2014 an architecture gap by design, not a defect. built=false; no criterion may be measured on an unbuilt layer."
     }
   },
   "schema_version": 1,

@@ -6,18 +6,32 @@ touches exactly ``scorecard/on-target-safety-liability.json``.
 
 ## Layer mapping
 
-on-target-safety-liability has NOT built the SK#1941-style EXPORTED evidence-package sections
-(``source_properties`` / ``integrated_properties`` / ``l3d``) that tumor-presence's L2a/L2b/L3
-grain rests on — a repo-wide grep for those section names under
-``skills/on-target-safety-liability/`` returns nothing. So here:
+UPDATED 2026-09-30 (PR-1a of epic SK#2210 / #1507). The statement this adapter shipped with — that
+"a repo-wide grep for those section names under ``skills/on-target-safety-liability/`` returns
+nothing" — is no longer true: PR-1a built the SK#1941-style EXPORTED sections for this domain, so the
+L2a and L2b cells move from NOT_BUILT to BUILT-but-UNMEASURED. They do NOT move to GREEN: being built
+is not being measured, and a criterion promoted on the strength of the layer merely existing is the
+fail-open shape this whole scorecard exists to prevent.
 
   L1  — the CARDS list (``run.py::CARDS``) + their disposition ledger (``field_disposition.yaml``)
         as inventoried; part of the fleet-wide floor enforced by
         ``skills/tests/test_field_disposition_ledgers.py``.
-  L2a/L2b/L3/L4 — NOT_BUILT (``built=False``): this skill has no exported source_properties /
-        integrated_properties / l3d sections, and no L4 synthesis/decision-view layer. An
-        architecture gap by design (mirrors tumor-presence's own L4), not a defect — no criterion
-        may be measured on an unbuilt layer.
+  L2a — BUILT (``built=True``), all four criteria NULL: ``claim_vector.source_properties`` /  the
+        exported ``source_properties`` envelope section (8 properties, ``safety_claims.py``
+        ``_SOURCE_PROPERTY_RECIPES_SAFETY``), governed by
+        ``contracts/vocabularies/property_catalog/safety.yaml``. Unmeasured because the exemplar's
+        per-criterion measurement machinery — tumor-presence's ``envelope_rows`` / ``envelope_checks``
+        panel, which emits ``--emit-envelope`` across the 5-target roster and computes L2a/L2b
+        utilization + fail_open + panel_consistency from the emitted bytes — has no safety
+        counterpart yet. Each criterion records that as its own ``null_reason``.
+  L2b — BUILT (``built=True``), all four criteria NULL: the exported ``integrated_properties``
+        section (the ``normal_liability_concordance`` island, #1546). Same measurement gap as L2a.
+  L3/L4 — NOT_BUILT (``built=False``): safety emits no ``l3d`` section (this domain has no
+        within-domain story object — the presence vertical's ``tumor_expression_biology_story`` has
+        no safety counterpart, a deliberate PR-1a decision recorded in ``run.py::_evidence_sections``
+        and pinned by ``tests/test_evidence_package_sections.py``), and there is no L4
+        synthesis/decision-view layer. An architecture gap by design (mirrors tumor-presence's own
+        L4), not a defect — no criterion may be measured on an unbuilt layer.
 
 ## What "accuracy" means here (NULL by design, per the issue)
 
@@ -236,11 +250,44 @@ def _panel_consistency_criterion() -> cs.Criterion:
 
 
 _NOT_BUILT_NOTE = (
-    "not built for on-target-safety-liability: this skill has no exported source_properties / "
-    "integrated_properties / l3d evidence-package sections (the SK#1941 grain tumor-presence's "
-    "L2a/L2b/L3 rests on) and no L4 synthesis/decision-view layer — an architecture gap by design, "
-    "not a defect. built=false; no criterion may be measured on an unbuilt layer."
+    "not built for on-target-safety-liability: safety emits no l3d section (no within-domain story "
+    "object — a deliberate PR-1a decision, pinned by tests/test_evidence_package_sections.py) and has "
+    "no L4 synthesis/decision-view layer — an architecture gap by design, not a defect. built=false; "
+    "no criterion may be measured on an unbuilt layer."
 )
+
+# ── L2a / L2b: BUILT by PR-1a (epic SK#2210 / #1507), UNMEASURED ───────────────────────────────────
+# The layers now exist, so built=False would be a false statement about the artifact. Every criterion
+# stays NULL: the exemplar's L2a/L2b measurement machinery (tumor-presence's envelope_rows /
+# envelope_checks — --emit-envelope across the 5-target roster, with utilization / fail_open /
+# panel_consistency computed from the emitted section bytes) has no safety counterpart yet, and a
+# criterion that reads GREEN because a layer merely exists is exactly the fail-open promotion the
+# rollup (cell_rollup: any NULL blocks GREEN) is built to refuse. `built=True` + all-NULL rolls up to
+# NULL, which is the honest cell state: present, not yet measured.
+_L2_UNMEASURED_NULL_REASON = (
+    "PR-1a (epic SK#2210 / #1507) BUILT this layer for on-target-safety-liability but did not build a "
+    "measurement for it. The exemplar's machinery (skills/tumor-presence/scripts/scorecard_adapter.py "
+    "`envelope_rows`/`envelope_checks`: --emit-envelope across the 5-target roster, then per-criterion "
+    "checks over the emitted section bytes) has no safety counterpart, so there is nothing to report "
+    "here that would not be a claim about un-run checks. Left NULL rather than promoted on the "
+    "strength of the layer existing. The structural pins that DO exist are cited in `structural_pins` "
+    "below; they are correctness guards on the export, not a measurement of this criterion."
+)
+_L2_STRUCTURAL_PINS = [
+    "skills/on-target-safety-liability/tests/test_evidence_package_sections.py",
+    "contracts/tests/validators/test_property_catalog.py (sweeps safety.yaml)",
+]
+
+
+def _l2_unmeasured_criteria() -> dict:
+    """The four criteria for a layer PR-1a built but did not measure — NULL with the reason named."""
+    return {
+        name: cs.Criterion(
+            status=cs.NULL,
+            evidence={"null_reason": _L2_UNMEASURED_NULL_REASON, "structural_pins": list(_L2_STRUCTURAL_PINS)},
+        )
+        for name in cs.CRITERIA
+    }
 
 
 def build_shard() -> cs.SkillShard:
@@ -265,14 +312,44 @@ def build_shard() -> cs.SkillShard:
         ),
     )
 
-    for layer in ("L2a", "L2b", "L3", "L4"):
-        shard.cells[layer] = cs.Cell(
+    for layer, cell in _upper_layer_cells().items():
+        shard.cells[layer] = cell
+
+    return shard
+
+
+def _upper_layer_cells() -> dict:
+    """The L2a/L2b/L3/L4 cells — DETERMINISTIC (no live reads), unlike L1's computed panel. Split out
+    so the committed shard's upper layers can be reconciled without re-running the live L1 panel."""
+    cells = {
+        "L2a": cs.Cell(
+            built=True,
+            criteria=_l2_unmeasured_criteria(),
+            notes=(
+                "L2a = source_properties (SK#1941-shape EXPORTED section, --emit-envelope), built by "
+                "PR-1a of epic SK#2210 / #1507: 8 per-source observational properties "
+                "(safety_claims.py::_SOURCE_PROPERTY_RECIPES_SAFETY), governed by "
+                "contracts/vocabularies/property_catalog/safety.yaml. BUILT, NOT MEASURED — every "
+                "criterion NULL with its reason; see _L2_UNMEASURED_NULL_REASON."
+            ),
+        ),
+        "L2b": cs.Cell(
+            built=True,
+            criteria=_l2_unmeasured_criteria(),
+            notes=(
+                "L2b = integrated_properties (SK#1941-shape EXPORTED section), built by PR-1a of epic "
+                "SK#2210 / #1507: the normal_liability_concordance island (#1546, GTEx bulk x "
+                "sc-normal x HPA-IHC). BUILT, NOT MEASURED — every criterion NULL with its reason."
+            ),
+        ),
+    }
+    for layer in ("L3", "L4"):
+        cells[layer] = cs.Cell(
             built=False,
             criteria={name: cs.Criterion(status=cs.NULL, evidence=None) for name in cs.CRITERIA},
             notes=_NOT_BUILT_NOTE,
         )
-
-    return shard
+    return cells
 
 
 def main() -> int:

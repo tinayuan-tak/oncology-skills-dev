@@ -1,0 +1,736 @@
+# safety.yaml — the on-target-safety LIABILITY source properties.
+#
+# Register (not engine) for the eight per-source observational properties the
+# on-target-safety-liability skill resolves and exports as
+# `claim_vector.source_properties` / `evidence_package.source_properties`
+# (skills/_skills_common/safety_claims.py::_SOURCE_PROPERTY_RECIPES_SAFETY). See README.md for the
+# entry shape and the identifiability test that admits `role: estimator`.
+catalog_id: safety
+kind: l2a_property
+version: 1.0.0
+
+description: |
+  This domain is INVERSE-VALENCE and that is the single most important thing about it: a STRONG
+  read on any property here is a safety CONCERN, not a win. Every entry therefore carries
+  `valence: liability` on its emitted `comparability` block (see governance.role below for why
+  the marker lives in the emitted object and is only DECLARED here). A reader holding the L2a
+  export without that marker, applying the usual "higher is better" reading, inverts the meaning
+  of all eight properties at once.
+
+  A second domain-wide fact, recorded once rather than eight times: every entry's
+  `entity_grain` is `target`. Unlike the tumour-presence catalog — whose entries span
+  bulk / bulk_protein / single_cell — no safety source here is sample-resolved. Each card emits a
+  gene-level aggregate (a constraint statistic, a curated assertion count, a tissue breadth
+  fraction), so the eight are mutually commensurable ON GRAIN and are NOT grain-commensurable with
+  presence's per-sample reads. The thing that separates them is `sample_context`, which is the
+  axis that actually matters here: population_germline (gnomAD, s_het) and clinical_germline
+  (ClinVar, ClinGen) are both "human genetics" in casual speech but are a population allele-
+  frequency measurement and a curated clinical assertion respectively — they can agree without
+  corroborating, because a curated pathogenic assertion and an allele-frequency deficit are not
+  independent evidence about the same gene in the way two cohorts would be.
+
+  What is NOT here, deliberately, because an L2a catalog that over-claims its roster is worse
+  than one that explains its edges:
+    * DepMap pan-essentiality. It is the DEPENDENCY domain's L2a property (arc #2210 Wave-1b),
+      READ here at liability valence by the safety PAN_ESSENTIAL claim axis. Duplicating it as a
+      ninth safety property would make ONE measurement look like two independent sources — the
+      exact double-count `dependence_group` exists to prevent. The sharing is recorded in
+      `dependence_note` on `germline_lof_constraint` rather than by minting an entry.
+    * Pharmacovigilance (drug-warning-safety / onsides-adverse-event-safety). The safety claim
+      vector carries a PHARMACOVIGILANCE axis, but it is on/off-target CONFOUNDED clinical
+      CONTEXT — an observation about drugs that engage the target, not an observational property
+      OF the target. It is verdict-inert context for that reason and is not an L2a biological
+      property. This is a real coverage limit of this catalog, not an omission.
+    * TPHP HPA-blind vital-organ protein (normal-tissue-protein-abundance-tphp). It reaches the
+      export only through `normal_tissue_protein_liability`'s `interpretation.disjunct_fired`
+      (the #1793 promotion arm), not as its own entry. Promoting it is a follow-up, not a
+      correction: its rules live on the tumour-selectivity axis, so giving it a safety L2a entry
+      would assert a supply relationship the card does not declare.
+
+governance:
+  role: |
+    Authoritative for: what each safety liability property MEANS, which observables estimate it,
+    and which numbers decide its value. NOT authoritative for the value vocabulary — each
+    property's tokens are owned by its own card's `summary_fields_vocabulary` in cards/, and the
+    scalar safety VERDICT is owned by the target-contracts safety resolver, never by this file or
+    by the projection that reads it.
+
+    ⚠️ LIMIT OF THIS FILE, stated because a silent limit becomes a false claim: the
+    `valence: liability` marker this domain pilots is DECLARED in
+    docs/EVIDENCE_PROPERTY_ENVELOPE_v0.md § v1.1 (iii) and emitted by
+    safety_claims.py, but it is NOT machine-governed by validate_property_catalog.py. There is no
+    `valence` slot in the validator's closed ENTRY_KEYS, and the obvious home (`grain`) is wrong
+    twice over: GRAIN_KEYS is closed AND all its members are REQUIRED, so adding one there would
+    red the three landed catalogs. A ONE-TOKEN vocabulary does not yet earn a validator clause, so
+    the honest state is: recorded in prose here, declared in the envelope doc, unenforced. Arc
+    Waves 1b-1e must NOT mint a second valence token without governing it first — an ungoverned
+    second token is precisely the drift Wave-0b/0d closed for `concordance_class` and
+    `claim_axis`, and the second token is the point at which prose stops being sufficient.
+  versioning: |
+    Semver. Adding a property or an observable is a MINOR bump. Correcting a rationale, a unit, or
+    a `source:` path is a PATCH bump. Removing a property, or changing an existing property's
+    `grain`, is BREAKING and requires a MAJOR bump plus coordination via the wip-registry —
+    `validate_property_catalog.py --additive-against <ref>` makes an un-bumped removal RED.
+  ownership: |
+    Epic #1507 (evidence-property architecture), arc #2210 Wave-1a (PR-1a, the safety
+    generalisation of the tumour-presence L2a reference vertical SK#1941). Threshold rationales
+    marked UNKNOWN below are the Wave-3 docs sweep's subject (#2218), not this PR's.
+  change_discipline: |
+    `property_id`s are published names referenced from outside this directory (the claim_axis
+    registry's `resolves:` field, which uses the QUALIFIED `safety.<property_id>` form — the bare
+    form is ambiguous across catalogs and the validator rejects it). Migrate by
+    add -> consume -> remove, never a bare rename.
+
+properties:
+
+  germline_lof_constraint:
+    status: resolvable
+    definition: |
+      Is heterozygous loss of this gene depleted in a healthy human population relative to what
+      neutral mutation would predict? A population-genetic SELECTION question, answered from
+      allele frequencies in people who were never phenotyped — which is exactly its strength (no
+      ascertainment on disease) and its limit (it measures selection, not toxicity, and selection
+      in development can constrain a gene that is dispensable in an adult).
+    grain:
+      measurement_type: gnomad_lof_constraint
+      sample_context: population_germline
+      entity_grain: target
+    observables:
+      - card_id: gnomad-lof-constraint
+        field: constraint_class
+        role: estimator
+        dependence_group: gnomad_v4_constraint
+        emission: class_token
+        note: |
+          The resolved class token (highly_constrained / moderately_constrained / tolerant /
+          indeterminate) — the value carried in the export's `property` slot.
+      - card_id: gnomad-lof-constraint
+        field: pli_score
+        role: estimator
+        dependence_group: gnomad_v4_constraint
+        emission: anchor
+        note: |
+          Posterior probability of haploinsufficiency. NOTE the unit: a probability, not a ratio —
+          it is NOT interchangeable with loeuf_score even though both are called "constraint".
+      - card_id: gnomad-lof-constraint
+        field: loeuf_score
+        role: estimator
+        dependence_group: gnomad_v4_constraint
+        emission: anchor
+        note: |
+          Upper bound of the observed/expected LoF confidence interval. LOWER is more constrained
+          — the ONLY anchor in this catalog whose direction is inverted relative to its property's
+          valence, which is why the export carries an explicit `scale`
+          (`obs_exp_ratio_upper_bound`) rather than leaving a consumer to infer direction.
+      - card_id: gnomad-lof-constraint
+        field: mis_z_score
+        role: estimator
+        dependence_group: gnomad_v4_constraint
+        emission: anchor
+        note: |
+          Missense-constraint z-score. A DIFFERENT variant class from the LoF anchors above: it
+          constrains missense, so a gene can be missense-constrained and LoF-tolerant. Retained
+          because that dissociation is informative for a mutant-selective mechanism, not because
+          it corroborates the LoF call.
+      - card_id: gnomad-lof-constraint
+        field: obs_lof_count
+        role: estimator
+        dependence_group: gnomad_v4_constraint
+        emission: anchor
+      - card_id: gnomad-lof-constraint
+        field: exp_lof_count
+        role: estimator
+        dependence_group: gnomad_v4_constraint
+        emission: anchor
+        note: |
+          The DENOMINATOR. obs_lof_count alone is uninterpretable — 2 observed LoF variants is
+          extreme constraint in a gene expected to carry 40 and unremarkable in one expected to
+          carry 3 — so the pair is retained together and neither is emitted without the other.
+    determinants:
+      - name: HIGH_PLI
+        value: 0.9
+        unit: probability_of_haploinsufficiency
+        source: methods/onc_methods/gnomad_constraint/cli.py:60
+        rationale: |
+          gnomAD's own conventional pLI cut for "haploinsufficient", inherited from the upstream
+          dataset convention rather than chosen here. Applied under OR semantics with HIGH_LOEUF
+          (either clause alone yields highly_constrained), so the two cuts are not conjunctive and
+          a gene missing one score is still classifiable from the other.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: null
+      - name: HIGH_LOEUF
+        value: 0.45
+        unit: obs_exp_lof_ratio_upper_bound
+        source: methods/onc_methods/gnomad_constraint/cli.py:60
+        rationale: |
+          gnomAD's v4-recommended cutoff. MOVED 0.35 -> 0.45 with the v4.1.1 recompute and
+          verified at the time to be a no-op on live classifications under the OR semantics
+          (every gene with LOEUF in (0.35, 0.45] already had pLI >= 0.9, so it was already
+          highly_constrained via the pLI clause) — see the comment at
+          methods/onc_methods/gnomad_constraint/cli.py:55-59. Recorded here because the no-op is a
+          property of the CURRENT table, not of the threshold: the same move on a future gnomAD
+          release could reclassify, and the OR semantics are what make it safe today.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: null
+      - name: MOD_PLI
+        value: 0.5
+        unit: probability_of_haploinsufficiency
+        source: methods/onc_methods/gnomad_constraint/cli.py:61
+        rationale: |
+          UNKNOWN. The moderately_constrained floor. Why 0.5 rather than gnomAD's other
+          conventional cuts is not recorded at the site, and unlike HIGH_PLI it does not
+          correspond to a published upstream convention.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2218"
+      - name: MOD_LOEUF
+        value: 0.6
+        unit: obs_exp_lof_ratio_upper_bound
+        source: methods/onc_methods/gnomad_constraint/cli.py:61
+        rationale: |
+          UNKNOWN. LOEUF mirror of MOD_PLI; shares its adjudication.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2218"
+    dependence_note: |
+      Two independence caveats a downstream fold must respect, neither of which is expressible in
+      `dependence_group` alone:
+
+      (1) vs `dominant_lof_selection`. The two are recorded in SEPARATE dependence_groups
+      (gnomad_v4_constraint / genebayes_shet) because that is how the framework treats them
+      today — shet-lof-intolerance.card.yaml declares itself "a CONFIDENCE / corroboration
+      annotation on the gnomad-lof-constraint call", and safety_claims.py reads s_het as a
+      CONSTRAINT-axis corroboration/conflict arm. But s_het (GeneBayes, Zeng et al. 2024) is
+      estimated from population allele data with a gene-feature prior, so the two rest on
+      overlapping upstream variant observations and are NOT fully independent arms the way two
+      separate cohorts would be. The grouping recorded here preserves current behaviour (this
+      catalog documents what IS; changing the corroboration semantics is not an additive change);
+      whether they should share ONE dependence_group is an open owner question raised by PR-1a and
+      deliberately not settled here.
+
+      (2) vs the dependency domain. DepMap pan-essentiality is read at liability valence by this
+      skill's PAN_ESSENTIAL claim axis but is the DEPENDENCY domain's L2a property (Wave-1b), NOT
+      duplicated in this catalog. A fold that counts both a safety property from this file and the
+      dependency-domain pan-essentiality property must treat the latter as the dependency
+      domain's measurement, shared — not as a second safety source.
+    consumers:
+      - skill: on-target-safety-liability
+        axis_key: CONSTRAINT
+        surface: source_properties.germline_lof_constraint
+
+  dominant_lof_selection:
+    status: resolvable
+    definition: |
+      How strong is selection against heterozygous loss of this gene, as a CONTINUOUS coefficient
+      rather than a binary constraint call? The same underlying question as
+      `germline_lof_constraint` asked on a continuous, better-calibrated scale that catches
+      dosage-sensitive SMALL genes where binary pLI/LOEUF lack the variant counts to resolve.
+    grain:
+      measurement_type: shet_lof_selection
+      sample_context: population_germline
+      entity_grain: target
+    observables:
+      - card_id: shet-lof-intolerance
+        field: shet_class
+        role: estimator
+        dependence_group: genebayes_shet
+        emission: class_token
+      - card_id: shet-lof-intolerance
+        field: shet_score
+        role: estimator
+        dependence_group: genebayes_shet
+        emission: anchor
+        note: |
+          The selection coefficient itself — a rate, not a probability and not a ratio.
+      - card_id: shet-lof-intolerance
+        field: shet_lower_95
+        role: estimator
+        dependence_group: genebayes_shet
+        emission: anchor
+      - card_id: shet-lof-intolerance
+        field: shet_upper_95
+        role: estimator
+        dependence_group: genebayes_shet
+        emission: anchor
+        note: |
+          The credible interval is retained WITH the point estimate because s_het is a posterior:
+          a point estimate of 0.09 with a [0.02, 0.35] interval and one with a [0.088, 0.092]
+          interval sit on opposite sides of HIGH_INTOLERANCE in practice, and the class token
+          alone cannot express that. This is the clearest case in the catalog for why anchors are
+          retained rather than collapsed to a class.
+    determinants:
+      - name: HIGH_INTOLERANCE
+        value: 0.1
+        unit: selection_coefficient
+        source: methods/onc_methods/shet_selection/cli.py:21
+        rationale: |
+          Cassa 2017 / Zeng 2024 strong-constraint threshold (~15% of genes). A PUBLISHED cut
+          inherited from the source literature rather than tuned here — the best-evidenced
+          determinant in this file, and the reason is worth naming: it comes with a stated
+          population fraction, so its consequence is known rather than assumed.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: null
+      - name: MODERATE_INTOLERANCE
+        value: 0.01
+        unit: selection_coefficient
+        source: methods/onc_methods/shet_selection/cli.py:22
+        rationale: |
+          UNKNOWN as a calibration, though it is an order of magnitude below HIGH_INTOLERANCE and
+          is stated as such in the card's class table. Whether the decade step is principled or
+          conventional is not recorded.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2218"
+    note: |
+      VERDICT-INERT at the card level (shet-lof-intolerance.card.yaml declares
+      `interpretation: rules_pending` — it fires no interpretation rule and is not in the safety
+      resolver's when_fired). It has NO claim axis of its own; it is read inside the CONSTRAINT
+      axis, which is why its consumer below names axis_key CONSTRAINT rather than a SHET axis
+      that does not exist. A verdict-bearing s_het rung is a deferred, backtest-gated follow-up.
+    consumers:
+      - skill: on-target-safety-liability
+        axis_key: CONSTRAINT
+        surface: source_properties.dominant_lof_selection
+        note: |
+          Read as a continuous corroboration/conflict arm on the binary constraint call, not as an
+          independent axis. See germline_lof_constraint.dependence_note (1).
+
+  population_burden_liability:
+    status: resolvable
+    definition: |
+      Do carriers of loss-of-function variants in this gene show an excess of disease phenotypes
+      in a phenotyped population cohort? The question `germline_lof_constraint` cannot answer:
+      constraint says selection acted, burden says WHICH phenotype — and can resolve the opposite
+      direction, where LoF is PROTECTIVE.
+    grain:
+      measurement_type: gene_burden_safety
+      sample_context: population_cohort
+      entity_grain: target
+    observables:
+      - card_id: gene-burden-safety
+        field: burden_safety_class
+        role: estimator
+        dependence_group: opentargets_gene_burden
+        emission: class_token
+      - card_id: gene-burden-safety
+        field: min_pvalue
+        role: estimator
+        dependence_group: opentargets_gene_burden
+        emission: anchor
+        note: |
+          ⚠️ A NOMINAL association p-value, NOT an FDA/BH q-value — the card does not
+          FDR-correct, and this is a gene-by-phenotype scan. The export declares
+          `scale: nominal_p_value` for exactly this reason: a consumer that reads it as a q-value
+          over-reads every burden signal in the corpus. Named here because the field NAME
+          (`min_pvalue`) does not carry the distinction and the minimum over many phenotypes is
+          the most multiple-testing-exposed statistic in this catalog.
+    determinants: []
+    note: |
+      No named numeric determinant: the class is supplied by Open Targets' own burden
+      significance call plus the direction field, not by a threshold applied in this repo. The
+      empty list is a declared fact about where the cut lives (upstream), not an unfilled gap.
+      `direction_on_target` is retained as an export CONTEXT qualifier — it is uniform ('LoF') in
+      OT 26.06 and is recorded for provenance, so it is deliberately NOT declared as an
+      observable here: it estimates nothing while its value is constant.
+    consumers:
+      - skill: on-target-safety-liability
+        axis_key: BURDEN
+        surface: source_properties.population_burden_liability
+
+  germline_pathogenicity:
+    status: resolvable
+    definition: |
+      Have germline variants in this gene been CLINICALLY CURATED as pathogenic, and how many
+      with confident review status? An assertion-count question over a clinical submission
+      database — ascertained on disease, which is the mirror-image bias to
+      `germline_lof_constraint`'s unascertained population.
+    grain:
+      measurement_type: clinvar_germline_pathogenicity_safety
+      sample_context: clinical_germline
+      entity_grain: target
+    observables:
+      - card_id: clinvar-pathogenicity-safety
+        field: clinvar_pathogenic_class
+        role: estimator
+        dependence_group: clinvar_germline
+        emission: class_token
+      - card_id: clinvar-pathogenicity-safety
+        field: n_pathogenic_germline_confident
+        role: estimator
+        dependence_group: clinvar_germline
+        emission: anchor
+        note: |
+          The REVIEW-STATUS-FILTERED count — the load-bearing one. Note the field name: the
+          skill's headline lifts this as `clinvar_n_pathogenic_germline_confident`, but the CARD
+          field is `n_pathogenic_germline_confident`. The L2a export reads the CARD field (the
+          arc's plan table carried the headline-lifted name; corrected in PR-1a), which is what
+          makes the entry reconstructable to L1.
+      - card_id: clinvar-pathogenicity-safety
+        field: n_pathogenic_germline
+        role: estimator
+        dependence_group: clinvar_germline
+        emission: anchor
+        note: |
+          The UNFILTERED count, retained as the confident count's denominator-in-spirit: the gap
+          between the two is the submission quality of the gene's ClinVar record, and a large gap
+          is a reason to distrust the unfiltered number rather than a reason to believe it.
+    determinants: []
+    note: |
+      No named numeric determinant in this repo: ClinVar's clinical significance and review status
+      are curated upstream and the class reads them directly. `top_disease` is retained as an
+      export CONTEXT qualifier, not an observable — it names WHICH phenotype the assertions
+      concern, which orients the count without estimating the property.
+    consumers:
+      - skill: on-target-safety-liability
+        axis_key: CLINVAR
+        surface: source_properties.germline_pathogenicity
+
+  dosage_sensitivity:
+    status: resolvable
+    definition: |
+      Is a SINGLE functional copy of this gene insufficient — i.e. is the gene haploinsufficient
+      on expert clinical curation? The dominant-loss question asked of curators rather than of
+      allele frequencies, and the one that speaks most directly to a partial-knockdown modality:
+      a haploinsufficient gene has no safe 50% dose.
+    grain:
+      measurement_type: dosage_sensitivity_safety
+      sample_context: clinical_germline
+      entity_grain: target
+    observables:
+      - card_id: clingen-dosage
+        field: dosage_sensitivity_class
+        role: estimator
+        dependence_group: clingen_dosage_curation
+        emission: class_token
+        note: |
+          DERIVED, not read: ClinGen carries no dosage column, and the class is derived from
+          allelicRequirements (see clingen-dosage.card.yaml:8, :82). The derivation is upstream of
+          the card summary and its fired branch is NOT recoverable from the summary — which is
+          why this entry carries no `interpretation` object. That absence is the honest state, not
+          an oversight: see the envelope doc's v1.1 (ii) on what is lost when a class token's
+          producing disjunct is invisible.
+      - card_id: clingen-dosage
+        field: n_high_confidence
+        role: estimator
+        dependence_group: clingen_dosage_curation
+        emission: anchor
+      - card_id: clingen-dosage
+        field: n_autosomal_dominant
+        role: estimator
+        dependence_group: clingen_dosage_curation
+        emission: anchor
+      - card_id: clingen-dosage
+        field: n_autosomal_recessive
+        role: estimator
+        dependence_group: clingen_dosage_curation
+        emission: anchor
+        note: |
+          Retained as the DISCRIMINATING count, not a corroborating one: recessive-only curation
+          is the measured NEGATIVE of the dominant-loss concern this property is about. Emitting
+          the dominant count without it lets a reader see 0 dominant assertions and not know
+          whether the gene is uncurated or curated-recessive — a gap versus a measured negative,
+          which is the distinction this whole domain rests on.
+    determinants: []
+    note: |
+      No named numeric determinant: the counts are curated-assertion tallies and the class is
+      derived from allelicRequirements, not from a threshold in this repo.
+
+      INCLUDED although the arc plan marked an eighth entry optional and
+      "categorical-only" — implementer's call, exercised for two measured reasons rather than for
+      completeness. (a) DOSAGE is one of the safety skill's four `critical_keys`
+      (safety_claims.py::safety_key_signals), so omitting it would leave a CRITICAL axis of the
+      domain with no L2a property while seven non-critical-and-critical peers have one. (b) the
+      "categorical-only" premise is false: the card resolves a class AND carries real count
+      anchors (n_high_confidence / n_autosomal_dominant / n_autosomal_recessive), so there is
+      quantitative substrate to retain. Recorded here because the next domain's implementer will
+      face the same optional-entry call.
+    consumers:
+      - skill: on-target-safety-liability
+        axis_key: DOSAGE
+        surface: source_properties.dosage_sensitivity
+
+  ko_organismal_phenotype:
+    status: resolvable
+    definition: |
+      What happens to a whole organism when this gene is knocked out? The only property in this
+      catalog measured in a living animal rather than inferred from human variation — so it is the
+      only one that observes a phenotype directly, at the cost of being a different species.
+    grain:
+      measurement_type: mouse_ko_phenotype_safety
+      sample_context: model_organism
+      entity_grain: target
+    observables:
+      - card_id: mouse-ko-phenotype
+        field: ko_phenotype_class
+        role: estimator
+        dependence_group: opentargets_mouse_phenotype
+        emission: class_token
+      - card_id: mouse-ko-phenotype
+        field: n_lethal
+        role: estimator
+        dependence_group: opentargets_mouse_phenotype
+        emission: anchor
+      - card_id: mouse-ko-phenotype
+        field: n_adult_lethal
+        role: estimator
+        dependence_group: opentargets_mouse_phenotype
+        emission: anchor
+        note: |
+          The therapeutically DECISIVE split of n_lethal, retained alongside it rather than
+          instead of it. Developmental lethality in a mouse KO constrains a germline gene but says
+          comparatively little about dosing an adult patient; adult lethality says a great deal.
+          A single `n_lethal` collapses the two, and the class token collapses them further.
+      - card_id: mouse-ko-phenotype
+        field: n_developmental_lethal
+        role: estimator
+        dependence_group: opentargets_mouse_phenotype
+        emission: anchor
+        note: |
+          The complement of n_adult_lethal, retained so the split is legible in both directions
+          rather than leaving a consumer to subtract.
+    determinants: []
+    note: |
+      No named numeric determinant in this repo: lethality is a curated MP-term match and the
+      counts are tallies. `organ_classes`, `impc_viability_class` and `top_lethal_label` are
+      retained as export CONTEXT qualifiers rather than observables — `impc_viability_class` in
+      particular comes from IMPC, a DIFFERENT upstream source from the Open Targets mouse
+      phenotype tallies, so declaring it an estimator in this entry's dependence_group would
+      assert a shared-source relationship that is not true. It orients the counts; it does not
+      estimate this property.
+    consumers:
+      - skill: on-target-safety-liability
+        axis_key: MOUSE_KO
+        surface: source_properties.ko_organismal_phenotype
+
+  normal_tissue_protein_liability:
+    status: resolvable
+    definition: |
+      Is the PROTEIN detectable by antibody immunostaining in tissues whose loss would not be
+      tolerated? The on-target-off-tumour question for a full-knockout agent, asked at the protein
+      level in curated essential tissues — the layer an RNA breadth measurement cannot reach.
+    grain:
+      measurement_type: normal_tissue_protein_breadth
+      sample_context: normal_tissue
+      entity_grain: target
+    observables:
+      - card_id: normal-tissue-liability
+        field: essential_tissue_flag
+        role: estimator
+        dependence_group: hpa_normal_tissue_ihc
+        emission: class_token
+        note: |
+          The trichotomy present / unknown / absent. Two things a reader must know, both of which
+          motivated emitting `property_field` alongside `property` in the export: (a) the value is
+          a bare token — `present` alone does not say present of WHAT, unlike every other
+          class token in this catalog; (b) `unknown` is a DATA GAP and `absent` is a MEASURED
+          negative, and the card's own note warns that absence of an essential-tissue flag on a
+          BROAD gene is not reassurance (nothing is "specific" when a gene stains everywhere).
+          The card declares `normal_tissue_breadth_class` its PRIMARY categorical, but this flag
+          is the field the safety resolver rule reads directly
+          (normal-tissue-protein-liability-safety-warning, see the card at :118), so it is the
+          load-bearing supply for THIS domain's property and the breadth class is retained as
+          context.
+      - card_id: normal-tissue-liability
+        field: n_essential_tissues_with_expression
+        role: estimator
+        dependence_group: hpa_normal_tissue_ihc
+        emission: anchor
+        note: |
+          The count behind the flag: the method sets essential_tissue_flag='present' once >= 1
+          curated essential tissue shows specific-intensity expression (card at :109). Retained
+          because 1 essential tissue and 9 are the same token but not the same liability.
+      - card_id: normal-tissue-liability
+        field: n_specific_tissues
+        role: estimator
+        dependence_group: hpa_normal_tissue_ihc
+        emission: anchor
+        note: |
+          The denominator-in-spirit for the count above: how many tissues had a SPECIFIC-intensity
+          call at all. 1-of-2 and 1-of-30 are different claims.
+    determinants:
+      - name: ESSENTIAL_TISSUE_EXPRESSION_MIN
+        value: 1
+        unit: count_of_curated_essential_tissues_with_specific_intensity
+        source: contracts/cards/normal-tissue-liability.card.yaml:109
+        rationale: |
+          A single essential tissue with specific-intensity staining sets the flag — the
+          strict-modality killer count. Deliberately the weakest possible cut (>= 1) because the
+          consequence it gates is "a strict-tolerance modality is likely not viable", where a
+          false negative is far more costly than a false positive. NOT a tuned number, and
+          recorded here with an UNDER-COVERAGE caveat the card itself names (TC#884 F9): the flag
+          can ALSO become 'present' via a genome-wide "Detected in all" path that this count does
+          not see, so the count and the flag can disagree — the in-card predicate was deliberately
+          left as a count rather than re-keyed to the flag to keep the emitted warning set
+          byte-stable. The `unit` is a count, not a fraction: it does NOT scale with how many
+          essential tissues were examined.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: null
+    note: |
+      THE ONE ENTRY IN THIS CATALOG THAT CARRIES AN `interpretation` OBJECT — the first live
+      emission anywhere of the shape DECLARED in
+      docs/EVIDENCE_PROPERTY_ENVELOPE_v0.md § v1.1 (ii) ({function_id, version,
+      disjunct_fired}); the tumour-presence implementation is #2227, blocked because it would
+      regenerate the presence golden, and this domain is not golden-blocked.
+
+      It is emitted here and nowhere else because this is the only safety property whose domain
+      read resolves through a genuine multi-arm disjunction
+      (safety_claims.py::_normaltissue_sig): the essential-tissue flag, else a MEASURED
+      normal-tissue breadth fallback, else the #1793 TPHP HPA-blind vital-organ promotion, else
+      unmeasured. Two targets can both read `strong` because the HPA flag fired or because TPHP
+      quantified the protein in an organ HPA structurally cannot see — materially different
+      evidence behind the same word, and the fired arm is invisible from the tier alone. The other
+      seven entries OMIT the object rather than fabricate one: their class token is a verbatim
+      card read whose producing disjunct was decided upstream in methods/ and is not recoverable
+      from the card summary.
+
+      ⚠️ OPEN READING, surfaced by PR-1a and not settled by it, because Waves 1b-1e replicate
+      whichever answer stands: `interpretation` here describes how THIS DOMAIN resolved the source
+      into its liability read, NOT how the card's own class token was produced (the `property`
+      slot stays the verbatim card value; `function_id` names the skills-side resolver). The
+      alternative reading — that `interpretation` must describe the resolution of the entry's own
+      `property` — would make the field unemittable everywhere in this domain, since every class
+      token is a verbatim card read.
+    consumers:
+      - skill: on-target-safety-liability
+        axis_key: NORMAL_TISSUE
+        surface: source_properties.normal_tissue_protein_liability
+
+  normal_tissue_rna_liability:
+    status: resolvable
+    definition: |
+      How broadly, and how highly in CRITICAL organs, is the transcript expressed across normal
+      human tissues? The RNA complement to the protein/IHC read above — quantitative and
+      comprehensive in tissue coverage where the antibody read is categorical, and therefore the
+      source that can answer "housekeeping-like or restricted" rather than only "essential tissue
+      or not".
+    grain:
+      measurement_type: normal_tissue_rna_breadth
+      sample_context: normal_tissue
+      entity_grain: target
+    observables:
+      - card_id: normal-tissue-liability-gtex
+        field: liability_class
+        role: estimator
+        dependence_group: gtex_normal_tissue_rna
+        emission: class_token
+        note: |
+          critical_organ_liability / broadly_expressed_normal / restricted_normal /
+          moderate_normal_breadth / data_unavailable. NOTE the class is NOT a single-quantity
+          ladder: the first token is decided by an ABSOLUTE LEVEL in a critical organ and the rest
+          by a BREADTH FRACTION, so two tokens in this vocabulary can be driven by different
+          quantities. The anchors below are retained precisely so that a consumer can see which.
+      - card_id: normal-tissue-liability-gtex
+        field: tissue_breadth_fraction
+        role: estimator
+        dependence_group: gtex_normal_tissue_rna
+        emission: anchor
+        note: |
+          The fraction of tissues above the detection floor — the quantity behind the
+          broadly_expressed_normal / restricted_normal arms.
+      - card_id: normal-tissue-liability-gtex
+        field: critical_organ_max
+        role: estimator
+        dependence_group: gtex_normal_tissue_rna
+        emission: anchor
+        note: |
+          Max expression across the curated critical-organ set — the quantity behind the
+          critical_organ_liability arm, on an ABSOLUTE log2-TPM scale, NOT a fraction. Retained
+          with `critical_organ_argmax` as export context so the implicated organ is nameable.
+      - card_id: normal-tissue-liability-gtex
+        field: n_tissues_high
+        role: estimator
+        dependence_group: gtex_normal_tissue_rna
+        emission: anchor
+      - card_id: normal-tissue-liability-gtex
+        field: n_tissues_detectable
+        role: estimator
+        dependence_group: gtex_normal_tissue_rna
+        emission: anchor
+      - card_id: normal-tissue-liability-gtex
+        field: n_tissues_tested
+        role: estimator
+        dependence_group: gtex_normal_tissue_rna
+        emission: anchor
+        note: |
+          THE DENOMINATOR for both counts above and for tissue_breadth_fraction. Retained
+          explicitly rather than left implicit in the fraction, because GTEx tissue coverage is
+          not constant across releases and a breadth fraction whose denominator moved is not
+          comparable with one whose denominator did not.
+    determinants:
+      - name: HIGH_LOG2TPM
+        value: 5.6724
+        unit: log2_tpm_plus_1
+        source: methods/onc_methods/tcga_gtex_expression_distribution/stats.py:24
+        rationale: |
+          log2(51), i.e. a round number in LINEAR TPM (~TPM 50). The critical-organ cut applied at
+          read.py:790 / stats.py:172: a critical organ at or above this level yields
+          critical_organ_liability regardless of tumour abundance.
+
+          ★ THE SAME CONSTANT carries the #2221 divergence adjudicated in expression.yaml
+          (`_HIGHLY_EXPRESSED_LOG2TPM`, DOCUMENTED-INTENTIONAL, neither constant moved): 5.6724
+          here vs DepMap's 5.0, two rounding conventions ~1.6x apart in linear TPM, both labelled
+          "highly expressed". Recorded here because that adjudication measured the constant's
+          effect on TWO arms — the tumour high_fraction arm (8/59 units move) and the cell-line
+          arm (8/58) — and this SAFETY critical-organ arm is a THIRD consumer that was not in its
+          flip matrix. So the #2221 fork is broader than its own write-up states: moving the
+          anchor would also move `critical_organ_liability` calls, and the size of that move is
+          UNMEASURED. Surfaced by PR-1a rather than measured in it (measuring it is a
+          methods-side counterfactual over the normal-tissue atlas, not an L2a export change);
+          any future proposal to move the anchor must measure this arm too.
+        calibration:
+          controls: null
+          flip_matrix: methods/tests/calibration/high_anchor_flip_matrix/matrix.json
+          adjudication: "#2221"
+      - name: BROADLY_EXPRESSED_NORMAL_BREADTH
+        value: 0.7
+        unit: fraction_of_normal_tissues_above_detection_floor
+        source: methods/onc_methods/tcga_gtex_expression_distribution/read.py:792
+        rationale: |
+          UNKNOWN as a calibration. Detectable across at least 70% of normal tissues reads as
+          housekeeping-like (a narrow therapeutic window). Shares its VALUE with the expression
+          catalog's `_BROAD_EXPRESSED_FRACTION` (0.70, same unit — fraction above the DETECTION
+          floor), which is a genuine mirror rather than a coincidence; unlike the #2220 case, the
+          two really are the same bar on the same quantity in different sample contexts.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2218"
+      - name: RESTRICTED_NORMAL_BREADTH
+        value: 0.3
+        unit: fraction_of_normal_tissues_above_detection_floor
+        source: methods/onc_methods/tcga_gtex_expression_distribution/read.py:794
+        rationale: |
+          UNKNOWN as a calibration. Below 30% of normal tissues reads as restricted (a favourable
+          window). Note this is a STRICT inequality (< 0.3) while the broad cut is inclusive
+          (>= 0.7), leaving [0.3, 0.7) as moderate_normal_breadth — the band is the residual, not
+          a separately-reasoned class.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2218"
+    dependence_note: |
+      Shares NO dependence_group with `normal_tissue_protein_liability` even though both answer
+      "is it in normal tissue": GTEx bulk RNA and HPA antibody IHC are independent measurements of
+      different molecular species, which is exactly why the safety domain folds them (plus
+      scRNA-normal) into the L2b `normal_liability_concordance` island rather than treating either
+      as the answer. Agreement between them is real corroboration; disagreement is the
+      RNA-vs-protein discordance the island exists to surface.
+    consumers:
+      - skill: on-target-safety-liability
+        axis_key: NORMAL_TISSUE
+        surface: source_properties.normal_tissue_rna_liability
+        note: |
+          Read as the GTEx corroboration arm of the NORMAL_TISSUE axis (the axis's primary supply
+          is the HPA flag), and folded with HPA-IHC + scRNA-normal by the L2b
+          `normal_liability_concordance` claim.

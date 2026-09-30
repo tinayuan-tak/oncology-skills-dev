@@ -192,11 +192,17 @@ envelope should not generalize that far. It fits after promoting exactly two lat
 dependence structure + two counts) to first-class — so the envelope **learned something real** and
 reaches **rung 3 (provisional-conformance)**.
 
-## Envelope v1.1 — two additive fields (SK#2210 Wave-0c)
+## Envelope v1.1 — two additive fields (SK#2210 Wave-0c), plus a third from Wave-1a
 
-**Status:** both fields **declared here**; exactly one is **implemented** in 0c. Additive only — v1.1
-renames nothing, re-keys nothing, and removes no slot. Every v0 consumer keeps reading v0 records
-unchanged, because both fields are **optional and omitted when they do not apply**.
+**Status:** both Wave-0c fields **declared here**; exactly one was **implemented** in 0c. Additive only —
+v1.1 renames nothing, re-keys nothing, and removes no slot. Every v0 consumer keeps reading v0 records
+unchanged, because all three fields are **optional and omitted when they do not apply**.
+
+**Updated by Wave-1a (PR-1a, safety domain):** `interpretation` (ii) is **no longer unimplemented** — the
+safety domain carries the first live emission, on one entry. A third field, `valence` (iii), is declared
+below; it was piloted by the same PR because the safety domain is the first inverse-valence domain to
+export L2a properties at all. Subsection (ii)'s "declared only" wording describes **0c**, and is left
+standing as the record of what 0c did rather than rewritten; (ii)'s own status note carries the update.
 
 Read the two together. They are halves of one idea: *before you may relate two arms, say whether they
 were relatable, and say how each arm's value was arrived at.* v0 already carries the caveat as prose
@@ -295,6 +301,65 @@ placed two arms on a shared scale is a claim about *how each arm's value was pro
 is unrecoverable from the value alone. So the state that no family emits is exactly the state the
 missing half would license — the enum is not carrying a dead token, it is carrying a token whose
 enabling field is a filed, blocked issue.
+
+**STATUS UPDATE — Wave-1a (PR-1a): first live emission.** The shape above is now implemented, in the
+**safety** domain: `skills/_skills_common/safety_claims.py::_normaltissue_interpretation` emits it on the
+`normal_tissue_protein_liability` L2a entry, reporting which arm of `_normaltissue_sig`'s three-way
+disjunction produced this domain's normal-tissue liability read (`essential_tissue_flag` ·
+`normal_tissue_breadth_fallback` · `tphp_hpa_blind_vital_organ_promotion` · `unmeasured`). The
+tumour-presence implementation (#2227) stays blocked for the golden reason given above; safety is not
+golden-blocked, which is why the shape's first instance lands here rather than on the domain that
+motivated it. It is emitted on **one** entry of eight, not universally — the other seven read a class
+token verbatim off a card, and the disjunct that produced *that* token was decided upstream in `methods/`
+and is not recoverable from the card summary. Fabricating a `disjunct_fired` there would be worse than
+omitting it, so they omit the object. Piloting in one place rather than declaring a universal registry on
+the strength of one pass is 0c's own discipline, applied to 0c's own field.
+
+⚠️ **One reading is open and Waves 1b–1e will replicate whichever answer stands.** As emitted,
+`interpretation` describes **how the consuming domain resolved the source into its own read** — the
+entry's `property` slot stays the verbatim card value, and `function_id` names the skills-side resolver.
+The alternative reading, that `interpretation` must describe the resolution of the entry's own `property`,
+would make the field unemittable across the whole safety domain, since every safety class token is a
+verbatim card read. Recorded in
+`contracts/vocabularies/property_catalog/safety.yaml::normal_tissue_protein_liability.note`; routed to the
+arc owner by PR-1a rather than settled in it.
+
+### (iii) `valence` — which direction is bad (SK#2210 Wave-1a, safety pilot)
+
+```yaml
+comparability:             # on an L2a source entry
+  measurement_type: <token>
+  sample_context: <token>
+  grain: <token>
+  valence: liability       # optional; omitted, never null
+```
+
+**The gap it closes.** Every L2a property exported so far has come from tumour-presence, where more is
+better: a higher abundance, a broader coverage, a stronger protein signal all point the same way, so the
+direction of "good" never had to be written down. The safety domain inverts it. A `highly_constrained`
+gene, a `germline_pathogenic` class, a KO-lethal phenotype, a broadly-expressed normal tissue — every one
+is a **strong read that is bad news**. A consumer holding only the L2a export and applying the ambient
+"higher is better" convention does not degrade gracefully here; it inverts the meaning of all eight safety
+properties at once, and nothing in the record contradicts it.
+
+**Vocabulary today: exactly one token, `liability`.** It is not new — it is the token the safety evidence
+**atoms** already carry (`entity.valence == "liability"`, 24 emission sites in `safety_claims.py`), reused
+verbatim so that no second vocabulary is minted for the same idea. The absence of the key means "not
+declared", never "beneficial": a consumer must not infer a `benefit` valence from omission, because the
+presence entries simply predate the field.
+
+⚠️ **Declared here, emitted by the producer, and NOT machine-governed.** `validate_property_catalog.py`
+cannot check it: `ENTRY_KEYS` is a closed allowlist with no `valence` slot, and the obvious alternative
+home is wrong twice over — `GRAIN_KEYS` is closed **and** all its members are **required**, so adding one
+there reds the three landed catalogs. Verified empirically, not assumed: adding `valence:` to a catalog
+entry produces `unknown key valence`. So the honest state is *declared in this doc, recorded in prose in
+`safety.yaml`'s `governance.role`, emitted by `safety_claims.py`, unenforced by any validator*. A
+one-token vocabulary does not yet earn a validator clause.
+
+**The obligation this puts on 1b–1e:** do not mint a second valence token without governing it first. The
+moment a second token exists, prose stops being sufficient and the field needs the same treatment
+`concordance_class` (0b) and `claim_axis` (0d) got — an enum with a validator, because an ungoverned
+second token is exactly the drift those two waves closed.
 
 ### Ladder status, measured (the table above is stale)
 

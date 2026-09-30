@@ -26,7 +26,7 @@ from _skills_common.literature_retrieval import default_retrieve, verify_citatio
 from _skills_common.literature_synthesis import make_literature_fn
 from _skills_common.narrator_engine import make_synthesize_fn
 from _skills_common.narrator_lenses import ON_TARGET_SAFETY as _SAFETY_LENS
-from _skills_common.safety_claims import safety_claim_vector, safety_key_signals
+from _skills_common.safety_claims import SAFETY_CLAIM_SPEC, safety_claim_vector, safety_key_signals
 from _skills_common.safety_question_table import safety_question_table
 from _skills_common.skill_report import ROLE_GATING, build_skill_report
 from _skills_common.subgroup_derivation import make_value_classifier
@@ -66,7 +66,7 @@ from _skills_common.narrative import build_narrative
 from _skills_common.resolver import resolve_or_raise
 
 SKILL_NAME = "on-target-safety-liability"
-SKILL_VERSION = "1.23.0"  # 1.23.0 (2026-09-29, SK#1794 pan-essential fail-open closure, PIN-COUPLED with TC fb43651e / safety.resolver 2.4.0 + AM 507439fc depmap_chronos_distribution 0.3.0): registers the two new verdict paths the resolver grew — (a) dependency_class == common_essential_unanchored (well-powered >=85% strongly-dependent fraction, curated core-essential anchor UNREACHABLE; split out of the safety-DARK common_essential_underpowered) fires pan-essential-unanchored-broad-tox-safety-warning → the SAME pan_essential_broad_tox_concern HOLD as the curated arm (an unverifiable pan-essential is a concern, never clean; driving_rule keeps provenance distinct); (b) broad_dependency_band == partial_broad_band (the 0.60-0.85 band that previously read CLEAN and co-corroborated the TC#895 tolerant reassurance) fires broad-dependency-partial-tox-safety-warning → NEW GRADED verdict broad_dependency_partial_tox_concern (caution ABOVE every tolerant rung, BELOW the HOLDs; deliberately NOT a nomination-gate hold — tp_gates registers it recognized/non-gating so the 12/504 band carriers stop fail-closing to a forced hold at pin time). Wiring: census-visible headline read of broad_dependency_band + synthesis-facet key; verdict phrase + concern polarity; risk_projection _SAFETY_BINS=1; PAN_ESSENTIAL claim signal/evidence + atom field + question-table row for common_essential_unanchored; resolver goldens (safety 19→21 rule_ids, dependency 26→27) + field_read_health regen. None-stable on pre-0.3.0 packages (band reads None; replay byte-stable).   # 1.22.0 (2026-09-28, SK#1793 organ-coverage spine, PIN-COUPLED with TC b2e19734 / safety.resolver 2.3.0): the TPHP HPA-BLIND vital-organ view goes VERDICT-BEARING — consumes the 4 new tphp_normal_protein 0.5.0 fields (tphp_hpa_blind_vital_organ_liability_class + count/names/uncovered; AM ae94fb3e): census-visible headline reads (aperture ratchet), synthesis facet, NORMAL_TISSUE claim signal/evidence/atom + key-signals label (safety_claims.py), question-table normal-tissue leg (safety_question_table.py). vital_organ_abundant fires tphp-hpa-blind-vital-organ-protein-safety-warning (intracellular_intrinsic axis) → resolver rung → normal_tissue_protein_safety_concern HOLD — closes the thyroid/adrenal/pituitary/nerve/blood coverage hole where an HPA-absent + gnomAD-tolerant target previously resolved REASSURING (tolerant_reduced_safety_risk). hpa_blind_vital_organs_uncovered surfaces the explicit coverage GAP (pituitary today), never silent absence. None-stable on pre-0.5.0 packages: all reads/claims degrade to the pre-1.22.0 bytes when the fields are absent (replay fixtures byte-stable).   # 1.21.0 (2026-09-28, SK#1792): whole-axis coverage gating on the SURFACED confidence — critical_axes broadened from ("CONSTRAINT",) to all 7 legs, so a clean verdict measured on gnomAD-tolerant alone is confidence-capped `weak` ("capped by thin coverage") instead of reading `strong`/`moderate`; question-table per-leg confidence graded from the claim-vector corroboration (high/moderate/single_arm/low) instead of a flat `moderate` (safety_question_table.py). Verdict-INERT: resolver/scalar verdict byte-stable (test_safety_replay); only headline_block.confidence + question_table confidence cells move.   # 1.20.0 (2026-09-24, L2b-3 / SK#1546): +sc-normal-celltype-expression card to feed a new VERDICT-INERT cross-source claim `normal_liability_concordance` (GTEx bulk × scRNA-normal × HPA-IHC normal-tissue liability, deterministic/no-LLM, on safety_claim_vector). The sc-normal veto enters the fired list but is NOT a safety.resolver rung nor in wt_loss_safety_conditioning ⇒ scalar + per-modality verdict byte-stable (test_safety_replay). Advances the evidence-property epic #1507 scorecard M3 (vocabulary reuse 2→3).   # 1.19.0 (2026-09-10, T0-3): +normal-tissue-protein-abundance-tphp (TPHP DIA-MS QUANTITATIVE vital-organ PROTEIN — tphp_vital_organ_liability_class). The safety substrate had RNA (GTEx) + categorical IHC (HPA) but NO quantitative protein; this fills the endocrine/vascular/CNS organs HPA-IHC is blind to (nerve/muscle/blood/adrenal/thyroid). VERDICT-INERT display CONTEXT: the card's rules live on the tumor-selectivity axis, not this skill's intracellular_intrinsic rules_scope, so it fires no safety rung and the scalar verdict is byte-stable. Backtested SM/degrader gate rule is a deliberate follow-on.   # 1.18.0 (2026-09-07, CASE-009 literature-discordance loop): +VERDICT-INERT pharmacovigilance_scope_caveat — clarifies drug_warning_class='no_warning' = no OT-registered FDA warning among engaging drugs, NOT absence of on-target toxicity (mechanism-based dose-limiting tox — TLS/cytopenias/neuropathy — often not boxed). Fires only on the measured-negative no_warning state; verdict/resolver/golden/replay byte-stable.
+SKILL_VERSION = "1.24.0"  # 1.24.0 (2026-09-30, PR-1a of epic SK#2210 / #1507 — the SAFETY generalisation of the tumor-presence L2a vertical SK#1941): the per-source observational (L2a) properties, which existed only IMPLICITLY inside the eight claim signal blocks, are lifted into a NAMED typed map `claim_vector.source_properties` (safety_claims.py `_SOURCE_PROPERTY_RECIPES_SAFETY`, 8 entries: germline_lof_constraint / dominant_lof_selection / population_burden_liability / germline_pathogenicity / dosage_sensitivity / ko_organismal_phenotype / normal_tissue_protein_liability / normal_tissue_rna_liability), each carrying its L1 card_id, the resolved observational property class, the RETAINED quantitative anchors ({field, value, scale} + ledger-declared semantic_role / interpretation_reach, #1525) and comparability metadata; and under --emit-envelope evidence_package.json gains the NAMED top-level sections source_properties (L2a) / integrated_properties (L2b normal_liability_concordance) / local_composites (the 8 axes), built by _evidence_sections(headline) and threaded through run_wired_skill(evidence_sections_fn=...). No `l3d` section — safety has no within-domain story object. TWO firsts piloted here for 1b-1e to copy: `comparability.valence: liability` (the inverse-valence marker, reusing the token the 24 existing safety atoms already emit, so a reader holding only the L2a export cannot mistake a STRONG read for a win) and the Wave-0c `interpretation` provenance object {function_id, version, disjunct_fired} — DECLARED in envelope v1.1 (ii) and until now implemented NOWHERE (its presence implementation #2227 is golden-blocked) — emitted on the ONE entry this domain resolves through a genuine multi-arm disjunction (normal_tissue_protein_liability / _normaltissue_sig: essential_tissue_flag | normal_tissue_breadth_fallback | tphp_hpa_blind_vital_organ_promotion | unmeasured) and OMITTED on the seven whose class token is a verbatim card read. DepMap pan-essentiality is deliberately NOT duplicated as a safety L2a property (it is the dependency domain's, read here at liability valence; the shared card is recorded in the catalog's dependence_group), nor is pharmacovigilance (on/off-target-confounded clinical CONTEXT, not an on-target biological property). ADDITIVE / VERDICT-INERT: no axis renamed, no new L2b family, no token minted; `source_properties` is omitted byte-stably when no source resolves; carries no `signal` key and is read by no rule/verdict/ladder, so safety_verdict + safety_verdict_by_modality + the resolver goldens + test_safety_replay are byte-stable. New contracts governance: contracts/vocabularies/property_catalog/safety.yaml.   # 1.23.0 (2026-09-29, SK#1794 pan-essential fail-open closure, PIN-COUPLED with TC fb43651e / safety.resolver 2.4.0 + AM 507439fc depmap_chronos_distribution 0.3.0): registers the two new verdict paths the resolver grew — (a) dependency_class == common_essential_unanchored (well-powered >=85% strongly-dependent fraction, curated core-essential anchor UNREACHABLE; split out of the safety-DARK common_essential_underpowered) fires pan-essential-unanchored-broad-tox-safety-warning → the SAME pan_essential_broad_tox_concern HOLD as the curated arm (an unverifiable pan-essential is a concern, never clean; driving_rule keeps provenance distinct); (b) broad_dependency_band == partial_broad_band (the 0.60-0.85 band that previously read CLEAN and co-corroborated the TC#895 tolerant reassurance) fires broad-dependency-partial-tox-safety-warning → NEW GRADED verdict broad_dependency_partial_tox_concern (caution ABOVE every tolerant rung, BELOW the HOLDs; deliberately NOT a nomination-gate hold — tp_gates registers it recognized/non-gating so the 12/504 band carriers stop fail-closing to a forced hold at pin time). Wiring: census-visible headline read of broad_dependency_band + synthesis-facet key; verdict phrase + concern polarity; risk_projection _SAFETY_BINS=1; PAN_ESSENTIAL claim signal/evidence + atom field + question-table row for common_essential_unanchored; resolver goldens (safety 19→21 rule_ids, dependency 26→27) + field_read_health regen. None-stable on pre-0.3.0 packages (band reads None; replay byte-stable).   # 1.22.0 (2026-09-28, SK#1793 organ-coverage spine, PIN-COUPLED with TC b2e19734 / safety.resolver 2.3.0): the TPHP HPA-BLIND vital-organ view goes VERDICT-BEARING — consumes the 4 new tphp_normal_protein 0.5.0 fields (tphp_hpa_blind_vital_organ_liability_class + count/names/uncovered; AM ae94fb3e): census-visible headline reads (aperture ratchet), synthesis facet, NORMAL_TISSUE claim signal/evidence/atom + key-signals label (safety_claims.py), question-table normal-tissue leg (safety_question_table.py). vital_organ_abundant fires tphp-hpa-blind-vital-organ-protein-safety-warning (intracellular_intrinsic axis) → resolver rung → normal_tissue_protein_safety_concern HOLD — closes the thyroid/adrenal/pituitary/nerve/blood coverage hole where an HPA-absent + gnomAD-tolerant target previously resolved REASSURING (tolerant_reduced_safety_risk). hpa_blind_vital_organs_uncovered surfaces the explicit coverage GAP (pituitary today), never silent absence. None-stable on pre-0.5.0 packages: all reads/claims degrade to the pre-1.22.0 bytes when the fields are absent (replay fixtures byte-stable).   # 1.21.0 (2026-09-28, SK#1792): whole-axis coverage gating on the SURFACED confidence — critical_axes broadened from ("CONSTRAINT",) to all 7 legs, so a clean verdict measured on gnomAD-tolerant alone is confidence-capped `weak` ("capped by thin coverage") instead of reading `strong`/`moderate`; question-table per-leg confidence graded from the claim-vector corroboration (high/moderate/single_arm/low) instead of a flat `moderate` (safety_question_table.py). Verdict-INERT: resolver/scalar verdict byte-stable (test_safety_replay); only headline_block.confidence + question_table confidence cells move.   # 1.20.0 (2026-09-24, L2b-3 / SK#1546): +sc-normal-celltype-expression card to feed a new VERDICT-INERT cross-source claim `normal_liability_concordance` (GTEx bulk × scRNA-normal × HPA-IHC normal-tissue liability, deterministic/no-LLM, on safety_claim_vector). The sc-normal veto enters the fired list but is NOT a safety.resolver rung nor in wt_loss_safety_conditioning ⇒ scalar + per-modality verdict byte-stable (test_safety_replay). Advances the evidence-property epic #1507 scorecard M3 (vocabulary reuse 2→3).   # 1.19.0 (2026-09-10, T0-3): +normal-tissue-protein-abundance-tphp (TPHP DIA-MS QUANTITATIVE vital-organ PROTEIN — tphp_vital_organ_liability_class). The safety substrate had RNA (GTEx) + categorical IHC (HPA) but NO quantitative protein; this fills the endocrine/vascular/CNS organs HPA-IHC is blind to (nerve/muscle/blood/adrenal/thyroid). VERDICT-INERT display CONTEXT: the card's rules live on the tumor-selectivity axis, not this skill's intracellular_intrinsic rules_scope, so it fires no safety rung and the scalar verdict is byte-stable. Backtested SM/degrader gate rule is a deliberate follow-on.   # 1.18.0 (2026-09-07, CASE-009 literature-discordance loop): +VERDICT-INERT pharmacovigilance_scope_caveat — clarifies drug_warning_class='no_warning' = no OT-registered FDA warning among engaging drugs, NOT absence of on-target toxicity (mechanism-based dose-limiting tox — TLS/cytopenias/neuropathy — often not boxed). Fires only on the measured-negative no_warning state; verdict/resolver/golden/replay byte-stable.
 # 1.17.0 (2026-09-04): +OPTIONAL --literature lane (verdict-INERT LLM literature synthesis, Europe-PMC-grounded + PMID-verified via the shared _skills_common.literature_synthesis; run_wired_skill one-liner) mirroring genomic #982 / FR #987 / TP #965 / TS #968. + VERDICT-INERT signal-surfacing of the rich safety sub-fields the capsule projection ignored: a new PHARMACOVIGILANCE claim axis (on-target FDA warnings + toxicity classes of target-engaging drugs — OT drug-warning ⋈ MoA + OnSIDES boxed ADEs; confounded CONTEXT, corroboration capped, orients-not-holds), MOUSE_KO claim evidence += affected organ systems (organ_classes), CLINVAR claim evidence += confident germline-pathogenic variant count. PHARMACOVIGILANCE is LEFT OUT of the safety HeadlineSpec.axis_keys so headline_block/confidence/hero + the golden-oracle resolver + test_safety_replay verdict fixtures stay BYTE-STABLE. Verdict spine untouched.   # 1.16.0 (2026-08-28): + shet-lof-intolerance (continuous GeneBayes s_het, VERDICT-INERT complement to gnomAD constraint).   # 1.15.0: NET-NEW capsule-driven narrator (had none). Verdict-INERT.   # 1.14.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.  # 1.13.0 (2026-08-26): emit per-verdict `narrative` (movers/dissenters/
 # flip_conditions/rule_sentences) in the headline — VERDICT-INERT, best-effort
 # (Stage B of the interpretability workstream; safety pilot). Verdict byte-stable.
@@ -819,6 +819,70 @@ def _synthesis_facet(cards, fired, verdict_pair):
     )
 
 
+# ─── EXPORTED bounded evidence-package sections (PR-1a, epic #2210 Wave 1 / #1507) ───────────────────
+# The safety generalisation of the tumour-presence reference vertical
+# (`skills/tumor-presence/scripts/run.py::_evidence_sections`). Under `--emit-envelope` the emitted
+# evidence_package.json gains NAMED top-level sections so the L1→L2a→L2b layering is STRUCTURE rather
+# than a convention over `synthesis.headline.claim_vector`. The schema
+# (`contracts/schemas/evidence_package.schema.json`) ALREADY declares all four as optional — no schema
+# change, and a section this domain does not produce is simply OMITTED.
+#
+# The L2b property island promoted to a shared top-level section. ONE for safety today —
+# `normal_liability_concordance` (GTEx bulk × scRNA-normal × HPA-IHC, SK#1546), which reconstructs to L1
+# through `provenance.sources[*].provenance.card_id`. Deliberately a ROSTER, not "everything without a
+# `signal` key": a future L2b fold must be listed here consciously, exactly as the presence roster works.
+_INTEGRATED_ISLAND_KEYS = ("normal_liability_concordance",)
+
+# The composites that stay INSIDE the domain with their epistemic type declared — the eight liability
+# claim axes. NOT promoted to shared L2 properties: each is this skill's own (signal × corroboration)
+# read of one source, in the domain's INVERSE-valence frame, and each reconstructs to L1 via
+# `evidence_atom.cite.card_id`. Pinned to the ClaimSpec roster below so an axis added to
+# SAFETY_CLAIM_SPEC cannot silently go unexported.
+_LOCAL_COMPOSITE_KEYS = tuple(spec.axis_key for spec in SAFETY_CLAIM_SPEC)
+
+
+def _evidence_sections(headline: dict) -> "dict | None":
+    """Build the NAMED, bounded top-level evidence-package sections from the rich decision headline.
+
+    Pure read-projection over the already-built `headline`: partitions content it ALREADY carries into the
+    doc's named sections (`source_properties` L2a, `integrated_properties` L2b, `local_composites`).
+    Nothing is recomputed and nothing is dropped that a consumer could not already read on the headline.
+    Every emitted section reconstructs downward to L1:
+      * source_properties[*].card_id (+ per-anchor {field, value} → the L1 card field)
+      * integrated_properties[*].provenance.sources[*].card_id (or .provenance.card_id — the island's
+        sources carry it at either depth, and a consumer reads both)
+      * local_composites.claims.<AXIS>.evidence_atom.cite.card_id
+    `l3d` is NOT emitted: safety has no within-domain L3d story object (the presence vertical's
+    `tumor_expression_biology_story` has no safety counterpart), and an empty section is worse than an
+    absent one — so this domain emits THREE of the schema's four optional sections. Returns None when no
+    claim_vector resolved, so the dispatcher passes `evidence_sections=None` and the emitted package is
+    byte-identical to the pre-PR-1a shape. VERDICT-INERT throughout."""
+    if not isinstance(headline, dict):
+        return None
+    cv = headline.get("claim_vector")
+    if not isinstance(cv, dict):
+        return None
+
+    sections: dict = {}
+
+    # L2a — per-source observational biological properties (each entry carries its L1 card_id).
+    sp = cv.get("source_properties")
+    if sp:
+        sections["source_properties"] = sp
+
+    # L2b — the property islands (reconstructable to card_ids via provenance.sources[*].provenance.card_id).
+    integrated = {k: cv[k] for k in _INTEGRATED_ISLAND_KEYS if cv.get(k) is not None}
+    if integrated:
+        sections["integrated_properties"] = integrated
+
+    # Local composites — carried inside the domain with the epistemic type declared.
+    carried = {k: cv[k] for k in _LOCAL_COMPOSITE_KEYS if cv.get(k) is not None}
+    if carried:
+        sections["local_composites"] = {"epistemic_type": "domain_local_composite", "claims": carried}
+
+    return sections or None
+
+
 if __name__ == "__main__":
     sys.exit(
         run_wired_skill(
@@ -842,5 +906,10 @@ if __name__ == "__main__":
             # because run_wired_skill owns the seam (dispatcher 8a-iii); NEVER alters the spine (byte-identical
             # without the flag). Routes each safety literature axis back to this skill (it OWNS the WT-loss call).
             literature_fn=make_literature_fn(_SAFETY_LENS, retrieve_fn=default_retrieve, verify_fn=verify_citations),
+            # PR-1a (#2210): under --emit-envelope, splice the NAMED bounded evidence-package sections
+            # (source_properties L2a / integrated_properties L2b / local_composites) in as top-level keys
+            # of evidence_package.json — a VIEW over the same headline content, each reconstructable
+            # downward to its claim IDs / L1 card_ids. Verdict-INERT (decision.json spine untouched).
+            evidence_sections_fn=_evidence_sections,
         )
     )

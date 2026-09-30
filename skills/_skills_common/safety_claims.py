@@ -36,6 +36,9 @@ without this.
 
 from __future__ import annotations
 
+import functools
+from pathlib import Path
+
 from _skills_common.claim_vector_core import (
     ClaimSpec,
     build_claim_vector,
@@ -898,6 +901,369 @@ def _pharmacovigilance_atom(h, c):
     )
 
 
+# ── L2a NAMED source_properties map — SAFETY domain (PR-1a, epic #2210 Wave 1 / #1507) ─────────────
+# The safety generalisation of the tumour-presence reference vertical
+# (`presence_claims.py::_SOURCE_PROPERTY_RECIPES` :694). The per-source observational (L2a) properties
+# existed only IMPLICITLY, embedded inside the eight claim signal blocks; this lifts them into a NAMED,
+# typed map — one entry per source/grain — matching the architecture's export shape
+# (docs/EVIDENCE_PROPERTY_ARCHITECTURE_L1_L4.md, the `source_properties:` block). Each entry carries the
+# card it resolves from, the resolved observational property class (the SAME L2a class the claim axes read
+# from that source), the RETAINED quantitative anchors (value + scale/unit + ledger-declared disposition
+# typing), and comparability metadata so a downstream reader can tell which entries are commensurable.
+#
+# It is a PURE PROJECTION over the already-computed card summaries: no LLM, no new measurement, no
+# re-derivation, and — like every other L2a/L2b facet on this vector — it carries NO `signal` key, is read
+# by no rule/verdict/ladder, and every property is reconstructable to its L1 card field via
+# {card_id, field, value}. VERDICT-INERT.
+#
+# TWO THINGS THIS DOMAIN PILOTS that the presence vertical does not carry:
+#
+#   (1) `comparability.valence` — the safety-style LIABILITY marker. Safety is inverse-valence: a STRONG
+#       read here is a CONCERN, not a win. Without the marker a downstream reader holding only the L2a
+#       export cannot tell which direction is bad, and a generic "higher = better" reader silently
+#       inverts every safety property. The token reused is the one the safety evidence ATOMS already
+#       emit (`entity.valence == "liability"`, 24 sites in this module) — no new vocabulary is minted.
+#       ⚠️ It is a ONE-TOKEN vocabulary today and is NOT yet governed by a contracts validator (the
+#       property-catalog `ENTRY_KEYS`/`GRAIN_KEYS` allowlists are closed and have no valence slot, and
+#       `GRAIN_KEYS` members are all REQUIRED, so adding one there would red the three landed catalogs).
+#       Declared in `docs/EVIDENCE_PROPERTY_ENVELOPE_v0.md` § v1.1 (iii); 1b–1e must NOT invent a second
+#       token without governing it first — an ungoverned second token is exactly the drift 0b/0d closed.
+#
+#   (2) `interpretation` — the Wave-0c per-entry resolution provenance
+#       ({function_id, version, disjunct_fired}), DECLARED in envelope v1.1 (ii) and until now
+#       IMPLEMENTED NOWHERE. Its tumour-presence implementation is #2227, blocked because it would
+#       regenerate the presence golden; the safety domain is not golden-blocked, so this is the shape's
+#       FIRST live emission. Emitted on the ONE entry whose read this domain resolves through a genuine
+#       multi-arm disjunction (`normal_tissue_protein_liability` → `_normaltissue_sig`, a three-arm
+#       flag/breadth-fallback/TPHP-promotion OR whose fired arm is otherwise invisible downstream —
+#       precisely the loss the envelope doc names). OMITTED on the other seven: their class token is read
+#       VERBATIM off the card and the disjunct that produced it was decided upstream in `methods/` and is
+#       not recoverable from the card summary. Emitting a fabricated `disjunct_fired` there would be worse
+#       than omitting it. Piloted on ONE entry rather than declared universal on the strength of one pass
+#       — 0c's discipline.
+#       ⚠️ READING TO CONFIRM WITH THE OWNER (surfaced, not settled — it is what 1b–1e replicate):
+#       `interpretation` here describes how THIS DOMAIN resolved the source into its liability read, not
+#       how the card's own class token was produced. The entry's `property` stays the verbatim card class;
+#       `function_id` names the skills-side resolver. The alternative reading — `interpretation` must
+#       describe the resolution of the entry's own `property` — would make the field unemittable
+#       everywhere in this domain, since every class token is a verbatim card read.
+
+# The scale/unit slot for each retained quantitative anchor (envelope-v0: a raw value + its declared
+# scale, never a `decision_weight`/`modality_relevance`). Absent → "raw".
+_SAFETY_ANCHOR_SCALE = {
+    # gnomAD constraint — each a different statistic, and the units are the whole point: pLI is a
+    # posterior probability, LOEUF a ratio-with-CI, mis_z a z-score, and the obs/exp LoF pair are counts.
+    "pli_score": "probability",
+    "loeuf_score": "obs_exp_ratio_upper_bound",
+    "mis_z_score": "z_score",
+    "obs_lof_count": "variant_count",
+    "exp_lof_count": "variant_count",
+    # s_het — a selection coefficient with a 95% credible interval (GeneBayes posterior).
+    "shet_score": "selection_coefficient",
+    "shet_lower_95": "selection_coefficient",
+    "shet_upper_95": "selection_coefficient",
+    # population burden — an association p-value, NOT a q-value (the card does not FDR-correct).
+    "min_pvalue": "nominal_p_value",
+    # ClinVar / ClinGen / mouse-KO — row and variant COUNTS, never rates.
+    "n_pathogenic_germline_confident": "variant_count",
+    "n_pathogenic_germline": "variant_count",
+    "n_lethal": "phenotype_row_count",
+    "n_adult_lethal": "phenotype_row_count",
+    "n_developmental_lethal": "phenotype_row_count",
+    "n_high_confidence": "curated_assertion_count",
+    "n_autosomal_dominant": "curated_assertion_count",
+    "n_autosomal_recessive": "curated_assertion_count",
+    # normal-tissue liability — tissue counts, a breadth FRACTION, and an absolute expression level.
+    "n_essential_tissues_with_expression": "tissue_count",
+    "n_specific_tissues": "tissue_count",
+    "n_tissues_high": "tissue_count",
+    "n_tissues_detectable": "tissue_count",
+    "n_tissues_tested": "tissue_count",
+    "tissue_breadth_fraction": "fraction",
+    "critical_organ_max": "log2_tpm",
+}
+
+# Data-driven recipe (keyed by the L2a property name from the architecture's source_properties shape).
+# `property_field` is the resolved observational class of that source; `anchors` are its retained
+# quantitative anchors, in reading order; `context` fields are retained categorical/label qualifiers that
+# orient the anchors but are not themselves quantities. Every `card_id`/`property_field`/anchor/context
+# name below was verified against `contracts/cards/<card_id>.card.yaml` `outputs.summary_fields` — the
+# plan's table carried `clinvar_n_pathogenic_germline_confident` (the HEADLINE-lifted name); the CARD
+# field is `n_pathogenic_germline_confident` and that is what is read here.
+#
+# A source whose card is absent (or whose property class does not resolve) emits NO entry, and the whole
+# `source_properties` key is omitted when nothing resolves — keeping a card-absent run byte-stable,
+# matching the claim-axis + concordance atom discipline on this vector.
+#
+# NOT here, deliberately:
+#   * DepMap pan-essentiality is NOT duplicated as a safety L2a property. It is the DEPENDENCY domain's
+#     L2a property (1b/#2211), read at LIABILITY valence by this domain's PAN_ESSENTIAL axis. The shared
+#     card is recorded in the catalog's `dependence_group`, so the sharing is declared rather than
+#     re-minted — duplicating it would make one measurement look like two independent sources.
+#   * PHARMACOVIGILANCE (drug-warning-safety / onsides-adverse-event-safety) is on/off-target CONFOUNDED
+#     clinical CONTEXT, not an on-target observational property of the target. It is verdict-inert
+#     context in the claim vector for that reason and is not an L2a biological property.
+_SOURCE_PROPERTY_RECIPES_SAFETY = (
+    {
+        "name": "germline_lof_constraint",
+        "card_id": "gnomad-lof-constraint",
+        "property_field": "constraint_class",
+        "anchors": ("pli_score", "loeuf_score", "mis_z_score", "obs_lof_count", "exp_lof_count"),
+        "context": ("human_ko_observed_class",),
+        "comparability": {
+            "measurement_type": "gnomad_lof_constraint",
+            "sample_context": "population_germline",
+            "grain": "target",
+            "valence": "liability",
+        },
+    },
+    {
+        "name": "dominant_lof_selection",
+        "card_id": "shet-lof-intolerance",
+        "property_field": "shet_class",
+        "anchors": ("shet_score", "shet_lower_95", "shet_upper_95"),
+        "context": (),
+        "comparability": {
+            "measurement_type": "shet_lof_selection",
+            "sample_context": "population_germline",
+            "grain": "target",
+            "valence": "liability",
+        },
+    },
+    {
+        "name": "population_burden_liability",
+        "card_id": "gene-burden-safety",
+        "property_field": "burden_safety_class",
+        "anchors": ("min_pvalue",),
+        "context": ("top_disease", "direction_on_target"),
+        "comparability": {
+            "measurement_type": "gene_burden_safety",
+            "sample_context": "population_cohort",
+            "grain": "target",
+            "valence": "liability",
+        },
+    },
+    {
+        "name": "germline_pathogenicity",
+        "card_id": "clinvar-pathogenicity-safety",
+        "property_field": "clinvar_pathogenic_class",
+        "anchors": ("n_pathogenic_germline_confident", "n_pathogenic_germline"),
+        "context": ("top_disease",),
+        "comparability": {
+            "measurement_type": "clinvar_germline_pathogenicity_safety",
+            "sample_context": "clinical_germline",
+            "grain": "target",
+            "valence": "liability",
+        },
+    },
+    {
+        "name": "dosage_sensitivity",
+        "card_id": "clingen-dosage",
+        "property_field": "dosage_sensitivity_class",
+        "anchors": ("n_high_confidence", "n_autosomal_dominant", "n_autosomal_recessive"),
+        "context": ("germline_inheritance_mode", "top_disease"),
+        "comparability": {
+            "measurement_type": "dosage_sensitivity_safety",
+            "sample_context": "clinical_germline",
+            "grain": "target",
+            "valence": "liability",
+        },
+    },
+    {
+        "name": "ko_organismal_phenotype",
+        "card_id": "mouse-ko-phenotype",
+        "property_field": "ko_phenotype_class",
+        "anchors": ("n_lethal", "n_adult_lethal", "n_developmental_lethal"),
+        "context": ("organ_classes", "impc_viability_class", "top_lethal_label"),
+        "comparability": {
+            "measurement_type": "mouse_ko_phenotype_safety",
+            "sample_context": "model_organism",
+            "grain": "target",
+            "valence": "liability",
+        },
+    },
+    {
+        "name": "normal_tissue_protein_liability",
+        "card_id": "normal-tissue-liability",
+        "property_field": "essential_tissue_flag",
+        "anchors": ("n_essential_tissues_with_expression", "n_specific_tissues"),
+        "context": ("normal_tissue_breadth_class", "hpa_tissue_specificity", "essential_tissues_flagged"),
+        "comparability": {
+            "measurement_type": "normal_tissue_protein_breadth",
+            "sample_context": "normal_tissue",
+            "grain": "target",
+            "valence": "liability",
+        },
+    },
+    {
+        "name": "normal_tissue_rna_liability",
+        "card_id": "normal-tissue-liability-gtex",
+        "property_field": "liability_class",
+        "anchors": (
+            "tissue_breadth_fraction",
+            "n_tissues_high",
+            "n_tissues_detectable",
+            "n_tissues_tested",
+            "critical_organ_max",
+        ),
+        "context": ("critical_organ_argmax", "highest_tissue"),
+        "comparability": {
+            "measurement_type": "normal_tissue_rna_breadth",
+            "sample_context": "normal_tissue",
+            "grain": "target",
+            "valence": "liability",
+        },
+    },
+)
+
+_SAFETY_SKILL = "on-target-safety-liability"
+
+
+@functools.lru_cache(maxsize=None)
+def _safety_reach_map(skills_root: "str | None" = None) -> dict:
+    """{(card_id, field): interpretation_reach} for the on-target-safety-liability ledger — the SECOND
+    disposition axis (SK#1525), read-only, sourced the same way `role_for` sources the first axis.
+
+    This skill's ledger declares the ROLE axis on every row and the REACH axis on NONE today, so this
+    returns {} and no anchor carries an `interpretation_reach` key. The mechanism is wired anyway, and
+    proven by a test that points it at a ledger which DOES declare the axis, so the day the safety
+    ledger gains reach rows the anchors type themselves instead of silently staying untyped. Empty when
+    the ledger is absent, so anchor typing stays additive/byte-stable where the source is missing."""
+    from _skills_common.field_disposition_contract import INTERPRETATION_REACH
+    from _skills_common.field_disposition_ledger import (
+        LEDGER_NAME,
+        _default_skills_root,
+        iter_rows,
+        load_ledger,
+    )
+
+    root = Path(skills_root) if skills_root else _default_skills_root()
+    path = root / _SAFETY_SKILL / LEDGER_NAME
+    if not path.exists():
+        return {}
+    doc = load_ledger(path)
+    return {
+        (cid, field): spec["interpretation_reach"]
+        for cid, field, spec in iter_rows(doc)
+        if spec.get("interpretation_reach") in INTERPRETATION_REACH
+    }
+
+
+def _typed_safety_anchor(card_id, field, value, *, skills_root=None):
+    """One retained quantitative anchor: {field, value, scale} + the ledger-declared disposition typing
+    (semantic_role via the role axis, interpretation_reach via the reach axis, #1525) when this skill's
+    ledger declares them. Typing keys are OMITTED when the ledger does not classify the field, so the
+    anchor never fabricates a disposition it cannot source."""
+    from _skills_common.field_disposition_ledger import role_for
+
+    anchor = {"field": field, "value": value, "scale": _SAFETY_ANCHOR_SCALE.get(field, "raw")}
+    role = role_for(card_id, field, _SAFETY_SKILL, skills_root=Path(skills_root) if skills_root else None)
+    if role is not None:
+        anchor["semantic_role"] = role
+    reach = _safety_reach_map(skills_root).get((card_id, field))
+    if reach is not None:
+        anchor["interpretation_reach"] = reach
+    return anchor
+
+
+# The three arms of `_normaltissue_sig`, as STABLE tokens. The function is a three-way OR whose fired arm
+# is invisible from its returned tier alone: two different targets can both read `strong` because the HPA
+# essential-tissue flag is `present`, or because TPHP quantified the protein in an organ HPA cannot see —
+# a materially different piece of evidence behind the same word. This is the exact loss envelope v1.1 (ii)
+# describes; `disjunct_fired` recovers it.
+_NORMALTISSUE_INTERPRETATION_VERSION = "1.0.0"
+_NORMALTISSUE_DISJUNCTS = (
+    "essential_tissue_flag",  # arm 1 — the HPA-IHC flag resolved the tier
+    "normal_tissue_breadth_fallback",  # arm 2 — flag indeterminate, MEASURED breadth carried it (#1546 era)
+    "tphp_hpa_blind_vital_organ_promotion",  # arm 3 — #1793 promotion over the HPA-blind organ set
+    "unmeasured",  # no arm resolved — a data GAP, never a clean read
+)
+
+
+def _normaltissue_interpretation(h) -> dict:
+    """Which arm of `_normaltissue_sig`'s three-way disjunction produced this domain's normal-tissue
+    liability read (envelope v1.1 (ii), FIRST live emission of the declared shape).
+
+    Mirrors `_normaltissue_sig`'s precedence exactly rather than restating it: the promotion arm is
+    reported when it is what LIFTED the tier (so it must both fire and out-rank what came before),
+    otherwise the flag arm, otherwise the measured-breadth fallback, otherwise `unmeasured`."""
+    flag_sig = _NORMALTISSUE_SIGNAL.get(h.get("essential_tissue_flag"), "unmeasured")
+    pre_promotion = (
+        flag_sig
+        if flag_sig != "unmeasured"
+        else _NORMALTISSUE_BREADTH_FALLBACK.get(h.get("normal_tissue_breadth_class"), "unmeasured")
+    )
+    if _tphp_blind_liability(h) and not sig_ge(pre_promotion, "strong"):
+        fired = "tphp_hpa_blind_vital_organ_promotion"
+    elif flag_sig != "unmeasured":
+        fired = "essential_tissue_flag"
+    elif pre_promotion != "unmeasured":
+        fired = "normal_tissue_breadth_fallback"
+    else:
+        fired = "unmeasured"
+    return {
+        "function_id": "_skills_common.safety_claims._normaltissue_sig",
+        "version": _NORMALTISSUE_INTERPRETATION_VERSION,
+        "disjunct_fired": fired,
+    }
+
+
+# {property name: interpretation builder}. Present for the ONE entry this domain resolves through a
+# multi-arm disjunction; absent everywhere else, where the class token is a verbatim card read whose
+# producing disjunct was decided upstream in methods/ and is NOT recoverable from the card summary.
+_SAFETY_INTERPRETATION_FNS = {"normal_tissue_protein_liability": _normaltissue_interpretation}
+
+
+def _source_properties(h: dict, c: dict, *, skills_root=None) -> "dict | None":
+    """The NAMED, typed L2a source_properties map for the SAFETY domain (PR-1a): one entry per
+    source/grain, lifting the per-source observational properties out of the eight claim signal blocks
+    into an explicit, recoverable object. Returns None when no source resolves (whole key omitted →
+    byte-stable), matching the atom discipline on this vector. Pure projection, verdict-inert, carries no
+    signal tier.
+
+    Takes BOTH the headline and the cards-by-id map: the entries themselves are projected from the CARD
+    summaries (`c`), while the `interpretation` provenance reports a disjunction evaluated over the
+    HEADLINE (`h`) — the same input `_normaltissue_sig` reads in production, so the reported arm is the
+    arm that actually fired rather than one re-derived from differently-named card fields."""
+    out = {}
+    for recipe in _SOURCE_PROPERTY_RECIPES_SAFETY:
+        summ = c.get(recipe["card_id"], {}) or {}
+        prop = summ.get(recipe["property_field"])
+        # A source with no card / no resolved observational class emits no entry (byte-stable).
+        if not prop or prop == "data_unavailable":
+            continue
+        entry = {
+            "card_id": recipe["card_id"],
+            # The L1 card field the class token was read from. NAMED on the entry (a divergence from the
+            # presence reference, which records it only in the recipe) because without it the `property`
+            # value alone is not always self-describing and the reconstructability claim is only half
+            # true: this domain's `normal_tissue_protein_liability` reads `essential_tissue_flag`, whose
+            # value is the bare token `present` — present of WHAT is unanswerable from the export. With
+            # the field name every entry genuinely reconstructs to L1 as {card_id, property_field,
+            # property}, which is what this module and presence_claims.py both already CLAIM. The same
+            # gap exists in the presence entries; it is not fixed here because that object is golden-
+            # blocked (#2061 / #1984 PR-B own the tumour-presence golden). 1b-1e copy THIS shape.
+            "property_field": recipe["property_field"],
+            "property": prop,
+            "anchors": [
+                _typed_safety_anchor(recipe["card_id"], f, summ[f], skills_root=skills_root)
+                for f in recipe["anchors"]
+                if summ.get(f) is not None
+            ],
+            "comparability": dict(recipe["comparability"]),
+        }
+        # Retained categorical qualifiers that orient the anchors without being quantities themselves.
+        # OMITTED entirely when the card supplies none, keeping a partial-card run byte-stable.
+        context = {f: summ[f] for f in recipe["context"] if summ.get(f) is not None}
+        if context:
+            entry["context"] = context
+        interp_fn = _SAFETY_INTERPRETATION_FNS.get(recipe["name"])
+        if interp_fn is not None:
+            entry["interpretation"] = interp_fn(h)
+        out[recipe["name"]] = entry
+    return out or None
+
+
 SAFETY_CLAIM_SPEC = [
     ClaimSpec(
         "CONSTRAINT",
@@ -993,9 +1359,17 @@ def safety_claim_vector(headline: dict, cards: list) -> dict:
     # cards directly (the NORMAL_TISSUE axis reads HPA off the headline + GTEx as one corroboration arm; this
     # integrates all three independently and never perturbs them). Mirrors the dependency L2b-2
     # (`crispr_rnai_essentiality_concordance`) pattern.
-    _liab = _normal_liability_concordance_claim(cards_by_id(cards))
+    _c = cards_by_id(cards)
+    _liab = _normal_liability_concordance_claim(_c)
     if _liab is not None:
         vec["normal_liability_concordance"] = _liab
+    # L2a NAMED source_properties map (PR-1a, #2210): the per-source observational properties lifted out
+    # of the eight claim signal blocks into a named, typed, L1-reconstructable object. Carries NO `signal`
+    # key on any entry → not a chip, not a tier, read by no rule/verdict/ladder. OMITTED entirely
+    # (byte-stable) when no source resolves, matching the concordance-claim discipline directly above.
+    _props = _source_properties(headline, _c)
+    if _props is not None:
+        vec["source_properties"] = _props
     return vec
 
 
