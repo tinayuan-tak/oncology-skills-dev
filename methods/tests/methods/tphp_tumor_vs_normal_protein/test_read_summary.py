@@ -55,6 +55,7 @@ _V2_DECLARATION_FIELDS = {
     "protein_detection_complete",
     "normal_arm_source",
     "cohort_pick_basis",
+    "protein_directional_read_valid",
 }
 
 _COLS = [
@@ -398,6 +399,43 @@ def test_indication_path_never_drops_a_censored_cohort(tmp_path):
     assert out["cohort"] == "Colon carcinoma"
     assert out["protein_detection_complete"] is False
     assert out["cohort_pick_basis"] == read.PICK_INDICATION
+
+
+def test_directional_read_valid_flag_gates_incomplete_rows(tmp_path):
+    """#2189: the emitted `protein_directional_read_valid` flag is the gate — True only when the row's
+    protein_detection_complete is exactly True, False for a censored row, and False (never None) on the
+    data_unavailable path. The row itself is never dropped for incompleteness (see
+    test_indication_path_never_drops_a_censored_cohort); this flag is what a directional consumer must
+    check before trusting protein_expression_class / protein_effect_size."""
+    rows = [
+        _row(
+            "G",
+            "Colon carcinoma",
+            "large intestine",
+            -0.6,
+            "unchanged",
+            n_tumor=32,
+            n_normal=7,
+            n_tumor_total=45,
+            n_normal_total=13,
+        ),
+        _row("G", "Gallbladder carcinoma", "gallbladder", 2.5, "strong_up", n_tumor=10, n_normal=5),
+    ]
+    prod = _write_product(tmp_path, rows)
+    censored = read.read_target_summary("G", indication="COADREAD", product_path=prod)
+    assert censored["protein_detection_complete"] is False
+    assert censored["protein_directional_read_valid"] is False
+    # row is NOT dropped: class/effect still carry the product's raw values.
+    assert censored["protein_expression_class"] == "unchanged"
+    assert censored["protein_effect_size"] == -0.6
+
+    complete = read.read_target_summary("G", indication="GBAD", product_path=prod)
+    assert complete["protein_detection_complete"] is True
+    assert complete["protein_directional_read_valid"] is True
+
+    empty = read.read_target_summary("GHOSTGENE", indication="COADREAD", product_path=prod)
+    assert empty["protein_directional_read_valid"] is False
+    assert empty["protein_detection_complete"] is None
 
 
 def test_normal_arm_source_is_read_from_the_product_not_hardcoded(tmp_path):

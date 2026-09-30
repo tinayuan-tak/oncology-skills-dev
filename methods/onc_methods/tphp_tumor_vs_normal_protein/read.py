@@ -221,6 +221,14 @@ def _row_to_summary(row: dict, matched_cohort: str, pick_basis: str = PICK_INDIC
         # confounded by missingness (tumour-down:up 3.60:1 ungated vs 1.50:1 here). Rows are NEVER dropped
         # for it: 58.1% of genes have no complete row in ANY cohort, so filtering here would blank the facet.
         "protein_detection_complete": row.get("detection_complete"),
+        # ★ THE GATE ITSELF (#2189). The row is NEVER dropped for incompleteness (58.1% of genes would
+        # blank), and protein_expression_class/protein_effect_size still carry the product's raw values
+        # so the row stays a measured-but-noisy contrast, not a manufactured coverage gap. But a consumer
+        # doing a DIRECTIONAL read (tumour-up vs tumour-down) must not let a detection-incomplete row
+        # drive that call — this flag says whether THIS row's class/effect are safe to read directionally.
+        # True only when protein_detection_complete is exactly True (None on the data_unavailable path
+        # propagates through the same identity check, so a coverage gap never reads as "gated True").
+        "protein_directional_read_valid": row.get("detection_complete") is True,
         # What the normal arm IS, from the product. Consumers testing platform independence against
         # normal-tissue-protein-abundance-per-gene must key on this VALUE, not on a product-id allowlist.
         "normal_arm_source": row.get("normal_arm_source"),
@@ -254,6 +262,10 @@ def _empty(note: str) -> dict:
         # None, NOT False: an unread row is not a censored row. False would let a consumer's
         # `if not complete` branch treat a coverage gap as a measured-but-censored contrast.
         "protein_detection_complete": None,
+        # False, NOT None: an unread row can never be safe to read directionally — there is no row to
+        # gate. (protein_detection_complete stays None here to distinguish "no row" from "measured but
+        # censored"; this flag only ever answers "is it safe to trust the direction", so it is False either way.)
+        "protein_directional_read_valid": False,
         "normal_arm_source": None,
         "uniprot_ac": None,
         "cohort_pick_basis": None,
