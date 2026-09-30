@@ -122,10 +122,11 @@ def test_ceiling_dependency_veto_excluded_for_surface_biologic():
 
 
 def test_ceiling_non_dependent_mechanism_excluded_for_mutant_selective():
-    """a fired dependency:non_dependent must NOT veto a MUTANT-SELECTIVE / GoF driver (signalled by
-    safety=wt_*_mechanism_mismatch — the WT-LoF constraint does not align with the oncogenic mechanism,
-    so an allele-selective agent need not make the WT gene a fitness dependency; e.g. IDH1/ivosidenib).
-    Orthogonal to the modality exclusion — this holds at ANY modality, including small_molecule."""
+    """a fired dependency:non_dependent must NOT veto a MUTANT-SELECTIVE / GoF driver (signalled,
+    post-v2.0.0 safety-resolver retirement of the wt_*_mechanism_mismatch scalar token, #1576, by the
+    per-modality safety action clearing to `conditional` — the allele-selective-escape channel; e.g.
+    IDH1/ivosidenib). Orthogonal to the modality exclusion — this holds at ANY modality carrying the
+    clearing channel, including small_molecule."""
     pkg = _pkg()
     for row in pkg["synthesis"]["recommendation_gate"]["hard_gates"]:
         if row["short"] == "dependency":
@@ -134,7 +135,12 @@ def test_ceiling_non_dependent_mechanism_excluded_for_mutant_selective():
             row["live_verdict"] = "non_dependent"
         if row["short"] == "safety":
             row["status"] = "latent"
-    pkg["synthesis"]["sub_verdicts"]["safety"] = {"verdict": "wt_human_genetics_mechanism_mismatch"}
+    pkg["synthesis"]["sub_verdicts"]["safety"] = {
+        "verdict": "human_genetics_safety_concern",
+        "safety_verdict_by_modality": {
+            "small_molecule": {"action": "conditional", "wt_engagement": "conditional", "driving_rules": []},
+        },
+    }
     g = hc.gate_ceiling(pkg, modality="small_molecule")
     assert g["ceiling"] != "declined", g
     assert any(t.startswith("dependency:") for t in g["excluded"])
@@ -149,9 +155,10 @@ def test_ceiling_non_dependent_mechanism_excluded_for_mutant_selective():
 
 def test_coherence_non_dependent_benign_for_mutant_selective():
     """(coherence half): a positive-thesis clause may rest on a target whose dependency reads
-    non_dependent WITHOUT it counting as an unsurfaced negative — when the target is mutant-selective
-    (safety=wt_*_mechanism_mismatch). Same signal/discriminator as the gate. At BOTH grains (dimension
-    + dependency-family card)."""
+    non_dependent WITHOUT it counting as an unsurfaced negative — when the target is mutant-selective,
+    signalled (post-v2.0.0 safety-resolver retirement of the wt_*_mechanism_mismatch scalar token,
+    #1576) by the per-modality safety action clearing to `conditional`. Same discriminator as the gate.
+    At BOTH grains (dimension + dependency-family card)."""
     clauses = {
         "therapeutic_hypothesis": {
             "support": ["dependency", "pan-cancer-crispr-dependency-distribution"],
@@ -159,11 +166,22 @@ def test_coherence_non_dependent_benign_for_mutant_selective():
         }
     }
     card_calls = {"pan-cancer-crispr-dependency-distribution": "non_dependent"}
-    # mutant-selective → benign, no violation
-    conv_ms = {"safety": "wt_human_genetics_mechanism_mismatch", "dependency": "non_dependent"}
-    v_ms = hc.coherence_violations(clauses, conv_ms, [], [], set(), card_calls=card_calls)
+    sv_ms = {
+        "safety": {
+            "verdict": "human_genetics_safety_concern",
+            "safety_verdict_by_modality": {
+                "small_molecule": {"action": "conditional", "wt_engagement": "conditional", "driving_rules": []},
+            },
+        }
+    }
+    # mutant-selective (modality-cleared) → benign, no violation
+    conv_ms = {"safety": "human_genetics_safety_concern", "dependency": "non_dependent"}
+    v_ms = hc.coherence_violations(
+        clauses, conv_ms, [], [], set(), card_calls=card_calls, sv=sv_ms, modality="small_molecule"
+    )
     assert not v_ms, f"mutant-selective non_dependent should be benign, got {v_ms}"
-    # NOT mutant-selective (plain safety) → the negative_signal_asserted DOES fire (guard intact)
+    # NOT mutant-selective (no per-modality clear at all, e.g. no --modality / no sv) → the
+    # negative_signal_asserted DOES fire (guard intact — fail-closed when the signal is absent)
     conv_plain = {"safety": "tolerant_reduced_safety_risk", "dependency": "non_dependent"}
     v_plain = hc.coherence_violations(clauses, conv_plain, [], [], set(), card_calls=card_calls)
     assert v_plain, "non-mutant-selective non_dependent must still count as a contradiction"

@@ -1019,7 +1019,15 @@ def run(
     present_norm = {hc._norm(t) for t in (surface["card_ids"] | surface["sub_verdicts"] | surface["rule_ids"])}
     card_calls = {cid: call for cid, call in (panel.get("cards_brief") or {}).items() if isinstance(call, str)}
     coherence_v = hc.coherence_violations(
-        coherence_clauses, conviction, edges, tensions, present_norm, out_of_scope=oos, card_calls=card_calls
+        coherence_clauses,
+        conviction,
+        edges,
+        tensions,
+        present_norm,
+        out_of_scope=oos,
+        card_calls=card_calls,
+        sv=(panel["pkg"].get("synthesis") or {}).get("sub_verdicts"),
+        modality=modality_resolved,
     )
     # SURFACE each detected tension into the structured `tensions` slot (fold-into-tensions), so the
     # contradiction is carried explicitly, never buried — without mutating any LLM clause prose.

@@ -29,12 +29,18 @@ sys.path.insert(0, str(_ROOT / "cross-evidence-hypothesis" / "scripts"))
 import hypothesis_core as hc  # noqa: E402
 
 
-def _fallback_pkg(*, safety=None):
-    """A package with NO hard_gates block (fallback path) whose dependency sub-verdict is ndi."""
+def _fallback_pkg(*, safety=None, svbm=None):
+    """A package with NO hard_gates block (fallback path) whose dependency sub-verdict is ndi.
+    `svbm`, when given, is set as the safety sub-verdict's `safety_verdict_by_modality` block (the
+    post-v2.0.0 mutant-selective/allele-selective-escape signal, #1576 — the retired
+    `wt_*_mechanism_mismatch` scalar `safety` token no longer carries it)."""
+    safety_entry = {"verdict": safety}
+    if svbm is not None:
+        safety_entry["safety_verdict_by_modality"] = svbm
     return {
         "synthesis": {
             "sub_verdicts": {
-                "safety": {"verdict": safety},
+                "safety": safety_entry,
                 "dependency": {"verdict": "not_dependent_in_indication"},
             },
             "recommendation_gate": {
@@ -56,9 +62,11 @@ def test_ndi_on_fallback_path_is_caught():
 
 
 def test_ndi_on_fallback_path_mechanism_excluded_for_mutant_selective():
-    """Mirror the hard_gates path: an ndi veto on a mutant-selective driver
-    (safety == wt_*_mechanism_mismatch) is mechanism-excluded, not a fallback kill."""
-    g = hc.gate_ceiling(_fallback_pkg(safety="wt_constraint_mechanism_mismatch"))
+    """Mirror the hard_gates path: an ndi veto on a mutant-selective driver — signalled (post-v2.0.0
+    retirement of the wt_*_mechanism_mismatch scalar safety token, #1576) by the per-modality safety
+    action clearing to `conditional` — is mechanism-excluded, not a fallback kill."""
+    svbm = {"small_molecule": {"action": "conditional", "wt_engagement": "conditional", "driving_rules": []}}
+    g = hc.gate_ceiling(_fallback_pkg(safety="human_genetics_safety_concern", svbm=svbm), modality="small_molecule")
     assert g["hard_gates_present"] is False, g
     assert "dependency:not_dependent_in_indication" not in g["active_vetoes"], g
 

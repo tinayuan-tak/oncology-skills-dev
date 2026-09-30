@@ -632,14 +632,15 @@ def safety_action_for_modality(sv: dict, modality: Optional[str]) -> Optional[st
 # for SURFACE biologics (modality-scoped). This handles the ORTHOGONAL mutant-selective case, at ANY
 # modality: a `dependency:non_dependent` reading does NOT disqualify a MUTANT-SELECTIVE / GoF driver —
 # an allele-selective agent (e.g. IDH1-R132 ivosidenib) need not make the WT gene a cell-intrinsic
-# fitness dependency, so monotherapy CRISPR non-dependence of WT is EXPECTED, not a veto. The safety
-# skill's `wt_*_mechanism_mismatch` verdict is the explicit, package-carried signal that the WT-LoF
-# constraint does NOT align with the oncogenic (activating) mechanism — i.e. the driver is mutant-
-# selective. It is the SAME signal that makes safety hold-grade, applied to the dependency axis. It is
-# absent on TSG/loss-of-function drivers and on the highly_constrained dangerous-FPs (MYC, STAG1), so it
-# does not re-admit them. NARROW by design: only `non_dependent`-family verdicts are conditioned;
-# `pan_essential_killer` (no selectivity window) stays a genuine veto.
-_MUTANT_SELECTIVE_SAFETY = frozenset({"wt_human_genetics_mechanism_mismatch", "wt_constraint_mechanism_mismatch"})
+# fitness dependency, so monotherapy CRISPR non-dependence of WT is EXPECTED, not a veto. The
+# `wt_*_mechanism_mismatch` SCALAR safety verdict that used to carry this signal was RETIRED from the
+# safety resolver at v2.0.0 (issue #1576) — the scalar `safety_verdict` never emits it anymore, so a
+# scalar-token check is a dead vestige (permanently False in every live package). The replacement,
+# post-retirement source of the SAME signal is the per-modality safety layer: a channel whose
+# `safety_action_for_modality(...)` clears to `conditional` (the spine's sole allele-selective-escape
+# action, mirrored by `_SAFETY_MODALITY_SAFE_ACTIONS`) is the mutant-selective escape for THAT channel.
+# NARROW by design: only `non_dependent`-family verdicts are conditioned; `pan_essential_killer` (no
+# selectivity window) stays a genuine veto.
 _NON_DEPENDENT_TOKENS = frozenset(
     {
         "non_dependent",
@@ -715,7 +716,15 @@ def gate_ceiling(pkg: dict, modality: Optional[str] = None) -> dict:
     rg = syn.get("recommendation_gate") or {}
     hard_gates = rg.get("hard_gates")
     oos = out_of_scope_dims(modality) if modality else set()  # dims out-of-scope for this modality
-    mutant_selective = safety in _MUTANT_SELECTIVE_SAFETY  # mechanism-conditions the dependency veto
+    # MODALITY×SAFETY: the per-modality safety action for THIS channel. When it clears (== conditional,
+    # the spine's sole safe action), the blanket hold-grade safety cap below is modality-cleared — a
+    # scalar `safety` hold no longer caps a channel the spine's own exists_safe_modality would suppress.
+    # This same per-channel clear IS the mutant-selective / allele-selective-escape signal post-v2.0.0
+    # retirement (see the module comment above _NON_DEPENDENT_TOKENS) — it mechanism-conditions the
+    # dependency veto below, replacing the dead `_MUTANT_SELECTIVE_SAFETY` scalar-token check (#1576).
+    safety_action = safety_action_for_modality(sv, modality)
+    safety_modality_cleared = safety_action in _SAFETY_MODALITY_SAFE_ACTIONS
+    mutant_selective = safety_modality_cleared
     # (short, verdict) pairs the SPINE recorded in its own recommendation_gate.suppressed_vetoes.
     # A veto DOWNGRADED to a hold (biology_axis_downgrade / gof_driver_downgrade, to_action: hold)
     # survives in BOTH the gate hits AND the suppressions list, so tp_gates._hard_gates_status labels
@@ -727,11 +736,6 @@ def gate_ceiling(pkg: dict, modality: Optional[str] = None) -> dict:
     suppressed_veto_pairs = {
         (s.get("short"), s.get("verdict")) for s in (rg.get("suppressed_vetoes") or []) if isinstance(s, dict)
     }
-    # MODALITY×SAFETY: the per-modality safety action for THIS channel. When it clears (== conditional,
-    # the spine's sole safe action), the blanket hold-grade safety cap below is modality-cleared — a
-    # scalar `safety` hold no longer caps a channel the spine's own exists_safe_modality would suppress.
-    safety_action = safety_action_for_modality(sv, modality)
-    safety_modality_cleared = safety_action in _SAFETY_MODALITY_SAFE_ACTIONS
 
     signals: list[tuple[int, str]] = []  # (ceiling_rank, reason)
     active_vetoes, blind_gates, opposing, excluded = [], [], [], []
@@ -1590,6 +1594,8 @@ def coherence_violations(
     present_norm: set,
     out_of_scope=None,
     card_calls: dict = None,
+    sv: dict = None,
+    modality: Optional[str] = None,
 ) -> dict:
     """INTRA-PACKAGE COHERENCE (the root-cause fix): the integrator may not assert a positive
     claim on a signal that ANOTHER present package signal contradicts, UNLESS the clause surfaces the
@@ -1611,7 +1617,10 @@ def coherence_violations(
 
     `clauses` maps clause_key -> {"support": [tokens], "surfaced": [tokens]}. `present_norm` is the
     normalized citation surface (card_ids | sub_verdict names | rule_ids). `card_calls` maps card_id ->
-    interpretation_call (card-grain verdicts). Returns {clause_key: [violation dicts]}."""
+    interpretation_call (card-grain verdicts). `sv`/`modality` (both optional) are the raw
+    synthesis.sub_verdicts block and the resolved modality, consulted ONLY for the mutant-selective
+    mechanism-conditioning below; when either is absent the conditioning is inert (fail-closed — no
+    relief), never fail-open. Returns {clause_key: [violation dicts]}."""
     oos = {_norm(d) for d in (out_of_scope or [])}
 
     def _oos(tok: str) -> bool:
@@ -1620,13 +1629,16 @@ def coherence_violations(
         return token_out_of_scope(tok, oos)
 
     card_calls = card_calls or {}
-    # MECHANISM-CONDITIONING (mirrors gate_ceiling): for a mutant-selective / GoF driver
-    # (safety=wt_*_mechanism_mismatch) a `non_dependent` reading on the dependency axis is EXPECTED, not a
-    # contradiction — so a positive thesis may rest on such a target without the dependency non-dependence
-    # counting as an unsurfaced negative. Applies at BOTH grains (the `dependency` dimension and its member
-    # cards, e.g. pan-cancer-crispr-dependency-distribution). Same signal, same discriminator as the gate:
-    # absent on TSGs and highly_constrained dangerous-FPs, so it does not silence a real contradiction.
-    mutant_selective = conviction.get("safety") in _MUTANT_SELECTIVE_SAFETY
+    # MECHANISM-CONDITIONING (mirrors gate_ceiling): for a mutant-selective / GoF driver a `non_dependent`
+    # reading on the dependency axis is EXPECTED, not a contradiction — so a positive thesis may rest on
+    # such a target without the dependency non-dependence counting as an unsurfaced negative. Applies at
+    # BOTH grains (the `dependency` dimension and its member cards, e.g.
+    # pan-cancer-crispr-dependency-distribution). Same discriminator as gate_ceiling post-#1576: the
+    # per-modality safety action for this channel clearing to `conditional` (the allele-selective-escape
+    # signal) — NOT the retired `wt_*_mechanism_mismatch` scalar safety token, which the real resolver has
+    # not emitted since v2.0.0. Absent on TSGs and highly_constrained dangerous-FPs, so it does not
+    # silence a real contradiction.
+    mutant_selective = bool(sv) and safety_action_for_modality(sv, modality) in _SAFETY_MODALITY_SAFE_ACTIONS
     _dep_norms = {_norm("dependency")} | _DIM_CARD_NORMS.get(_norm("dependency"), frozenset())
 
     def _mechanism_benign(tok_norm: str, verdict) -> bool:
