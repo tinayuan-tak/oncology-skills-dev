@@ -15,10 +15,6 @@ Calls the shared run_wired_skill dispatcher (2026-07-09).
 from __future__ import annotations
 
 import sys
-from pathlib import Path
-
-SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
-sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common import _summary_is_unavailable, get_card_field, resolve_cards
 from _skills_common.claim_record import assemble_claim_record, magnitude_for_card

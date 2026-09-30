@@ -40,9 +40,6 @@ from pathlib import Path
 _SCRIPTS = Path(__file__).resolve().parent
 if str(_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS))
-_SKILLS = _SCRIPTS.parents[1]  # .../skills
-if str(_SKILLS) not in sys.path:
-    sys.path.insert(0, str(_SKILLS))
 
 # The deterministic core, re-homed to the shared layer (single source of truth). Re-exported here so
 # `import risk_rollup as rr; rr.deterministic_bins` (validate_gold + tests) and the CLI keep working.

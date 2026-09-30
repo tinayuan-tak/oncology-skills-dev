@@ -4,13 +4,6 @@ the TCE effector axis. Pins the IMMUNE tier map, the CD8-fraction atom, and the 
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-SKILLS = Path(__file__).resolve().parents[2]
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 from _skills_common.immune_context_claims import (  # noqa: E402
     immune_context_claim_vector,
     immune_context_key_signals,

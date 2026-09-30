@@ -9,19 +9,12 @@ that resolve_cards(trace=...) surfaces provenance.datasets while trace=None stay
 from __future__ import annotations
 
 import subprocess
-import sys
-from pathlib import Path
-
-import pandas as pd
-import pyarrow.parquet as pq
-import pytest
-
-SKILLS = Path(__file__).resolve().parents[2]
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
 
 import _skills_common as skc  # noqa: E402
 import _skills_common.read_trace as rt  # noqa: E402
+import pandas as pd
+import pyarrow.parquet as pq
+import pytest
 
 # ── the wrappers record, and pass the result through unchanged ───────────────
 

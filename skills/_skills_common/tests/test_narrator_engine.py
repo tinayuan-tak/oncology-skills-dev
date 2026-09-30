@@ -3,13 +3,6 @@ assertions, no Bedrock. Two-slot / verdict-inert."""
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-SKILLS = Path(__file__).resolve().parents[2]
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 from _skills_common import narrator_engine as NE  # noqa: E402
 from _skills_common.narrator_lenses import (  # noqa: E402
     FUNCTIONAL_REQUIREMENT,

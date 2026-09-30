@@ -11,7 +11,6 @@ hand-maintained map did.
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import yaml
@@ -19,8 +18,6 @@ import yaml
 SKILL_DIR = Path(__file__).resolve().parent.parent
 SKILLS_ROOT = SKILL_DIR.parent
 CONTRACTS = SKILLS_ROOT.parent / "contracts"
-if str(SKILLS_ROOT) not in sys.path:
-    sys.path.insert(0, str(SKILLS_ROOT))
 
 from _skills_common.subgroup_derivation import default_classify, make_value_classifier  # noqa: E402
 from _test_support import load_run_py  # noqa: E402

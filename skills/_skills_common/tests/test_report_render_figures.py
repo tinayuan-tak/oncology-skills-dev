@@ -4,13 +4,6 @@ blocks with a spine-polarity verdict badge, card→owner routing, level/medium g
 Fixture shapes mirror the REAL nomination (top-level sub_verdicts.cards_used + card_figures descriptors)
 so the join is exercised against real shapes, not fixture-invented ones (the #990 lesson)."""
 
-import sys
-from pathlib import Path
-
-SKILLS = Path(__file__).resolve().parents[2]  # skills/
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 from _skills_common.report_render import build_ir, render_report, resolve_spec, vocab
 from _skills_common.report_render._fixtures import make_decision_json, make_nomination
 

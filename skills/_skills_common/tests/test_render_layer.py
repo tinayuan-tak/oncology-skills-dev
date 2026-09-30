@@ -3,13 +3,6 @@ datum of a composed target_report and renders just it, reusing build_ir_for_skil
 backends. Additive: existing render_report / render_skill_report paths are untouched (byte-stable).
 """
 
-import sys
-from pathlib import Path
-
-SKILLS = Path(__file__).resolve().parents[2]
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 import pytest  # noqa: E402
 from _skills_common.report_render import build_layer_ir, render_layer  # noqa: E402
 

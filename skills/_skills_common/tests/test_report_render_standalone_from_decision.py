@@ -8,13 +8,6 @@ build_ir_auto / the `python -m _skills_common.report_render <decision.json>` CLI
 same graph. These tests replace the retired test_evidence_graph_dashboard.py.
 """
 
-import sys
-from pathlib import Path
-
-SKILLS = Path(__file__).resolve().parents[2]
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 from _skills_common.report_render import backends as be
 from _skills_common.report_render import build_ir_auto, render_skill_report, resolve_spec, vocab
 

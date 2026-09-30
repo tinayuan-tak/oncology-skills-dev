@@ -4,13 +4,6 @@ Pure-function tests for overlay_claim_signals — no contracts / no I/O."""
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-SKILLS = Path(__file__).resolve().parents[2]
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 from _skills_common.subgroup_derivation import overlay_claim_signals  # noqa: E402
 
 HIER_DEFAULT = {"sub_groups": [{"id": "DEP"}, {"id": "SEL"}]}  # axis_key == sub_group id

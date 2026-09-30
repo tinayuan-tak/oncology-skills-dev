@@ -8,13 +8,6 @@ Pure over decision['headline'] — no S3, no method reads.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-SKILLS = Path(__file__).resolve().parents[2]  # skills/
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 from _skills_common.presence_matrix import (  # noqa: E402
     _sc_detail,
     _short_verdict,

@@ -13,9 +13,7 @@ import sys
 from pathlib import Path
 
 SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
-SKILLS = Path(__file__).resolve().parent.parent.parent  # for _skills_common
 sys.path.insert(0, str(SCRIPTS))
-sys.path.insert(0, str(SKILLS))
 
 from tp_synthesis_prompt import _SYSTEM_PROMPT  # noqa: E402
 

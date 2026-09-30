@@ -3,13 +3,6 @@ by_stratum) as SVG small multiples; best-effort ([] when absent). Display-only /
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-SKILLS = Path(__file__).resolve().parents[2]
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 from _skills_common.subgroup_figure import emit_subgroup_figure, render_subgroup_svg  # noqa: E402
 
 _SG = {

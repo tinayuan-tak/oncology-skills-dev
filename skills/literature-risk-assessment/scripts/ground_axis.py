@@ -43,9 +43,6 @@ from pathlib import Path
 _HERE = Path(__file__).resolve().parent
 if str(_HERE) not in sys.path:
     sys.path.insert(0, str(_HERE))
-_SKILLS = _HERE.parents[1]  # .../skills (so `import _skills_common` resolves)
-if str(_SKILLS) not in sys.path:
-    sys.path.insert(0, str(_SKILLS))
 
 # The shared anti-lore grounding fence (cheap + offline-safe: llm.py imports only stdlib at module
 # level; the anthropic/Bedrock deps are lazy). Appended to SYSTEM so the free-text finding narrative

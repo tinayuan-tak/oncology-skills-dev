@@ -5,13 +5,9 @@ to a compressed label) + strength_certainty emits a continuous composite. Verdic
 from __future__ import annotations
 
 import importlib.util
-import sys
 from pathlib import Path
 
-SKILLS_ROOT = Path(__file__).resolve().parents[2]
 RUN_PY = Path(__file__).resolve().parents[1] / "scripts" / "run.py"
-if str(SKILLS_ROOT) not in sys.path:
-    sys.path.insert(0, str(SKILLS_ROOT))
 
 
 def _ts():

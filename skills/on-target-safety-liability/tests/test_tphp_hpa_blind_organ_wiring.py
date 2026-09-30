@@ -28,15 +28,11 @@ What is pinned, and why each arm exists:
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 from _test_support import load_run_py
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
-SKILLS_ROOT = SKILL_DIR.parent
-if str(SKILLS_ROOT) not in sys.path:
-    sys.path.insert(0, str(SKILLS_ROOT))
 
 from _skills_common import fired_rules, safety_claims, safety_question_table  # noqa: E402
 from _skills_common.resolver import resolve_or_raise  # noqa: E402

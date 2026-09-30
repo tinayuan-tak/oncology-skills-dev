@@ -62,7 +62,6 @@ anchors (e.g. the CI-pinned sibling ref predates them) — a partial checkout de
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 from unittest import mock
 
@@ -70,9 +69,6 @@ import pandas as pd
 import pytest
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
-SKILLS_ROOT = SKILL_DIR.parent
-if str(SKILLS_ROOT) not in sys.path:
-    sys.path.insert(0, str(SKILLS_ROOT))
 
 from _skills_common.paths import analysis_methods_root
 

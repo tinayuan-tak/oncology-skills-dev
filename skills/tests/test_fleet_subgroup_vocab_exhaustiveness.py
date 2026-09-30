@@ -39,15 +39,12 @@ S3-free; skips cleanly when target-contracts is not checked out (as Guard A/B al
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import pytest
 import yaml
 
 SKILLS_ROOT = Path(__file__).resolve().parent.parent
-if str(SKILLS_ROOT) not in sys.path:
-    sys.path.insert(0, str(SKILLS_ROOT))
 
 from _skills_common.paths import target_contracts_root  # noqa: E402
 from _skills_common.subgroup_derivation import _SIGNAL_KEY  # noqa: E402

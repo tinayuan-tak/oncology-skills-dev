@@ -3,12 +3,6 @@ flip_conditions ("what would change the call"), subtype stratification (MSI/MSSâ
 patient-selection biomarker facet. Fixture shapes mirror the real nomination."""
 
 import json
-import sys
-from pathlib import Path
-
-SKILLS = Path(__file__).resolve().parents[2]
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
 
 from _skills_common.report_render import build_ir, render_report, resolve_spec, vocab
 from _skills_common.report_render._fixtures import make_nomination

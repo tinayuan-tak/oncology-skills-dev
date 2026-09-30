@@ -13,13 +13,9 @@ _SCRIPTS_DIR = str(Path(__file__).resolve().parent)
 if _SCRIPTS_DIR not in sys.path:
     sys.path.insert(0, _SCRIPTS_DIR)
 
-from tp_common import _CONTRACTS_REPO
-
 # Skills root on path for the shared per-modality safety transform (VERDICT_REPRESENTATION.md L2b/3).
-_SKILLS_ROOT = str(Path(__file__).resolve().parents[2])
-if _SKILLS_ROOT not in sys.path:
-    sys.path.insert(0, _SKILLS_ROOT)
 from _skills_common.modality_safety import safety_verdict_by_modality
+from tp_common import _CONTRACTS_REPO
 
 # The WT-loss / full-KO safety concerns the resolver now emits RAW (the role-proxy scalar downgrade
 # was retired 2026-08-24). exists-safe-modality re-applies the modality-conditional downgrade at the

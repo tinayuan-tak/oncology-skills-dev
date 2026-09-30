@@ -18,16 +18,12 @@ rules or narrator. S3-free (contracts + the run.py literal only).
 from __future__ import annotations
 
 import ast
-import sys
 from pathlib import Path
 
 import pytest
 import yaml
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
-SKILLS_ROOT = SKILL_DIR.parent
-if str(SKILLS_ROOT) not in sys.path:  # so `_skills_common` resolves when run outside skills/conftest.py
-    sys.path.insert(0, str(SKILLS_ROOT))
 
 from _skills_common.paths import target_contracts_root  # noqa: E402
 from _skills_common.subgroup_derivation import (  # noqa: E402

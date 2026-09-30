@@ -32,13 +32,6 @@ Neither fix can move a verdict, and for B that is provable rather than hopeful â
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-SKILLS = Path(__file__).resolve().parents[2]
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 from _skills_common import evidence_capsule as EC  # noqa: E402
 from _skills_common.evidence_graph import _kenum, build_evidence_graph  # noqa: E402
 from _skills_common.evidence_salience import round_keep_tiny, sig_round  # noqa: E402

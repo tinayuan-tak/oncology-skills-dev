@@ -26,14 +26,11 @@ scope and simply were never called. A reachability gap, not a data gap.
 from __future__ import annotations
 
 import re
-import sys
 from pathlib import Path
 
 import pytest
 
 SKILLS = Path(__file__).resolve().parents[2]
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
 
 from _skills_common.display_gloss import card_description, fill_placeholders  # noqa: E402
 from _skills_common.evidence_graph import build_evidence_graph, load_questions  # noqa: E402

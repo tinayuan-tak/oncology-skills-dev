@@ -15,15 +15,7 @@ genomic axis alongside the tumor-presence resolution to prove it.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
-
-SKILLS = Path(__file__).resolve().parents[2]
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 from _skills_common import evidence_capsule as EC  # noqa: E402
 
 

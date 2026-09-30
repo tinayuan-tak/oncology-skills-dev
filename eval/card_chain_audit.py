@@ -73,11 +73,6 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-
-_SKILLS = Path(__file__).resolve().parents[1] / "skills"  # eval/ is repo-root; skills/ is its sibling
-if str(_SKILLS) not in sys.path:
-    sys.path.insert(0, str(_SKILLS))
-
 from _skills_common.paths import target_contracts_root
 
 

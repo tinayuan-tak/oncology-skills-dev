@@ -5,13 +5,6 @@ SNVs keep recurrent_snv_driver. Deterministic resolver test (no data / no Bedroc
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-SKILLS = Path(__file__).resolve().parents[2]
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 from _skills_common.resolver import resolve_or_raise  # noqa: E402
 
 

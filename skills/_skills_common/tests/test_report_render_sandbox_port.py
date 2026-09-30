@@ -8,13 +8,6 @@ drill, role badges, litdot agreement glyph, litaxis border, table twin, ring-con
 are VERDICT-INERT display bound to the carried evidence_graph; a graph without the fields degrades.
 """
 
-import sys
-from pathlib import Path
-
-SKILLS = Path(__file__).resolve().parents[2]
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 from _skills_common.report_render import backends as be
 from _skills_common.report_render import build_ir_for_skill, render_skill_report, resolve_spec
 

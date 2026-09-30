@@ -19,13 +19,9 @@ Usage:
 
 import argparse
 import csv
-import sys
 from pathlib import Path
 
 import numpy as np
-
-SKILLS_DIR = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(SKILLS_DIR))
 from _skills_common import archetype_core as ac  # noqa: E402
 
 DECIRC_DROP_AXIS = "genomic_alteration"  # the OncoKB-fed axis — removed to de-circularize the role head

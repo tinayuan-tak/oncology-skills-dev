@@ -26,15 +26,11 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
-import sys
 import tempfile
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 SKILL_DIR = HERE.parent
-SKILLS = SKILL_DIR.parent
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
 
 DEFAULT_OUT = HERE / "fixtures" / "target_intrinsic_egfr_full_decision.json"
 

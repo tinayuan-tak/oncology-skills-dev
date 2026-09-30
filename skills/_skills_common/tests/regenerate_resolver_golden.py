@@ -36,8 +36,6 @@ HERE = Path(__file__).resolve().parent
 SKILLS = HERE.parents[1]  # .../skills
 SNAPSHOT = HERE / "resolver_golden_snapshots.json"
 
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
 
 from _skills_common.paths import TARGET_CONTRACTS_ROOT_DEFAULT  # noqa: E402
 

@@ -22,7 +22,6 @@ from __future__ import annotations
 
 import importlib.util
 import os
-import sys
 from functools import lru_cache
 from pathlib import Path
 
@@ -54,7 +53,6 @@ def cards_of(skill_dir: Path):
     name = f"_util_{skill_dir.name.replace('-', '_')}"
     spec = importlib.util.spec_from_file_location(name, rp)
     mod = importlib.util.module_from_spec(spec)
-    sys.path.insert(0, str(SKILLS_DIR))
     try:
         spec.loader.exec_module(mod)
     except Exception:

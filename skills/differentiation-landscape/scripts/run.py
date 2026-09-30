@@ -11,10 +11,6 @@ Skill-specific logic reduces to CARDS + verdict + headline callbacks.
 from __future__ import annotations
 
 import sys
-from pathlib import Path
-
-SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
-sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common import get_card_field
 from _skills_common.differentiation_claims import differentiation_claim_vector, differentiation_key_signals

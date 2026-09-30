@@ -20,9 +20,6 @@ import importlib.util
 import sys
 from pathlib import Path
 
-SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
-sys.path.insert(0, str(SKILLS_DIR))
-
 from _skills_common import ordinal_view  # noqa: E402
 
 

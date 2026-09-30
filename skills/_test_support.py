@@ -1,8 +1,11 @@
 """Shared test-support helpers for the skills test suites (importable helpers, NOT pytest fixtures).
 
-Tests already put skills/ on sys.path (`sys.path.insert(0, SKILLS_ROOT)`), so this module is importable
-as `_test_support`. It deliberately does NOT live under `_skills_common` (that is production code) and is
-not itself a test module (pytest never collects it — no `test_` prefix).
+This module is importable as `_test_support`: it ships in the `skills-common` distribution (see
+skills/pyproject.toml, editable-installed into the workspace env — skills#2238) as a top-level
+py-module alongside the `_skills_common` package, so `from _test_support import ...` resolves with no
+sys.path manipulation. The skills/conftest.py fixture also puts skills/ on sys.path so the test
+suites collect even without the install. It deliberately does NOT live under `_skills_common` (that is
+production code) and is not itself a test module (pytest never collects it — no `test_` prefix).
 
 It removes the most-copied test boilerplate: the "load a script as an isolated module" triple
     spec = importlib.util.spec_from_file_location(NAME, PATH)

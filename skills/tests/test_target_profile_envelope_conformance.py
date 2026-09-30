@@ -17,7 +17,6 @@ live S3 / Bedrock.
 from __future__ import annotations
 
 import ast
-import sys
 from pathlib import Path
 
 SKILLS = Path(__file__).resolve().parent.parent
@@ -60,8 +59,6 @@ def _last_dict_literal_keys(pyfile: Path, var_name: str) -> "set[str] | None":
 
 
 def _shared_build_governance():
-    if str(SKILLS) not in sys.path:
-        sys.path.insert(0, str(SKILLS))
     from _skills_common.envelope import build_governance  # noqa: E402
 
     return build_governance

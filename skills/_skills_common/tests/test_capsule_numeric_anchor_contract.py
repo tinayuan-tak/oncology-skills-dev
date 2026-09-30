@@ -24,12 +24,7 @@ root, so they pin the READER's behaviour and stay green whatever the contracts f
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
-
-SKILLS = Path(__file__).resolve().parents[2]
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
 
 from _skills_common import evidence_capsule as EC  # noqa: E402
 from _skills_common import subgroup_derivation as SD  # noqa: E402

@@ -20,7 +20,6 @@ Invariants:
 import ast
 import json
 import os
-import sys
 from functools import lru_cache
 from pathlib import Path
 
@@ -28,8 +27,6 @@ import pytest
 import yaml
 
 SKILLS = Path(__file__).resolve().parents[1]
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
 
 from _skills_common.archetype_core import _SHIPPED_ATLAS
 from _skills_common.claim_record import magnitude_from_interpretation

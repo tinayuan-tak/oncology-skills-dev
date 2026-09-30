@@ -4,13 +4,6 @@ liabilities as `negative`) + citable atoms. Pure."""
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-SKILLS = Path(__file__).resolve().parents[2]
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 from _skills_common.surface_claims import surface_claim_vector, surface_key_signals  # noqa: E402
 
 

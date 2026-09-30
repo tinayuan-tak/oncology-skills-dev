@@ -10,13 +10,6 @@ All verdict-inert: these are render facets, never a resolver rung.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-SKILLS = Path(__file__).resolve().parents[2]
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 from _skills_common.differentiation_claims import differentiation_claim_vector  # noqa: E402
 from _skills_common.differentiation_question_table import differentiation_question_table  # noqa: E402
 

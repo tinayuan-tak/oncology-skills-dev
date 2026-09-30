@@ -6,13 +6,6 @@ verifies the builder projects every frame, drops frames whose value is absent, a
 with a single dict frame. Verdict-INERT / display-only.
 """
 
-import sys
-from pathlib import Path
-
-SKILLS = Path(__file__).resolve().parents[2]
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 from _skills_common.evidence_salience import build_interpretation  # noqa: E402
 
 _PERCENTILE_FRAME = {

@@ -15,14 +15,11 @@ from __future__ import annotations
 
 import copy
 import json
-import sys
 from pathlib import Path
 
 import pytest
 
 SKILLS = Path(__file__).resolve().parents[2]  # skills/
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
 
 from _skills_common.l4_synthesis import (  # noqa: E402
     assemble_target_synthesis,

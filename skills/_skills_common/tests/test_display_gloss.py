@@ -11,15 +11,9 @@ VACUOUS for the whole denominator family — no fleet n_field was glossed and `n
 invariant: ask what the check does NOT enumerate.
 """
 
-import sys
 from pathlib import Path
 
 import pytest
-
-SKILLS = Path(__file__).resolve().parents[2]
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 from _skills_common import display_gloss as dg
 from _skills_common.evidence_salience import SALIENCE_SPECS
 from _skills_common.paths import TARGET_CONTRACTS_ROOT_DEFAULT

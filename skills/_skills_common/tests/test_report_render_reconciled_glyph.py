@@ -7,13 +7,6 @@ diverging strip, the scatter, and the composed fingerprint — so the human repo
 scorecard, and LLM. COMPOSED-ONLY: the standalone single-skill path carries no gate, so it keeps the
 honest ⛔. Sibling to the thesis de-escalation (_negative_expected_under_thesis)."""
 
-import sys
-from pathlib import Path
-
-SKILLS = Path(__file__).resolve().parents[2]  # skills/
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 from _skills_common.report_render import build_ir, build_ir_for_skill, render_report, resolve_spec
 from _skills_common.report_render import ir as I
 

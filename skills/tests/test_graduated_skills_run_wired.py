@@ -33,7 +33,6 @@ from pathlib import Path
 import pytest
 
 SKILLS_DIR = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common.composition_schema import validate_skill_md
 

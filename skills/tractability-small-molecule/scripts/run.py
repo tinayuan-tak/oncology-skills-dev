@@ -33,10 +33,6 @@ import sys
 from pathlib import Path
 
 import yaml
-
-SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
-sys.path.insert(0, str(SKILLS_DIR))
-
 from _skills_common import get_card_field
 from _skills_common.claim_record import assemble_claim_record
 from _skills_common.dispatcher import run_wired_skill

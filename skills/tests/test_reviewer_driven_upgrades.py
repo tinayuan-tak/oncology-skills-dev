@@ -28,7 +28,6 @@ import pytest
 import yaml
 
 SKILLS_DIR = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(SKILLS_DIR))
 
 # SK#2063 consolidation: target-contracts + analysis-methods are IN-TREE (contracts/, methods/
 # under the repo root = SKILLS_DIR.parent). Honor the *_ROOT env vars CI sets, else resolve

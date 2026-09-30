@@ -1,12 +1,5 @@
 """report_render — determinism (byte-stable) + the three dials behaving as declared."""
 
-import sys
-from pathlib import Path
-
-SKILLS = Path(__file__).resolve().parents[2]  # skills/
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 from _skills_common.report_render import build_ir, render_all, render_report, resolve_spec, string_backend_names, vocab
 from _skills_common.report_render._fixtures import make_nomination
 

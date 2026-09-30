@@ -20,10 +20,9 @@ from collections import defaultdict
 from pathlib import Path
 
 SKILLS = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(SKILLS.parent / "skills"))
 
-from _skills_common import card_warnings as cw  # noqa: E402
-from _skills_common.paths import target_contracts_root  # noqa: E402
+from _skills_common import card_warnings as cw
+from _skills_common.paths import target_contracts_root
 
 _OUT = SKILLS / "_skills_common" / "warning_calibration.json"
 _MIN_EVALUABLE = 20

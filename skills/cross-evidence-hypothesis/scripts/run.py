@@ -45,8 +45,6 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
-sys.path.insert(0, str(SKILLS_DIR))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import hypothesis_core as hc  # noqa: E402

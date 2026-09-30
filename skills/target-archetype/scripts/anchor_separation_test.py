@@ -74,8 +74,6 @@ import math
 import sys
 from pathlib import Path
 
-SKILLS_DIR = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(SKILLS_DIR))
 from _skills_common.archetype_core import Atlas  # noqa: E402
 
 # Fields that MUST be identical between baseline and candidate for the comparison to mean anything. The

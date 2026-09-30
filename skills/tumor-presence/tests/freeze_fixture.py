@@ -28,16 +28,12 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
 from pathlib import Path
 
 import yaml
 
 HERE = Path(__file__).resolve().parent
 SKILL_DIR = HERE.parent
-SKILLS = SKILL_DIR.parent  # .../skills
-if str(SKILLS) not in sys.path:  # _skills_common / _test_support resolve from skills/
-    sys.path.insert(0, str(SKILLS))
 
 from _skills_common import _import_dispatcher  # noqa: E402
 from _test_support import freeze_card_summaries, load_run_py  # noqa: E402

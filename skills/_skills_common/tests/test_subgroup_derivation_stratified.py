@@ -5,15 +5,9 @@ absent (needs measurement_type/tier lookup)."""
 from __future__ import annotations
 
 import os
-import sys
 from pathlib import Path
 
 import pytest
-
-SKILLS = Path(__file__).resolve().parents[2]
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 from _skills_common.paths import TARGET_CONTRACTS_ROOT_DEFAULT
 from _skills_common.subgroup_derivation import derive_stratified  # noqa: E402
 

@@ -12,10 +12,6 @@ See CHANGELOG.md for the version history.
 from __future__ import annotations
 
 import sys
-from pathlib import Path
-
-SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
-sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common import card_summary, resolve_cards
 from _skills_common.claim_record import assemble_claim_record

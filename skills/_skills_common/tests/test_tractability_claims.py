@@ -4,13 +4,6 @@ the SIXTH concrete over claim_vector_core. Pins the POSITIVE-valence tiers + cit
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-SKILLS = Path(__file__).resolve().parents[2]
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 from _skills_common.tractability_claims import (  # noqa: E402
     small_molecule_claim_vector,
     small_molecule_key_signals,

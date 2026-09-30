@@ -8,13 +8,6 @@ no Bedrock. Verdict-INERT: the renderer reads the headline, never writes it.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-SKILLS_ROOT = Path(__file__).resolve().parents[2]
-if str(SKILLS_ROOT) not in sys.path:
-    sys.path.insert(0, str(SKILLS_ROOT))
-
 from _skills_common.signals_first import render_narrator_signals, render_signal_summary  # noqa: E402
 
 

@@ -29,13 +29,9 @@ production file is edited.
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
-SKILLS_ROOT = SKILL_DIR.parent
-if str(SKILLS_ROOT) not in sys.path:
-    sys.path.insert(0, str(SKILLS_ROOT))
 
 import _skills_common.subgroup_derivation as sd  # noqa: E402
 

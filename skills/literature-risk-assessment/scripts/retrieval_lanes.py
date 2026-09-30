@@ -28,9 +28,6 @@ from pathlib import Path
 _HERE = Path(__file__).resolve().parent
 if str(_HERE) not in sys.path:
     sys.path.insert(0, str(_HERE))
-_SKILLS = _HERE.parents[1]  # .../skills (so `import _skills_common` resolves)
-if str(_SKILLS) not in sys.path:
-    sys.path.insert(0, str(_SKILLS))
 
 from _skills_common.paths import TARGET_CONTRACTS_ROOT_DEFAULT  # noqa: E402
 

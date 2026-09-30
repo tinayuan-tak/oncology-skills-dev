@@ -6,13 +6,6 @@ thresholds:, and degrades gracefully (absent value -> [], no bare number). Also 
 promotes it onto key_evidence and that an UN-spec'd type stays byte-stable (no interpretation).
 """
 
-import sys
-from pathlib import Path
-
-SKILLS = Path(__file__).resolve().parents[2]
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 from _skills_common.evidence_graph import _build_key_evidence
 from _skills_common.evidence_salience import SALIENCE_SPECS, build_interpretation
 

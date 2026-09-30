@@ -5,13 +5,7 @@ trust the shape."""
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
-
-SKILLS = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(SKILLS))
 from _skills_common.claim_record import (  # noqa: E402
     OPEN_WORLD_AVAILABILITY,
     assemble_claim_record,

@@ -10,13 +10,6 @@ load-bearing non-regression). Verdict-moving ONLY for the amplified amplicon-pas
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-SKILLS = Path(__file__).resolve().parents[2]
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 from _skills_common.card_preprocessors import (  # noqa: E402
     apply_promiscuous_amplicon_fusion_demotion,
     preprocess_cards_for_gate,

@@ -47,8 +47,6 @@ from typing import Optional
 SKILLS_DIR = Path(os.environ.get("SKILLS_ROOT", str(Path(__file__).resolve().parents[2])))  # skills/
 # The shared figure-emitter registry now lives in _skills_common (rehomed off the retiring
 # compose-dashboard). It is imported as `_skills_common._figure_emitters` with SKILLS_DIR on sys.path.
-if str(SKILLS_DIR) not in sys.path:
-    sys.path.insert(0, str(SKILLS_DIR))
 from _skills_common.paths import TARGET_CONTRACTS_ROOT_DEFAULT  # noqa: E402
 
 # target-contracts (sibling repo) — for the per-card provenance chain (method/measurement/inputs).
@@ -110,8 +108,6 @@ def _card_meta() -> dict:
 # ---------------------------------------------------------------------------
 def _load_emit_figures_for_card():
     """Import emit_figures_for_card from the shared _skills_common figure registry."""
-    if str(SKILLS_DIR) not in sys.path:
-        sys.path.insert(0, str(SKILLS_DIR))
     try:
         from _skills_common._figure_emitters import emit_figures_for_card  # noqa: E402
 
@@ -1606,8 +1602,6 @@ def _question_table_html(decision: dict, h: dict) -> str:
     emit it); falls back to computing the presence table live for older packages. The caption title +
     signal-header are per-skill (Presence / Selectivity / Dependency). Verdict-inert; best-effort."""
     try:
-        if str(SKILLS_DIR) not in sys.path:
-            sys.path.insert(0, str(SKILLS_DIR))
         from _skills_common.presence_question_table import presence_question_table, render_question_table_html
 
         skill = decision.get("skill", "")
@@ -1997,8 +1991,6 @@ def render_page(decision: dict, run_dir: Path, fig_map: dict, interactive: bool)
     # Display-only + best-effort (never breaks the page); gated on the field, not on a skill name.
     if h.get("presence_verdict_by_modality"):
         try:
-            if str(SKILLS_DIR) not in sys.path:
-                sys.path.insert(0, str(SKILLS_DIR))
             from _skills_common.presence_matrix import emit_presence_matrix  # noqa: E402
 
             _hero_paths = emit_presence_matrix(decision, run_dir / "figures")

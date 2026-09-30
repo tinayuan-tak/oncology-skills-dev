@@ -19,11 +19,8 @@ import yaml
 from _skills_common.paths import TARGET_CONTRACTS_ROOT_DEFAULT
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
-SKILLS_ROOT = SKILL_DIR.parent
 RUN_PY = SKILL_DIR / "scripts" / "run.py"
 FIXTURE = SKILL_DIR / "tests" / "fixtures" / "epcam_coadread.yaml"
-if str(SKILLS_ROOT) not in sys.path:
-    sys.path.insert(0, str(SKILLS_ROOT))
 
 
 def _contracts_absent():

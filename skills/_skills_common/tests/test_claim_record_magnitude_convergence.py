@@ -6,13 +6,6 @@ derives it from the SAME SALIENCE_SPEC reference_frame the graph uses. Multi-cla
 stay level-only.
 """
 
-import sys
-from pathlib import Path
-
-SKILLS = Path(__file__).resolve().parents[2]
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 from _skills_common.claim_record import assemble_claim_record, magnitude_for_card, magnitude_from_interpretation
 
 

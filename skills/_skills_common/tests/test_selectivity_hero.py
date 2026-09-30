@@ -9,13 +9,6 @@ one-way VIEW (never a verdict input). Pure over headline — no S3, no method re
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-SKILLS = Path(__file__).resolve().parents[2]  # skills/
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 from _skills_common.selectivity_hero import (  # noqa: E402
     build_selectivity_axes,
     emit_selectivity_hero,

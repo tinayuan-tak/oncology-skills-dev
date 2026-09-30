@@ -4,13 +4,6 @@ the basis-driven corroboration, the Tdark=absent (not adverse) discipline, and c
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-SKILLS = Path(__file__).resolve().parents[2]
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 from _skills_common.target_intrinsic_claims import (  # noqa: E402
     target_intrinsic_claim_vector,
 )

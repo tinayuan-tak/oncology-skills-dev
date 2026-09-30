@@ -18,10 +18,6 @@ genotype-MATCHED refinement (does an available model carry THIS target's alterat
 from __future__ import annotations
 
 import sys
-from pathlib import Path
-
-SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
-sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common import card_summary, get_card_field
 from _skills_common.dispatcher import run_wired_skill

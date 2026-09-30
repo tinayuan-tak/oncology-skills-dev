@@ -43,12 +43,9 @@ import pytest
 import yaml
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
-SKILLS_ROOT = SKILL_DIR.parent
 RUN_PY = SKILL_DIR / "scripts" / "run.py"
 FIXTURES = SKILL_DIR / "tests" / "fixtures"
 
-if str(SKILLS_ROOT) not in sys.path:
-    sys.path.insert(0, str(SKILLS_ROOT))
 
 # The bite_tce KILLER rules that DOWNGRADE a both_viable/tce_preferred base fit to a TCE-unsafe verdict.
 _BITE_KILLER_RULES = {"sc-normal-high-liability-bite-killer", "normal-tissue-essential-bite-killer"}

@@ -1,15 +1,7 @@
 """report_render — fail-soft: null-heavy and empty nominations render (every preset × string backend)
 without crashing; missing expected gating slots surface as explicit `unmeasured` coverage."""
 
-import sys
-from pathlib import Path
-
 import pytest
-
-SKILLS = Path(__file__).resolve().parents[2]  # skills/
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 from _skills_common.report_render import PRESETS, build_ir, render_report, resolve_spec, string_backend_names, vocab
 from _skills_common.report_render._fixtures import make_null_heavy_nomination
 

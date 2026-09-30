@@ -21,14 +21,8 @@ from __future__ import annotations
 
 import importlib.util
 import sys
-from pathlib import Path
 
 import pytest
-
-SKILLS_ROOT = Path(__file__).resolve().parents[2]
-if str(SKILLS_ROOT) not in sys.path:
-    sys.path.insert(0, str(SKILLS_ROOT))
-
 from _skills_common import paths  # noqa: E402
 from _skills_common.claim_record import (  # noqa: E402
     _l2_canonical_json,

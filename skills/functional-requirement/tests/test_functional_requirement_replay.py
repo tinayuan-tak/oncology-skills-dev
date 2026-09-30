@@ -25,7 +25,6 @@ import yaml
 from _test_support import load_run_py
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
-SKILLS_ROOT = SKILL_DIR.parent
 RUN_PY = SKILL_DIR / "scripts" / "run.py"
 FIXTURE = SKILL_DIR / "tests" / "fixtures" / "kras_coadread.yaml"
 # NEGATIVE-DIRECTION fixture (issue #1833): a hand-constructed non-dependent target whose queried
@@ -34,8 +33,6 @@ FIXTURE = SKILL_DIR / "tests" / "fixtures" / "kras_coadread.yaml"
 # rung (not-dependent-in-indication-killer, resolver rung 10) is exercised end-to-end.
 NEG_FIXTURE = SKILL_DIR / "tests" / "fixtures" / "not_dependent_in_indication.yaml"
 
-if str(SKILLS_ROOT) not in sys.path:
-    sys.path.insert(0, str(SKILLS_ROOT))
 
 # POSITIVE dependency calls (a real "yes, a dependency" verdict) — _DEPENDENCY_CALL_VERDICTS minus the
 # negative calls (non_dependent, pan_essential_killer). Imported from run.py = single source.

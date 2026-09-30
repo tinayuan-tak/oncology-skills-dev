@@ -10,13 +10,6 @@ integration replay.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-SKILLS = Path(__file__).resolve().parents[2]  # skills/
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 from _skills_common.dependency_claims import (  # noqa: E402
     dependency_claim_vector,
     dependency_key_signals,

@@ -13,13 +13,6 @@ so no assertion fixtures a derived value (a derived fixture can never fail).
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-SKILLS = Path(__file__).resolve().parents[2]
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 from _skills_common.presence_cardboard_figure import _reliability  # noqa: E402
 from _skills_common.presence_claims import _tier_from_median  # noqa: E402
 from _skills_common.presence_tiers import (  # noqa: E402

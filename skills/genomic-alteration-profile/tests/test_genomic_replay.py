@@ -47,8 +47,6 @@ FIXTURES = SKILL_DIR / "tests" / "fixtures"
 
 # run.py resolves _skills_common by inserting SKILLS_ROOT on sys.path; do it here too so the test
 # can import + monkeypatch the SAME module object run.py will use (sys.modules cache).
-if str(SKILLS_ROOT) not in sys.path:
-    sys.path.insert(0, str(SKILLS_ROOT))
 
 # Non-answers a resolved genomic verdict must never be for a KNOWN driver — the collapse set.
 # passenger_pattern is included: a canonical driver reading as passenger is the false-negative this

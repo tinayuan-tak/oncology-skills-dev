@@ -15,10 +15,6 @@ import sys
 import types
 from pathlib import Path
 
-SKILLS = Path(__file__).resolve().parents[2]  # skills/
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 from _skills_common import dispatcher as D
 from _skills_common.write_package import write_package
 

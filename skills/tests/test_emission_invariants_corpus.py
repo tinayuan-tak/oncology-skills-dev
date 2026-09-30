@@ -41,15 +41,9 @@ from __future__ import annotations
 
 import json
 import os
-import sys
 from pathlib import Path
 
 import pytest
-
-SKILLS = Path(__file__).resolve().parents[1]
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 from _skills_common import emission_invariants as ei
 
 BASELINE = Path(__file__).resolve().parent / "emission_invariants_baseline.json"

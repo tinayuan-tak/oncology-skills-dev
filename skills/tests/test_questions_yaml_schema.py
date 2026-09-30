@@ -10,15 +10,12 @@ is skipped — the referential structure of questions.yaml is still exercised by
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 
 import pytest
 import yaml
 
 SKILLS_DIR = Path(__file__).resolve().parents[1]
-if str(SKILLS_DIR) not in sys.path:
-    sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common.paths import DEFAULT_CONTRACTS_REPO  # noqa: E402
 

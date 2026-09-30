@@ -17,13 +17,11 @@ Skills exempt from this check:
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import pytest
 
 SKILLS_DIR = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common.composition_schema import (
     CompositionError,

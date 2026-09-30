@@ -10,13 +10,6 @@ These tests pin the gate directly on constructed warnings (no vocab file needed 
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-SKILLS = Path(__file__).resolve().parents[2]
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 from _skills_common.isoform_selective_targets import IsoformWarning  # noqa: E402
 
 

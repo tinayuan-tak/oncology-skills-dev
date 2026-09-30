@@ -43,8 +43,6 @@ from pathlib import Path
 
 # make `_skills_common` importable whether run from the repo or a worktree
 _SKILLS_ROOT = Path(__file__).resolve().parents[1]  # .../skills
-if str(_SKILLS_ROOT) not in sys.path:
-    sys.path.insert(0, str(_SKILLS_ROOT))
 
 from _skills_common import evidence_salience as es  # noqa: E402
 from _skills_common import field_disposition as fd  # noqa: E402

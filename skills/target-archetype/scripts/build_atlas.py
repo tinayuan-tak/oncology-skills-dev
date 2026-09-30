@@ -37,7 +37,6 @@ from pathlib import Path
 import numpy as np
 
 SKILLS_DIR = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(SKILLS_DIR))
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # sibling corpus_io
 from _skills_common.archetype_core import claim_features  # noqa: E402,F401  (kept for back-compat imports)
 from _skills_common.feature_vectoriser import build_feature_vector, numeric_values_from_package  # noqa: E402

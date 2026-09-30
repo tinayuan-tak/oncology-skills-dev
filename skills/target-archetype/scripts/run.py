@@ -35,7 +35,6 @@ import sys
 from pathlib import Path
 
 SKILLS_DIR = Path(__file__).resolve().parents[2]  # .../skills
-sys.path.insert(0, str(SKILLS_DIR))
 from _skills_common.archetype_core import (  # noqa: E402
     Atlas,
     _attach_archetype_caveats,

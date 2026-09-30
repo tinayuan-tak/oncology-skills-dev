@@ -15,16 +15,12 @@ never the resolver verdict (would test the framework against itself). Skips a pa
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import pytest
 import yaml
 
 HERE = Path(__file__).resolve().parent
-SKILLS = HERE.parent.parent
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
 
 from _skills_common import _is_data_unavailable, _primary_class_value  # noqa: E402
 

@@ -2,13 +2,6 @@
 graph's citation registry and render the PMID(s) inline as a cite-pill/anchor. Display-only /
 verdict-inert; unresolved citation_ids + card_ids stay in the bracket anchor."""
 
-import sys
-from pathlib import Path
-
-SKILLS = Path(__file__).resolve().parents[2]
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 from _skills_common.report_render import ir as IR  # noqa: E402
 from _skills_common.report_render.backends.html import HtmlBackend  # noqa: E402
 

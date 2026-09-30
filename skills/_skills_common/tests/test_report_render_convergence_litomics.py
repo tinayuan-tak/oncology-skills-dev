@@ -5,13 +5,6 @@ now-carried nomination fields (verdict-inert), extending EXISTING blocks (no new
   - cross-evidence causal chain + independent-read trust strip (SYNTHESIS): from nomination['hypothesis'].
 """
 
-import sys
-from pathlib import Path
-
-SKILLS = Path(__file__).resolve().parents[2]
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 from _skills_common.report_render import render_report
 from _skills_common.report_render._fixtures import make_nomination
 

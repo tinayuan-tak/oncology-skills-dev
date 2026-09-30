@@ -11,15 +11,9 @@ from __future__ import annotations
 
 import itertools
 import json
-import sys
 from pathlib import Path
 
 import pytest
-
-SKILLS = Path(__file__).resolve().parents[2]
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 from _skills_common import component_scorecard as cs
 
 REPO_ROOT = Path(__file__).resolve().parents[3]

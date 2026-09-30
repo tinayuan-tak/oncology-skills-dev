@@ -51,12 +51,8 @@ import yaml
 from _test_support import load_run_py
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
-SKILLS_ROOT = SKILL_DIR.parent
 RUN_PY = SKILL_DIR / "scripts" / "run.py"
 FIXTURES = SKILL_DIR / "tests" / "fixtures"
-
-if str(SKILLS_ROOT) not in sys.path:
-    sys.path.insert(0, str(SKILLS_ROOT))
 
 
 _SAFETY = load_run_py(SKILL_DIR, "_safety_run_const")

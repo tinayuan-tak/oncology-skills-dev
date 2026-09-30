@@ -7,13 +7,6 @@ allgene_top_decile cut, with the resolver band (allgene_percentile_class) read v
 Verdict-INERT / display-only.
 """
 
-import sys
-from pathlib import Path
-
-SKILLS = Path(__file__).resolve().parents[2]
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 from _skills_common.evidence_salience import (  # noqa: E402
     SALIENCE_SPECS,
     build_interpretation,

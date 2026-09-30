@@ -1,13 +1,6 @@
 """report_render — report-level overview blocks (signals_overview diverging strip + risk_6dim tiles),
 absorbed from the tp_dashboard v2 design and re-sourced from the spine."""
 
-import sys
-from pathlib import Path
-
-SKILLS = Path(__file__).resolve().parents[2]  # skills/
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 from _skills_common.report_render import build_ir, build_ir_for_skill, render_report, resolve_spec, vocab
 from _skills_common.report_render._fixtures import make_decision_json, make_nomination
 

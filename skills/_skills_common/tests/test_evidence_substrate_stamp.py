@@ -14,17 +14,11 @@ Pins:
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
+import _skills_common.measurement_types as MT  # noqa: E402
 import pytest
 import yaml
-
-SKILLS = Path(__file__).resolve().parents[2]
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
-import _skills_common.measurement_types as MT  # noqa: E402
 from _skills_common.envelope import assemble_evidence_package  # noqa: E402
 
 

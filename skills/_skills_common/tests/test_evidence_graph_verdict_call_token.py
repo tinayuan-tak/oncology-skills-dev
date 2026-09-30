@@ -39,15 +39,7 @@ to both. A test that cannot separate the two inputs cannot observe this join at 
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
-
-SKILLS = Path(__file__).resolve().parents[2]
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 from _skills_common.evidence_graph import build_evidence_graph  # noqa: E402
 from _skills_common.skill_report import ROLE_GATING, build_skill_report  # noqa: E402
 

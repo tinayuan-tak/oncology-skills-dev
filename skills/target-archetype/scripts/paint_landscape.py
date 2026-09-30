@@ -18,11 +18,8 @@ import argparse
 import glob
 import json
 import os
-import sys
 from pathlib import Path
 
-SKILLS_DIR = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(SKILLS_DIR))
 from _skills_common import archetype_core as ac  # noqa: E402
 
 # anchor-phenotype -> colour (dataviz categorical palette), reused for the painted map

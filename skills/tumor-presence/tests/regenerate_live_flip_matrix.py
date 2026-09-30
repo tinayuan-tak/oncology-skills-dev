@@ -49,7 +49,6 @@ import collections
 import copy
 import json
 import subprocess
-import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -57,7 +56,6 @@ SKILL_DIR = HERE.parent
 SKILLS_ROOT = SKILL_DIR.parent
 FIXTURE = HERE / "fixtures" / "subset_high_live_flip_matrix.json"
 
-sys.path.insert(0, str(SKILLS_ROOT))
 
 BROAD_RID = "tumor-expression-broadly-high-supportive"
 SUBSET_RID = "tumor-expression-subset-high-supportive"

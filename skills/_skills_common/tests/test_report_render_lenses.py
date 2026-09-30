@@ -4,12 +4,6 @@ signal×confidence scatter + sub-group bands. The lens layer is a presentation g
 spine is untouched; the standalone single-skill path stays un-lensed (flat fallback)."""
 
 import json
-import sys
-from pathlib import Path
-
-SKILLS = Path(__file__).resolve().parents[2]  # skills/
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
 
 from _skills_common.report_render import build_ir, build_ir_for_skill, render_report, resolve_spec, vocab
 from _skills_common.report_render._fixtures import make_decision_json, make_nomination

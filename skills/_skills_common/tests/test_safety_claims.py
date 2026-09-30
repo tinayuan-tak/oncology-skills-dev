@@ -5,13 +5,6 @@ conflict. Pure over a headline dict + card summaries — no S3."""
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-SKILLS = Path(__file__).resolve().parents[2]  # skills/
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 from _skills_common.safety_claims import safety_claim_vector  # noqa: E402
 
 

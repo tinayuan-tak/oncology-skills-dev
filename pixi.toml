@@ -56,6 +56,13 @@ version = "0.1.0"
 [pypi-dependencies]
 oncology-analysis-methods = { path = "./methods", editable = true }
 oncology-target-contracts = { path = "./contracts", editable = true }
+# skills#2238 (epic #2144 stage 2): the SKILLS layer's shared library, packaged so `import
+# _skills_common` / `import _test_support` resolve with zero sys.path manipulation — retiring the
+# ~224 SKILLS-root inserts and the run.py bootstraps. Its project root is skills/ (the source root
+# for both the _skills_common package and the sibling _test_support.py module — see
+# skills/pyproject.toml), NOT skills/_skills_common/, so it does not disturb the
+# skills/_skills_common/pytest.ini whose LOCATION governs that leg's rootdir.
+skills-common = { path = "./skills", editable = true }
 target-id-resolver = { path = "../rnd-computational-biology-oncology-data-catalog/libs/target_id_resolver", editable = true }
 anthropic = ">=1.3.0, <2"
 

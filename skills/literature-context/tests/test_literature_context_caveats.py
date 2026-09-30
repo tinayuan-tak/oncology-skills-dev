@@ -16,15 +16,11 @@ Pure caveat/provenance tests use synthetic headline dicts (no S3 / no card / no 
 from __future__ import annotations
 
 import importlib.util
-import sys
 from pathlib import Path
 
 import pytest
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
-SKILLS_DIR = SKILL_DIR.parent
-if str(SKILLS_DIR) not in sys.path:
-    sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common.narrator_lenses import LENSES, LITERATURE_CONTEXT  # noqa: E402
 

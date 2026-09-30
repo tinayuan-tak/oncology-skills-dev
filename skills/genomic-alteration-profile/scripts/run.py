@@ -25,10 +25,6 @@ import sys
 from pathlib import Path
 
 import yaml
-
-SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
-sys.path.insert(0, str(SKILLS_DIR))
-
 from _skills_common import card_summary, resolve_cards
 from _skills_common.card_preprocessors import (  # noqa: F401
     _bh_qvalues,

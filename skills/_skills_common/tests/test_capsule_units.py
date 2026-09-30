@@ -12,14 +12,11 @@ below exercise a genomic axis (copy_number) alongside the tumor-presence axes to
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import pytest
 
 SKILLS = Path(__file__).resolve().parents[2]
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
 
 from _skills_common import display_gloss as DG  # noqa: E402
 from _skills_common import evidence_capsule as EC  # noqa: E402

@@ -1,15 +1,7 @@
 """report_render — per-skill rendering: a single standalone skill (decision.json or bare skill_report)
 renders to a one-section report across all backends, with the same tiering + fail-soft."""
 
-import sys
-from pathlib import Path
-
 import pytest
-
-SKILLS = Path(__file__).resolve().parents[2]  # skills/
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 from _skills_common.report_render import (
     build_ir_auto,
     build_ir_for_skill,

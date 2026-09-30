@@ -36,13 +36,8 @@ from __future__ import annotations
 
 import datetime as _dt
 import html
-import sys
 from pathlib import Path
 from typing import Mapping, Optional
-
-SKILLS_DIR = Path(__file__).resolve().parents[2]  # skills/
-if str(SKILLS_DIR) not in sys.path:
-    sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common.l4_synthesis import schema as S  # noqa: E402
 

@@ -30,8 +30,6 @@ from pathlib import Path
 from typing import Optional
 
 SKILLS_DIR = Path(__file__).resolve().parents[2]  # skills/
-if str(SKILLS_DIR) not in sys.path:
-    sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common.l4_synthesis import L4TraceabilityError, assemble_target_synthesis  # noqa: E402
 from generate_example_gallery import _slug, fig_map_from_existing  # noqa: E402

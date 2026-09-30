@@ -12,7 +12,7 @@ if _SCRIPTS_DIR not in sys.path:
     sys.path.insert(0, _SCRIPTS_DIR)
 
 from _skills_common import resolve_cards
-from tp_common import _CONTRACTS_REPO, SKILL_NAME, SKILLS_DIR
+from tp_common import _CONTRACTS_REPO, SKILL_NAME
 
 
 def _claim_vectors_from_sub_results(sub_results: dict) -> dict:
@@ -91,8 +91,6 @@ def _load_figure_registry():
     a run without per-card figures still emits every other artifact.
     """
     try:
-        if str(SKILLS_DIR) not in sys.path:
-            sys.path.insert(0, str(SKILLS_DIR))
         import _skills_common._figure_emitters as _fe  # type: ignore
 
         return _fe

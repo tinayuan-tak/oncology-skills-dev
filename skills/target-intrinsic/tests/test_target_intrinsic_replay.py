@@ -38,8 +38,6 @@ GOLDEN = SKILL_DIR / "tests" / "fixtures" / "target_intrinsic_egfr_full_decision
 
 # run.py resolves _skills_common by inserting SKILLS_ROOT on sys.path; do it here too so the test
 # can import + monkeypatch the SAME module object run.py will use (sys.modules cache).
-if str(SKILLS_ROOT) not in sys.path:
-    sys.path.insert(0, str(SKILLS_ROOT))
 
 
 def _load_fixture() -> dict:

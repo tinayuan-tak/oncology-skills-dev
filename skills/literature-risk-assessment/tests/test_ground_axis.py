@@ -230,11 +230,19 @@ def test_axis_config_has_all_rolled_out_axes_with_complete_framing():
 
 
 def test_skills_path_resolves_for_live_imports():
-    # regression guard: _SKILLS must point at skills/ so `_skills_common` imports at call time
-    # (the merged code used parents[2] = repo root, which broke the live path).
+    # regression guard: `_skills_common` resolves for ground_axis's call-time live imports. This used
+    # to require a module-level `_SKILLS` sys.path insert pointing at skills/ (a merged bug once
+    # computed parents[2] = repo root and broke the live path). Since skills#2238 the `skills-common`
+    # distribution is editable-installed into the workspace env, so ground_axis imports
+    # `_skills_common.llm` with no sys.path hack — the guard now asserts the import itself resolves
+    # to the real skills/_skills_common package, which is the invariant the old `_SKILLS` check stood in for.
+    import importlib
     from pathlib import Path
 
-    assert (Path(ga._SKILLS) / "_skills_common").is_dir()
+    mod = importlib.import_module("_skills_common")
+    assert Path(mod.__file__).resolve().parent.name == "_skills_common"
+    # and the symbols ground_axis pulls at import time are actually bound (the live import worked)
+    assert ga.synthesize_structured is not None and ga.EVIDENCE_ONLY_DIRECTIVE is not None
 
 
 def test_deterministic_block_selects_axis_cards():

@@ -11,13 +11,6 @@ as DATA_UNAVAILABLE. This pins BOTH directions:
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-SKILLS = Path(__file__).resolve().parents[2]
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 from _skills_common import _data_unavailable_field, _primary_class_value  # noqa: E402
 
 # --- real primary + data_unavailable SECONDARY facet must stay AVAILABLE (the bug) -----------

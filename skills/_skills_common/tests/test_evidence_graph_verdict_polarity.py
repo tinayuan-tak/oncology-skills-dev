@@ -35,15 +35,7 @@ still carries the pre-fix value, forever).
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
-
-SKILLS = Path(__file__).resolve().parents[2]
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 from _skills_common.evidence_graph import _CANON_POLARITY, build_evidence_graph  # noqa: E402
 from _skills_common.skill_report import (  # noqa: E402
     ROLE_DESCRIPTIVE,

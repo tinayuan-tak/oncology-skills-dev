@@ -51,13 +51,6 @@ artifact still clear the four caches that ARE keyed on nothing, using the same l
 "patch the RESOLVING namespace" idiom as test_tier_rarity_frame.py.
 """
 
-import sys
-from pathlib import Path
-
-SKILLS = Path(__file__).resolve().parents[2]  # skills/
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 import pytest  # noqa: E402
 from _skills_common import archetype_core as ac  # noqa: E402
 

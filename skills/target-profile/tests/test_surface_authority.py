@@ -26,7 +26,6 @@ population is asserted non-empty before anything is asserted over it, for the sa
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 
 import pytest
@@ -36,9 +35,6 @@ FIXTURE = HERE / "fixtures" / "polarity_surface_projection.json"
 
 # Two checks below assert against the PRODUCER's own vocabulary/behaviour rather than against the
 # frozen corpus, because a snapshot cannot observe a producer change. That needs `skills/` importable.
-SKILLS = HERE.parents[1]
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
 
 SCHEMA = "polarity_surface_projection/v1"
 

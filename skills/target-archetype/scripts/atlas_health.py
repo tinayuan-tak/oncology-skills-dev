@@ -38,8 +38,6 @@ import argparse
 import sys
 from pathlib import Path
 
-SKILLS_DIR = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(SKILLS_DIR))
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # for the sibling corpus_io module
 from _skills_common.archetype_core import Atlas, vocabulary_drift  # noqa: E402
 from corpus_io import claim_vectors_for_run  # noqa: E402

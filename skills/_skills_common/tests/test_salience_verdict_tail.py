@@ -4,13 +4,6 @@ ENRICHES key_evidence from a realistic summary — so a future card-field rename
 a spec fails here (not just quietly stops promoting the decisive datum). Verdict-inert / display-only.
 """
 
-import sys
-from pathlib import Path
-
-SKILLS = Path(__file__).resolve().parents[2]
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 import pytest  # noqa: E402
 from _skills_common.evidence_graph import _build_key_evidence  # noqa: E402
 from _skills_common.evidence_salience import spec_for  # noqa: E402

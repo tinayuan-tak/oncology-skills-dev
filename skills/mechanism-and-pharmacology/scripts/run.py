@@ -17,10 +17,6 @@ previous inline implementation is removed; behavior is equivalent.
 from __future__ import annotations
 
 import sys
-from pathlib import Path
-
-SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
-sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common import get_card_field
 from _skills_common.claim_record import assemble_claim_record

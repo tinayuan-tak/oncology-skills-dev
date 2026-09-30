@@ -6,13 +6,6 @@ reading ('median CRISPR gene-effect (CHRONOS) = -1.18 (CHRONOS; lower = stronger
 `median_chronos=-1.18`. Graph builder + graph goldens are UNCHANGED (this is a render-side join).
 """
 
-import sys
-from pathlib import Path
-
-SKILLS = Path(__file__).resolve().parents[2]
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 from _skills_common.report_render import backends as be
 from _skills_common.report_render import build_ir_for_skill, resolve_spec
 

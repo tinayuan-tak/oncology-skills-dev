@@ -9,13 +9,6 @@ on every skill. resolve_cards must tag a `_live_read_error` (and an honest `data
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-SKILLS = Path(__file__).resolve().parents[2]  # skills/
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 import _skills_common as skc  # noqa: E402
 from _skills_common import _live_readers  # noqa: E402
 

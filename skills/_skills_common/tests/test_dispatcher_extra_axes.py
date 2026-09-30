@@ -3,13 +3,6 @@ decision['fired_rules'] + run_health.cards_fired, WITHOUT letting them touch the
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-SKILLS = Path(__file__).resolve().parents[2]
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 import _skills_common.dispatcher as D  # noqa: E402
 
 

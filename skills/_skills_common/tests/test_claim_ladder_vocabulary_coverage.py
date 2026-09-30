@@ -68,12 +68,10 @@ shrink over time (equality there would red the moment a producer legitimately ca
 
 import ast
 import subprocess
-import sys
 from pathlib import Path
 
 _SKILLS_ROOT = Path(__file__).resolve().parents[2]
 _REPO_ROOT = _SKILLS_ROOT.parent
-sys.path.insert(0, str(_SKILLS_ROOT))
 
 # Directory prefixes holding FIRST-PARTY python. The reader sweep below is rooted at the REPO, not at
 # `skills/`: a guard whose name claims "the set of corroboration readers" must not silently mean "readers

@@ -51,8 +51,6 @@ FIXTURES = SKILL_DIR / "tests" / "fixtures"
 
 # run.py resolves _skills_common by inserting SKILLS_ROOT on sys.path; do it here too so the test
 # can import + monkeypatch the SAME module object run.py will use (sys.modules cache).
-if str(SKILLS_ROOT) not in sys.path:
-    sys.path.insert(0, str(SKILLS_ROOT))
 
 # Non-answers a resolved selectivity_class must never be — the false-negative collapse set.
 _COLLAPSED = {None, "", "insufficient", "data_unavailable"}

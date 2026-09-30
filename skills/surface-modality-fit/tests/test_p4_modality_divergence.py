@@ -10,15 +10,10 @@ byte-stable). Reads the LIVE target-contracts rules; graceful-skips if not check
 from __future__ import annotations
 
 import os
-import sys
 from pathlib import Path
 
 import pytest
 from _skills_common.paths import TARGET_CONTRACTS_ROOT_DEFAULT
-
-SKILLS_DIR = Path(__file__).resolve().parents[2]
-if str(SKILLS_DIR) not in sys.path:
-    sys.path.insert(0, str(SKILLS_DIR))
 
 _CONTRACTS = Path(os.environ.get("TARGET_CONTRACTS_ROOT", TARGET_CONTRACTS_ROOT_DEFAULT))
 

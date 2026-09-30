@@ -22,11 +22,8 @@ import pytest
 import yaml
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
-SKILLS_ROOT = SKILL_DIR.parent
 RUN_PY = SKILL_DIR / "scripts" / "run.py"
 FIXTURE = SKILL_DIR / "tests" / "fixtures" / "epcam_coadread.yaml"
-if str(SKILLS_ROOT) not in sys.path:
-    sys.path.insert(0, str(SKILLS_ROOT))
 
 from _skills_common.presence_claims import _claim_A  # noqa: E402
 

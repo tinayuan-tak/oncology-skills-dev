@@ -1,13 +1,6 @@
 """report_render — the HTML redesign: light theme, target characterization in the header, signal
 provenance, coherence suppression, the per-modality FIT readout, and self-contained figure inlining."""
 
-import sys
-from pathlib import Path
-
-SKILLS = Path(__file__).resolve().parents[2]
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 from _skills_common.report_render import build_ir, render_report, resolve_spec, vocab
 from _skills_common.report_render._fixtures import make_nomination
 from _skills_common.report_render.backends.html import HtmlBackend

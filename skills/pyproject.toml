@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "skills-common"
+version = "0.1.0"
+requires-python = ">=3.10"
+description = "Shared library for the Takeda v2 oncology target-evaluation SKILLS layer: the _skills_common package (claim vectors, resolvers, composition/emission core, narrators, figure emitters) plus the _test_support test-helper module the per-skill suites import."
+
+# Runtime dependencies are managed by the root pixi.toml for the canonical environment (it carries
+# the full pandas/scipy/plotly/pyyaml + R/Bioconductor stack the readers and emitters reach). No
+# dependency list is declared here on purpose: this distribution is editable-installed INTO that
+# one workspace env (see the root pixi.toml [pypi-dependencies]), which is already a superset of
+# everything _skills_common imports. Declaring a second, drifting copy of that pin set here is the
+# exact mirror-drift failure the SK#2145 env-unification eliminated — so it is not reintroduced.
+# This is the packaging that lets consumers `import _skills_common` / `import _test_support` with
+# NO sys.path manipulation (skills#2238, epic #2144 stage 2), retiring the ~224 SKILLS-root inserts
+# and the run.py bootstraps.
+dependencies = []
+
+# The importable names live at THIS directory (skills/): the `_skills_common` package and its
+# subpackages, plus the top-level `_test_support` module (skills/_test_support.py) that the per-skill
+# test suites import as `from _test_support import ...`. The per-skill DIRECTORIES (hyphenated names
+# like tumor-presence/) are NOT importable packages and are excluded by the explicit include filter.
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["_skills_common*"]
+
+[tool.setuptools]
+py-modules = ["_test_support"]
+
+# NOTE: deliberately NO [tool.pytest.ini_options] here. skills/_skills_common/pytest.ini's LOCATION
+# is semantic (it is the nearest-ancestor ini for the skills/_skills_common/tests/ leg, which must
+# run WITHOUT --import-mode=importlib — see that file and the root pyproject.toml comment). pytest's
+# config discovery prefers a pytest.ini over a pyproject.toml at the same directory level, and this
+# pyproject sits one level UP (at skills/) with no ini_options section, so it is never selected as a
+# configfile for any suite: the per-skill/eval/guard suites still resolve to the repo-root
+# pyproject.toml and the _skills_common leg still resolves to its own pytest.ini. Proven with
+# `pytest --co` rootdir/configfile inspection in the skills#2238 PR before landing.

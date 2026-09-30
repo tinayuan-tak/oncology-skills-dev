@@ -8,13 +8,6 @@
 Verdict-INERT / display-only.
 """
 
-import sys
-from pathlib import Path
-
-SKILLS = Path(__file__).resolve().parents[2]
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 from _skills_common.display_gloss import gauge_string  # noqa: E402
 from _skills_common.evidence_salience import SALIENCE_SPECS, build_interpretation  # noqa: E402
 

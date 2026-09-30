@@ -28,9 +28,6 @@ import sys
 from collections import defaultdict
 
 # lazy/guarded framework imports (harness still runs for B/C/D + raw counts if these are unavailable)
-_SKILLS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "skills")
-if _SKILLS not in sys.path:
-    sys.path.insert(0, _SKILLS)
 try:
     from _skills_common.biology_axis import resolve_biology_axis
     from _skills_common.resolver import load_resolver, resolve_verdict_provenance

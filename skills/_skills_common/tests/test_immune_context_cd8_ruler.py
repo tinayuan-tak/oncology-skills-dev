@@ -17,13 +17,6 @@ TWO things here are load-bearing and easy to "simplify" away:
 DISPLAY-ONLY / verdict-INERT.
 """
 
-import sys
-from pathlib import Path
-
-SKILLS = Path(__file__).resolve().parents[2]
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 from _skills_common.display_gloss import METRIC_GLOSS, gauge_string, gloss  # noqa: E402
 from _skills_common.evidence_salience import SALIENCE_SPECS, build_interpretation  # noqa: E402
 from _skills_common.feature_vectoriser import numeric_feature_specs  # noqa: E402

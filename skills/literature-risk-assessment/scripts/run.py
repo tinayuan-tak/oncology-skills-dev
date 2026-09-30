@@ -24,7 +24,6 @@ from pathlib import Path
 
 _HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(_HERE))  # local retrieval_lanes / pubmed_search
-sys.path.insert(0, str(_HERE.parents[1]))  # skills/  → _skills_common
 import openfda  # noqa: E402  (openFDA FAERS/label pharmacovigilance — safety-dim annotation)
 import retrieval_lanes as rl  # noqa: E402  (shared 3-lane retriever + disease-vocab resolver)
 from _skills_common.llm import EVIDENCE_ONLY_DIRECTIVE, synthesize_structured  # noqa: E402

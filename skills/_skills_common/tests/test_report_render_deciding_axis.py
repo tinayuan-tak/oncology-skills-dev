@@ -2,13 +2,6 @@
 blindly the first entry of deciding_axes (which can lead with a framework-blind gateless lens like
 cis_coherence). Surfaced by the ERBB2×BRCA example (headline read "Cis-feature coherence")."""
 
-import sys
-from pathlib import Path
-
-SKILLS = Path(__file__).resolve().parents[2]
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 from _skills_common.report_render import build_ir, render_report, resolve_spec, vocab
 from _skills_common.report_render._fixtures import make_nomination
 from _skills_common.report_render.ir import _deciding_short

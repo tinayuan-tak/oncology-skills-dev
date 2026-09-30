@@ -18,17 +18,11 @@ from __future__ import annotations
 
 import json
 import os
-import sys
 from pathlib import Path
-
-from jsonschema import Draft202012Validator
-
-SKILLS = Path(__file__).resolve().parents[2]
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
 
 import _skills_common.dispatcher as D  # noqa: E402
 from _skills_common.paths import TARGET_CONTRACTS_ROOT_DEFAULT
+from jsonschema import Draft202012Validator
 
 CONTRACTS = Path(os.environ.get("TARGET_CONTRACTS_ROOT", TARGET_CONTRACTS_ROOT_DEFAULT))
 PKG_SCHEMA = json.loads((CONTRACTS / "schemas" / "evidence_package.schema.json").read_text())

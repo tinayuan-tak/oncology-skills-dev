@@ -19,13 +19,10 @@ Verdict-INERT: only headline_block.confidence moves; the resolver/scalar verdict
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
 SKILLS_ROOT = SKILL_DIR.parent
-if str(SKILLS_ROOT) not in sys.path:
-    sys.path.insert(0, str(SKILLS_ROOT))
 
 from _test_support import load_run_py  # noqa: E402 — needs SKILLS_ROOT on sys.path first
 

@@ -9,13 +9,6 @@ emits no presence_verdict; the pooled spine is byte-stable by construction.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-SKILLS_ROOT = Path(__file__).resolve().parents[2]
-if str(SKILLS_ROOT) not in sys.path:
-    sys.path.insert(0, str(SKILLS_ROOT))
-
 from _skills_common.presence_claims import presence_claim_vector_by_subtype  # noqa: E402
 
 

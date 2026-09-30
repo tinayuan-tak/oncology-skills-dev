@@ -9,16 +9,10 @@ precedence (fired-inline over index), the modality channel filter, determinism, 
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import pytest
 import yaml
-
-SKILLS = Path(__file__).resolve().parents[2]  # .../skills
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 from _skills_common.narrative import build_narrative  # noqa: E402
 from _skills_common.rules_loader import rule_text_index  # noqa: E402
 

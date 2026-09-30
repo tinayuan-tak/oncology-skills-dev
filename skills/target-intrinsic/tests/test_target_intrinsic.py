@@ -6,15 +6,12 @@ S3-free — parses the run.py CARDS literal + the SKILL.md composition + the car
 from __future__ import annotations
 
 import ast
-import sys
 from pathlib import Path
 
 import yaml
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
 SKILLS_ROOT = SKILL_DIR.parent
-if str(SKILLS_ROOT) not in sys.path:
-    sys.path.insert(0, str(SKILLS_ROOT))
 
 from _skills_common.paths import target_contracts_root  # noqa: E402
 

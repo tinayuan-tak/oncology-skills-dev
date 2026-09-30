@@ -16,17 +16,9 @@ when the catalog helper is absent), so these assert the ALWAYS-computed digests,
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-import pytest
-
-SKILLS = Path(__file__).resolve().parents[2]
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 import _skills_common as skc  # noqa: E402
 import _skills_common.dispatcher as D  # noqa: E402
+import pytest
 from _skills_common.envelope import (  # noqa: E402
     build_subskill_provenance,
     resolved_content_digest,

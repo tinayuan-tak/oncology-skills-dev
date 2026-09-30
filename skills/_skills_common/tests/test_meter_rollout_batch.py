@@ -5,13 +5,6 @@ Asserts each batched axis got a well-formed reference_frame whose value gauges a
 contracts checkout is present, matching the other ruler tests). Verdict-INERT / display-only.
 """
 
-import sys
-from pathlib import Path
-
-SKILLS = Path(__file__).resolve().parents[2]
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 from _skills_common.evidence_salience import (  # noqa: E402
     _BATCH_DISTANCE_TO_CUT_METERS,
     SALIENCE_SPECS,

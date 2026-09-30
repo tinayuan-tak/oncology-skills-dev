@@ -3,13 +3,6 @@ the SEVENTH concrete. Pins the DESCRIPTIVE tiers (direction in atom, not tier) +
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-SKILLS = Path(__file__).resolve().parents[2]
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 from _skills_common.differentiation_claims import differentiation_claim_vector  # noqa: E402
 
 

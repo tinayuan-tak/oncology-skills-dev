@@ -9,11 +9,7 @@
 from __future__ import annotations
 
 import itertools
-import sys
-from pathlib import Path
 
-SKILLS = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(SKILLS))
 from _skills_common.resolver import resolve_verdict, resolve_verdict_provenance  # noqa: E402
 
 # a 3-rung ladder (first-match precedence): killer > selective > weak, default insufficient.

@@ -47,7 +47,6 @@ no S3, no creds. Skips (not fails) if the analysis-methods sibling checkout lack
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 from unittest import mock
 
@@ -57,9 +56,6 @@ import pyarrow.parquet as pq
 import pytest
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
-SKILLS_ROOT = SKILL_DIR.parent
-if str(SKILLS_ROOT) not in sys.path:
-    sys.path.insert(0, str(SKILLS_ROOT))
 
 from _skills_common.paths import analysis_methods_root
 

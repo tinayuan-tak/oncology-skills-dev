@@ -40,12 +40,9 @@ import pytest
 import yaml
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
-SKILLS_ROOT = SKILL_DIR.parent
 RUN_PY = SKILL_DIR / "scripts" / "run.py"
 FIXTURES = SKILL_DIR / "tests" / "fixtures"
 
-if str(SKILLS_ROOT) not in sys.path:
-    sys.path.insert(0, str(SKILLS_ROOT))
 
 # A resolved druggability_snapshot must never collapse to these for a target with real chemical/genetic data.
 _COLLAPSED = {None, "", "insufficient"}

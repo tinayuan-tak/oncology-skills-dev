@@ -24,7 +24,13 @@ _SKILLS_DIR = Path(__file__).resolve().parent
 
 
 def _ensure_skills_on_path() -> None:
-    """Put the skills/ dir on sys.path so `_skills_common` / `_test_support` imports resolve."""
+    """Put the skills/ dir on sys.path so `_skills_common` / `_test_support` imports resolve.
+
+    Since skills#2238 the `skills-common` distribution (skills/pyproject.toml) is editable-installed
+    into the workspace env, so these names ALSO resolve via the install at runtime — this central
+    insert is now test-collection belt-and-suspenders (it lets the suites collect even in an env
+    where the package is not installed, e.g. a raw `pytest` outside pixi). It replaced the ~224
+    per-file SKILLS-root inserts scattered across the suites, which that change deleted."""
     if str(_SKILLS_DIR) not in sys.path:
         sys.path.insert(0, str(_SKILLS_DIR))
 

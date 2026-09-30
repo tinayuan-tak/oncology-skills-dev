@@ -4,13 +4,6 @@ folds, and a 3-view switch (6-dimension assessment / modality / lit×omics). Ver
 a pure re-projection of the same IR blocks; the decision spine is untouched.
 """
 
-import sys
-from pathlib import Path
-
-SKILLS = Path(__file__).resolve().parents[2]
-if str(SKILLS) not in sys.path:
-    sys.path.insert(0, str(SKILLS))
-
 from _skills_common.report_render import build_ir, build_ir_for_skill, render_report, resolve_spec
 from _skills_common.report_render._fixtures import make_decision_json, make_nomination
 
