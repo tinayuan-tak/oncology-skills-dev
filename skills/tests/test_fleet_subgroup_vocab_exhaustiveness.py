@@ -280,7 +280,7 @@ _KNOWN_DEFAULTING = {
             "very_low",
         }
     ),
-    # genomic-alteration-profile: 63 unmapped (56 invert a present signal to `absent` = under-reads)
+    # genomic-alteration-profile: 58 unmapped (52 invert a present signal to `absent` = under-reads)
     "genomic-alteration-profile": frozenset(
         {
             "amp_expr_negative_more_dependent",
@@ -303,8 +303,6 @@ _KNOWN_DEFAULTING = {
             "insufficient_mutation_rate",
             "lineage",
             "lof",
-            "mave_assayed",
-            "mave_well_characterized",
             "metabolomics",
             "methylation_tss",
             "mid",
@@ -319,7 +317,6 @@ _KNOWN_DEFAULTING = {
             "no_registered_event",
             "none",
             "not_amp_expr_stratified",
-            "not_assayed",
             "not_cn_stratified",
             "not_drug_response_stratified",
             "not_fusion_stratified",
@@ -332,10 +329,8 @@ _KNOWN_DEFAULTING = {
             "paralog_dep",
             "predictive_biomarker",
             "predominantly_monoallelic",
-            "predominantly_subclonal",
             "profiled",
             "promiscuous_amplicon_fusion",
-            "recurrent_biallelic_inactivation",
             "recurrent_fusion_driver",
             "rppa_protein",
             "single_consortium_only",
