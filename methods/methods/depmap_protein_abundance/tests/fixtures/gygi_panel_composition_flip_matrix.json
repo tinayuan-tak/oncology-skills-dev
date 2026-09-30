@@ -1,0 +1,1489 @@
+{
+  "_meta": {
+    "issue": "#2223",
+    "epic": "#2210",
+    "purpose": "Flip matrix for the protein panel-relative p70 HIGH cut (HIGH_ABUNDANCE_PERCENTILE=0.70) vs the RNA twin's absolute cuts. Arm A = status-quo rules on the full live panel; arm B = the SAME rules on a re-composed panel (the issue's explicit ask: run the matrix across PANEL COMPOSITIONS, not just targets), plus two rule counterfactuals. NO THRESHOLD WAS CHANGED by this matrix -- see the adjudication on #2223.",
+    "source": {
+      "bucket": "onc-compbio",
+      "matrix_key": "data-catalog/sources/depmap-consortium/dmc-26q1-proteomics/harmonized_MS_CCLE_Gygi.csv",
+      "model_key": "data-catalog/sources/depmap-consortium/dmc-26q1/Model.csv",
+      "target_resolution_key": "data-catalog/sources/depmap-consortium/dmc-26q1-proteomics/harmonized_MS_CCLE_Gygi.csv.target_resolution.parquet",
+      "release": "DepMap 26Q1 (harmonized Gygi TMT MS)",
+      "matrix_bytes": 63756333,
+      "n_models": 375,
+      "n_proteins": 12558
+    },
+    "repo_commit_at_measurement": "53c6e9e9cd10ccf6f11dde505dbd2261c999c91b",
+    "measured": "2026-09-30",
+    "reproduce": "aws s3 cp the three keys above to /tmp/p2223/, then `pixi run python methods/methods/depmap_protein_abundance/tests/fixtures/derive_panel_composition_flip_matrix.py`",
+    "production_block_is_a_test_oracle": false,
+    "production_block_note": "`production_measurement` records a LIVE measurement over data too large to commit; no test asserts on it (a fixture of derived values can never fail). The oracle is `fixture_expectations`, which the test RE-DERIVES from the committed RAW values in gygi_measured_submatrix.csv.gz through the real cli functions."
+  },
+  "production_measurement": {
+    "what_each_constant_cuts": {
+      "protein_class_cutoff": {
+        "constant": "HIGH_ABUNDANCE_PERCENTILE = 0.70",
+        "site": "methods/methods/depmap_protein_abundance/cli.py:87,555",
+        "quantity": "rank position (dimensionless) of the target's PANEL-MEDIAN log2 abundance within the distribution of ALL 12558 proteins' panel medians",
+        "unit_of_the_distribution_cut": "harmonized Gygi TMT log2 ratio",
+        "measured_cut_level_log2": 0.0003159839015475192
+      },
+      "protein_display_reference_line": {
+        "constant": "HIGH_ABUNDANCE_PERCENTILE = 0.70 (same constant, different population)",
+        "site": "methods/methods/depmap_protein_abundance/cli.py:686 (_panel_high_cutoff); drawn at cli.py:758, 837, 922",
+        "quantity": "rank position of ONE cell line within THE TARGET'S OWN detected values",
+        "share_of_plotted_points_at_or_above_it": {
+          "n_sampled": 338,
+          "min": 0.29545454545454547,
+          "median": 0.30133333333333334,
+          "max": 0.3333333333333333
+        }
+      },
+      "rna_twin_absolute_cut": {
+        "constant": "highly_expressed_threshold = 5.0",
+        "site": "methods/methods/depmap_expression_distribution/cli.py:243,346",
+        "quantity": "an ABSOLUTE level in log2(TPM+1) applied per cell line, then fractioned at frac_highly >= 0.30",
+        "unit": "log2_tpm_plus_1"
+      }
+    },
+    "gygi_scale_is_per_protein_centred": {
+      "sd_of_per_protein_means": 0.125811,
+      "sd_of_per_protein_medians": 0.19345512354137415,
+      "median_within_protein_sd_across_cell_lines": 0.7929896836982309,
+      "ratio_between_over_within": 0.244,
+      "share_of_proteins_with_abs_median_le_0_01": 0.1046,
+      "share_of_proteins_with_abs_median_le_0_05": 0.4513,
+      "null_quantiles_log2": {
+        "p0": -1.924393501043735,
+        "p1": -0.7625508423321484,
+        "p5": -0.5337477794472497,
+        "p10": -0.38371798989155903,
+        "p25": -0.119801508677213,
+        "p50": -0.03818136501454155,
+        "p60": -0.01876287674141722,
+        "p65": -0.008968232597759591,
+        "p70": 0.0003159839015475192,
+        "p75": 0.01018783291567625,
+        "p80": 0.02140413543328242,
+        "p90": 0.05149038806027921,
+        "p95": 0.08492425005001832,
+        "p99": 0.1850393340257859,
+        "p100": 0.800970294706304
+      }
+    },
+    "published_null_sidecar_agrees_with_matrix_pass": {
+      "sidecar_p70": 0.0003159839015475192,
+      "matrix_column_median_pass_p70": 0.0003159839015475192,
+      "delta": 0.0
+    },
+    "arm_A": {
+      "cutoff_p70": 0.0003159839015475192,
+      "cutoff_p75": 0.01018783291567625,
+      "n_models": 375,
+      "n_proteins": 12558,
+      "class_counts": {
+        "broadly_moderate": 7387,
+        "broadly_high": 2742,
+        "broadly_low": 1958,
+        "lineage_restricted": 471
+      }
+    },
+    "panel_composition_arms": [
+      {
+        "arm": "LOO:Lung(n=76)",
+        "n_models": 299,
+        "cutoff": -0.001023,
+        "d_cutoff": -0.001339,
+        "n_broadly_high": 2682,
+        "movers_any_class": 1471,
+        "movers_broadly_high": 1050
+      },
+      {
+        "arm": "LOO:Skin(n=33)",
+        "n_models": 342,
+        "cutoff": 0.001945,
+        "d_cutoff": 0.001629,
+        "n_broadly_high": 2724,
+        "movers_any_class": 1235,
+        "movers_broadly_high": 1010
+      },
+      {
+        "arm": "LOO:Breast(n=30)",
+        "n_models": 345,
+        "cutoff": 0.000422,
+        "d_cutoff": 0.000106,
+        "n_broadly_high": 2739,
+        "movers_any_class": 890,
+        "movers_broadly_high": 675
+      },
+      {
+        "arm": "LOO:Bowel(n=30)",
+        "n_models": 345,
+        "cutoff": -0.000776,
+        "d_cutoff": -0.001092,
+        "n_broadly_high": 2737,
+        "movers_any_class": 971,
+        "movers_broadly_high": 745
+      },
+      {
+        "arm": "LOO:Esophagus/Stomach(n=28)",
+        "n_models": 347,
+        "cutoff": -0.000931,
+        "d_cutoff": -0.001247,
+        "n_broadly_high": 2750,
+        "movers_any_class": 775,
+        "movers_broadly_high": 608
+      },
+      {
+        "arm": "LOO:Lymphoid(n=24)",
+        "n_models": 351,
+        "cutoff": 0.00765,
+        "d_cutoff": 0.007334,
+        "n_broadly_high": 2759,
+        "movers_any_class": 1442,
+        "movers_broadly_high": 1291
+      },
+      {
+        "arm": "LOO:Pancreas(n=20)",
+        "n_models": 355,
+        "cutoff": -0.000253,
+        "d_cutoff": -0.000569,
+        "n_broadly_high": 2771,
+        "movers_any_class": 553,
+        "movers_broadly_high": 521
+      },
+      {
+        "arm": "LOO:Ovary/Fallopian Tube(n=17)",
+        "n_models": 358,
+        "cutoff": 0.000372,
+        "d_cutoff": 5.6e-05,
+        "n_broadly_high": 2734,
+        "movers_any_class": 479,
+        "movers_broadly_high": 432
+      },
+      {
+        "arm": "LOO:Myeloid(n=16)",
+        "n_models": 359,
+        "cutoff": 0.006159,
+        "d_cutoff": 0.005843,
+        "n_broadly_high": 2719,
+        "movers_any_class": 754,
+        "movers_broadly_high": 663
+      },
+      {
+        "arm": "LOO:Kidney(n=15)",
+        "n_models": 360,
+        "cutoff": 0.003925,
+        "d_cutoff": 0.003609,
+        "n_broadly_high": 2718,
+        "movers_any_class": 567,
+        "movers_broadly_high": 534
+      },
+      {
+        "arm": "LOO:Liver(n=14)",
+        "n_models": 361,
+        "cutoff": 0.001278,
+        "d_cutoff": 0.000962,
+        "n_broadly_high": 2745,
+        "movers_any_class": 437,
+        "movers_broadly_high": 409
+      },
+      {
+        "arm": "LOO:CNS/Brain(n=14)",
+        "n_models": 361,
+        "cutoff": 0.001762,
+        "d_cutoff": 0.001446,
+        "n_broadly_high": 2756,
+        "movers_any_class": 586,
+        "movers_broadly_high": 562
+      },
+      {
+        "arm": "LOO:Uterus(n=14)",
+        "n_models": 361,
+        "cutoff": -0.002846,
+        "d_cutoff": -0.003162,
+        "n_broadly_high": 2727,
+        "movers_any_class": 510,
+        "movers_broadly_high": 491
+      },
+      {
+        "arm": "LOO:Bladder/Urinary Tract(n=11)",
+        "n_models": 364,
+        "cutoff": 2.6e-05,
+        "d_cutoff": -0.00029,
+        "n_broadly_high": 2736,
+        "movers_any_class": 340,
+        "movers_broadly_high": 332
+      },
+      {
+        "arm": "LOO:Head and Neck(n=10)",
+        "n_models": 365,
+        "cutoff": 0.000858,
+        "d_cutoff": 0.000542,
+        "n_broadly_high": 2772,
+        "movers_any_class": 473,
+        "movers_broadly_high": 472
+      },
+      {
+        "arm": "HALF:seed0",
+        "n_models": 187,
+        "cutoff": 0.015412,
+        "d_cutoff": 0.015096,
+        "n_broadly_high": 2674,
+        "movers_any_class": 2637,
+        "movers_broadly_high": 1340
+      },
+      {
+        "arm": "HALF:seed1",
+        "n_models": 187,
+        "cutoff": -0.038393,
+        "d_cutoff": -0.038709,
+        "n_broadly_high": 4479,
+        "movers_any_class": 3366,
+        "movers_broadly_high": 2151
+      },
+      {
+        "arm": "HALF:seed2",
+        "n_models": 187,
+        "cutoff": 0.004648,
+        "d_cutoff": 0.004332,
+        "n_broadly_high": 2653,
+        "movers_any_class": 2954,
+        "movers_broadly_high": 1483
+      }
+    ],
+    "rule_counterfactuals": {
+      "p75": {
+        "n_broadly_high": 2239,
+        "movers": 503
+      },
+      "rna_frac": {
+        "n_broadly_high": 7829,
+        "movers": 5087
+      }
+    },
+    "control_anchors_arm_A": {
+      "CEACAM5": {
+        "class": "broadly_moderate",
+        "frac_detected": 0.8347,
+        "median": -0.58249,
+        "margin_vs_cut": -0.5828,
+        "allgene_pct": 3.76
+      },
+      "EPCAM": {
+        "class": "broadly_moderate",
+        "frac_detected": 1.0,
+        "median": -0.41745,
+        "margin_vs_cut": -0.41776,
+        "allgene_pct": 8.61
+      },
+      "MSLN": null,
+      "ERBB2": {
+        "class": "broadly_moderate",
+        "frac_detected": 1.0,
+        "median": -0.09084,
+        "margin_vs_cut": -0.09115,
+        "allgene_pct": 30.2
+      },
+      "ACTB": {
+        "class": "broadly_moderate",
+        "frac_detected": 1.0,
+        "median": -0.00283,
+        "margin_vs_cut": -0.00314,
+        "allgene_pct": 68.38
+      },
+      "GAPDH": {
+        "class": "broadly_high",
+        "frac_detected": 1.0,
+        "median": 0.02997,
+        "margin_vs_cut": 0.02965,
+        "allgene_pct": 83.19
+      },
+      "SFTPC": null,
+      "GYPA": {
+        "class": "broadly_low",
+        "frac_detected": 0.072,
+        "median": -0.38838,
+        "margin_vs_cut": -0.38869,
+        "allgene_pct": 9.72
+      },
+      "PRM1": null
+    },
+    "control_anchor_flips_across_18_panel_arms": {
+      "CEACAM5": {
+        "n_arms": 18,
+        "n_flips": 0,
+        "detail": []
+      },
+      "EPCAM": {
+        "n_arms": 18,
+        "n_flips": 1,
+        "detail": [
+          {
+            "arm": "LOO:Skin",
+            "from": "broadly_moderate",
+            "to": "broadly_high",
+            "cut": 0.001945,
+            "median": 0.05818
+          }
+        ]
+      },
+      "MSLN": {
+        "n_arms": 18,
+        "n_flips": 0,
+        "detail": []
+      },
+      "ERBB2": {
+        "n_arms": 18,
+        "n_flips": 0,
+        "detail": []
+      },
+      "ACTB": {
+        "n_arms": 18,
+        "n_flips": 7,
+        "detail": [
+          {
+            "arm": "LOO:Skin",
+            "from": "broadly_moderate",
+            "to": "broadly_high",
+            "cut": 0.001945,
+            "median": 0.0269
+          },
+          {
+            "arm": "LOO:Bowel",
+            "from": "broadly_moderate",
+            "to": "broadly_high",
+            "cut": -0.000776,
+            "median": 0.02088
+          },
+          {
+            "arm": "LOO:Esophagus/Stomach",
+            "from": "broadly_moderate",
+            "to": "broadly_high",
+            "cut": -0.000931,
+            "median": 0.01295
+          },
+          {
+            "arm": "LOO:Lymphoid",
+            "from": "broadly_moderate",
+            "to": "broadly_high",
+            "cut": 0.00765,
+            "median": 0.01252
+          },
+          {
+            "arm": "LOO:Pancreas",
+            "from": "broadly_moderate",
+            "to": "broadly_high",
+            "cut": -0.000253,
+            "median": 0.01295
+          },
+          {
+            "arm": "LOO:Myeloid",
+            "from": "broadly_moderate",
+            "to": "broadly_high",
+            "cut": 0.006159,
+            "median": 0.02733
+          },
+          {
+            "arm": "HALF:seed1",
+            "from": "broadly_moderate",
+            "to": "broadly_high",
+            "cut": -0.038393,
+            "median": -0.02478
+          }
+        ]
+      },
+      "GAPDH": {
+        "n_arms": 18,
+        "n_flips": 3,
+        "detail": [
+          {
+            "arm": "LOO:Skin",
+            "from": "broadly_high",
+            "to": "broadly_moderate",
+            "cut": 0.001945,
+            "median": -0.00395
+          },
+          {
+            "arm": "LOO:Lymphoid",
+            "from": "broadly_high",
+            "to": "broadly_moderate",
+            "cut": 0.00765,
+            "median": -0.02194
+          },
+          {
+            "arm": "HALF:seed2",
+            "from": "broadly_high",
+            "to": "broadly_moderate",
+            "cut": 0.004648,
+            "median": 0.00425
+          }
+        ]
+      },
+      "SFTPC": {
+        "n_arms": 18,
+        "n_flips": 0,
+        "detail": []
+      },
+      "GYPA": {
+        "n_arms": 18,
+        "n_flips": 0,
+        "detail": []
+      },
+      "PRM1": {
+        "n_arms": 18,
+        "n_flips": 0,
+        "detail": []
+      }
+    }
+  },
+  "fixture_expectations": {
+    "_note": "Derived FROM the committed raw sub-matrix (its own 300-protein all-protein null), not from the production null. These ARE oracles; the test re-derives them.",
+    "submatrix": {
+      "file": "gygi_measured_submatrix.csv.gz",
+      "lineage_map": "gygi_submatrix_lineages.json",
+      "n_models": 375,
+      "n_proteins": 300,
+      "sampling": "stratified every-Nth by production panel-median so the fixture's own all-protein null keeps the real distribution shape, plus the 6 resolvable tumor_presence_controls anchors",
+      "sha256_of_decompressed_csv": "d3c4a3684fa5ed677768d049d59f191ffe1aacdd39b7869313a9b008f97d732a",
+      "decompressed_bytes": 793462
+    },
+    "arm_A_cutoff_p70": -0.0026951000000000076,
+    "control_anchors": {
+      "CEACAM5": {
+        "accession": "P06731",
+        "protein_expression_class": "broadly_moderate",
+        "fraction_detected": 0.8347,
+        "median_log2_abundance_panel": -0.582487,
+        "n_cell_lines_evaluated": 313
+      },
+      "EPCAM": {
+        "accession": "P16422",
+        "protein_expression_class": "broadly_moderate",
+        "fraction_detected": 1.0,
+        "median_log2_abundance_panel": -0.417446,
+        "n_cell_lines_evaluated": 375
+      },
+      "ERBB2": {
+        "accession": "P04626",
+        "protein_expression_class": "broadly_moderate",
+        "fraction_detected": 1.0,
+        "median_log2_abundance_panel": -0.0908362,
+        "n_cell_lines_evaluated": 375
+      },
+      "ACTB": {
+        "accession": "P60709",
+        "protein_expression_class": "broadly_moderate",
+        "fraction_detected": 1.0,
+        "median_log2_abundance_panel": -0.00282581,
+        "n_cell_lines_evaluated": 375
+      },
+      "GAPDH": {
+        "accession": "P04406",
+        "protein_expression_class": "broadly_high",
+        "fraction_detected": 1.0,
+        "median_log2_abundance_panel": 0.0299708,
+        "n_cell_lines_evaluated": 375
+      },
+      "GYPA": {
+        "accession": "P02724",
+        "protein_expression_class": "broadly_low",
+        "fraction_detected": 0.072,
+        "median_log2_abundance_panel": -0.388376,
+        "n_cell_lines_evaluated": 27
+      }
+    },
+    "leave_one_lineage_out_arms": [
+      {
+        "dropped_lineage": "Lung",
+        "n_dropped": 76,
+        "n_models": 299,
+        "cutoff": -0.00285617,
+        "n_movers": 40,
+        "movers": [
+          {
+            "accession": "A2RUB1",
+            "from": "lineage_restricted",
+            "to": "broadly_low"
+          },
+          {
+            "accession": "O15440",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "O15525",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "O95897",
+            "from": "broadly_low",
+            "to": "lineage_restricted"
+          },
+          {
+            "accession": "P03897",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "P03950",
+            "from": "broadly_low",
+            "to": "lineage_restricted"
+          },
+          {
+            "accession": "P14373",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "P20339",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "P35590",
+            "from": "lineage_restricted",
+            "to": "broadly_low"
+          },
+          {
+            "accession": "Q03405",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "Q13409",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "Q13641",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          }
+        ]
+      },
+      {
+        "dropped_lineage": "Skin",
+        "n_dropped": 33,
+        "n_models": 342,
+        "cutoff": -0.00645184,
+        "n_movers": 33,
+        "movers": [
+          {
+            "accession": "O75751",
+            "from": "broadly_low",
+            "to": "lineage_restricted"
+          },
+          {
+            "accession": "P14373",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "P16422",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "P20339",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "P45973",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "P56524",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "P60709",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "P61513",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "P63104",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "P78524",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "Q03405",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "Q12955",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          }
+        ]
+      },
+      {
+        "dropped_lineage": "Breast",
+        "n_dropped": 30,
+        "n_models": 345,
+        "cutoff": -0.00970322,
+        "n_movers": 24,
+        "movers": [
+          {
+            "accession": "O75751",
+            "from": "broadly_low",
+            "to": "lineage_restricted"
+          },
+          {
+            "accession": "P03897",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "P03950",
+            "from": "broadly_low",
+            "to": "lineage_restricted"
+          },
+          {
+            "accession": "P14373",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "P20339",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "P22415",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "P34897",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "P61923",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "Q13409",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "Q13641",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "Q16658",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "Q6Y1H2",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          }
+        ]
+      },
+      {
+        "dropped_lineage": "Bowel",
+        "n_dropped": 30,
+        "n_models": 345,
+        "cutoff": -0.00698972,
+        "n_movers": 28,
+        "movers": [
+          {
+            "accession": "O15440",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "O75751",
+            "from": "broadly_low",
+            "to": "lineage_restricted"
+          },
+          {
+            "accession": "O95365",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "O95897",
+            "from": "broadly_low",
+            "to": "lineage_restricted"
+          },
+          {
+            "accession": "P03950",
+            "from": "broadly_low",
+            "to": "lineage_restricted"
+          },
+          {
+            "accession": "P07437",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "P14373",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "P56524",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "P60709",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "P61923",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "Q15573",
+            "from": "broadly_low",
+            "to": "lineage_restricted"
+          },
+          {
+            "accession": "Q16563",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          }
+        ]
+      },
+      {
+        "dropped_lineage": "Esophagus/Stomach",
+        "n_dropped": 28,
+        "n_models": 347,
+        "cutoff": -0.0003743,
+        "n_movers": 17,
+        "movers": [
+          {
+            "accession": "O75751",
+            "from": "broadly_low",
+            "to": "lineage_restricted"
+          },
+          {
+            "accession": "O95365",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "P08397",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "P20339",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "P30825",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "P60709",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "Q13641",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "Q6Y1H2",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "Q8N201",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "Q9Y2U5",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "Q641Q3",
+            "from": "broadly_low",
+            "to": "lineage_restricted"
+          },
+          {
+            "accession": "Q96T25",
+            "from": "broadly_moderate",
+            "to": "broadly_low"
+          }
+        ]
+      },
+      {
+        "dropped_lineage": "Lymphoid",
+        "n_dropped": 24,
+        "n_models": 351,
+        "cutoff": 0.00898165,
+        "n_movers": 36,
+        "movers": [
+          {
+            "accession": "O60269",
+            "from": "broadly_low",
+            "to": "lineage_restricted"
+          },
+          {
+            "accession": "O75251",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "O95365",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "O95670",
+            "from": "broadly_moderate",
+            "to": "broadly_low"
+          },
+          {
+            "accession": "O95897",
+            "from": "broadly_low",
+            "to": "lineage_restricted"
+          },
+          {
+            "accession": "P03897",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "P03950",
+            "from": "broadly_low",
+            "to": "lineage_restricted"
+          },
+          {
+            "accession": "P04406",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "P19532",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "P22415",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "P56524",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "P60709",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          }
+        ]
+      },
+      {
+        "dropped_lineage": "Pancreas",
+        "n_dropped": 20,
+        "n_models": 355,
+        "cutoff": -0.0047334,
+        "n_movers": 19,
+        "movers": [
+          {
+            "accession": "O95365",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "P03897",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "P08397",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "P14373",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "P20339",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "P60709",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "P78524",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "Q03405",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "Q16563",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "Q6Y1H2",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "Q8N196",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "Q8ND76",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          }
+        ]
+      },
+      {
+        "dropped_lineage": "Ovary/Fallopian Tube",
+        "n_dropped": 17,
+        "n_models": 358,
+        "cutoff": -0.00374485,
+        "n_movers": 10,
+        "movers": [
+          {
+            "accession": "P20339",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "Q14258",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "Q16658",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "Q8N201",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "Q8ND76",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "Q9NZ63",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "Q9Y2U5",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "Q8N8J7",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "Q9NVZ3-2",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "Q96PD2-2",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          }
+        ]
+      },
+      {
+        "dropped_lineage": "Myeloid",
+        "n_dropped": 16,
+        "n_models": 359,
+        "cutoff": 0.00531864,
+        "n_movers": 11,
+        "movers": [
+          {
+            "accession": "O60269",
+            "from": "broadly_low",
+            "to": "lineage_restricted"
+          },
+          {
+            "accession": "P22415",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "P56524",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "P60709",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "Q12955",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "Q2KHT3",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "Q8N201",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "Q9BQP7",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "E7ERJ7",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "Q9HAU0-6",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "P09493-10",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          }
+        ]
+      },
+      {
+        "dropped_lineage": "Kidney",
+        "n_dropped": 15,
+        "n_models": 360,
+        "cutoff": -0.0005395,
+        "n_movers": 13,
+        "movers": [
+          {
+            "accession": "O60269",
+            "from": "broadly_low",
+            "to": "lineage_restricted"
+          },
+          {
+            "accession": "P03897",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "P08397",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "P61513",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "P61923",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "Q12955",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "Q16563",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "Q8ND76",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "Q9BQP7",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "Q9NZ63",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "Q8N8J7",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "F8VWT9",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          }
+        ]
+      },
+      {
+        "dropped_lineage": "Liver",
+        "n_dropped": 14,
+        "n_models": 361,
+        "cutoff": -0.00152935,
+        "n_movers": 9,
+        "movers": [
+          {
+            "accession": "P20339",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "Q14258",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "Q16658",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "Q6Y1H2",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "Q8N201",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "Q9UHD9",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "Q9Y2U5",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "E9PLM6",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "Q9NVZ3-2",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          }
+        ]
+      },
+      {
+        "dropped_lineage": "CNS/Brain",
+        "n_dropped": 14,
+        "n_models": 361,
+        "cutoff": -0.00336378,
+        "n_movers": 17,
+        "movers": [
+          {
+            "accession": "O95897",
+            "from": "broadly_low",
+            "to": "lineage_restricted"
+          },
+          {
+            "accession": "P08397",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "P14373",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "P20339",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "P45973",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "P61513",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "Q03405",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "Q12955",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "Q14258",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "Q15818",
+            "from": "broadly_moderate",
+            "to": "broadly_low"
+          },
+          {
+            "accession": "Q16563",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "Q6Y1H2",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          }
+        ]
+      },
+      {
+        "dropped_lineage": "Uterus",
+        "n_dropped": 14,
+        "n_models": 361,
+        "cutoff": -0.00336497,
+        "n_movers": 11,
+        "movers": [
+          {
+            "accession": "O95670",
+            "from": "broadly_moderate",
+            "to": "broadly_low"
+          },
+          {
+            "accession": "P22415",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "P30825",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "P62330",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "Q14258",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "Q6Y1H2",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "Q8ND76",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "Q96C00",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "Q8N8J7",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "F8VWT9",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "Q96PD2-2",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          }
+        ]
+      },
+      {
+        "dropped_lineage": "Bladder/Urinary Tract",
+        "n_dropped": 11,
+        "n_models": 364,
+        "cutoff": -0.00440039,
+        "n_movers": 10,
+        "movers": [
+          {
+            "accession": "P03897",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "P22415",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "Q03405",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "Q16658",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "Q6Y1H2",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "Q9NZ63",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "Q9Y2U5",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "E9PCR7",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "F8VWT9",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "Q96PD2-2",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          }
+        ]
+      },
+      {
+        "dropped_lineage": "Head and Neck",
+        "n_dropped": 10,
+        "n_models": 365,
+        "cutoff": -0.00046152,
+        "n_movers": 15,
+        "movers": [
+          {
+            "accession": "P08397",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "P22415",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "P30825",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "Q13641",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "Q14258",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "Q16563",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "Q6Y1H2",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "Q8N196",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "Q8N201",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "Q8ND76",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          },
+          {
+            "accession": "Q9Y2U5",
+            "from": "broadly_moderate",
+            "to": "broadly_high"
+          },
+          {
+            "accession": "E9PLM6",
+            "from": "broadly_high",
+            "to": "broadly_moderate"
+          }
+        ]
+      }
+    ]
+  }
+}

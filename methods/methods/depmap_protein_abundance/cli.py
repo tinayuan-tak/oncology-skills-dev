@@ -84,7 +84,18 @@ BROADLY_DETECTED_FRACTION = 0.70  # detected in >70% of panel
 LOW_DETECTION_FRACTION = 0.30  # detected in <30% → broadly_low
 LINEAGE_RESTRICTED_MIN = 0.10
 LINEAGE_RESTRICTED_MAX = 0.70
-HIGH_ABUNDANCE_PERCENTILE = 0.70  # panel-relative "high" cutoff
+HIGH_ABUNDANCE_PERCENTILE = 0.70  # see the TWO-POPULATIONS warning below before reusing this
+# ⚠️ HIGH_ABUNDANCE_PERCENTILE is applied to TWO DIFFERENT DISTRIBUTIONS in this module. They are not
+# two calibrations of one quantity and must not be substituted for each other (#2223):
+#   1. CLASSIFICATION (compute_summary, below): p70 of the panel medians of ALL ~12.6k proteins in the
+#      Gygi matrix — a CROSS-PROTEIN rank. This is the only one that decides `broadly_high`.
+#   2. DISPLAY ONLY (_panel_high_cutoff): p70 of THE TARGET'S OWN detected per-cell-line values — a
+#      WITHIN-TARGET rank, which by construction always leaves ~30% of the plotted points above it.
+# Measured on DepMap 26Q1 (375 lines x 12558 proteins, #2223): (1) sits at +0.000316 log2 while the
+# median within-protein spread across cell lines is 0.79 log2, and dropping a single OncotreeLineage
+# moves it by up to 0.0073 — see the adjudication on #2223 and
+# tests/fixtures/gygi_panel_composition_flip_matrix.json. NOTHING here is changed by that record; it
+# is the evidence an axis decision will be made on.
 MIN_LINEAGE_SIZE = 5
 # Middle-band (LOW..BROADLY detection) disambiguation: a protein is genuinely
 # lineage_restricted only if its detected lines CLUSTER in a minority of lineages;
@@ -552,6 +563,17 @@ def compute_summary(
     # ALL proteins' medians?" — the same all-protein null already used for the display percentile
     # (target_allgene_percentile). When the null is unavailable (unit test / no matrix), high_cutoff
     # stays None and broadly_high honestly cannot fire (no panel to be "high" relative to).
+    #
+    # ⚠️ ADJUDICATED, NOT SETTLED (#2223). The H3 fix above is right about the POPULATION; what it
+    # cannot fix is that the harmonized Gygi value is a per-protein-CENTRED TMT log2 ratio, so that
+    # population is nearly degenerate. Measured on 26Q1 (375 lines x 12558 proteins): sd of the
+    # per-protein medians 0.193 vs median within-protein sd 0.793 (ratio 0.24); this p70 lands at
+    # +0.000316 log2; 10.5% of all proteins sit within +/-0.01 of it. Consequences, all measured:
+    # dropping ONE OncotreeLineage moves 1.0-1.3k of 12558 broadly_high calls (8-10%), a random half
+    # panel up to 17%, and ACTB (+0.0297 below GAPDH) lands `broadly_moderate` while GAPDH lands
+    # `broadly_high` — the two entries tumor_presence_controls.yaml curates together as the
+    # ubiquitously-high CEILING anchor. Choosing a different observable is a product decision and is
+    # NOT made here; the evidence is tests/fixtures/gygi_panel_composition_flip_matrix.json.
     high_cutoff = _quantile(list(all_protein_medians), HIGH_ABUNDANCE_PERCENTILE) if all_protein_medians else None
 
     # per-lineage groupby
@@ -684,9 +706,25 @@ def target_allgene_percentile(median_abund, matrix_path=None, source: str = "gyg
 
 
 def _panel_high_cutoff(vals: list) -> Optional[float]:
-    """Panel-relative HIGH cutoff = HIGH_ABUNDANCE_PERCENTILE quantile of detected values.
-    MS abundance has no absolute expressed/highly-expressed thresholds like RNA log2(TPM+1);
-    the reference line is panel-relative (mirrors compute_summary's high_cutoff)."""
+    """DISPLAY-ONLY reference line: the HIGH_ABUNDANCE_PERCENTILE quantile of `vals` — i.e. of THE
+    TARGET'S OWN detected per-cell-line values. It is a WITHIN-TARGET quantile.
+
+    ⚠️ It does NOT mirror compute_summary's `high_cutoff`, and the docstring that said so was wrong
+    (corrected under #2223). `high_cutoff` is p70 of ALL proteins' panel medians — a cross-protein
+    rank; this is p70 of one protein's own spread. Measured over 338 sampled Gygi proteins, the share
+    of a target's own plotted points at/above this line is 0.296-0.333 (median 0.301) for EVERY
+    target, because it is a quantile of the data it is drawn on: it carries no information about
+    whether the protein is abundant, and it is not the line that decided `protein_expression_class`.
+    Pinned by tests/test_panel_relative_high_cut_adjudication.py.
+
+    It is still worth drawing as a SPREAD annotation ("where the top ~30% of this target's lines
+    start"), which is why it is kept and relabelled rather than removed; repointing the figures at the
+    classification cutoff needs the all-protein null threaded into the emitters and is deliberately
+    NOT done here (see the follow-up filed from #2223).
+
+    MS abundance genuinely has no absolute expressed/highly-expressed threshold like RNA's
+    log2(TPM+1) 1.0/5.0 — the harmonized Gygi value is a relative TMT log2 ratio — so a relative
+    reference line is the right KIND of line. Which population it is relative to is the point above."""
     if not vals:
         return None
     s = sorted(vals)
@@ -725,8 +763,10 @@ def emit_density_protein(
     target_contracts_dir: Path = DEFAULT_TARGET_CONTRACTS,
 ) -> Path:
     """PRIMARY figure: histogram + KDE of log2 protein abundance across detected DepMap lines, in the
-    shared grammar. Panel median + panel-relative HIGH (p70) as directly-labeled reference lines (no
-    legend); % detected — the metric behind the class — carried in provenance + at the median."""
+    shared grammar. Panel median + the WITHIN-TARGET p70 spread line as directly-labeled reference
+    lines (no legend); % detected — the metric behind the class — carried in provenance + at the
+    median. NOTE (#2223): neither drawn line is the cutoff that decided `protein_expression_class` —
+    that one is p70 of ALL proteins' panel medians and is not plotted. See _panel_high_cutoff."""
     import matplotlib
 
     matplotlib.use("Agg")
@@ -779,7 +819,7 @@ def emit_density_protein(
         # so the text never collides.
         for xv, lab, ha, dx in (
             (med, f"median {med:.1f}" if med is not None else None, "right", -3),
-            (hi, f"panel-high (p70) {hi:.1f}" if hi is not None else None, "left", 3),
+            (hi, f"target p70 {hi:.1f}" if hi is not None else None, "left", 3),
         ):
             if xv is None:
                 continue
@@ -857,7 +897,7 @@ def emit_lineage_strip_protein(
         if hi is not None:
             ax.axvline(hi, **pal.REFLINE_NEUTRAL)
             ax.annotate(
-                f"panel-high p70 {hi:.1f}",
+                f"target p70 {hi:.1f}",
                 xy=(hi, 0.99),
                 xycoords=("data", "axes fraction"),
                 ha="center",
@@ -907,8 +947,11 @@ def emit_plotly_specs(
       - figure_waterfall_protein_abundance.plotly.json (ranked per-cell-line bars)
       - figure_lineage_protein_abundance.plotly.json   (per-lineage box, n>=5; indication highlighted)
     Mirrors the RNA depmap_expression_distribution emitter (item #2). Protein abundance is on a
-    RELATIVE scale (Gygi TMT log2-ratio), so density buckets shade relative to the panel median +
-    panel-high p70 cutoff (not absolute thresholds like RNA's 1.0/5.0). Best-effort."""
+    RELATIVE scale (Gygi TMT log2-ratio), so there is correctly no absolute expressed/highly-expressed
+    cutoff to shade against as RNA's 1.0/5.0 are. The buckets shade against the target's OWN median and
+    its OWN p70 (_panel_high_cutoff) — WITHIN-TARGET quantiles, so every target gets the same
+    50/20/30 split of its lines by construction. They describe this target's spread; they are NOT the
+    cross-protein cutoff that decided `protein_expression_class` (#2223). Best-effort."""
     try:
         import numpy as np
         import plotly.graph_objects as go
@@ -921,7 +964,7 @@ def emit_plotly_specs(
     vals = list(abundance_by_model.values())
     hi = _panel_high_cutoff(vals)
     med = summary.get("median_log2_abundance_panel")
-    reflines = [(med, "#888", "dot", "panel median"), (hi, "#f0a020", "dash", "panel-high p70")]
+    reflines = [(med, "#888", "dot", "target median"), (hi, "#f0a020", "dash", "target p70")]
     # density histogram + RELATIVE abundance buckets (item #2)
     try:
         arr = np.array(vals, dtype=float)
@@ -938,13 +981,14 @@ def emit_plotly_specs(
                 hovertemplate="log2 abundance %{x:.2f}<br>density %{y:.3f}<extra></extra>",
             )
         )
-        # Shade abundance regimes RELATIVE to the panel (protein MS has no absolute expressed cutoff):
-        # below median / median→p70 / ≥p70 (panel-high). Skipped if med/hi absent.
+        # Shade this target's own spread (protein MS has no absolute expressed cutoff): below its
+        # median / median→its p70 / ≥ its p70. WITHIN-TARGET bands, not a cross-protein abundance
+        # judgement (#2223). Skipped if med/hi absent.
         if med is not None and hi is not None and hi > med:
             for x0, x1, fill, lab in [
                 (xmin, med, "rgba(150,160,170,0.10)", "below median"),
                 (med, hi, "rgba(240,160,32,0.09)", "moderate"),
-                (hi, xmax, "rgba(207,40,40,0.09)", "panel-high"),
+                (hi, xmax, "rgba(207,40,40,0.09)", "top ~30% of lines"),
             ]:
                 if x1 > x0:
                     fig.add_vrect(
@@ -1002,7 +1046,7 @@ def emit_plotly_specs(
             fig.add_hline(
                 y=hi,
                 line=dict(color="#f0a020", dash="dash", width=1.5),
-                annotation_text="panel-high p70",
+                annotation_text="target p70",
                 annotation_position="top left",
             )
         fig.update_layout(
