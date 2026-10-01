@@ -1723,3 +1723,143 @@ sc-normal-celltype-expression:
     reason: "the indication resolved to origin_tissues for the scRNA off-origin split; echoed as
       off_origin_split provenance by safety_claims.py (#1770), never a signal — identity/scope key"
     reviewed: true
+
+# ── tumor-vs-normal-protein-abundance-tphp — the 2nd bulk_protein_ms/TUMOR platform (SK#1825) ─────────
+# The TUMOR-side analogue of cellline-protein-abundance-procan, and the roles reflect a hard constraint
+# this ledger must make legible: tumor-presence reads the TUMOR ARM ONLY. The card is a tumor-vs-NORMAL
+# contrast card, but presence is a one-arm question — "was the protein detected in this indication's tumor
+# samples?" — so the NORMAL-arm and CONTRAST fields are deliberately NOT signals on THIS axis. They are
+# real signals for tumor-selectivity (which owns the TPHP protein window arm via rna_protein_tvn_concordance
+# and carries its own ledger rows for them); role here is per-skill, not global, and a `strong_down` contrast
+# means "lower than the body-atlas normal", never "absent from tumor". Every row below is `reviewed: true`:
+# each was read against its producer (methods/onc_methods/tphp_tumor_vs_normal_protein/read.py::_row_to_summary)
+# and its consumer (presence_claims._tphp_tumor_presence_call / run.py::_tphp_tumor_presence_facet).
+tumor-vs-normal-protein-abundance-tphp:
+  protein_detection_rate_tumor:
+    role: signal
+    interpretation_reach: skills_local
+    reason: "THE tumor-presence read: n_tumor_samples / n_tumor_samples_total. >0 is a MEASURED detection;
+      ==0 is a measured non-detection ONLY above the n_tumor_samples_total power floor. Consumed by
+      presence_claims._tphp_tumor_presence_call (the MS-arm value supplier) and surfaced on the
+      tphp_tumor_presence headline facet"
+    reviewed: true
+  n_tumor_samples_total:
+    role: signal
+    interpretation_reach: skills_local
+    reason: "the tumor ARM SIZE — the detection denominator AND the power gate that keeps a 0 detection
+      rate on a tiny arm an honest GAP rather than a measured absence (_TPHP_MIN_TUMOR_ARM_FOR_ABSENCE=5
+      in presence_claims); read by _tphp_tumor_presence_call"
+    reviewed: true
+  cohort_pick_basis:
+    role: signal
+    interpretation_reach: skills_local
+    reason: "THE INDICATION-SCOPE GATE: presence resolves only on `indication_mapped`. A
+      pan_cancer_max_abs_log2fc* row is a most-extreme-COHORT readout from another tissue (card warning
+      tphp_tvn_pan_cancer_extremum), so _tphp_tumor_presence_call rejects it outright — it decides
+      resolved-vs-gap, which makes it a signal, not provenance"
+    reviewed: true
+  normal_arm_source:
+    role: signal
+    interpretation_reach: skills_local
+    reason: "THE SHARED-MEASUREMENT COLLAPSE KEY the card header mandates. A non-null value says this
+      card's normal arm IS the TPHP body atlas that normal-tissue-protein-abundance-tphp summarises — ONE
+      DIA-MS measurement read twice — so a platform/arm count must collapse the two TPHP cards. Read by
+      presence_claims._tphp_shared_measurement_group into the MS dependence group's `shared_measurement`
+      block and echoed on the headline facet; keyed on the VALUE, never a card-id allowlist"
+    reviewed: true
+  n_tumor_samples:
+    role: context
+    interpretation_reach: skills_local
+    reason: "tumor-arm detection NUMERATOR behind the read protein_detection_rate_tumor; surfaced on the
+      tphp_tumor_presence facet and in the claim's source_support retained_quantitative, never a gate"
+    reviewed: true
+  protein_median_log2_tumor:
+    role: context
+    interpretation_reach: skills_local
+    reason: "TUMOR-ARM median log2 MaxLFQ abundance — the magnitude behind the detection call, surfaced on
+      the tphp_tumor_presence facet. Panel-relative DIA intensity, NOT copies/cell, so it anchors no
+      abundance floor here (surface-abundance-density owns absolute density)"
+    reviewed: true
+  cohort:
+    role: provenance
+    interpretation_reach: skills_local
+    reason: "the matched TPHP carcinoma cohort the row came from; surfaced as the facet's cohort
+      provenance so an indication-mapped read is attributable — identity/scope key, never a signal"
+    reviewed: true
+  protein_detection_complete:
+    role: context
+    interpretation_reach: unreached
+    reason: "BOTH-ARMS-complete flag. The card mandates gating DIRECTIONAL reads on it, and tumor-presence
+      makes no directional read — the tumor-arm detection rate is a one-arm fact that MNAR censoring of the
+      normal arm cannot bias — so it is deliberately not consulted on this axis. tumor-selectivity, which
+      owns the directional window arm, is where this gate belongs"
+    reviewed: true
+  protein_expression_class:
+    role: display
+    interpretation_reach: unreached
+    reason: "the tumor-vs-NORMAL CONTRAST band (strong_up..strong_down). NOT read by tumor-presence BY
+      DESIGN: a `strong_down` window means lower than the body-atlas normal, not absent from tumor, so
+      admitting it here would manufacture a protein-absent presence claim out of a selectivity read. The
+      contrast is tumor-selectivity's signal"
+    reviewed: true
+  protein_effect_size:
+    role: display
+    interpretation_reach: unreached
+    reason: "log2 fold-change of the tumor-vs-normal CONTRAST — tumor-selectivity's window signal, not a
+      presence fact; never read on this axis (see protein_expression_class)"
+    reviewed: true
+  protein_p_value:
+    role: display
+    interpretation_reach: unreached
+    reason: "contrast statistic — belongs to the tumor-vs-normal window (tumor-selectivity), not presence"
+    reviewed: true
+  protein_bh_q_value:
+    role: display
+    interpretation_reach: unreached
+    reason: "contrast BH q-value — belongs to the tumor-vs-normal window (tumor-selectivity), not presence"
+    reviewed: true
+  protein_median_log2_normal:
+    role: display
+    interpretation_reach: unreached
+    reason: "NORMAL-ARM median abundance. Never read by tumor-presence: the normal arm must not leak into a
+      presence claim, and it is also the TPHP body-atlas measurement (see normal_arm_source)"
+    reviewed: true
+  n_normal_samples:
+    role: display
+    interpretation_reach: unreached
+    reason: "NORMAL-arm detection numerator — normal-arm quantity, deliberately outside the presence read"
+    reviewed: true
+  n_normal_samples_total:
+    role: display
+    interpretation_reach: unreached
+    reason: "NORMAL-arm size (== this organism part's body-atlas n_samples) — normal-arm quantity,
+      deliberately outside the presence read"
+    reviewed: true
+  protein_detection_rate_normal:
+    role: display
+    interpretation_reach: unreached
+    reason: "NORMAL-arm detection rate — the mirror of the field presence DOES read, and deliberately not
+      read here: a presence claim may only rest on the tumor arm"
+    reviewed: true
+  tissue:
+    role: provenance
+    interpretation_reach: unreached
+    reviewed: true
+    reason: "the tumour-site organism part (and the normal arm's tissue — one part, both arms);
+      identity/scope token"
+  uniprot_ac:
+    role: provenance
+    interpretation_reach: unreached
+    reviewed: true
+    reason: "UniProt accession of the DIA-NN protein group — identity/audit token"
+  stat_test_used:
+    role: provenance
+    interpretation_reach: unreached
+    reviewed: true
+    reason: "method token naming the estimator + the body-atlas comparator (single legal value);
+      provenance/audit, never a signal"
+  method_version:
+    role: provenance
+    interpretation_reach: unreached
+    reviewed: true
+    reason: provenance/audit token

@@ -416,7 +416,12 @@ skill_objectives:
       # data must NOT be the sole contributor: patient per-sample tumour RNA is the most direct evidence
       # that the gene is expressed in actual cancer (2026-08-19 review). tumor-rna-distribution also
       # answers Q2 (this-indication-vs-others) — a card may serve multiple questions.
-      - {q: "Expressed in cancers at all?", answered_by: [cellline-rna-distribution, cellline-protein-abundance, cellline-protein-abundance-procan, tumor-rna-distribution, tumor-protein-abundance-cptac, hpa-pathology-cancer-ihc]}
+      # tumor-vs-normal-protein-abundance-tphp is anchored HERE and nowhere else in this skill: presence
+      # reads its TUMOR ARM ONLY (protein-in-tumor detection, 22 carcinoma cohorts, several with no CPTAC
+      # counterpart — SK#1825). Its tumor-vs-normal CONTRAST answers tumor-selectivity's window question,
+      # where the same card is already anchored; it carries no all-gene percentile, so it does NOT answer
+      # "Absolute abundance vs all genes?".
+      - {q: "Expressed in cancers at all?", answered_by: [cellline-rna-distribution, cellline-protein-abundance, cellline-protein-abundance-procan, tumor-rna-distribution, tumor-protein-abundance-cptac, tumor-vs-normal-protein-abundance-tphp, hpa-pathology-cancer-ihc]}
       - {q: "This indication vs other cancers?", answered_by: [tumor-rna-distribution, tumor-elevation-breadth]}
       - {q: "Elevated vs normals (adjacent + normal-tissue footprint)?", answered_by: [tumor-rna-vs-adjacent, normal-tissue-liability, sc-normal-celltype-expression]}
       - {q: "Do subtypes differ (from each other / normals)?", answered_by: [tumor-rna-distribution-by-subtype, cellline-rna-distribution-by-subtype, tumor-protein-distribution-by-subtype]}
@@ -1165,6 +1170,13 @@ question_hierarchies:
     other_lenses:
     - measurement_types:
       - tumor_vs_adjacent_expression
+      lens: tumor-selectivity
+    # TPHP tumor DIA-MS (tumor-vs-normal-protein-abundance-tphp): tumor-presence reads the
+    # TUMOR ARM ONLY (protein-in-tumor detection/abundance, display/corroboration — SK#1825).
+    # The tumor-vs-normal CONTRAST this measurement_type names is owned by tumor-selectivity,
+    # exactly as tumor_vs_adjacent_expression above is for the RNA analogue.
+    - measurement_types:
+      - tumor_vs_normal_protein_abundance
       lens: tumor-selectivity
     - measurement_types:
       - normal_tissue_protein_breadth

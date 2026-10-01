@@ -13,7 +13,7 @@ adapter write surface for tumor-presence: it builds the shard in memory and call
 The generic ``L1/L2a/L2b/L3/L4`` grain maps onto tumor-presence's landed evidence-property layers
 (``_skills_common.evidence_frame.ClaimType`` + the reference-vertical epic #1938):
 
-  L1  — the 17 cards themselves (OBSERVATIONAL_PROPERTY): raw per-card measurements + their
+  L1  — the 18 cards themselves (OBSERVATIONAL_PROPERTY): raw per-card measurements + their
         disposition ledger (``field_disposition.yaml``).
   L2a — ``source_properties`` (SK#1941 EXPORTED section): the per-source observational properties,
         formalized as a named, reconstructable export.
@@ -414,7 +414,7 @@ _L1_ACCURACY_EVIDENCE = {
 
 _L1_UTILIZATION_EVIDENCE = {
     "method": (
-        "field_disposition.yaml ledger: every emitted summary_field of all 17 cards carries an "
+        "field_disposition.yaml ledger: every emitted summary_field of all 18 cards carries an "
         "explicit disposition (signal|context|provenance|display); the REACH tier further requires "
         "every role:signal field be reached by a declared reader or carry a waived_because."
     ),
@@ -427,7 +427,7 @@ _L1_UTILIZATION_EVIDENCE = {
         "skills/tumor-presence/tests/test_field_disposition_complete.py"
         "::test_signal_fields_are_reader_reached_or_waived (zero un-reached, un-waived signal fields)",
     ],
-    "coverage": "all 17 cards ledgered; ledger's own card set == run.py CARDS (test-enforced equality)",
+    "coverage": "all 18 cards ledgered; ledger's own card set == run.py CARDS (test-enforced equality)",
     "status_as_of": "2026-09-28",
 }
 
@@ -879,10 +879,10 @@ def build_shard() -> cs.SkillShard:
             "panel_consistency": _panel_consistency_criterion(),
         },
         notes=(
-            "L1 = the 17 cards (OBSERVATIONAL_PROPERTY): 7 ladder-verdict-bearing + 3 L2b-island "
+            "L1 = the 18 cards (OBSERVATIONAL_PROPERTY): 7 ladder-verdict-bearing + 3 L2b-island "
             "substrate + 3 corroboration/certainty-bearing + 1 verdict-adjacent (hpa-pathology-cancer-ihc) "
             "+ 2 safety-comparators + 1 (cellline-protein-abundance-procan, corroboration-bearing). "
-            "accuracy measured for ALL 17 of the 17 cards with a landed analysis-methods T3 anchor bridged "
+            "accuracy measured for ALL 17 of the 18 cards with a landed analysis-methods T3 anchor bridged "
             "to the EPCAM/COADREAD golden (cellline-rna-distribution, tumor-scrna-celltype-expression; "
             "tumor-rna-distribution + cellline-protein-abundance — batch A, #2043; tumor-rna-vs-adjacent "
             "+ tumor-elevation-breadth — batch B, #2044; tumor-protein-abundance-cptac — batch C, #2045; "

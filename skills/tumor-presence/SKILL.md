@@ -5,7 +5,7 @@ description: |
   and how does it distribute across cancer cell lines vs. tumor samples, at RNA,
   protein, and single-cell level?"
 
-  Consumes 17 cards across three measurement layers (bulk RNA, bulk protein MS,
+  Consumes 18 cards across three measurement layers (bulk RNA, bulk protein MS,
   single-cell RNA), grouped by role:
 
     VERDICT-BEARING (7) — feed the rank-ordered presence ladders:
@@ -17,7 +17,12 @@ description: |
       - tumor-elevation-breadth          pan-cancer K-of-N tumor-elevation (target-grain)
       - tumor-scrna-celltype-expression  single-cell per-compartment tumor presence
 
-    DISPLAY-ONLY facets (8) — additive context, feed NO ladder (verdict byte-stable):
+    DISPLAY-ONLY facets (9) — additive context, feed NO ladder (verdict byte-stable):
+      - tumor-vs-normal-protein-abundance-tphp  TUMOR-ARM protein-in-tumor detection/abundance
+                                            (TPHP tumor DIA-MS, 22 carcinoma cohorts incl. ones
+                                            CPTAC lacks) — coverage-breadth gain, NOT independent
+                                            corroboration (its normal arm IS the body atlas:
+                                            one DIA-MS measurement read twice); verdict-inert
       - cellline-protein-abundance-procan   cell-line protein 2nd platform (ProCan-DepMapSanger
                                             DIA/SWATH MaxLFQ, CC-BY, 949 lines) — orthogonal
                                             corroboration of the Gygi TMT card; verdict-inert
@@ -57,7 +62,7 @@ description: |
   POST-HOC lens exposed via the optional --modality flag.
 
 metadata:
-  version: 1.25.0
+  version: 1.26.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -74,7 +79,7 @@ composition:
     - cellline-protein-abundance
     - tumor-elevation-breadth
     - tumor-rna-distribution
-    # DISPLAY-ONLY facets (8) — additive context, feed no ladder (verdict byte-stable)
+    # DISPLAY-ONLY facets (9) — additive context, feed no ladder (verdict byte-stable)
     - tumor-rna-distribution-by-subtype
     - cellline-rna-distribution-by-subtype
     - tumor-protein-distribution-by-subtype   # CPTAC-protein subtype panorama (MSI_H/MSS, COADREAD); DISPLAY-ONLY / verdict-inert
@@ -82,6 +87,7 @@ composition:
     - cellline-rna-protein-concordance
     - rna-protein-concordance-tumor
     - cellline-protein-abundance-procan   # cell-line protein 2nd platform (ProCan DIA/SWATH, CC-BY); DISPLAY-ONLY / verdict-inert — fires no rule, NOT in rules_scope
+    - tumor-vs-normal-protein-abundance-tphp   # TUMOR ARM ONLY — 2nd (bulk_protein_ms, tumor) platform (TPHP tumor DIA-MS, 22 carcinoma cohorts); DISPLAY-ONLY / verdict-inert — fires no rule, NOT in rules_scope. corroboration_eligible: false (shared-measurement: its normal arm IS normal-tissue-protein-abundance-tphp's body atlas)
     - hpa-pathology-cancer-ihc   # MS-INDEPENDENT antibody IHC protein-in-tumor (HPA Pathology, 20 cancer types); (protein_ihc, tumor) bucket; DISPLAY-ONLY / verdict-inert (measured-unruled) — fills protein presence where CPTAC is data_unavailable
     # VERDICT-BEARING single-cell (sc_rna/tumor)
     - tumor-scrna-celltype-expression
@@ -115,6 +121,7 @@ composition:
     - sc_normal_celltype_expression
     - normal_tissue_protein_breadth       # normal-tissue-liability HPA-IHC comparator (protein_ihc/normal)
     - tumor_protein_ihc_presence          # hpa-pathology-cancer-ihc — MS-independent antibody protein-in-tumor (protein_ihc/tumor)
+    - tumor_vs_normal_protein_abundance   # tumor-vs-normal-protein-abundance-tphp — TUMOR ARM ONLY (protein-in-tumor detection). The type NAMES a contrast owned by tumor-selectivity (declared in other_lenses); presence pulls only its tumor side, never the contrast or normal-arm fields
   rules_scope:
     - cellline-rna-distribution
     - tumor-rna-vs-adjacent
@@ -137,7 +144,7 @@ composition:
 
 ## What this skill does
 
-- Fetches the 17 cards via the live-reader dispatchers — the exact same
+- Fetches the 18 cards via the live-reader dispatchers — the exact same
   read path the composed engines use, so there is no computation drift.
 - Fires each card's rules on the `intracellular_intrinsic` axis across THREE measurement ladders
   (`_EXPRESSION_RANK` / `_PROTEIN_RANK` / `_SC_RNA_RANK`, keyed by the card's `measurement`), then

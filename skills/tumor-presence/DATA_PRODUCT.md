@@ -7,7 +7,7 @@ this file is the data-product spec.
 | | |
 |---|---|
 | **Skill** | `tumor-presence` |
-| **Skill code version** | 1.25.0 (see CONTRACT.md § Version history) |
+| **Skill code version** | 1.26.0 (see CONTRACT.md § Version history) |
 | **Contract version** | 1.0.0 (the emitted-output schema; versioned independently of the skill code — see §4) |
 | **Role** | `descriptive` (emits a real read; **not** a nomination gate — presence ∉ target-profile `_SHORT_TO_GATE`) |
 | **Verdict field** | `headline.presence_verdict` (collapsed) + `headline.presence_verdict_by_modality` (per-bucket) |
@@ -17,7 +17,7 @@ this file is the data-product spec.
 
 ---
 
-## 1. Inputs — wired data (17 cards)
+## 1. Inputs — wired data (18 cards)
 
 Every card resolves card → method/reader → data-catalog manifest → materialized S3 product. **All 17 are
 LIVE** (concrete `s3_uri` + `md5` + `size_bytes`, or a materialized source prefix); no placeholders, no
@@ -46,6 +46,7 @@ utilization of each card's `summary_fields` is ratcheted by [field_disposition.y
 | `cellline-rna-protein-concordance` | bulk_rna · cell_line (RNA-anchored) | `depmap-consortium-26q1` + `-26q1-proteomics` (src) | LIVE |
 | `rna-protein-concordance-tumor` | bulk_rna · tumor (RNA-anchored) | `cptac-rna-protein-matched-per-sample-v1` | LIVE |
 | `cellline-protein-abundance-procan` | bulk_protein_ms · cell_line | `procan-cellline-protein-abundance-per-protein-v1` (2nd MS platform, CC-BY) | LIVE |
+| `tumor-vs-normal-protein-abundance-tphp` | bulk_protein_ms · tumor | `tphp-tumor-vs-normal-protein-per-cohort-v2` (**TUMOR ARM ONLY** — protein-in-tumor detection/abundance; the tumor-vs-normal contrast is owned by `tumor-selectivity`) | LIVE · 22 carcinoma cohorts, several with no CPTAC counterpart. `corroboration_eligible: false` — shared-measurement with `normal-tissue-protein-abundance-tphp` (one DIA-MS read twice), so it never increments `corroborating_independent_arm_count` |
 | `hpa-pathology-cancer-ihc` | protein_ihc · tumor | `hpa-pathology-cancer-ihc-per-gene-v1` (MS-independent) | LIVE · ~20 cancer types |
 
 ### Normal-tissue safety comparators (2) — verdict-inert window framing (safety verdict owned by `on-target-safety-liability`)

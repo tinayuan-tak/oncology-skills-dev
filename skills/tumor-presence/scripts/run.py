@@ -6,7 +6,7 @@ distribute across cancer cell lines vs. tumor samples, at RNA, whole-cell protei
 and single-cell resolution?" This is a Phase-A (presence) question — distinct from
 Phase-B selectivity vs. normals (`tumor-selectivity`).
 
-Reads 17 pre-computed cards across three measurement layers (bulk RNA, bulk protein
+Reads 18 pre-computed cards across three measurement layers (bulk RNA, bulk protein
 MS, single-cell RNA) and emits a collapsed one-word `presence_verdict` PLUS one
 sub-verdict per `(measurement, sample_context)` bucket, so a cell-line signal is never
 conflated with a tumor signal and cross-modal tension is legible. Does not recompute
@@ -14,7 +14,7 @@ any DGE; does not compare against GTEx population-normal (that is `tumor-selecti
 
 This file is a THIN configuration over the shared dispatcher (`_skills_common`). The
 live logic is four pieces:
-  1. CARDS + CARD_CONTEXT   — the 17 cards, each tagged with its (measurement,
+  1. CARDS + CARD_CONTEXT   — the 18 cards, each tagged with its (measurement,
                               sample_context) bucket.
   2. THREE ladders          — _EXPRESSION_RANK / _PROTEIN_RANK / _SC_RNA_RANK: ordered
                               (rule_id -> verdict) lists, one per measurement layer.
@@ -52,6 +52,12 @@ from _skills_common.narrator_engine import make_synthesize_fn
 from _skills_common.narrator_lenses import TUMOR_PRESENCE as _LENS
 from _skills_common.presence_cardboard_figure import emit_card_board_figure
 from _skills_common.presence_claims import (
+    # SK#1825: the TPHP tumor-arm presence call is IMPORTED, not re-implemented, so the verdict-inert
+    # display facet below and the claim-vector MS arm can never drift apart. Deliberately NOT added to
+    # presence_claims.__all__ — opting an underscore name into `import *` risks a silent rebind at a
+    # later star-import site; an explicit private import (the _load_surface_secreted_antigens idiom
+    # already used above) has no such hazard.
+    _tphp_tumor_presence_call,
     derive_presence_state,
     presence_claim_vector,
     presence_claim_vector_by_subtype,
@@ -404,9 +410,9 @@ def _presence_headline_block(headline: dict) -> dict:
 
 
 SKILL_NAME = "tumor-presence"
-SKILL_VERSION = "1.25.0"  # 1.25.0 (2026-09-27, SK#1941): EXPORTED bounded evidence package — under --emit-envelope the emitted evidence_package.json gains NAMED top-level sections (source_properties L2a / integrated_properties L2b / local_composites / l3d), each a VIEW over content already on the decision headline (claim_vector / claim_vector_by_subtype / tumor_expression_biology_story) and reconstructable downward to its claim IDs / L1 card_ids. ADDITIVE / VERDICT-INERT: decision.json spine (presence_verdict + presence_verdict_by_modality) and the resolver goldens are byte-stable; the sections are built by _evidence_sections(headline) and threaded through run_wired_skill(evidence_sections_fn=...) → the dispatcher's assemble_evidence_package(evidence_sections=...). Requires the target-contracts evidence_package.schema to declare the 4 optional top-level sections (sibling PR).   # 1.24.0 (2026-09-19): HPA antibody-IHC SINGLE-PATIENT guard (BEHAVIOR CHANGE, VERDICT-INERT — presence_verdict + presence_verdict_by_modality + resolver goldens byte-stable; only protein_confirmation_state / presence_confirmation_caveat / _presence_provenance.malignant_protein_confirmed move). MEASURED live over the full product (403,240 gene x cancer rows): of 47,640 ihc_detected_low cells, 23,136 (48.6%) rest on exactly ONE stained patient of ~10-12 and 17,015 on a single WEAKLY-stained one — HPA antibody-specificity noise floor. A single-patient ihc_detected_low (n_detected = round(fraction_detected * n_patients) < 2) no longer drives `confirmed` / ihc_positive / malignant_protein_confirmed; it stays a surfaced hpa_ihc_* display atom + the protein_ihc/tumor bucket verdict is untouched. Single guard helper _ihc_is_confirmatory shared by all 3 consumer sites. Bites ONLY the low class (moderate/high require frac > 0.33 => >= 2 detected at HPA's n). Root cause is the data-catalog product classifier (derive_hpa_pathology_cancer_ihc._classify); the consumer-side fix was chosen over a product-v2 republish (which would reclassify 23,136 cells cross-consumer). GFAP/COADREAD (a single weakly-stained patient) now reads confirmed_cell_line_only, not `confirmed` — superseding v1.23.0's output-unchanged note. No new state token, no contract change.   # 1.23.0 (2026-09-19): protein_confirmation_state GRAIN fix (BEHAVIOR CHANGE, but VERDICT-INERT — presence_verdict + presence_verdict_by_modality + resolver goldens byte-stable; only the confidence facet + presence_confirmation_caveat move). Two defects: (1) tumor-elevation-breadth is a pan-cancer TARGET-grain card sharing the bulk_protein_ms/tumor bucket with indication-grain CPTAC/subtype, so a breadth-only bucket read `confirmed` (GFAP/COADREAD: confirmed with protein_expression_class=data_unavailable) — the pan-cancer breadth verdicts (derived from _PROTEIN_RANK's tumor-breadth-* rules) are now EXCLUDED from the confirmed trigger, so a breadth-only bucket falls to `untested`. (2) _protein_confirmation_state never read the protein_ihc/tumor bucket, so a MEASURED antibody-IHC not_detected could never reach `measured_absent` (CD19/COADREAD: confirmed despite a measured IHC not_detected) — the IHC bucket is now read symmetrically (detected_* -> confirmed; not_detected -> measured_absent, which outranks weaker-grain pan-cancer/cell-line positives). No new state token, no contract change.   # 1.22.0 (2026-09-18): subset_high SPLIT, phase 2 of 3 — new _EXPRESSION_RANK rung tumor-expression-subset-high-supportive -> tumor_subset_high_expression (tier 2), its prevalence-naming phrase, and the tumor_expression_class / tumor_high_fraction headline keys (tumor-rna-distribution's class + fraction had never been lifted to the headline at all). RETRACTION 2026-09-19 (no version bump — comment-only, zero behavior change): this entry used to say the rung was inert pending a phase 3 that needed TWO contracts edits. BOTH LANDED. 3a = TC#807 (26eee89) declared tumor_subset_high_expression in the pinned presence_verdict_enum; 3b narrowed tumor-expression-broadly-high-supportive to in: [broadly_high, broadly_detected]. Re-measured against contracts main 1d2501c. The rung is now VERDICT-MOVING BY CONTRACT and INERT ON THE EVAL CORPUS ONLY — not inert on the substrate, and the earlier unqualified "INERT BY CORPUS" is RETRACTED. subset_high is conjunctive and its binding conjunct is the UNDECLARED shape one (distribution_pattern in (bimodal, long_tail)), which reads continuous on 36/36 tumor-card instances across the 41-package GENERATED (gitignored, NOT committed) eval corpus and on 12/12 of a live probe, so subset_high is emitted 0x THERE — while the same heuristic returns bimodal/long_tail on 11/37 cell-line instances. BUT IT IS EMITTED 3x ON A COMMITTED LIVE TUMOR-CARD PANEL: tests/fixtures/subset_high_live_flip_matrix.json (59 pairs, 12 TCGA indications) has MAGEA3/SKCM and MAGEA4/LUSC (both clearing BOTH 20% tails) plus MAGEA3/LUAD (13.0% high, long_tail — below the 20% tail, above the 10% floor) at subset_high. The 0x is a property of those two panels' CTA-free rosters, NOT of the TCGA substrate: neither contains SKCM or LUSC. See _EXPRESSION_RANK for the full retraction. Lowering the 0.1 floor would not change this. NUMBERS CORRECTED 2026-09-19 — this retraction's own first draft said "78 committed / 72/72 / 22/74"; a recursive glob double-counts a corpus holding 37 top-level packages plus 41 nested ones of which 37 are byte-identical twins. The rung IS reachable: MAGEA3/LUAD yields subset_high live and is now committed to the fixture too (2026-09-19), so the gap is corpus coverage of cancer-testis-antigen biology, not a broken rung. See _EXPRESSION_RANK's comment for the full measurement + the three refuted "fixes".   # 1.21.0 (2026-09-10, #1003): --literature retriever -> default_retrieve (Europe PMC -> PubTator3 fallback chain) so a transient single-source outage no longer collapses grounding to unverified — aligns with the rest of the fleet (tumor-selectivity 1.20.0). VERDICT-INERT (opt-in --literature; spine + goldens byte-stable).   # 1.20.0 (2026-09-04): CONSOLIDATED presence_confirmation_caveat (folds the already-computed protein_confirmation_state / abundance_floor_flag / sc_expression_class + caf / cell_line_vs_tumor / HPA-IHC signals into ONE consumer-facing malignant-cell-PROTEIN-confirmed-vs-bulk-RNA/cell-line/stromal-annotated call; tiers malignant_compartment_unconfirmed [FAP/stromal driver] / rna_or_cellline_present_protein_unconfirmed [RNA-proxy] / protein_confirmed_malignant_present + clinically_precedented_antigen_present [false-demote guard, EPCAM/FOLR1 spared]) + presence_provenance quorum + compartment_note + TUMOR_PRESENCE thesis/polarity_note (was NONE) + refined --literature _LENS_QUERY_TERMS. VERDICT-INERT (reads only headline fields, feeds no rule → presence_verdict + presence_verdict_by_modality + goldens byte-stable).   # 1.19.0 (2026-09-04, #980): surface-class abundance anchor — for a curated surface/secreted antigen, prefer ProCan/IHC over the systematically-under-reading Gygi TMT panel as the absolute-abundance LEVEL anchor (re-anchor a lone ProCan-recovered Gygi bottom-decile to adequate; keep the honest floor for ProCan-low DLL3/FOLR1). VERDICT-INERT (abundance_floor_flag → narrator/synthesis).   # 1.18.0 (2026-09-03): Tier-2 sc-normal ABUNDANCE (#984) — surface sc_normal_abundance_class + abundance-aware window breadcrumb (verdict-INERT).   # 1.17.0 (2026-09-03): Tier-1 sc-utilization (#984) — claim-C consumes ambient_contamination_risk QC + malignant-annotation provenance + entity_purity to temper corroboration (verdict-INERT).   # 1.16.0 (2026-09-03): OPTIONAL verdict-INERT LLM literature lane (--literature; decision['literature_synthesis'], fed to the --synthesize narrator) + claim-vector signal enrichment — abundance-floor QUORUM (a lone protein bottom-decile orthogonally contradicted by IHC/2nd-platform is demoted, not a hard floor), HPA-IHC folded into claim A, claim B two-comparator (adjacent+GTEx), single-cell antigen-escape/consistency into claim C, tumor-selectivity window hand-off breadcrumb. Spine byte-stable.   # 1.15.0 (2026-08-28): HPA Pathology antibody IHC protein-in-tumor (protein_ihc/tumor bucket; MS-independent, measured-unruled → collapsed verdict byte-stable).   # 1.14.0: capsule-driven narrator via generic engine.
+SKILL_VERSION = "1.26.0"  # 1.26.0 (2026-10-01, SK#1825): TPHP DIA-MS tumor arm wired as the 2nd bulk_protein_ms/tumor platform — the TUMOR-side analogue of ProCan on the cell-line side, and wired by the SAME pattern (same bucket as the incumbent, ladder-inert, corroboration-ineligible, a within-modality fallback supplier of the MS arm's VALUE). ADDITIVE / VERDICT-INERT: `tumor-vs-normal-protein-abundance-tphp` is absent from _PROTEIN_RANK and from _MEASURED_UNRULED_PRESENT and fires no interpretation rule, so presence_verdict + presence_verdict_by_modality + the resolver goldens are BYTE-STABLE (measured: both committed replay dossiers emit byte-identical spines with the card absent, resolved-detected, and resolved-not-detected). What is new: (a) a `tphp_tumor_presence` headline facet reading the TUMOR ARM ONLY (protein_detection_rate_tumor / n_tumor_samples{,_total} / protein_median_log2_tumor) — the contrast fields are NEVER read, because a `strong_down` tumor-vs-normal window means "lower than the body-atlas normal", not absent, and the window arm belongs to tumor-selectivity; (b) TPHP as the 2nd member of presence_claims._MS_PRESENCE_SOURCES, ahead of the cell-line siblings because it shares CPTAC's patient-tumor GRAIN, so a target whose only patient-tumor MS read is TPHP now supplies the MS arm's value instead of having no MS source at all. Payoff is COVERAGE BREADTH (22 carcinoma cohorts, several with no CPTAC counterpart: gallbladder, laryngeal, GIST, testis, fallopian-tube, thymoma), NOT independence — TPHP is corroboration-ineligible on TWO grounds: it is mass-spec (shares CPTAC's modality arm) and its NORMAL arm IS the TPHP body atlas that normal-tissue-protein-abundance-tphp summarises (ONE DIA-MS measurement read twice), so the MS dependence group carries a `shared_measurement` block keyed on the emitted `normal_arm_source`, never on a card-id allowlist. ABSENCE FALLS THROUGH CONSERVATIVELY: an unmapped indication, a gene absent from the cohort, a `pan_cancer_max_abs_log2fc*` extremum row (another tissue, per the card's own warning) and a 0 detection rate on a tumor arm below _TPHP_MIN_TUMOR_ARM_FOR_ABSENCE=5 ALL read `data_unavailable` — a GAP, never a measured zero / absent / not_detected.   # 1.25.0 (2026-09-27, SK#1941): EXPORTED bounded evidence package — under --emit-envelope the emitted evidence_package.json gains NAMED top-level sections (source_properties L2a / integrated_properties L2b / local_composites / l3d), each a VIEW over content already on the decision headline (claim_vector / claim_vector_by_subtype / tumor_expression_biology_story) and reconstructable downward to its claim IDs / L1 card_ids. ADDITIVE / VERDICT-INERT: decision.json spine (presence_verdict + presence_verdict_by_modality) and the resolver goldens are byte-stable; the sections are built by _evidence_sections(headline) and threaded through run_wired_skill(evidence_sections_fn=...) → the dispatcher's assemble_evidence_package(evidence_sections=...). Requires the target-contracts evidence_package.schema to declare the 4 optional top-level sections (sibling PR).   # 1.24.0 (2026-09-19): HPA antibody-IHC SINGLE-PATIENT guard (BEHAVIOR CHANGE, VERDICT-INERT — presence_verdict + presence_verdict_by_modality + resolver goldens byte-stable; only protein_confirmation_state / presence_confirmation_caveat / _presence_provenance.malignant_protein_confirmed move). MEASURED live over the full product (403,240 gene x cancer rows): of 47,640 ihc_detected_low cells, 23,136 (48.6%) rest on exactly ONE stained patient of ~10-12 and 17,015 on a single WEAKLY-stained one — HPA antibody-specificity noise floor. A single-patient ihc_detected_low (n_detected = round(fraction_detected * n_patients) < 2) no longer drives `confirmed` / ihc_positive / malignant_protein_confirmed; it stays a surfaced hpa_ihc_* display atom + the protein_ihc/tumor bucket verdict is untouched. Single guard helper _ihc_is_confirmatory shared by all 3 consumer sites. Bites ONLY the low class (moderate/high require frac > 0.33 => >= 2 detected at HPA's n). Root cause is the data-catalog product classifier (derive_hpa_pathology_cancer_ihc._classify); the consumer-side fix was chosen over a product-v2 republish (which would reclassify 23,136 cells cross-consumer). GFAP/COADREAD (a single weakly-stained patient) now reads confirmed_cell_line_only, not `confirmed` — superseding v1.23.0's output-unchanged note. No new state token, no contract change.   # 1.23.0 (2026-09-19): protein_confirmation_state GRAIN fix (BEHAVIOR CHANGE, but VERDICT-INERT — presence_verdict + presence_verdict_by_modality + resolver goldens byte-stable; only the confidence facet + presence_confirmation_caveat move). Two defects: (1) tumor-elevation-breadth is a pan-cancer TARGET-grain card sharing the bulk_protein_ms/tumor bucket with indication-grain CPTAC/subtype, so a breadth-only bucket read `confirmed` (GFAP/COADREAD: confirmed with protein_expression_class=data_unavailable) — the pan-cancer breadth verdicts (derived from _PROTEIN_RANK's tumor-breadth-* rules) are now EXCLUDED from the confirmed trigger, so a breadth-only bucket falls to `untested`. (2) _protein_confirmation_state never read the protein_ihc/tumor bucket, so a MEASURED antibody-IHC not_detected could never reach `measured_absent` (CD19/COADREAD: confirmed despite a measured IHC not_detected) — the IHC bucket is now read symmetrically (detected_* -> confirmed; not_detected -> measured_absent, which outranks weaker-grain pan-cancer/cell-line positives). No new state token, no contract change.   # 1.22.0 (2026-09-18): subset_high SPLIT, phase 2 of 3 — new _EXPRESSION_RANK rung tumor-expression-subset-high-supportive -> tumor_subset_high_expression (tier 2), its prevalence-naming phrase, and the tumor_expression_class / tumor_high_fraction headline keys (tumor-rna-distribution's class + fraction had never been lifted to the headline at all). RETRACTION 2026-09-19 (no version bump — comment-only, zero behavior change): this entry used to say the rung was inert pending a phase 3 that needed TWO contracts edits. BOTH LANDED. 3a = TC#807 (26eee89) declared tumor_subset_high_expression in the pinned presence_verdict_enum; 3b narrowed tumor-expression-broadly-high-supportive to in: [broadly_high, broadly_detected]. Re-measured against contracts main 1d2501c. The rung is now VERDICT-MOVING BY CONTRACT and INERT ON THE EVAL CORPUS ONLY — not inert on the substrate, and the earlier unqualified "INERT BY CORPUS" is RETRACTED. subset_high is conjunctive and its binding conjunct is the UNDECLARED shape one (distribution_pattern in (bimodal, long_tail)), which reads continuous on 36/36 tumor-card instances across the 41-package GENERATED (gitignored, NOT committed) eval corpus and on 12/12 of a live probe, so subset_high is emitted 0x THERE — while the same heuristic returns bimodal/long_tail on 11/37 cell-line instances. BUT IT IS EMITTED 3x ON A COMMITTED LIVE TUMOR-CARD PANEL: tests/fixtures/subset_high_live_flip_matrix.json (59 pairs, 12 TCGA indications) has MAGEA3/SKCM and MAGEA4/LUSC (both clearing BOTH 20% tails) plus MAGEA3/LUAD (13.0% high, long_tail — below the 20% tail, above the 10% floor) at subset_high. The 0x is a property of those two panels' CTA-free rosters, NOT of the TCGA substrate: neither contains SKCM or LUSC. See _EXPRESSION_RANK for the full retraction. Lowering the 0.1 floor would not change this. NUMBERS CORRECTED 2026-09-19 — this retraction's own first draft said "78 committed / 72/72 / 22/74"; a recursive glob double-counts a corpus holding 37 top-level packages plus 41 nested ones of which 37 are byte-identical twins. The rung IS reachable: MAGEA3/LUAD yields subset_high live and is now committed to the fixture too (2026-09-19), so the gap is corpus coverage of cancer-testis-antigen biology, not a broken rung. See _EXPRESSION_RANK's comment for the full measurement + the three refuted "fixes".   # 1.21.0 (2026-09-10, #1003): --literature retriever -> default_retrieve (Europe PMC -> PubTator3 fallback chain) so a transient single-source outage no longer collapses grounding to unverified — aligns with the rest of the fleet (tumor-selectivity 1.20.0). VERDICT-INERT (opt-in --literature; spine + goldens byte-stable).   # 1.20.0 (2026-09-04): CONSOLIDATED presence_confirmation_caveat (folds the already-computed protein_confirmation_state / abundance_floor_flag / sc_expression_class + caf / cell_line_vs_tumor / HPA-IHC signals into ONE consumer-facing malignant-cell-PROTEIN-confirmed-vs-bulk-RNA/cell-line/stromal-annotated call; tiers malignant_compartment_unconfirmed [FAP/stromal driver] / rna_or_cellline_present_protein_unconfirmed [RNA-proxy] / protein_confirmed_malignant_present + clinically_precedented_antigen_present [false-demote guard, EPCAM/FOLR1 spared]) + presence_provenance quorum + compartment_note + TUMOR_PRESENCE thesis/polarity_note (was NONE) + refined --literature _LENS_QUERY_TERMS. VERDICT-INERT (reads only headline fields, feeds no rule → presence_verdict + presence_verdict_by_modality + goldens byte-stable).   # 1.19.0 (2026-09-04, #980): surface-class abundance anchor — for a curated surface/secreted antigen, prefer ProCan/IHC over the systematically-under-reading Gygi TMT panel as the absolute-abundance LEVEL anchor (re-anchor a lone ProCan-recovered Gygi bottom-decile to adequate; keep the honest floor for ProCan-low DLL3/FOLR1). VERDICT-INERT (abundance_floor_flag → narrator/synthesis).   # 1.18.0 (2026-09-03): Tier-2 sc-normal ABUNDANCE (#984) — surface sc_normal_abundance_class + abundance-aware window breadcrumb (verdict-INERT).   # 1.17.0 (2026-09-03): Tier-1 sc-utilization (#984) — claim-C consumes ambient_contamination_risk QC + malignant-annotation provenance + entity_purity to temper corroboration (verdict-INERT).   # 1.16.0 (2026-09-03): OPTIONAL verdict-INERT LLM literature lane (--literature; decision['literature_synthesis'], fed to the --synthesize narrator) + claim-vector signal enrichment — abundance-floor QUORUM (a lone protein bottom-decile orthogonally contradicted by IHC/2nd-platform is demoted, not a hard floor), HPA-IHC folded into claim A, claim B two-comparator (adjacent+GTEx), single-cell antigen-escape/consistency into claim C, tumor-selectivity window hand-off breadcrumb. Spine byte-stable.   # 1.15.0 (2026-08-28): HPA Pathology antibody IHC protein-in-tumor (protein_ihc/tumor bucket; MS-independent, measured-unruled → collapsed verdict byte-stable).   # 1.14.0: capsule-driven narrator via generic engine.
 
-# The 17 cards, grouped by role (see CONTRACT.md § "Card roster"). "Feeds a ladder rung" is
+# The 18 cards, grouped by role (see CONTRACT.md § "Card roster"). "Feeds a ladder rung" is
 # ONE consumption axis, not the only one under the typed L1->L4 evidence ladder (#1985/#1988) —
 # a card can be ladder-inert yet still gate, corroborate, or construct substrate for a later
 # layer (L2b islands, certainty corroboration, safety comparators). Re-tiered 2026-09-29 (#2042,
@@ -441,6 +447,26 @@ CARDS = [
     # single-low-lens override caps Claim-A corroboration and it supplies the MS arm of
     # protein_presence_concordance.
     "cellline-protein-abundance-procan",
+    # tumor protein 2nd platform: TPHP body+cancer DIA-MS, TUMOR ARM (Xu et al., Nature 2026; PRIDE
+    # PXD063370) — 22 carcinoma cohorts on one DIA MaxLFQ platform, several with NO CPTAC counterpart
+    # (gallbladder, laryngeal, GIST, testis, fallopian-tube, thymoma), so it is the TUMOR-side analogue of
+    # ProCan: a 2nd MS platform in the SAME bucket as the incumbent, wired for COVERAGE BREADTH. SK#1825.
+    # LADDER-INERT, exactly like ProCan: fires no interpretation rule, is absent from _PROTEIN_RANK and
+    # from _MEASURED_UNRULED_PRESENT, so the bulk_protein_ms/tumor sub-verdict stays driven by CPTAC/
+    # subtype/breadth and presence_verdict + presence_verdict_by_modality are byte-stable with or without
+    # it. It IS consumed, not merely displayed: it supplies the MS arm's VALUE of
+    # presence_claims.protein_presence_concordance when CPTAC is a gap (preferred over the cell-line
+    # siblings — same patient-tumor grain) and surfaces the tumor-arm detection display facet.
+    # ★ TWO non-independence constraints, both structural (see presence_claims._MS_PRESENCE_SOURCES):
+    #   (1) it is mass-spec, so it shares CPTAC's modality arm — corroboration_eligible: false;
+    #   (2) its NORMAL arm IS the TPHP body atlas that normal-tissue-protein-abundance-tphp summarises —
+    #       ONE DIA-MS measurement read twice — so a platform count must collapse the two TPHP cards,
+    #       keyed on the emitted `normal_arm_source`.
+    # ★ READ THE TUMOR ARM ONLY. This is a tumor-vs-NORMAL contrast card; presence is a one-arm question.
+    #   A `strong_down` contrast means "lower than the atlas normal", NOT absent, so the contrast fields
+    #   (protein_effect_size / protein_expression_class / protein_median_log2_normal) are never read on
+    #   this axis — only protein_detection_rate_tumor / n_tumor_samples{,_total} / protein_median_log2_tumor.
+    "tumor-vs-normal-protein-abundance-tphp",
     # ── VERDICT-ADJACENT (1) — ladder-inert (fires no interpretation rule) yet independently
     #    gates and corroborates: the abundance-floor gate, an independent antibody arm of
     #    protein_presence_concordance AND of tumor_presence_concordance, Claim-A corroboration
@@ -470,6 +496,10 @@ CARD_CONTEXT = {
         "bulk_protein_ms",
         "cell_line",
     ),  # DISPLAY-ONLY 2nd platform (ProCan DIA); fires no rule → verdict-inert
+    "tumor-vs-normal-protein-abundance-tphp": (
+        "bulk_protein_ms",
+        "tumor",
+    ),  # 2nd TUMOR MS platform (TPHP DIA, tumor arm); fires no rule → verdict-inert (SK#1825)
     "tumor-elevation-breadth": ("bulk_protein_ms", "tumor"),
     "expression-purity-confound": ("bulk_rna", "tumor"),
     "cellline-rna-protein-concordance": ("bulk_rna", "cell_line"),
@@ -513,6 +543,9 @@ _BULK_RNA_TUMOR = _ctx_key("bulk_rna", "tumor")
 _BULK_PROTEIN_MS_CELL_LINE = _ctx_key("bulk_protein_ms", "cell_line")
 _BULK_PROTEIN_MS_TUMOR = _ctx_key("bulk_protein_ms", "tumor")
 _PROTEIN_IHC_TUMOR = _ctx_key("protein_ihc", "tumor")
+
+# The TPHP tumor-vs-normal card id, named once (SK#1825) so a typo is a NameError, not a silent None read.
+_TPHP_TVN_CARD = "tumor-vs-normal-protein-abundance-tphp"
 
 QUESTION = (
     "Is {target} expressed in {indication} tumor tissue, and how "
@@ -1737,6 +1770,70 @@ def _protein_platform_concordance(cards):
     return "concordant"
 
 
+# ── TPHP tumor-arm protein-in-tumor coverage facet (SK#1825, VERDICT-INERT) ──────────────────────────
+# The TUMOR-side analogue of the ProCan facet above. `tumor-vs-normal-protein-abundance-tphp` is a
+# tumor-vs-NORMAL contrast card, but the presence question is one-armed: was the protein DETECTED in this
+# indication's tumor samples? So this reads the TUMOR ARM ONLY — detection rate + arm size — and never the
+# contrast (`protein_effect_size`, `protein_expression_class`, `protein_median_log2_normal`). A
+# `strong_down` contrast means "lower than the body-atlas normal", which is a SELECTIVITY fact and NOT an
+# absence; letting it reach this facet would manufacture a protein-absent presence claim out of a
+# selectivity read.
+#
+# The shared presence call lives in _skills_common.presence_claims (`_tphp_tumor_presence_call`) and is
+# imported, not re-implemented, so the display facet and the claim-vector MS arm can never drift apart.
+# Facet/narrator only: feeds no rule, is absent from _PROTEIN_RANK and _MEASURED_UNRULED_PRESENT, so
+# presence_verdict + presence_verdict_by_modality are byte-stable with or without it.
+
+
+def _tphp_tumor_presence_facet(cards):
+    """VERDICT-INERT: the TPHP tumor-arm protein-in-tumor coverage read, or None when the card is absent.
+
+    Returns a dict with `tphp_tumor_presence_class` ∈ {protein_detected_in_tumor,
+    protein_not_detected_in_tumor, data_unavailable} plus the tumor-arm quantities and the cohort
+    provenance — or None (key omitted, byte-stable) when the card did not resolve at all.
+
+    The `data_unavailable` class is the CONSERVATIVE fall-through and it is NOT a measured zero: it is what
+    an unmapped indication, a gene absent from the cohort, a pan-cancer-extremum row (another tissue), or a
+    zero detection rate on a tumor arm too small to power an absence all collapse to. Only an explicit
+    `protein_not_detected_in_tumor` asserts a measured non-detection."""
+    # ★ The card id is a LITERAL here, and the local one-arg `_summary` closure is deliberate: the
+    # field-disposition reach census (_skills_common/field_disposition.py::_card_aliases) binds a field read
+    # to a card only through a literal card id — "a computed card_id is invisible here" — and an invisible
+    # read does not merely lose its own credit, it falls through to NAME-ONLY credit, which is handed to
+    # EVERY card declaring that field name (false credit to siblings). Reading via _TPHP_TVN_CARD would make
+    # these four signal fields read as unreached orphans while silently crediting CPTAC. The assert keeps
+    # the literal and the named constant from drifting apart, so we get the typo-safety too.
+    assert _TPHP_TVN_CARD == "tumor-vs-normal-protein-abundance-tphp"
+
+    def _summary(cid):
+        return card_summary(cards, cid) or {}
+
+    s = _summary("tumor-vs-normal-protein-abundance-tphp")
+    if not s:
+        return None
+    resolved, present = _tphp_tumor_presence_call(s)
+    cls = (
+        ("protein_detected_in_tumor" if present else "protein_not_detected_in_tumor")
+        if resolved
+        else "data_unavailable"
+    )
+    return {
+        "tphp_tumor_presence_class": cls,
+        "tphp_tumor_detection_rate": s.get("protein_detection_rate_tumor"),
+        "tphp_n_tumor_samples": s.get("n_tumor_samples"),
+        "tphp_n_tumor_samples_total": s.get("n_tumor_samples_total"),
+        "tphp_tumor_median_log2": s.get("protein_median_log2_tumor"),
+        "tphp_cohort": s.get("cohort"),
+        "tphp_cohort_pick_basis": s.get("cohort_pick_basis"),
+        # ★ carried so a downstream platform count can collapse the two TPHP cards on the DATA, per the
+        # card header. A non-null value means this card's normal arm IS the TPHP body atlas.
+        "tphp_normal_arm_source": s.get("normal_arm_source"),
+        # TPHP is mass-spec AND shares its normal arm with the TPHP normal card: never an independent
+        # protein platform on this axis, only a coverage-breadth gain. Stated as a datum, not a comment.
+        "tphp_corroboration_eligible": False,
+    }
+
+
 def _abundance_floor(cards, per_modality, is_surface=False):
     """VERDICT-INERT (Principle 2 — breadth != level): a presence-POSITIVE call whose absolute abundance
     LEVEL reads bottom-decile (allgene percentile) in at least one lens. The presence classes are
@@ -2422,6 +2519,15 @@ def _headline(cards, fired, verdict_pair, target=None, indication=None):
         # (abundance_floor); a Gygi-high/ProCan-low conflict — the disagreement the 2nd platform exists to
         # surface — was invisible. This names both directions. Verdict-inert (facet/narrator only).
         "protein_platform_concordance": _protein_platform_concordance(cards),
+        # tphp_tumor_presence (SK#1825): the TUMOR-side 2nd MS platform's protein-in-tumor coverage read —
+        # TPHP DIA-MS, 22 carcinoma cohorts, several with no CPTAC counterpart. TUMOR ARM ONLY (the
+        # tumor-vs-normal contrast belongs to tumor-selectivity, which already owns the window arm). This
+        # is where a target whose ONLY patient-tumor protein evidence is TPHP becomes legible instead of
+        # silent. Verdict-inert: the bucket sub-verdict is untouched (no rule, no ladder rung), so a
+        # TPHP-only target still reads data_unavailable on the bulk_protein_ms/tumor SUB-VERDICT by design
+        # — lifting that rung is a separate verdict-moving change needing its own backtest (issue #1825's
+        # acceptance criteria require byte-stability here).
+        "tphp_tumor_presence": _tphp_tumor_presence_facet(cards),
         # protein_confirmation_state: is a PRESENT call protein-confirmed, protein-measured-
         # absent, or protein-UNTESTED (RNA-only)? Verdict-inert legibility of the confidence behind the
         # one-word headline — most indications lack CPTAC/cell-line-MS, so a positive-RNA target commonly
@@ -2921,6 +3027,9 @@ _SYNTHESIS_FACET_KEYS = (
     # symmetric cross-platform (Gygi TMT × ProCan DIA) cell-line protein-abundance concordance — the
     # disagreement the 2nd platform exists to surface, in BOTH directions (SK#1514). Verdict-inert.
     "protein_platform_concordance",
+    # TPHP DIA-MS tumor-arm protein-in-tumor coverage (SK#1825) — the TUMOR-side 2nd MS platform, read
+    # TUMOR-ARM-ONLY; `data_unavailable` is a GAP, never a measured zero. Verdict-inert.
+    "tphp_tumor_presence",
     "protein_confirmation_state",  # confirmed / measured_absent / untested (RNA-only) / not_applicable
     # CONSOLIDATED confirmation call + provenance quorum + compartment attribution — the single
     # consumer-facing "is the malignant-cell presence CONFIRMED, or does it rest on bulk-RNA / cell-line

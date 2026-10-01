@@ -16,7 +16,9 @@ regression could silently break in either direction:
   (b) fabricate a presence-positive narrative on a measured absence (a reader-field-drift class the
       EPCAM replay cannot catch, because EPCAM never resolves an absence path).
 
-Fixture: fixtures/cd19_coadread.yaml (17 cards, all real summaries, frozen live 2026-09-28).
+Fixture: fixtures/cd19_coadread.yaml (17 cards, all real summaries, frozen live 2026-09-28; the 18th card,
+the TPHP tumor arm added by SK#1825, is deliberately NOT in this freeze — it replays as an honest GAP,
+which is exactly the still-no-coverage fall-through the new arm must preserve).
 
 H1/#2019 interaction note: at the time this fixture was frozen, `main` has NO abundance-island /
 ADC-payload caveat field on the headline (that gate is issue #2019's separate, parallel, unmerged
@@ -88,7 +90,7 @@ def cd19_decision(tmp_path_factory):
 
 
 def test_fixture_is_nonvacuous():
-    """Guard against a stale/broken freeze reading green: CD19/COADREAD resolves 17 cards live; require
+    """Guard against a stale/broken freeze reading green: CD19/COADREAD resolves 17 of the 18 cards from this freeze; require
     the bulk (>=15) to carry a real summary."""
     frozen = _load_fixture()
     real = [cid for cid, s in frozen.items() if _real_summary(s)]

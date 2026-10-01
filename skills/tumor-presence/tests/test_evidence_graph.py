@@ -45,6 +45,15 @@ DISPLAY_ONLY = {
     "tumor-protein-distribution-by-subtype",
     "normal-tissue-liability",
 }
+# ★ SK#1825 scope note — these three numbers describe THE COMMITTED GOLDEN, not run.py CARDS. The golden
+# `fixtures/epcam_coadread_decision.json` is a frozen snapshot of a real run that PRE-DATES the 18th card
+# (the TPHP DIA-MS tumor arm), so its graph still carries 17 cards and 9 display_only ones. Bumping these
+# to 18/10 to "match run.py" is wrong twice over: it would red on a fixture that cannot contain the card,
+# and it would hide the fact that the assertion's subject is the snapshot. The new card's display_only-ness
+# is asserted where it can actually be measured — against the FRESH replay emit, in
+# tests/test_tphp_tumor_presence_arm.py (DATA_PRODUCT.md:16: "the FRESH replay emit is the conformance
+# target; the static golden is a secondary check"). These numbers move only when the golden is re-derived
+# from a live run, never by hand.
 
 
 # ── Phase 0 registry sanity ──────────────────────────────────────────────────────────────────────

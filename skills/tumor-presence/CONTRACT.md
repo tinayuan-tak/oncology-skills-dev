@@ -10,7 +10,7 @@ them live here. See [SKILL.md](SKILL.md) for the user-facing contract and flags,
 
 `tumor-presence` answers a Phase-A question: *is target X present in indication Y's
 tumor tissue, and how does it distribute across cancer cell lines vs. tumor samples, at
-RNA, whole-cell protein, and single-cell resolution?* It reads 17 pre-computed cards and
+RNA, whole-cell protein, and single-cell resolution?* It reads 18 pre-computed cards and
 emits:
 
 - a collapsed one-word `presence_verdict` (+ `driving_rule_id`), and
@@ -23,7 +23,7 @@ It reads pre-computed derived products; it does **not** recompute any DGE, and i
 
 ## The four moving parts in run.py
 
-1. **`CARDS` + `CARD_CONTEXT`** — the 17 cards consumed, each tagged with its
+1. **`CARDS` + `CARD_CONTEXT`** — the 18 cards consumed, each tagged with its
    `(measurement, sample_context)` bucket. `CARD_CONTEXT` mirrors the `measurement:` /
    `sample_context:` tags in `target-contracts/cards/*.card.yaml`; a drift test
    (`test_card_context_matches_target_contracts_specs`) asserts they agree.

@@ -96,10 +96,10 @@
       "dim_displayed_context": null,
       "dim_verdict_member": "biological",
       "gate_short": null,
-      "n_declared_cards": 17,
-      "n_declared_types": 12,
-      "n_measurement_descriptor_fields": 54,
-      "n_types_with_measurement_descriptor": 12,
+      "n_declared_cards": 18,
+      "n_declared_types": 13,
+      "n_measurement_descriptor_fields": 58,
+      "n_types_with_measurement_descriptor": 13,
       "skill_dir": "tumor-presence",
       "static_state": "descriptor_covered",
       "types_without_measurement_descriptor": [],
@@ -288,7 +288,7 @@
       ],
       "n_axes_counted": 6,
       "n_axes_descriptor_covered": 6,
-      "n_declared_types": 60,
+      "n_declared_types": 61,
       "n_types_without_measurement_descriptor": 0,
       "not_a_fanout_axes": [],
       "types_without_measurement_descriptor": [],
@@ -473,7 +473,8 @@
         "tumor-rna-distribution",
         "tumor-rna-distribution-by-subtype",
         "tumor-rna-vs-adjacent",
-        "tumor-scrna-celltype-expression"
+        "tumor-scrna-celltype-expression",
+        "tumor-vs-normal-protein-abundance-tphp"
       ],
       "genomic_alteration": [
         "alteration-role",
@@ -708,7 +709,8 @@
         "tumor_expression_distribution",
         "tumor_protein_abundance",
         "tumor_protein_ihc_presence",
-        "tumor_vs_adjacent_expression"
+        "tumor_vs_adjacent_expression",
+        "tumor_vs_normal_protein_abundance"
       ],
       "genomic_alteration": [
         "alteration_role",

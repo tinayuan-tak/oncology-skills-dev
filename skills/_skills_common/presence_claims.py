@@ -2299,15 +2299,19 @@ def _subtype_restriction_concordance_claim(c: dict) -> "dict | None":
 #     staining distribution (n_high/n_medium/n_low/n_not_detected, fraction_detected, staining_score)
 #     collapsed to a per-patient DETECTION call. Antibody immunodetection, a patient-cohort assay.
 #   * MASS-SPEC arm — CPTAC TMT-MS (`tumor-protein-abundance-cptac`, patient tumor) as the primary, with
-#     DepMap-Gygi (`cellline-protein-abundance`, gygi_ms) and ProCan (`cellline-protein-abundance-procan`,
-#     dia_swath) as SAME-MODALITY CROSS-GRAIN dependent siblings (cell-line MS): TMT/DIA mass-spectrometry.
+#     the TPHP DIA-MS TUMOR ARM (`tumor-vs-normal-protein-abundance-tphp`, patient tumor — SAME grain as
+#     CPTAC, 22 carcinoma cohorts), DepMap-Gygi (`cellline-protein-abundance`, gygi_ms) and ProCan
+#     (`cellline-protein-abundance-procan`, dia_swath) as SAME-MODALITY CROSS-GRAIN dependent siblings:
+#     TMT/DIA mass-spectrometry throughout.
 # ANTIBODY-IHC is genuinely INDEPENDENT of mass-spec — a DIFFERENT detection technology (immunostaining vs
 # peptide MS), a DIFFERENT cohort (HPA patient tissue microarrays vs CPTAC/DepMap), and a DIFFERENT failure
 # mode (antibody specificity vs peptide detectability) — so their agreement is real cross-assay
 # corroboration, the structural twin of selectivity/subtype concordance applied to bare protein PRESENCE.
-# The three MS sources are ONE modality arm (all mass-spec): CPTAC supplies the arm value; Gygi/ProCan are
-# corroboration-ineligible cross-grain siblings that may supply the MS arm when CPTAC is a gap but NEVER
-# buy a second independent arm (the #1667/#1673/#1674 arm-commensurability lesson made structural).
+# The FOUR MS sources are ONE modality arm (all mass-spec): CPTAC supplies the arm value; the TPHP tumor arm
+# and Gygi/ProCan are corroboration-ineligible cross-grain siblings that may supply the MS arm when CPTAC is
+# a gap but NEVER buy a second independent arm (the #1667/#1673/#1674 arm-commensurability lesson made
+# structural). The TPHP tumor arm (SK#1825) is read TUMOR-ARM-ONLY: a tumor-vs-normal CONTRAST never
+# negates presence, so only its tumor detection rate / tumor arm size are consulted.
 # #1512: MS presence is read off the WITHIN-POPULATION rank CLASS (`allgene_percentile_class`), never a
 # raw TMT-vs-IHC comparison. Verdict-INERT (no `signal` key; feeds no rule/veto/resolver rung; the pooled
 # presence_verdict + presence_verdict_by_modality are byte-stable). Key OMITTED (byte-stable) when NEITHER
@@ -2327,13 +2331,91 @@ _BULK_RNA_ABSENT_CLASS = "broadly_low"
 # measured-absent set is a malignant-compartment non-detection (the antigen sits off the malignant cells).
 _SC_MALIGNANT_PRESENT_CLASSES = frozenset({"malignant_broadly_detected", "malignant_subset_detected"})
 _SC_MALIGNANT_ABSENT_CLASSES = frozenset({"microenvironment_dominant", "broadly_low"})
-# CPTAC (tumor) primary + cell-line MS siblings, in MS-arm preference order. All three are mass-spec (ONE
-# modality); CPTAC supplies the arm value, the cell-line siblings are corroboration-ineligible.
+# CPTAC (tumor) primary + the TPHP tumor arm (tumor) + cell-line MS siblings, in MS-arm preference order.
+# All FOUR are mass-spec (ONE modality); CPTAC supplies the arm value when it resolves, and the remaining
+# three are corroboration-ineligible fallbacks that may supply the arm's VALUE but never a second arm.
+#
+# TPHP sits SECOND (SK#1825), ahead of the cell-line siblings, because it is the same GRAIN as CPTAC —
+# patient tumor tissue — and a patient-tumor read is a strictly better supplier of a tumor-presence arm
+# value than a cell-line panel. Its payoff is COVERAGE BREADTH, not independence: TPHP's 22 carcinoma
+# cohorts include several with no CPTAC counterpart (gallbladder, laryngeal, GIST, testis, fallopian-tube,
+# thymoma), so a target whose only patient-tumor MS read is TPHP previously had no MS source at all.
+#
+# ★ IT IS NOT AN INDEPENDENT PLATFORM, AND NOT ONLY BECAUSE IT IS MASS-SPEC. The TPHP tumor-vs-normal
+# card's NORMAL arm IS the TPHP body atlas that `normal-tissue-protein-abundance-tphp` summarises — ONE
+# DIA-MS measurement read twice (card header: "any consumer that counts corroborating platforms MUST key
+# on the emitted `normal_arm_source` value and collapse the two to one"). So TPHP carries
+# `corroboration_eligible: False` on two independent grounds, and `_tphp_shared_measurement_group` keys
+# the collapse on the DATA (`normal_arm_source`), not on a hardcoded card-id allowlist.
 _MS_PRESENCE_SOURCES = (
     ("cptac_protein", "tumor-protein-abundance-cptac", "CPTAC TMT-MS whole-cell-lysate (patient tumor)"),
+    ("tphp_tumor_protein", "tumor-vs-normal-protein-abundance-tphp", "TPHP DIA-MS tumor arm (patient tumor)"),
     ("gygi_protein", "cellline-protein-abundance", "DepMap-Gygi TMT-MS panel (cell line)"),
     ("procan_protein", "cellline-protein-abundance-procan", "ProCan DIA-SWATH MS panel (cell line)"),
 )
+# Only CPTAC is the arm-supplying PRIMARY; every other MS source is a corroboration-ineligible sibling.
+# Named once (not re-derived at each use) so "which MS source can buy an independent arm" has exactly one
+# definition. A new MS source is ineligible BY DEFAULT — the safe direction.
+_MS_CORROBORATION_ELIGIBLE = frozenset({"cptac_protein"})
+# The TPHP tumor arm's minimum tumor-arm DENOMINATOR for a detection rate of 0 to be read as a MEASURED
+# non-detection rather than a gap. Below it, "detected in 0 of n" is indistinguishable from DIA censoring
+# on a tiny arm, so the conservative read is UNRESOLVED (a gap), never a measured absence.
+_TPHP_MIN_TUMOR_ARM_FOR_ABSENCE = 5
+# The ONLY cohort_pick_basis a presence claim may read. The two `pan_cancer_max_abs_log2fc*` fallbacks are
+# most-extreme-COHORT readouts from some other tissue (card warning `tphp_tvn_pan_cancer_extremum`); reading
+# one as this indication's protein-presence would attribute another tissue's detection to this indication.
+_TPHP_INDICATION_SCOPED_BASIS = "indication_mapped"
+
+
+def _tphp_tumor_presence_call(s: dict):
+    """The TPHP source's OWN protein-presence call, read from the TUMOR ARM ONLY (SK#1825).
+
+    Returns (resolved: bool, present: bool|None). The card is a tumor-vs-NORMAL contrast card, but
+    tumor-PRESENCE is a one-arm question: whether the protein was DETECTED in the indication's tumor
+    samples. So this reads `protein_detection_rate_tumor` / `n_tumor_samples_total` and NOTHING from the
+    normal arm — `protein_effect_size`, `protein_expression_class` and `protein_median_log2_normal` are
+    deliberately never consulted here. A `strong_down` contrast is NOT an absence (the protein is present
+    in tumor, just lower than the atlas normal), and letting the contrast leak in would turn a selectivity
+    read into a false presence negation.
+
+    Three outcomes, with absence held to a HIGHER bar than presence:
+      * detected in >=1 tumor sample                      → (True, True)
+      * detected in 0 of a tumor arm of >=5 samples        → (True, False)   a MEASURED non-detection
+      * anything else                                     → (False, None)   an honest GAP
+
+    The gap branch covers every no-coverage path, and each must NEVER read as a measured zero:
+      · the indication maps to no TPHP carcinoma cohort → the reader's `_empty` row (all numerics None);
+      · the gene is absent from the product for the cohort → likewise `_empty`;
+      · `cohort_pick_basis` is a pan-cancer extremum → another tissue's row, rejected outright;
+      · a tumor arm smaller than `_TPHP_MIN_TUMOR_ARM_FOR_ABSENCE` with rate 0 → censoring, not absence.
+    """
+    if s.get("cohort_pick_basis") != _TPHP_INDICATION_SCOPED_BASIS:
+        return False, None  # unmapped indication, data_unavailable (null basis), or a pan-cancer extremum
+    rate = s.get("protein_detection_rate_tumor")
+    if not isinstance(rate, (int, float)) or isinstance(rate, bool):
+        return False, None
+    if rate > 0:
+        return True, True
+    n_total = s.get("n_tumor_samples_total")
+    if (
+        isinstance(n_total, (int, float))
+        and not isinstance(n_total, bool)
+        and n_total >= _TPHP_MIN_TUMOR_ARM_FOR_ABSENCE
+    ):
+        return True, False  # 0 detections across a well-powered tumor arm — a MEASURED non-detection
+    return False, None  # rate 0 on an unknown/tiny arm: DIA censoring, not evidence of absence
+
+
+def _tphp_shared_measurement_group(s: dict):
+    """The shared-measurement collapse key for the TPHP tumor arm, read from the DATA as the card demands.
+
+    Returns the `normal_arm_source` value when it is present, else None. A non-None value means this card
+    and `normal-tissue-protein-abundance-tphp` are ONE DIA-MS measurement read twice, so a consumer
+    counting corroborating protein platforms must collapse them. Surfaced on the source_support record
+    (not merely assumed) so the collapse is auditable and keyed on the emitted value, never on a card-id
+    allowlist that a product rebuild could silently invalidate."""
+    v = s.get("normal_arm_source")
+    return v if isinstance(v, str) and v else None
 
 
 def _ihc_presence_call(s: dict):
@@ -2390,19 +2472,22 @@ def _protein_presence_concordance_claim(c: dict) -> "dict | None":
         the resolved layer, NOT a concordance claim.
 
     DEPENDENCE (the slot this family exercises): the MASS-SPEC arm is one INDEPENDENT arm supplied by a
-    MULTI-MEMBER same-modality group `{cptac_protein, gygi_protein, procan_protein}`. CPTAC-TMT (patient)
-    is the primary; DepMap-Gygi and ProCan (cell-line MS) are SAME-MODALITY CROSS-GRAIN siblings —
-    `resolved`/`quality_eligible` yes (either may supply the MS arm's value when CPTAC is a gap), but
-    `corroboration_eligible: False`: three mass-spec reads are ONE modality arm, never a second/third
+    MULTI-MEMBER same-modality group `{cptac_protein, tphp_tumor_protein, gygi_protein, procan_protein}`.
+    CPTAC-TMT (patient) is the primary; the TPHP DIA-MS TUMOR ARM (patient tumor, SK#1825) and DepMap-Gygi
+    / ProCan (cell-line MS) are SAME-MODALITY CROSS-GRAIN siblings —
+    `resolved`/`quality_eligible` yes (any may supply the MS arm's value when CPTAC is a gap), but
+    `corroboration_eligible: False`: four mass-spec reads are ONE modality arm, never a second/third/fourth
     independent replication. They are preserved in `source_support` and counted in `resolved_source_count`
     (evidence), but NEVER in `corroborating_independent_arm_count` and NEVER resurrect an independent arm
-    beyond the mass-spec layer. The ANTIBODY-IHC arm is the single INDEPENDENT modality on the other side.
+    beyond the mass-spec layer. TPHP carries a SECOND dependence on top of that one: its normal arm IS the
+    TPHP body atlas, so it also collapses with `normal-tissue-protein-abundance-tphp` — declared on the MS
+    group's `shared_measurement`, keyed on the emitted `normal_arm_source`. The ANTIBODY-IHC arm is the single INDEPENDENT modality on the other side.
 
     Corroboration is on the shared MEASURED-ARM frame over the two INDEPENDENT arms only (antibody + mass-
     spec): two agreeing arms -> high, a disagreement -> low, one measured arm -> single_arm. A single-arm
     mutation only DEGRADES to `single_source_only`; ERASING the claim (key omitted, byte-stable) takes
     defeating BOTH independent arms — and the MS arm survives on ANY mass-spec source, so defeating the MS
-    layer means defeating CPTAC AND Gygi AND ProCan.
+    layer means defeating CPTAC AND the TPHP tumor arm AND Gygi AND ProCan.
 
     GRAIN + technology are first-class: the two INDEPENDENT arms differ in DETECTION TECHNOLOGY (antibody
     immunostaining vs peptide mass-spectrometry) and cohort — carried per-source in `source_support` and in
@@ -2417,7 +2502,9 @@ def _protein_presence_concordance_claim(c: dict) -> "dict | None":
     ms_srcs = {}  # source_key → (resolved, present, summary)
     for key, card_id, _label in _MS_PRESENCE_SOURCES:
         s = c.get(card_id, {}) or {}
-        r, p = _ms_presence_call(s)
+        # TPHP is a tumor-vs-normal CONTRAST card with no `allgene_percentile_class`; its presence read is
+        # the TUMOR-ARM detection call, not the generic rank-class one (see _tphp_tumor_presence_call).
+        r, p = _tphp_tumor_presence_call(s) if key == "tphp_tumor_protein" else _ms_presence_call(s)
         ms_srcs[key] = (r, p, s)
     ms_layer_res, ms_layer_present, ms_layer_key = False, None, None
     for key, _card_id, _label in _MS_PRESENCE_SOURCES:
@@ -2466,11 +2553,13 @@ def _protein_presence_concordance_claim(c: dict) -> "dict | None":
 
     _MS_GRAIN = {
         "cptac_protein": "ms_protein (patient tumor)",
+        "tphp_tumor_protein": "ms_protein (patient tumor)",
         "gygi_protein": "ms_protein (cell line)",
         "procan_protein": "ms_protein (cell line)",
     }
     _MS_COHORT = {
         "cptac_protein": "CPTAC TMT-MS whole-cell-lysate protein (patient tumor)",
+        "tphp_tumor_protein": "TPHP DIA-MS per-cohort protein, TUMOR ARM (patient tumor)",
         "gygi_protein": "DepMap-Gygi TMT-MS panel protein (cell line)",
         "procan_protein": "ProCan DIA-SWATH MS panel protein (cell line)",
     }
@@ -2478,6 +2567,26 @@ def _protein_presence_concordance_claim(c: dict) -> "dict | None":
 
     def _present_label(present):
         return "protein_detected" if present else ("protein_not_detected" if present is False else "data_unavailable")
+
+    def _ms_layer_class_label():
+        """The MS arm SUPPLIER's own readable class token, for the two prose sites.
+
+        CPTAC/Gygi/ProCan each resolve off a within-population rank class (`allgene_percentile_class`),
+        so that token names their read. The TPHP tumor arm has NO such field — it is a tumor-vs-normal
+        contrast card read TUMOR-ARM-ONLY, and resolves off the tumor detection rate — so reading
+        `allgene_percentile_class` off it renders a bare `None` in the prose (SK#1825). It renders its
+        DETECTION call plus the tumor-arm denominator instead; a non-resolving layer stays
+        `data_unavailable`, never an empty token."""
+        if not ms_layer_key:
+            return "data_unavailable"
+        _r, _p, s = ms_srcs[ms_layer_key]
+        if ms_layer_key != "tphp_tumor_protein":
+            return s.get("allgene_percentile_class") or "data_unavailable"
+        label = _present_label(_p)
+        rate, n_total = _fin(s.get("protein_detection_rate_tumor")), _fin(s.get("n_tumor_samples_total"))
+        if rate is None or n_total is None:
+            return f"{label} (TPHP tumor arm)"
+        return f"{label} (TPHP tumor arm, detected in {rate:.0%} of n={int(n_total)})"
 
     def _ihc_support():
         return {
@@ -2504,7 +2613,7 @@ def _protein_presence_concordance_claim(c: dict) -> "dict | None":
 
     def _ms_support(key):
         r, p, s = ms_srcs[key]
-        return {
+        rec = {
             "source": key,
             "dependence_group": "mass_spec",
             "grain": _MS_GRAIN[key],
@@ -2513,37 +2622,75 @@ def _protein_presence_concordance_claim(c: dict) -> "dict | None":
             "present": p,
             "resolved": r,
             "quality_eligible": r,  # a resolved MS read may supply the MS arm's value
-            # ONLY CPTAC is the arm-supplying primary; the cell-line siblings are corroboration-ineligible
-            "corroboration_eligible": key == "cptac_protein",
+            # ONLY CPTAC is the arm-supplying primary; every other MS source (the TPHP tumor arm and the
+            # two cell-line siblings) is corroboration-ineligible — one modality, one arm.
+            "corroboration_eligible": key in _MS_CORROBORATION_ELIGIBLE,
             "provenance": {"card_id": _MS_CARD[key], "cohort": _MS_COHORT[key]},
             "retained_quantitative": {
                 "allgene_percentile": _fin(s.get("allgene_percentile")),
                 "fraction_detected": _fin(s.get("fraction_detected")),
             },
         }
+        if key == "tphp_tumor_protein":
+            # TUMOR-ARM quantities only — the normal arm is deliberately absent from a PRESENCE record.
+            rec["retained_quantitative"] = {
+                "protein_detection_rate_tumor": _fin(s.get("protein_detection_rate_tumor")),
+                "n_tumor_samples": _fin(s.get("n_tumor_samples")),
+                "n_tumor_samples_total": _fin(s.get("n_tumor_samples_total")),
+                "protein_median_log2_tumor": _fin(s.get("protein_median_log2_tumor")),
+            }
+            rec["provenance"] = dict(rec["provenance"], tphp_cohort=s.get("cohort"))
+            rec["cohort_pick_basis"] = s.get("cohort_pick_basis")
+            # ★ the DATA-KEYED shared-measurement declaration (card header mandate): a non-null value says
+            # this card's normal arm IS the TPHP body atlas, so it and normal-tissue-protein-abundance-tphp
+            # collapse to ONE measurement. Recorded even when the source is a gap, so the constraint is
+            # visible whenever the value is, not only on the resolved path.
+            rec["shared_measurement_group"] = _tphp_shared_measurement_group(s)
+        return rec
 
     # The antibody arm ALWAYS appears (the definitional independent pair — an absent arm shows as
     # resolved:False). The MS sources appear: CPTAC always (the arm primary), the cell-line siblings ONLY
     # when they resolve (the worked same-modality cross-grain dependent-sibling case).
+    _MS_SIBLING_KEYS = ("tphp_tumor_protein", "gygi_protein", "procan_protein")
     source_support = [_ihc_support(), _ms_support("cptac_protein")]
-    for key in ("gygi_protein", "procan_protein"):
+    for key in _MS_SIBLING_KEYS:
         if ms_srcs[key][0]:
             source_support.append(_ms_support(key))
-    _ms_group_members = ["cptac_protein"] + [k for k in ("gygi_protein", "procan_protein") if ms_srcs[k][0]]
+    _ms_group_members = ["cptac_protein"] + [k for k in _MS_SIBLING_KEYS if ms_srcs[k][0]]
+    _ms_group = {
+        "members": _ms_group_members,
+        "relationship": "same_modality_cross_grain",
+        "note": (
+            "CPTAC TMT-MS (patient tumor), the TPHP DIA-MS tumor arm (patient tumor), DepMap-Gygi TMT-MS "
+            "and ProCan DIA-SWATH (cell line) are ALL mass-spectrometry reads of protein presence — ONE "
+            "independent MS arm, NOT two/three/four. CPTAC supplies the arm value; the siblings are "
+            "corroboration-ineligible (they cannot buy a second independent arm) but may supply the MS "
+            "arm's value as evidence when CPTAC is a gap (dependent != ignore). TPHP is preferred over "
+            "the cell-line siblings because it shares CPTAC's patient-tumor GRAIN; its contribution is "
+            "COVERAGE BREADTH (22 carcinoma cohorts, several with no CPTAC counterpart), never independence."
+        ),
+    }
+    # ★ The SECOND, card-mandated dependence: TPHP's normal arm IS the TPHP body atlas, so this card and
+    # normal-tissue-protein-abundance-tphp are one DIA-MS measurement read twice. Declared on the GROUP,
+    # keyed on the emitted `normal_arm_source`, so a consumer that counts platforms collapses them even
+    # though only the tumor card reaches a presence surface today (the guard must pre-date the second
+    # consumer, not follow it).
+    _tphp_shared = _tphp_shared_measurement_group(ms_srcs["tphp_tumor_protein"][2])
+    if _tphp_shared is not None:
+        _ms_group["shared_measurement"] = {
+            "normal_arm_source": _tphp_shared,
+            "collapses_with": ["normal-tissue-protein-abundance-tphp"],
+            "note": (
+                f"tumor-vs-normal-protein-abundance-tphp declares normal_arm_source={_tphp_shared!r}: its "
+                "normal arm is the SAME DIA-MS body-atlas measurement that normal-tissue-protein-abundance"
+                "-tphp summarises. ONE measurement read twice — a platform/arm count MUST collapse the two "
+                "TPHP cards to one, and neither is corroboration-eligible here."
+            ),
+        }
     evidence_dependence = {
         "groups": [
             {"members": ["antibody_ihc"], "relationship": "independent_modality"},
-            {
-                "members": _ms_group_members,
-                "relationship": "same_modality_cross_grain",
-                "note": (
-                    "CPTAC TMT-MS (patient), DepMap-Gygi TMT-MS and ProCan DIA-SWATH (cell line) are ALL "
-                    "mass-spectrometry reads of protein presence — ONE independent MS arm, NOT two or "
-                    "three. CPTAC supplies the arm value; the cell-line MS siblings are corroboration-"
-                    "ineligible (they cannot buy a second independent arm) but may supply the MS arm's "
-                    "value as evidence when CPTAC is a gap (dependent != ignore)."
-                ),
-            },
+            _ms_group,
         ],
         "derived_sources": {},
     }
@@ -2576,7 +2723,7 @@ def _protein_presence_concordance_claim(c: dict) -> "dict | None":
     }
     _ARM_NAME = {
         "antibody": "antibody-IHC (HPA Pathology)",
-        "mass_spec": "mass-spec protein (CPTAC/DepMap TMT-MS)",
+        "mass_spec": "mass-spec protein (CPTAC/TPHP/DepMap TMT+DIA-MS)",
     }
 
     # ── PRESENTATION-SUPPORT fields (L2b->L3) — surface-consumption, NOT verdict-routing ─────────────
@@ -2607,7 +2754,7 @@ def _protein_presence_concordance_claim(c: dict) -> "dict | None":
             "statement": (
                 f"Both INDEPENDENT protein modalities AGREE on {_dir_text} (antibody-IHC "
                 f"{ihc_s.get('protein_presence_class') or 'n/a'} x mass-spec "
-                f"{(ms_srcs[ms_layer_key][2] or {}).get('allgene_percentile_class') or 'n/a'}) — a "
+                f"{_ms_layer_class_label()}) — a "
                 "cross-assay-corroborated protein-presence read."
             ),
             "source": "antibody_ihc",
@@ -2684,7 +2831,7 @@ def _protein_presence_concordance_claim(c: dict) -> "dict | None":
         ),
         "evidence": (
             f"antibody-IHC {ihc_s.get('protein_presence_class') or 'data_unavailable'} x mass-spec "
-            f"{(ms_srcs.get(ms_layer_key, (None, None, {}))[2] or {}).get('allgene_percentile_class') if ms_layer_key else 'data_unavailable'}"
+            f"{_ms_layer_class_label()}"
             f": {_PHRASE[concordance]}"
         ),
         "provenance": {

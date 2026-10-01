@@ -41,6 +41,9 @@ other_lenses:
   - tumor_vs_adjacent_expression
   lens: tumor-selectivity
 - measurement_types:
+  - tumor_vs_normal_protein_abundance
+  lens: tumor-selectivity
+- measurement_types:
   - normal_tissue_protein_breadth
   lens: tumor-selectivity
 - measurement_types:
