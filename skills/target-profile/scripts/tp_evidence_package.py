@@ -138,9 +138,9 @@ def _emit_card_figures(sub_results: dict, figures_dir: Path, target: str, indica
 
 # --- Evidence-package emitter (--emit evidence-package) --------------------------------------
 # The MACHINE-facing sibling of nomination.json: a deterministic, LLM-free evidence_package.json
-# envelope (the same shape compose-dashboard emits), assembled from the per-sub-skill
-# CompositionResult carriers via the SHARED writer. Purely additive — selected by --emit; the
-# nomination path is untouched.
+# envelope conforming to the shared contract (target-contracts/schemas/evidence_package.schema.json),
+# assembled from the per-sub-skill CompositionResult carriers via the SHARED writer. Purely
+# additive — selected by --emit; the nomination path is untouched.
 
 
 def _deciding_short(deciding_axis: dict) -> Optional[str]:
@@ -348,11 +348,12 @@ def _write_evidence_package(
     """Assemble + write evidence_package.json around target-profile's composed verdict.
 
     Reuses the shared normalizers (`_envelope_card_present`, `_availability_state_for`) and writer
-    (`assemble_evidence_package`) so the envelope is byte-shaped identically to compose-dashboard's.
-    The synthesis block is the SUPERSET shape (per product decision): target-profile's nomination
-    fields (recommendation_gate / confidence_tier / deciding_axis) AND a compose-dashboard-style
-    primary/additional split AND the full per-sub-skill sub_verdicts — all sourced from the
-    CompositionResult on each sub-skill (r["composition"]); NO re-resolution.
+    (`assemble_evidence_package`) so the envelope conforms to the shared
+    evidence_package.schema.json contract. The synthesis block is the SUPERSET shape (per product
+    decision): target-profile's nomination fields (recommendation_gate / confidence_tier /
+    deciding_axis) AND a schema-conformant primary/additional split AND the full per-sub-skill
+    sub_verdicts — all sourced from the CompositionResult on each sub-skill (r["composition"]);
+    NO re-resolution.
     """
     from _skills_common.dispatcher import _availability_state_for, _envelope_card_present
     from _skills_common.envelope import assemble_evidence_package

@@ -485,10 +485,11 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         default=None,
         type=Path,
         help="OPTIONAL: path to a cross-evidence-hypothesis hypothesis.json. When given, the "
-        "gate-clamped, cited 6-part hypothesis REPLACES the original Tier-3 LLM "
-        "executive-summary + tension synthesis on the HTML dashboard (the cross-evidence "
-        "integrator is a meta-layer above target-profile). Display-only; the deterministic "
-        "recommendation stays the header top-line.",
+        "gate-clamped, cited 6-part hypothesis is surfaced beside — not reconciled into — the "
+        "original Tier-3 LLM executive-summary + tension synthesis on the HTML dashboard (an "
+        "independent second read; the cross-evidence integrator is a meta-layer above "
+        "target-profile). Display-only; the deterministic recommendation stays the header "
+        "top-line.",
     )
     ap.add_argument(
         "--ab-suppress-fragility-prompt",
@@ -1393,9 +1394,10 @@ def main() -> int:
         # side-channel (cited_literature_evidence.json) — it is now the first-class literature-context
         # fan-out member composing the cited-literature-evidence card (2026-09-02).
 
-    # [3B] the cross-evidence hypothesis (display-only / verdict-INERT; when present it REPLACES the
-    # Tier-3 exec-summary/tension in the HTML render). Consumes the shared substrate + the 6-dim risk read
-    # produced just above. Best-effort; an explicit --hypothesis file wins.
+    # [3B] the cross-evidence hypothesis (display-only / verdict-INERT; when present it is surfaced
+    # beside — not reconciled into — the Tier-3 exec-summary/tension in the HTML render, an
+    # independent second read). Consumes the shared substrate + the 6-dim risk read produced just
+    # above. Best-effort; an explicit --hypothesis file wins.
     if run_hypothesis and ep_path is not None and hypothesis is None:
         from tp_grounding import auto_hypothesis
 

@@ -185,11 +185,11 @@ composition:
   `nomination.json` + `target_profile.md` + `target_profile.html` + `provenance.yaml`
   (+ figures), with the Tier-3 LLM narrative.
 - `--emit evidence-package` — the machine-facing artifact: a deterministic, **LLM-free**
-  `evidence_package.json` envelope in the same shape compose-dashboard emits (validates
+  `evidence_package.json` envelope conforming to the shared contract (validates
   against `target-contracts/schemas/evidence_package.schema.json`). It implies
   `--no-synthesis` + `--no-figures` and writes **no** nomination.json / md / html. Its
-  `synthesis` block is a SUPERSET: target-profile's nomination fields
-  (`recommendation_gate` / `confidence_tier` / `deciding_axis`) + a compose-dashboard-style
+  `synthesis` block is a SUPERSET of the schema's minimum: target-profile's nomination fields
+  (`recommendation_gate` / `confidence_tier` / `deciding_axis`) + a schema-conformant
   `primary_gate_verdict` + `additional_gate_verdicts` split + the full per-sub-skill
   `sub_verdicts` — all sourced from each sub-skill's shared `CompositionResult`, with no
   re-resolution. `governance.data_mode` is `exploratory` (live, unpinned, not
@@ -209,8 +209,9 @@ two-projection chain in-process, after the fan-out, over the just-assembled `evi
      (`literature-risk-assessment`: Biological / Druggability / Translational / Clinical / Safety /
      Commercial).
 3. **[3B] hypothesis** — `cross-evidence-hypothesis` → `hypothesis.json`, the gate-clamped, cited,
-   six-part drug-target hypothesis reasoning ACROSS the lines (it REPLACES the Tier-3 exec-summary on
-   the HTML dashboard). Consumes the shared substrate + the 6-dim risk from step 2.
+   six-part drug-target hypothesis reasoning ACROSS the lines (it is surfaced beside — not reconciled
+   into — the Tier-3 exec-summary on the HTML dashboard, an independent second read). Consumes the
+   shared substrate + the 6-dim risk from step 2.
 
 All three are **DISPLAY-ONLY / verdict-INERT** — they read the finished spine and NEVER change a
 sub-verdict, gate, or the recommendation — and **best-effort** (any failure — Bedrock, PubMed, parse —
