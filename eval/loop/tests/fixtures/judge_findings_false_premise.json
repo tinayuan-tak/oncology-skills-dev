@@ -1,0 +1,32 @@
+{
+ "corroboration_overstated_cd274": {
+  "kind": "class_not_supported_by_datum",
+  "target": "L2b.protein_presence_concordance (token protein_presence_concordant / corroboration:high)",
+  "finding": "Downgrade the presence abstraction: n_not_detected=10/12 on the IHC arm and a >5x fraction_detected spread across the MS sources mean the token should read discordant-or-weak, not high-corroboration-concordant.",
+  "why": "A binary 'detected' hides the majority-not-detected IHC distribution; the high corroboration overstates the strength of the protein-presence call and should be lowered.",
+  "datum_refs": [
+   "l2b.protein_presence_concordance.corroboration",
+   "l2b.protein_presence_concordance.arms[antibody_ihc].datum.n_not_detected"
+  ]
+ },
+ "empty_arms_erbb2": {
+  "kind": "divergence",
+  "target": "L2b.bulk_vs_singlecell_coverage_concordance (bulk_masks_low_coverage, corroboration=high)",
+  "finding": "The 'bulk_masks_low_coverage' island carries EMPTY arms while the underlying datums exist (bulk high_fraction vs sc malignant_detection_fraction); propose populating the two arms so the bulk-masking claim rests on visible numbers.",
+  "why": "A human cannot currently verify the mask magnitude from the island because the arms are empty.",
+  "datum_refs": [
+   "l2b.bulk_vs_singlecell_coverage_concordance.token",
+   "l2b.bulk_vs_singlecell_coverage_concordance.arms[bulk_tumor_presence].stance"
+  ]
+ },
+ "pure_confabulation": {
+  "kind": "surface_unused_signal",
+  "target": "L2b.nonexistent_family",
+  "finding": "A fabricated signal that cites fields present in no island.",
+  "why": "No datum backs this.",
+  "datum_refs": [
+   "l2b.nonexistent_family.token",
+   "l2a.not_a_real_family.anchors.phantom"
+  ]
+ }
+}

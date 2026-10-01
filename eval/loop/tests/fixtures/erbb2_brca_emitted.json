@@ -1,0 +1,3377 @@
+{
+ "evidence_package": {
+  "package_id": "ep-erbb2-brca-unpinned-exploratory-001",
+  "framework_version": "2.0.0",
+  "generated_at": "2026-09-30T15:25:09Z",
+  "generated_by": "skills/tumor-presence@7e6f0e8",
+  "context": {
+   "target": {
+    "symbol": "ERBB2",
+    "hgnc_id": 3430,
+    "ensembl": "ENSG00000141736.0",
+    "uniprot": "P04626"
+   },
+   "indication": {
+    "oncotree_code": "BRCA"
+   },
+   "subgroup_spec": null,
+   "scope": "cancer_type"
+  },
+  "governance": {
+   "data_mode": "exploratory",
+   "release_pin": "unpinned",
+   "validation_summary": {
+    "n_cards_attempted": 17,
+    "n_cards_passed": 18,
+    "n_cards_passed_with_warnings": 1,
+    "n_cards_failed": 0,
+    "n_cards_excluded_by_applies_when": 0
+   },
+   "resolved_release_digest": "3bac15ebdddc53a7",
+   "resolved_releases": {
+    "allgene-depmap-rank": {
+     "used": [
+      "allgene-depmap-rank-26q3-v1"
+     ],
+     "head": "allgene-depmap-rank-26q3-v1",
+     "is_stale": false
+    },
+    "allgene-tumor-rank": {
+     "used": [
+      "allgene-tumor-rank-v1"
+     ],
+     "head": "allgene-tumor-rank-v1",
+     "is_stale": false
+    },
+    "cptac-protein-tumor-vs-normal-per-cohort": {
+     "used": [
+      "cptac-protein-tumor-vs-normal-per-cohort-v1"
+     ],
+     "head": "cptac-protein-tumor-vs-normal-per-cohort-v1",
+     "is_stale": false
+    },
+    "cptac-protein-tumor-vs-normal-per-sample": {
+     "used": [
+      "cptac-protein-tumor-vs-normal-per-sample-v1"
+     ],
+     "head": "cptac-protein-tumor-vs-normal-per-sample-v1",
+     "is_stale": false
+    },
+    "cptac-rna-protein-matched-per-sample": {
+     "used": [
+      "cptac-rna-protein-matched-per-sample-v1"
+     ],
+     "head": "cptac-rna-protein-matched-per-sample-v1",
+     "is_stale": false
+    },
+    "cptac-subgroup-assignments-coadread": {
+     "used": [
+      "cptac-subgroup-assignments-coadread-v1"
+     ],
+     "head": "cptac-subgroup-assignments-coadread-v1",
+     "is_stale": false
+    },
+    "depmap-consortium": {
+     "used": [
+      "depmap-consortium-26q1"
+     ],
+     "head": "depmap-consortium-26q3",
+     "is_stale": true
+    },
+    "depmap-consortium-26q1-proteomics": {
+     "used": [
+      "depmap-consortium-26q1-proteomics"
+     ],
+     "head": "depmap-consortium-26q1-proteomics",
+     "is_stale": false
+    },
+    "depmap-gygi-protein-abundance-per-protein": {
+     "used": [
+      "depmap-gygi-protein-abundance-per-protein-v1"
+     ],
+     "head": "depmap-gygi-protein-abundance-per-protein-v1",
+     "is_stale": false
+    },
+    "depmap-isoform-expression-per-gene": {
+     "used": [
+      "depmap-isoform-expression-per-gene-v1"
+     ],
+     "head": "depmap-isoform-expression-per-gene-v1",
+     "is_stale": false
+    },
+    "depmap-subgroup-assignments-coadread": {
+     "used": [
+      "depmap-subgroup-assignments-coadread-v1"
+     ],
+     "head": "depmap-subgroup-assignments-coadread-v1",
+     "is_stale": false
+    },
+    "depmap-subgroup-assignments-esca": {
+     "used": [
+      "depmap-subgroup-assignments-esca-v1"
+     ],
+     "head": "depmap-subgroup-assignments-esca-v1",
+     "is_stale": false
+    },
+    "depmap-subgroup-assignments-hnsc": {
+     "used": [
+      "depmap-subgroup-assignments-hnsc-v1"
+     ],
+     "head": "depmap-subgroup-assignments-hnsc-v1",
+     "is_stale": false
+    },
+    "depmap-subgroup-assignments-nsclc": {
+     "used": [
+      "depmap-subgroup-assignments-nsclc-v1"
+     ],
+     "head": "depmap-subgroup-assignments-nsclc-v1",
+     "is_stale": false
+    },
+    "depmap-subgroup-assignments-paad": {
+     "used": [
+      "depmap-subgroup-assignments-paad-v1"
+     ],
+     "head": "depmap-subgroup-assignments-paad-v1",
+     "is_stale": false
+    },
+    "depmap-subgroup-assignments-sclc": {
+     "used": [
+      "depmap-subgroup-assignments-sclc-v1"
+     ],
+     "head": "depmap-subgroup-assignments-sclc-v1",
+     "is_stale": false
+    },
+    "depmap-subgroup-assignments-stad": {
+     "used": [
+      "depmap-subgroup-assignments-stad-v1"
+     ],
+     "head": "depmap-subgroup-assignments-stad-v1",
+     "is_stale": false
+    },
+    "expression-rna-tumor-vs-adjacent": {
+     "used": [
+      "expression-rna-tumor-vs-adjacent"
+     ],
+     "head": "coadread-dge-df06320",
+     "is_stale": true
+    },
+    "gdc-pancanatlas-cnv-2018": {
+     "used": [
+      "gdc-pancanatlas-cnv-2018"
+     ],
+     "head": "gdc-pancanatlas-cnv-2018",
+     "is_stale": false
+    },
+    "gtex-tpm-recount3-long": {
+     "used": [
+      "gtex-tpm-recount3-long-v1"
+     ],
+     "head": "gtex-tpm-recount3-long-v1",
+     "is_stale": false
+    },
+    "hpa": {
+     "used": [
+      "hpa-v25-1"
+     ],
+     "head": "hpa-v25-1",
+     "is_stale": false
+    },
+    "hpa-pathology-cancer-ihc": {
+     "used": [
+      "hpa-pathology-cancer-ihc-v23"
+     ],
+     "head": "hpa-pathology-cancer-ihc-v23",
+     "is_stale": false
+    },
+    "hpa-pathology-cancer-ihc-per-gene": {
+     "used": [
+      "hpa-pathology-cancer-ihc-per-gene-v1"
+     ],
+     "head": "hpa-pathology-cancer-ihc-per-gene-v1",
+     "is_stale": false
+    },
+    "pancan-dge-tumor-vs-normal": {
+     "used": [
+      "pancan-dge-tumor-vs-normal-v1"
+     ],
+     "head": "pancan-dge-tumor-vs-normal-v1",
+     "is_stale": false
+    },
+    "procan-cellline-protein-abundance-per-protein": {
+     "used": [
+      "procan-cellline-protein-abundance-per-protein-v1"
+     ],
+     "head": "procan-cellline-protein-abundance-per-protein-v1",
+     "is_stale": false
+    },
+    "sc-normal-celltype-expression-adrenal-gland": {
+     "used": [
+      "sc-normal-celltype-expression-adrenal-gland-v1"
+     ],
+     "head": "sc-normal-celltype-expression-adrenal-gland-v1",
+     "is_stale": false
+    },
+    "sc-normal-celltype-expression-bladder-organ": {
+     "used": [
+      "sc-normal-celltype-expression-bladder-organ-v1"
+     ],
+     "head": "sc-normal-celltype-expression-bladder-organ-v1",
+     "is_stale": false
+    },
+    "sc-normal-celltype-expression-bone-marrow": {
+     "used": [
+      "sc-normal-celltype-expression-bone-marrow-v1"
+     ],
+     "head": "sc-normal-celltype-expression-bone-marrow-v1",
+     "is_stale": false
+    },
+    "sc-normal-celltype-expression-brain": {
+     "used": [
+      "sc-normal-celltype-expression-brain-v1"
+     ],
+     "head": "sc-normal-celltype-expression-brain-v1",
+     "is_stale": false
+    },
+    "sc-normal-celltype-expression-colon": {
+     "used": [
+      "sc-normal-celltype-expression-colon-v1"
+     ],
+     "head": "sc-normal-celltype-expression-colon-v1",
+     "is_stale": false
+    },
+    "sc-normal-celltype-expression-esophagus": {
+     "used": [
+      "sc-normal-celltype-expression-esophagus-v1"
+     ],
+     "head": "sc-normal-celltype-expression-esophagus-v1",
+     "is_stale": false
+    },
+    "sc-normal-celltype-expression-heart": {
+     "used": [
+      "sc-normal-celltype-expression-heart-v1"
+     ],
+     "head": "sc-normal-celltype-expression-heart-v1",
+     "is_stale": false
+    },
+    "sc-normal-celltype-expression-kidney": {
+     "used": [
+      "sc-normal-celltype-expression-kidney-v1"
+     ],
+     "head": "sc-normal-celltype-expression-kidney-v1",
+     "is_stale": false
+    },
+    "sc-normal-celltype-expression-large-intestine": {
+     "used": [
+      "sc-normal-celltype-expression-large-intestine-v1"
+     ],
+     "head": "sc-normal-celltype-expression-large-intestine-v1",
+     "is_stale": false
+    },
+    "sc-normal-celltype-expression-liver": {
+     "used": [
+      "sc-normal-celltype-expression-liver-v1"
+     ],
+     "head": "sc-normal-celltype-expression-liver-v1",
+     "is_stale": false
+    },
+    "sc-normal-celltype-expression-lung": {
+     "used": [
+      "sc-normal-celltype-expression-lung-v1"
+     ],
+     "head": "sc-normal-celltype-expression-lung-v1",
+     "is_stale": false
+    },
+    "sc-normal-celltype-expression-ovary": {
+     "used": [
+      "sc-normal-celltype-expression-ovary-v1"
+     ],
+     "head": "sc-normal-celltype-expression-ovary-v1",
+     "is_stale": false
+    },
+    "sc-normal-celltype-expression-pancreas": {
+     "used": [
+      "sc-normal-celltype-expression-pancreas-v1"
+     ],
+     "head": "sc-normal-celltype-expression-pancreas-v1",
+     "is_stale": false
+    },
+    "sc-normal-celltype-expression-prostate-gland": {
+     "used": [
+      "sc-normal-celltype-expression-prostate-gland-v1"
+     ],
+     "head": "sc-normal-celltype-expression-prostate-gland-v1",
+     "is_stale": false
+    },
+    "sc-normal-celltype-expression-skin": {
+     "used": [
+      "sc-normal-celltype-expression-skin-v1"
+     ],
+     "head": "sc-normal-celltype-expression-skin-v1",
+     "is_stale": false
+    },
+    "sc-normal-celltype-expression-small-intestine": {
+     "used": [
+      "sc-normal-celltype-expression-small-intestine-v1"
+     ],
+     "head": "sc-normal-celltype-expression-small-intestine-v1",
+     "is_stale": false
+    },
+    "sc-normal-celltype-expression-spleen": {
+     "used": [
+      "sc-normal-celltype-expression-spleen-v1"
+     ],
+     "head": "sc-normal-celltype-expression-spleen-v1",
+     "is_stale": false
+    },
+    "sc-normal-celltype-expression-stomach": {
+     "used": [
+      "sc-normal-celltype-expression-stomach-v1"
+     ],
+     "head": "sc-normal-celltype-expression-stomach-v1",
+     "is_stale": false
+    },
+    "sc-normal-celltype-expression-uterus": {
+     "used": [
+      "sc-normal-celltype-expression-uterus-v1"
+     ],
+     "head": "sc-normal-celltype-expression-uterus-v1",
+     "is_stale": false
+    },
+    "sc-pseudobulk-donor-celltype-lusc": {
+     "used": [
+      "sc-pseudobulk-donor-celltype-lusc-v1"
+     ],
+     "head": "sc-pseudobulk-donor-celltype-lusc-v1",
+     "is_stale": false
+    },
+    "sc-pseudobulk-tumor-3ca-hnsc": {
+     "used": [
+      "sc-pseudobulk-tumor-3ca-hnsc-v1"
+     ],
+     "head": "sc-pseudobulk-tumor-3ca-hnsc-v1",
+     "is_stale": false
+    },
+    "sc-pseudobulk-tumor-3ca-kidney": {
+     "used": [
+      "sc-pseudobulk-tumor-3ca-kidney-v1"
+     ],
+     "head": "sc-pseudobulk-tumor-3ca-kidney-v1",
+     "is_stale": false
+    },
+    "sc-pseudobulk-tumor-3ca-ovarian": {
+     "used": [
+      "sc-pseudobulk-tumor-3ca-ovarian-v1"
+     ],
+     "head": "sc-pseudobulk-tumor-3ca-ovarian-v1",
+     "is_stale": false
+    },
+    "sc-pseudobulk-tumor-3ca-pancreas": {
+     "used": [
+      "sc-pseudobulk-tumor-3ca-pancreas-v1"
+     ],
+     "head": "sc-pseudobulk-tumor-3ca-pancreas-v1",
+     "is_stale": false
+    },
+    "sc-pseudobulk-tumor-brca-wu": {
+     "used": [
+      "sc-pseudobulk-tumor-brca-wu-v1"
+     ],
+     "head": "sc-pseudobulk-tumor-brca-wu-v1",
+     "is_stale": false
+    },
+    "sc-pseudobulk-tumor-crc-coadread": {
+     "used": [
+      "sc-pseudobulk-tumor-crc-coadread-v1"
+     ],
+     "head": "sc-pseudobulk-tumor-crc-coadread-v1",
+     "is_stale": false
+    },
+    "sc-pseudobulk-tumor-luca-nsclc": {
+     "used": [
+      "sc-pseudobulk-tumor-luca-nsclc-v1"
+     ],
+     "head": "sc-pseudobulk-tumor-luca-nsclc-v1",
+     "is_stale": false
+    },
+    "sc-pseudobulk-tumor-stad-golim": {
+     "used": [
+      "sc-pseudobulk-tumor-stad-golim-v1"
+     ],
+     "head": "sc-pseudobulk-tumor-stad-golim-v1",
+     "is_stale": false
+    },
+    "sclc-subgroup-assignments": {
+     "used": [
+      "sclc-subgroup-assignments-v1"
+     ],
+     "head": "sclc-subgroup-assignments-v1",
+     "is_stale": false
+    },
+    "target-id-resolver-release": {
+     "used": [
+      "target-id-resolver-release"
+     ],
+     "head": null,
+     "resolution_error": "ReleaseResolutionError: No manifest in family 'target-id-resolver-release' (data_mode='exploratory'). Known families are the id-prefixes under manifests/{sources,derived}/, or a product_id from target-contracts/vocabularies/products.yaml."
+    },
+    "tcga-spliceseq-psi-per-gene": {
+     "used": [
+      "tcga-spliceseq-psi-per-gene-v1"
+     ],
+     "head": "tcga-spliceseq-psi-per-gene-v1",
+     "is_stale": false
+    },
+    "tcga-subgroup-assignments-coadread": {
+     "used": [
+      "tcga-subgroup-assignments-coadread-v1"
+     ],
+     "head": "tcga-subgroup-assignments-coadread-v1",
+     "is_stale": false
+    },
+    "tcga-subgroup-assignments-esca": {
+     "used": [
+      "tcga-subgroup-assignments-esca-v1"
+     ],
+     "head": "tcga-subgroup-assignments-esca-v1",
+     "is_stale": false
+    },
+    "tcga-subgroup-assignments-esca-maf": {
+     "used": [
+      "tcga-subgroup-assignments-esca-maf-v1"
+     ],
+     "head": "tcga-subgroup-assignments-esca-maf-v1",
+     "is_stale": false
+    },
+    "tcga-subgroup-assignments-hnsc": {
+     "used": [
+      "tcga-subgroup-assignments-hnsc-v1"
+     ],
+     "head": "tcga-subgroup-assignments-hnsc-v1",
+     "is_stale": false
+    },
+    "tcga-subgroup-assignments-hnsc-maf": {
+     "used": [
+      "tcga-subgroup-assignments-hnsc-maf-v1"
+     ],
+     "head": "tcga-subgroup-assignments-hnsc-maf-v1",
+     "is_stale": false
+    },
+    "tcga-subgroup-assignments-nsclc": {
+     "used": [
+      "tcga-subgroup-assignments-nsclc-v1"
+     ],
+     "head": "tcga-subgroup-assignments-nsclc-v1",
+     "is_stale": false
+    },
+    "tcga-subgroup-assignments-nsclc-maf": {
+     "used": [
+      "tcga-subgroup-assignments-nsclc-maf-v1"
+     ],
+     "head": "tcga-subgroup-assignments-nsclc-maf-v1",
+     "is_stale": false
+    },
+    "tcga-subgroup-assignments-paad": {
+     "used": [
+      "tcga-subgroup-assignments-paad-v1"
+     ],
+     "head": "tcga-subgroup-assignments-paad-v1",
+     "is_stale": false
+    },
+    "tcga-subgroup-assignments-paad-maf": {
+     "used": [
+      "tcga-subgroup-assignments-paad-maf-v1"
+     ],
+     "head": "tcga-subgroup-assignments-paad-maf-v1",
+     "is_stale": false
+    },
+    "tcga-subgroup-assignments-stad": {
+     "used": [
+      "tcga-subgroup-assignments-stad-v1"
+     ],
+     "head": "tcga-subgroup-assignments-stad-v1",
+     "is_stale": false
+    },
+    "tcga-tumor-tpm-per-sample": {
+     "used": [
+      "tcga-tumor-tpm-per-sample-v1"
+     ],
+     "head": "tcga-tumor-tpm-per-sample-v1",
+     "is_stale": false
+    },
+    "tcga-tumor-tpm-recount3-long": {
+     "used": [
+      "tcga-tumor-tpm-recount3-long-v1"
+     ],
+     "head": "tcga-tumor-tpm-recount3-long-v1",
+     "is_stale": false
+    }
+   }
+  },
+  "dashboard_spec_ref": "skill:tumor-presence",
+  "cards": [
+   {
+    "card_id": "cellline-rna-distribution",
+    "card_version": "1.0.0",
+    "validation_state": "pass",
+    "summary": {
+     "n_cell_lines_evaluated": 2611,
+     "median_log2tpm_panel": 4.563334941864014,
+     "p25_log2tpm_panel": 3.2754801511764526,
+     "p75_log2tpm_panel": 5.3870298862457275,
+     "p5_log2tpm_panel": 1.4488162994384766,
+     "p95_log2tpm_panel": 6.69340968132019,
+     "log2tpm_iqr": 2.111549735069275,
+     "fraction_expressed": 0.9839142091152815,
+     "fraction_highly_expressed": 0.3672922252010724,
+     "fraction_not_expressed": 0.0160857908847185,
+     "coefficient_of_variation": 4.489081667622662,
+     "distribution_pattern": "continuous",
+     "n_lineages_evaluated": 28,
+     "per_lineage_stats": [
+      {
+       "lineage": "Ampulla of Vater",
+       "n": 9,
+       "median_log2tpm": 5.8994245529174805,
+       "fraction_expressed": 1.0
+      },
+      {
+       "lineage": "Breast",
+       "n": 128,
+       "median_log2tpm": 5.760160446166992,
+       "fraction_expressed": 1.0
+      },
+      {
+       "lineage": "Esophagus/Stomach",
+       "n": 189,
+       "median_log2tpm": 5.654257774353027,
+       "fraction_expressed": 1.0
+      },
+      {
+       "lineage": "Bowel",
+       "n": 135,
+       "median_log2tpm": 5.525022506713867,
+       "fraction_expressed": 1.0
+      },
+      {
+       "lineage": "Pancreas",
+       "n": 127,
+       "median_log2tpm": 5.513714790344238,
+       "fraction_expressed": 1.0
+      },
+      {
+       "lineage": "Bladder/Urinary Tract",
+       "n": 37,
+       "median_log2tpm": 5.326990127563477,
+       "fraction_expressed": 1.0
+      },
+      {
+       "lineage": "Uterus",
+       "n": 50,
+       "median_log2tpm": 5.316279888153076,
+       "fraction_expressed": 1.0
+      },
+      {
+       "lineage": "Muscle",
+       "n": 5,
+       "median_log2tpm": 5.207268238067627,
+       "fraction_expressed": 1.0
+      },
+      {
+       "lineage": "Cervix",
+       "n": 21,
+       "median_log2tpm": 5.111573696136475,
+       "fraction_expressed": 1.0
+      },
+      {
+       "lineage": "Testis",
+       "n": 11,
+       "median_log2tpm": 5.096818447113037,
+       "fraction_expressed": 1.0
+      },
+      {
+       "lineage": "Biliary Tract",
+       "n": 54,
+       "median_log2tpm": 5.089457035064697,
+       "fraction_expressed": 1.0
+      },
+      {
+       "lineage": "Ovary/Fallopian Tube",
+       "n": 92,
+       "median_log2tpm": 5.070788621902466,
+       "fraction_expressed": 1.0
+      },
+      {
+       "lineage": "Fibroblast",
+       "n": 46,
+       "median_log2tpm": 5.019566297531128,
+       "fraction_expressed": 1.0
+      },
+      {
+       "lineage": "Liver",
+       "n": 28,
+       "median_log2tpm": 4.910954713821411,
+       "fraction_expressed": 1.0
+      },
+      {
+       "lineage": "Lung",
+       "n": 290,
+       "median_log2tpm": 4.861572742462158,
+       "fraction_expressed": 0.996551724137931
+      },
+      {
+       "lineage": "Head and Neck",
+       "n": 82,
+       "median_log2tpm": 4.83301854133606,
+       "fraction_expressed": 1.0
+      },
+      {
+       "lineage": "Prostate",
+       "n": 31,
+       "median_log2tpm": 4.726825714111328,
+       "fraction_expressed": 1.0
+      },
+      {
+       "lineage": "Pleura",
+       "n": 22,
+       "median_log2tpm": 4.695775032043457,
+       "fraction_expressed": 1.0
+      },
+      {
+       "lineage": "Kidney",
+       "n": 65,
+       "median_log2tpm": 4.637714385986328,
+       "fraction_expressed": 1.0
+      },
+      {
+       "lineage": "Skin",
+       "n": 135,
+       "median_log2tpm": 4.236898422241211,
+       "fraction_expressed": 0.9851851851851852
+      }
+     ],
+     "n_lineage_restricted_lineages": 0,
+     "expression_class": "broadly_high",
+     "allgene_percentile": 77.80206298828125,
+     "allgene_percentile_class": "mid",
+     "allgene_percentile_context": "DepMap 26q3 pan-cancer panel all-gene median rank (allgene-depmap-rank-26q3-v1; rank 4267/19218)",
+     "control_position_class": "above_all_positives",
+     "control_position": "above 4/4 positive control(s); above 3/5 negative control(s)",
+     "control_positives": {
+      "CEACAM5": 29.46,
+      "EPCAM": 53.52,
+      "MSLN": 32.72,
+      "ERBB2": 77.8
+     },
+     "control_negatives": {
+      "ACTB": 99.82,
+      "GAPDH": 99.92,
+      "SFTPC": 8.89,
+      "GYPA": 8.89,
+      "PRM1": 8.89
+     },
+     "control_negatives_excluded_lineage_conflict": [],
+     "control_position_context": "DepMap pan-cancer panel vs curated controls (tumor_presence_controls v1.0.0; allgene-depmap-rank-26q3-v1)",
+     "control_percentile_source": "allgene-depmap-rank-26q3-v1",
+     "control_position_method_version": "0.1.0",
+     "expression_properties": {
+      "presence": "supported",
+      "magnitude": "high",
+      "prevalence": "broad",
+      "heterogeneity": "high",
+      "lineage_restriction": "diffuse",
+      "selectivity": "unmeasured",
+      "localization": "unmeasured",
+      "subtype_restriction": "unmeasured"
+     },
+     "isoform_expression_class": "isoform_diverse",
+     "dominant_isoform_fraction": 0.49031129479408264,
+     "n_expressed_isoforms": 6,
+     "dominant_isoform": "ENST00000541774.5",
+     "isoform_n_models": 2694,
+     "isoform_context": "ERBB2: median dominant-isoform fraction 0.49 across 2694 DepMap cell lines (6 expressed isoforms median; top ENST00000541774.5) \u2014 MODEL isoform-expression, verdict-inert."
+    },
+    "interpretation_call": "broadly_high",
+    "caveats": [],
+    "provenance": {
+     "method_calls": [
+      {
+       "method": "depmap-expression-distribution",
+       "git_sha": "7e6f0e8",
+       "args": {
+        "target": "{target.symbol}",
+        "release_pin": "{release_pin}",
+        "expressed_threshold": "THRESHOLD.expressed_threshold_log2tpm"
+       }
+      },
+      {
+       "method": "depmap-isoform-expression",
+       "git_sha": "7e6f0e8",
+       "args": {
+        "target": "{target.symbol}"
+       }
+      }
+     ],
+     "input_manifest_ids": [
+      "depmap-consortium-26q1",
+      "depmap-isoform-expression-per-gene-v1",
+      "allgene-depmap-rank-26q3-v1"
+     ]
+    }
+   },
+   {
+    "card_id": "tumor-rna-vs-adjacent",
+    "card_version": "1.0.0",
+    "validation_state": "pass",
+    "summary": {
+     "log2_fc": 5.210059072639534,
+     "q_value": 3.6514109886197233e-35,
+     "expression_call_class": "strong_upregulation",
+     "gtex_log2_fc": 4.341123874396541,
+     "gtex_q_value": 2.5102772206180494e-278,
+     "tumor_mean_tpm": null,
+     "adjacent_mean_tpm": null,
+     "n_tumor": null,
+     "n_adjacent": null,
+     "descriptive_stats_unavailable": true,
+     "cells_ran": 2.0,
+     "dominant_direction": "up",
+     "_data_source": "brca-dge-tumor-vs-normal-sensitivity-v1"
+    },
+    "interpretation_call": "strong_upregulation",
+    "caveats": [],
+    "provenance": {
+     "method_calls": [
+      {
+       "method": "dge-deseq2",
+       "git_sha": "7e6f0e8",
+       "args": {
+        "indication": "{indication}",
+        "release_pin": "{release_pin}",
+        "contrast": "tumor_vs_adjacent"
+       }
+      }
+     ],
+     "input_manifest_ids": [
+      "expression-rna-tumor-vs-adjacent"
+     ]
+    }
+   },
+   {
+    "card_id": "tumor-rna-distribution",
+    "card_version": "1.0.0",
+    "validation_state": "pass",
+    "summary": {
+     "n_tumor_samples": 1127,
+     "median_log2tpm": 6.271317958831787,
+     "p95_log2tpm": 10.04163646697998,
+     "p99_log2tpm": 11.055991497039795,
+     "min_log2tpm": 0.679098904132843,
+     "max_log2tpm": 11.871753692626953,
+     "p5_log2tpm": 4.123487758636475,
+     "q1_log2tpm": 5.525284290313721,
+     "q3_log2tpm": 6.9596333503723145,
+     "mean_log2tpm": 6.380159373344736,
+     "sd_log2tpm": 1.57148551534344,
+     "coefficient_of_variation": 2.1459192882864606,
+     "distribution_pattern": "continuous",
+     "detectable_fraction": 0.9991126885536823,
+     "moderate_fraction": 0.9787045252883763,
+     "high_fraction": 0.707187222715173,
+     "tumor_expression_class": "broadly_high",
+     "allgene_percentile": 96.71925354003906,
+     "allgene_percentile_class": "top_decile",
+     "allgene_percentile_context": "tcga_tumor:BRCA all-gene median rank (allgene-tumor-rank-v1; mean of 1 study null(s))",
+     "allgene_percentile_by_study": {
+      "BRCA": 96.72
+     },
+     "control_position_class": "within_positives",
+     "control_position": "above 3/4 positive control(s); above 3/5 negative control(s)",
+     "control_positives": {
+      "CEACAM5": 66.8,
+      "EPCAM": 98.66,
+      "MSLN": 51.0,
+      "ERBB2": 96.72
+     },
+     "control_negatives": {
+      "ACTB": 99.94,
+      "GAPDH": 99.86,
+      "SFTPC": 16.37,
+      "GYPA": 16.37,
+      "PRM1": 16.37
+     },
+     "control_negatives_excluded_lineage_conflict": [],
+     "control_position_context": "tumor:BRCA vs curated controls (tumor_presence_controls v1.0.0; indication_normal_tissue=Breast; allgene-tumor-rank-v1)",
+     "control_percentile_source": "allgene-tumor-rank-v1",
+     "control_position_method_version": "0.1.0",
+     "studies": [
+      "BRCA"
+     ],
+     "matched_normal_tissue": "BREAST",
+     "n_normal_samples": 482,
+     "fraction_tumor_above_normal_p95": 0.5687666370896185,
+     "normal_p95_log2tpm": 6.098344421386718,
+     "fraction_tumor_above_normal_p99": 0.422360248447205,
+     "normal_p99_log2tpm": 6.479743866920471,
+     "distribution_overlap_tumor_normal": 0.44585559282345455,
+     "subtype_axis_available": false,
+     "spotlight_subtype": null,
+     "n_subtypes_measured": 0,
+     "n_subtypes_enriched": 0,
+     "_subtype_note": "no landed tumor assignment shard for this indication",
+     "subtype_signals_nonuniform": [],
+     "method_version": "0.1.0",
+     "splicing_dysregulation_class": "highly_variable",
+     "n_splice_events": 6,
+     "max_event_psi_std": 0.10003247279610984,
+     "median_event_psi_std": 0.00560291061074602,
+     "n_variable_events": 1,
+     "n_tumor_shifted_events": 0,
+     "dominant_event_splice_type": "AP",
+     "splicing_context": "ERBB2 in BRCA: 6 splice events, max PSI std 0.10 across 1097 tumours (1 variable; 0 tumour-shifted vs matched normal) \u2014 PATIENT alternative-splicing, verdict-inert."
+    },
+    "interpretation_call": "broadly_high",
+    "caveats": [],
+    "provenance": {
+     "method_calls": [
+      {
+       "method": "tcga-gtex-expression-distribution",
+       "git_sha": "7e6f0e8",
+       "args": {
+        "target": "{target.symbol}",
+        "indication": "{indication}"
+       }
+      },
+      {
+       "method": "tcga-spliceseq-psi",
+       "git_sha": "7e6f0e8",
+       "args": {
+        "target": "{target.symbol}",
+        "indication": "{indication}"
+       }
+      }
+     ],
+     "input_manifest_ids": [
+      "tcga-tumor-tpm-recount3-long-v1",
+      "gtex-tpm-recount3-long-v1",
+      "allgene-tumor-rank-v1",
+      "tcga-spliceseq-psi-per-gene-v1"
+     ]
+    }
+   },
+   {
+    "card_id": "tumor-protein-abundance-cptac",
+    "card_version": "1.0.0",
+    "validation_state": "pass",
+    "summary": {
+     "cohort": "BRCA",
+     "protein_expression_class": "not_significant",
+     "protein_contrast_estimable": true,
+     "protein_effect_size": 0.56872124957413,
+     "allgene_percentile": 79.7645866186078,
+     "allgene_percentile_class": "mid",
+     "allgene_percentile_context": "cptac-protein-tumor-vs-normal cohort=BRCA metric=protein_effect_size",
+     "protein_bh_q_value": 0.319942210629478,
+     "protein_p_value": 0.261164811943211,
+     "protein_median_log2_tumor": -1.33017498914787,
+     "protein_median_log2_normal": -1.7175729051702,
+     "n_tumor_samples": 125,
+     "n_normal_samples": 18,
+     "protein_effect_size_se": 0.491605950807473,
+     "protein_effect_standardized_t": 1.1569,
+     "protein_effect_cohens_d": 0.2916,
+     "protein_effect_standardized_class": "small",
+     "protein_effect_standardized_method": "moderated_se_exact",
+     "stat_test_used": "msstatstmt_limma_ebayes_moderated",
+     "method_version": "1.2.0",
+     "_data_source": "cptac-protein-tumor-vs-normal-per-cohort-v1"
+    },
+    "interpretation_call": "not_significant",
+    "caveats": [],
+    "provenance": {
+     "method_calls": [
+      {
+       "method": "cptac-protein-deg",
+       "git_sha": "7e6f0e8",
+       "args": {
+        "cohort": "{indication}",
+        "gene_symbol": "{target.symbol}"
+       }
+      }
+     ],
+     "input_manifest_ids": [
+      "cptac-protein-tumor-vs-normal-per-cohort-v1"
+     ]
+    }
+   },
+   {
+    "card_id": "cellline-protein-abundance",
+    "card_version": "1.0.0",
+    "validation_state": "pass",
+    "summary": {
+     "protein_expression_class": "broadly_moderate",
+     "n_cell_lines_evaluated": 375,
+     "n_cell_lines_in_panel": 375,
+     "fraction_detected": 1.0,
+     "median_log2_abundance_panel": -0.0908361561047966,
+     "p5_log2_abundance_panel": -2.0232346949443882,
+     "p25_log2_abundance_panel": -0.6690829238558895,
+     "p75_log2_abundance_panel": 0.6332487971739355,
+     "p95_log2_abundance_panel": 1.862139924396761,
+     "log2_abundance_iqr": 1.3023317210298249,
+     "n_lineages_evaluated": 17,
+     "per_lineage_stats": [
+      {
+       "lineage": "Prostate",
+       "n": 5,
+       "median_log2_abundance": 0.902794182585249
+      },
+      {
+       "lineage": "Uterus",
+       "n": 14,
+       "median_log2_abundance": 0.8088149048608305
+      },
+      {
+       "lineage": "Breast",
+       "n": 30,
+       "median_log2_abundance": 0.671054873532132
+      },
+      {
+       "lineage": "Esophagus/Stomach",
+       "n": 28,
+       "median_log2_abundance": 0.5926203705640605
+      },
+      {
+       "lineage": "Pancreas",
+       "n": 20,
+       "median_log2_abundance": 0.497517470989061
+      },
+      {
+       "lineage": "Bowel",
+       "n": 30,
+       "median_log2_abundance": 0.462050413578854
+      },
+      {
+       "lineage": "Liver",
+       "n": 14,
+       "median_log2_abundance": 0.34177461216378446
+      },
+      {
+       "lineage": "Ovary/Fallopian Tube",
+       "n": 17,
+       "median_log2_abundance": 0.307823959103192
+      },
+      {
+       "lineage": "CNS/Brain",
+       "n": 14,
+       "median_log2_abundance": 0.044454810562086056
+      },
+      {
+       "lineage": "Head and Neck",
+       "n": 10,
+       "median_log2_abundance": -0.019902004160449953
+      },
+      {
+       "lineage": "Bladder/Urinary Tract",
+       "n": 11,
+       "median_log2_abundance": -0.0483730531573409
+      },
+      {
+       "lineage": "Bone",
+       "n": 7,
+       "median_log2_abundance": -0.109798555465285
+      },
+      {
+       "lineage": "Kidney",
+       "n": 15,
+       "median_log2_abundance": -0.241900216766348
+      },
+      {
+       "lineage": "Lung",
+       "n": 76,
+       "median_log2_abundance": -0.27763165820075053
+      },
+      {
+       "lineage": "Skin",
+       "n": 33,
+       "median_log2_abundance": -0.385508723087348
+      },
+      {
+       "lineage": "Lymphoid",
+       "n": 24,
+       "median_log2_abundance": -1.409890424832155
+      },
+      {
+       "lineage": "Myeloid",
+       "n": 16,
+       "median_log2_abundance": -1.9382662432991449
+      }
+     ],
+     "n_lineage_restricted_lineages": 0,
+     "method_version": "0.1.0",
+     "protein_abundance_source": "gygi_ms",
+     "allgene_percentile": 30.191909539735626,
+     "allgene_percentile_class": "mid",
+     "allgene_percentile_context": "depmap-proteomics-26q1 panel-wide metric=median_log2_abundance source=gygi_ms"
+    },
+    "interpretation_call": "broadly_moderate",
+    "caveats": [],
+    "provenance": {
+     "method_calls": [
+      {
+       "method": "depmap-protein-abundance",
+       "git_sha": "7e6f0e8",
+       "args": {
+        "target": "{target.symbol}"
+       }
+      }
+     ],
+     "input_manifest_ids": [
+      "depmap-gygi-protein-abundance-per-protein-v1"
+     ]
+    }
+   },
+   {
+    "card_id": "tumor-elevation-breadth",
+    "card_version": "1.0.0",
+    "validation_state": "pass",
+    "summary": {
+     "tumor_elevation_breadth_class": "multi_tumor_elevated",
+     "n_cohorts_tested": 10,
+     "n_cohorts_elevated": 3,
+     "n_cohorts_sig_up_effect_negligible": 0,
+     "n_cohorts_sig_up_pan_cohort_fdr_fail": 0,
+     "fraction_elevated": 0.3,
+     "median_effect_across_elevated": 0.666492812091491,
+     "median_standardized_effect_across_elevated": 1.1774,
+     "most_elevated_cohorts": [
+      {
+       "cohort": "GBM",
+       "protein_expression_class": "modest_up",
+       "protein_effect_size": 0.705639072747492,
+       "protein_bh_q_value": 0.013882764172268,
+       "protein_effect_standardized_class": "large",
+       "n_normal_samples": 6
+      },
+      {
+       "cohort": "UCEC",
+       "protein_expression_class": "modest_up",
+       "protein_effect_size": 0.666492812091491,
+       "protein_bh_q_value": 1.1856977549810702e-09,
+       "protein_effect_standardized_class": "large",
+       "n_normal_samples": 49
+      },
+      {
+       "cohort": "PDAC",
+       "protein_expression_class": "modest_up",
+       "protein_effect_size": 0.539184943087332,
+       "protein_bh_q_value": 2.0498987362592897e-12,
+       "protein_effect_standardized_class": "large",
+       "n_normal_samples": 50
+      }
+     ],
+     "cohorts_tested": [
+      "BRCA",
+      "CCRCC",
+      "COAD",
+      "GBM",
+      "HNSCC",
+      "LSCC",
+      "LUAD",
+      "OV",
+      "PDAC",
+      "UCEC"
+     ],
+     "cohorts_unestimable": [],
+     "rna_tumor_elevation_breadth_class": "multi_tumor_elevated",
+     "rna_n_indications_tested": 27,
+     "rna_n_indications_elevated": 6,
+     "rna_fraction_elevated": 0.2222222222222222,
+     "rna_median_max_log2fc_across_elevated": 2.339236883330412,
+     "rna_most_elevated_indications": [
+      {
+       "indication": "STAD",
+       "max_abs_log2fc": 5.283083177537534,
+       "cells_supporting": 2.0,
+       "dominant_direction": "up"
+      },
+      {
+       "indication": "BRCA",
+       "max_abs_log2fc": 5.210059072639534,
+       "cells_supporting": 2.0,
+       "dominant_direction": "up"
+      },
+      {
+       "indication": "BLCA",
+       "max_abs_log2fc": 2.4455562558675394,
+       "cells_supporting": 2.0,
+       "dominant_direction": "up"
+      },
+      {
+       "indication": "UCEC",
+       "max_abs_log2fc": 2.232917510793285,
+       "cells_supporting": 2.0,
+       "dominant_direction": "up"
+      },
+      {
+       "indication": "LUAD",
+       "max_abs_log2fc": 1.7941583198375626,
+       "cells_supporting": 2.0,
+       "dominant_direction": "up"
+      },
+      {
+       "indication": "GBM",
+       "max_abs_log2fc": 1.2418431454548142,
+       "cells_supporting": 2.0,
+       "dominant_direction": "up"
+      }
+     ],
+     "indications_tested": [
+      "ACC",
+      "BLCA",
+      "BRCA",
+      "CESC",
+      "COAD",
+      "ESCA",
+      "GBM",
+      "HNSC",
+      "KICH",
+      "KIRC",
+      "KIRP",
+      "LAML",
+      "LGG",
+      "LIHC",
+      "LUAD",
+      "LUSC",
+      "OV",
+      "PAAD",
+      "PCPG",
+      "PRAD",
+      "READ",
+      "SKCM",
+      "STAD",
+      "TGCT",
+      "THCA",
+      "UCEC",
+      "UCS"
+     ],
+     "breadth_layer_concordance": "concordant"
+    },
+    "interpretation_call": "multi_tumor_elevated",
+    "caveats": [],
+    "provenance": {
+     "method_calls": [
+      {
+       "method": "cptac-protein-deg",
+       "git_sha": "7e6f0e8",
+       "args": {
+        "target": "{target.symbol}"
+       }
+      }
+     ],
+     "input_manifest_ids": [
+      "cptac-protein-tumor-vs-normal-per-cohort-v1",
+      "pancan-dge-tumor-vs-normal-v1"
+     ]
+    }
+   },
+   {
+    "card_id": "tumor-scrna-celltype-expression",
+    "card_version": "1.0.0",
+    "validation_state": "pass",
+    "summary": {
+     "sc_expression_class": "malignant_subset_detected",
+     "tce_homogeneity_class": "moderately_homogeneous",
+     "malignant_detection_fraction": 0.2827014426460239,
+     "malignant_abundance_log1p_cp10k": 0.27237588662280776,
+     "malignant_compartment_available": true,
+     "malignant_n_donors": 20,
+     "malignant_n_cells": 24489,
+     "ambient_contamination_risk": "low",
+     "top_microenvironment_compartment": "stromal",
+     "top_microenvironment_detection_fraction": 0.04229019277805539,
+     "n_compartments_measured": 5,
+     "n_donor_groups": 26,
+     "n_datasets": 1,
+     "compartment_detection": {
+      "endothelial": 0.019539633091034958,
+      "epithelial_normal": 0.2772079772079772,
+      "immune": 0.004726483407117609,
+      "malignant": 0.2827014426460239,
+      "stromal": 0.04229019277805539
+     },
+     "per_compartment": [
+      {
+       "compartment": "malignant",
+       "median_detection_fraction": 0.2827014426460239,
+       "median_abundance_log1p_cp10k": 0.27237588662280776,
+       "n_donors": 20,
+       "n_cells_total": 24489,
+       "is_caf": false
+      },
+      {
+       "compartment": "stromal",
+       "median_detection_fraction": 0.04229019277805539,
+       "median_abundance_log1p_cp10k": 0.048632405813058915,
+       "n_donors": 26,
+       "n_cells_total": 11996,
+       "is_caf": true
+      },
+      {
+       "compartment": "immune",
+       "median_detection_fraction": 0.004726483407117609,
+       "median_abundance_log1p_cp10k": 0.006355869257193536,
+       "n_donors": 26,
+       "n_cells_total": 51619,
+       "is_caf": false
+      },
+      {
+       "compartment": "endothelial",
+       "median_detection_fraction": 0.019539633091034958,
+       "median_abundance_log1p_cp10k": 0.01579291928676097,
+       "n_donors": 24,
+       "n_cells_total": 7587,
+       "is_caf": false
+      },
+      {
+       "compartment": "epithelial_normal",
+       "median_detection_fraction": 0.2772079772079772,
+       "median_abundance_log1p_cp10k": 0.26686894362232444,
+       "n_donors": 10,
+       "n_cells_total": 4326,
+       "is_caf": false
+      }
+     ],
+     "per_compartment_heterogeneity": [
+      {
+       "compartment": "malignant",
+       "n_donors": 20,
+       "median_detection_fraction": 0.2827014426460239,
+       "detection_fraction_donor_p25": 0.1986796031514444,
+       "detection_fraction_donor_p75": 0.5514756733736826,
+       "detection_fraction_donor_iqr": 0.352796,
+       "fraction_donors_broadly_detecting": 0.3,
+       "dispersion_available": true
+      },
+      {
+       "compartment": "stromal",
+       "n_donors": 26,
+       "median_detection_fraction": 0.04229019277805539,
+       "detection_fraction_donor_p25": 0.026084293065425142,
+       "detection_fraction_donor_p75": 0.07273282845228395,
+       "detection_fraction_donor_iqr": 0.046649,
+       "fraction_donors_broadly_detecting": 0.0,
+       "dispersion_available": true
+      },
+      {
+       "compartment": "immune",
+       "n_donors": 26,
+       "median_detection_fraction": 0.004726483407117609,
+       "detection_fraction_donor_p25": 0.003019957983193277,
+       "detection_fraction_donor_p75": 0.009027873391772608,
+       "detection_fraction_donor_iqr": 0.006008,
+       "fraction_donors_broadly_detecting": 0.0,
+       "dispersion_available": true
+      },
+      {
+       "compartment": "endothelial",
+       "n_donors": 24,
+       "median_detection_fraction": 0.019539633091034958,
+       "detection_fraction_donor_p25": 0.009657088641908377,
+       "detection_fraction_donor_p75": 0.029822565969062784,
+       "detection_fraction_donor_iqr": 0.020165,
+       "fraction_donors_broadly_detecting": 0.0,
+       "dispersion_available": true
+      },
+      {
+       "compartment": "epithelial_normal",
+       "n_donors": 10,
+       "median_detection_fraction": 0.2772079772079772,
+       "detection_fraction_donor_p25": 0.24617346938775508,
+       "detection_fraction_donor_p75": 0.38677972553273193,
+       "detection_fraction_donor_iqr": 0.140606,
+       "fraction_donors_broadly_detecting": 0.2,
+       "dispersion_available": true
+      }
+     ],
+     "indication": "BRCA",
+     "product_id": "sc-pseudobulk-tumor-brca-wu-v1",
+     "malignant_annotation_method": "curated",
+     "entity_purity": "entity_specific",
+     "caf_detection_fraction": 0.04229019277805539,
+     "caf_abundance_log1p_cp10k": 0.048632405813058915,
+     "caf_compartment_available": true,
+     "caf_vs_malignant_class": "caf_low",
+     "stromal_confound_class": "malignant_intrinsic",
+     "within_tumor_coverage_class": "low",
+     "inter_donor_consistency_class": "variable",
+     "tce_antigen_escape_class": "escape_risk_high",
+     "malignant_detection_donor_iqr": 0.352796,
+     "fraction_donors_broadly_detecting": 0.3,
+     "malignant_expresser_skewness": null,
+     "malignant_expresser_excess_kurtosis": null,
+     "malignant_expresser_bimodality_coefficient": null,
+     "malignant_n_detected": 9420,
+     "malignant_expresser_bimodality_class": "underpowered",
+     "method_version": "0.1.0"
+    },
+    "interpretation_call": "malignant_subset_detected",
+    "caveats": [],
+    "provenance": {
+     "method_calls": [
+      {
+       "method": "sc-tumor-expression-celltype",
+       "git_sha": "7e6f0e8",
+       "args": {
+        "target": "{target.symbol}",
+        "indication": "{indication}"
+       }
+      }
+     ],
+     "input_manifest_ids": [
+      "sc-pseudobulk-tumor-crc-coadread-v1",
+      "sc-pseudobulk-tumor-luca-nsclc-v1",
+      "sc-pseudobulk-donor-celltype-lusc-v1",
+      "sc-pseudobulk-tumor-3ca-pancreas-v1",
+      "sc-pseudobulk-tumor-3ca-hnsc-v1",
+      "sc-pseudobulk-tumor-3ca-kidney-v1",
+      "sc-pseudobulk-tumor-3ca-ovarian-v1",
+      "sc-pseudobulk-tumor-stad-golim-v1",
+      "sc-pseudobulk-tumor-brca-wu-v1"
+     ]
+    }
+   },
+   {
+    "card_id": "tumor-rna-distribution-by-subtype",
+    "card_version": "1.0.0",
+    "validation_state": "pass",
+    "summary": {
+     "target": "ERBB2",
+     "indication": "BRCA",
+     "subtype_axis_available": false,
+     "subtype_axis_quality": "unavailable",
+     "purity_source": null,
+     "subtype_purity_spread": null,
+     "spotlight_subtype": null,
+     "assignment_manifest": null,
+     "n_subtypes_measured": 0,
+     "n_subtypes_enriched": 0,
+     "n_subtypes_clearing_normal_window": null,
+     "n_subtypes_clearing_proxy_window_by_tissue": null,
+     "n_subtypes_restricted": 0,
+     "subtype_stratification_class": "subtype_axis_unavailable",
+     "matched_normal_tissue": null,
+     "normal_comparator_type": null,
+     "proxy_normal_tissues": [],
+     "subtype_omnibus_kruskal_h": null,
+     "subtype_omnibus_p": null,
+     "subtype_variance_explained": null,
+     "subtype_effect_size_class": "data_unavailable",
+     "which_subtypes_separate": null,
+     "subtype_omnibus_driving_axis": null,
+     "subtype_omnibus_by_axis": [],
+     "per_subgroup_metrics": [],
+     "_subtype_note": "no landed tumor assignment shard for this indication",
+     "method_version": "0.1.0"
+    },
+    "interpretation_call": "subtype_axis_unavailable",
+    "caveats": [],
+    "provenance": {
+     "method_calls": [
+      {
+       "method": "tcga-gtex-expression-distribution",
+       "git_sha": "7e6f0e8",
+       "args": {
+        "target": "{target.symbol}",
+        "indication": "{indication}"
+       }
+      }
+     ],
+     "input_manifest_ids": [
+      "tcga-tumor-tpm-recount3-long-v1",
+      "tcga-tumor-tpm-per-sample-v1",
+      "tcga-subgroup-assignments-coadread-v1",
+      "tcga-subgroup-assignments-hnsc-v1",
+      "tcga-subgroup-assignments-stad-v1",
+      "tcga-subgroup-assignments-nsclc-v1",
+      "tcga-subgroup-assignments-esca-v1",
+      "tcga-subgroup-assignments-paad-v1",
+      "tcga-subgroup-assignments-hnsc-maf-v1",
+      "tcga-subgroup-assignments-nsclc-maf-v1",
+      "tcga-subgroup-assignments-esca-maf-v1",
+      "tcga-subgroup-assignments-paad-maf-v1",
+      "sclc-subgroup-assignments-v1"
+     ]
+    }
+   },
+   {
+    "card_id": "cellline-rna-distribution-by-subtype",
+    "card_version": "1.0.0",
+    "validation_state": "pass",
+    "summary": {
+     "subtype_axis_available": false,
+     "n_subtypes_measured": 0,
+     "subtype_stratification_class": null,
+     "spotlight_subtype": null,
+     "per_subgroup_metrics": []
+    },
+    "interpretation_call": "uninterpreted",
+    "caveats": [],
+    "provenance": {
+     "method_calls": [
+      {
+       "method": "depmap-expression-distribution",
+       "git_sha": "7e6f0e8",
+       "args": {
+        "target": "{target.symbol}",
+        "indication": "{indication}"
+       }
+      }
+     ],
+     "input_manifest_ids": [
+      "depmap-consortium-26q1",
+      "depmap-subgroup-assignments-coadread-v1",
+      "depmap-subgroup-assignments-hnsc-v1",
+      "depmap-subgroup-assignments-stad-v1",
+      "depmap-subgroup-assignments-nsclc-v1",
+      "depmap-subgroup-assignments-esca-v1",
+      "depmap-subgroup-assignments-paad-v1",
+      "depmap-subgroup-assignments-sclc-v1"
+     ]
+    }
+   },
+   {
+    "card_id": "tumor-protein-distribution-by-subtype",
+    "card_version": "1.0.0",
+    "validation_state": "pass",
+    "summary": {
+     "subtype_axis_available": false,
+     "subtype_axis_quality": "unavailable",
+     "n_subtypes_measured": 0,
+     "subtype_stratification_class": null,
+     "per_subgroup_metrics": []
+    },
+    "interpretation_call": "uninterpreted",
+    "caveats": [],
+    "provenance": {
+     "method_calls": [
+      {
+       "method": "cptac-protein-distribution",
+       "git_sha": "7e6f0e8",
+       "args": {
+        "target": "{target.symbol}",
+        "indication": "{indication}"
+       }
+      }
+     ],
+     "input_manifest_ids": [
+      "cptac-protein-tumor-vs-normal-per-sample-v1",
+      "cptac-subgroup-assignments-coadread-v1"
+     ]
+    }
+   },
+   {
+    "card_id": "expression-purity-confound",
+    "card_version": "1.0.0",
+    "validation_state": "pass",
+    "summary": {
+     "target": "ERBB2",
+     "indication": "BRCA",
+     "purity_source": "pancanatlas_absolute",
+     "n_paired_samples": 1020,
+     "n_expr_samples": 1093,
+     "purity_confound_class": "purity_independent",
+     "expression_purity_pearson_r": 0.0215,
+     "expression_purity_pearson_p": 0.492,
+     "expression_purity_spearman_r": 0.0739,
+     "median_purity": 0.59,
+     "purity_range_iqr": 0.28,
+     "purity_spread_underpowered": false,
+     "cellular_source": "unresolved_from_bulk",
+     "method_version": "0.1.0"
+    },
+    "interpretation_call": "purity_independent",
+    "caveats": [],
+    "provenance": {
+     "method_calls": [
+      {
+       "method": "expression-purity-confound",
+       "git_sha": "7e6f0e8",
+       "args": {
+        "target": "{target.symbol}",
+        "indication": "{indication}"
+       }
+      }
+     ],
+     "input_manifest_ids": [
+      "tcga-tumor-tpm-recount3-long-v1",
+      "gdc-pancanatlas-cnv-2018"
+     ]
+    }
+   },
+   {
+    "card_id": "cellline-rna-protein-concordance",
+    "card_version": "1.0.0",
+    "validation_state": "pass",
+    "summary": {
+     "rna_protein_r": 0.8479,
+     "rna_protein_spearman": 0.7837,
+     "n_paired_models": 371,
+     "protein_detection_fraction": 0.1436,
+     "rna_expressed_fraction": 0.9892,
+     "rna_high_protein_low_fraction": 0.0954,
+     "target": "ERBB2",
+     "release_pin": "26q3",
+     "rna_as_biomarker": "adequate_proxy",
+     "rna_proxy_classified_on": "spearman",
+     "rna_protein_r_ci95_low": 0.7382,
+     "rna_protein_r_ci95_high": 0.8221,
+     "rna_proxy_class_boundary_fragile": false,
+     "rna_proxy_underpowered": false,
+     "rna_proxy_detection_limited": false,
+     "method_version": "0.1.0"
+    },
+    "interpretation_call": "uninterpreted",
+    "caveats": [],
+    "provenance": {
+     "method_calls": [
+      {
+       "method": "depmap-rna-protein-concordance",
+       "git_sha": "7e6f0e8",
+       "args": {
+        "target": "{target.symbol}"
+       }
+      }
+     ],
+     "input_manifest_ids": [
+      "depmap-consortium-26q1",
+      "depmap-consortium-26q1-proteomics"
+     ]
+    }
+   },
+   {
+    "card_id": "rna-protein-concordance-tumor",
+    "card_version": "1.0.0",
+    "validation_state": "pass",
+    "summary": {
+     "target": "ERBB2",
+     "indication": "BRCA",
+     "cptac_cohort": "brca",
+     "substrate": "cptac_tumor",
+     "rna_protein_r": 0.7789,
+     "rna_protein_spearman": 0.4968,
+     "n_paired_tumors": 119,
+     "rna_as_biomarker": "partial_proxy",
+     "rna_proxy_classified_on": "spearman",
+     "rna_protein_r_ci95_low": 0.3383,
+     "rna_protein_r_ci95_high": 0.6279,
+     "rna_proxy_class_boundary_fragile": true,
+     "rna_proxy_underpowered": false,
+     "rna_proxy_detection_limited": null,
+     "rna_proxy_tumor_confounds": [
+      "lod_mnar_attenuation",
+      "bulk_purity_stromal_admixture"
+     ],
+     "rna_proxy_cross_cohort_pooled": false,
+     "rna_proxy_per_cohort": [
+      {
+       "cohort": "brca",
+       "n": 119,
+       "spearman": 0.4968,
+       "pearson": 0.7789
+      }
+     ],
+     "method_version": "0.1.0"
+    },
+    "interpretation_call": "uninterpreted",
+    "caveats": [],
+    "provenance": {
+     "method_calls": [
+      {
+       "method": "depmap-rna-protein-concordance",
+       "git_sha": "7e6f0e8",
+       "args": {
+        "target": "{target.symbol}",
+        "indication": "{indication}"
+       }
+      }
+     ],
+     "input_manifest_ids": [
+      "cptac-rna-protein-matched-per-sample-v1"
+     ]
+    }
+   },
+   {
+    "card_id": "cellline-protein-abundance-procan",
+    "card_version": "1.0.0",
+    "validation_state": "pass",
+    "summary": {
+     "protein_expression_class": "sub_broad_detection",
+     "n_cell_lines_evaluated": 601,
+     "n_cell_lines_in_panel": 949,
+     "fraction_detected": 0.6333,
+     "median_log2_abundance_panel": 2.8680579350982844,
+     "p5_log2_abundance_panel": 1.2527777573500667,
+     "p25_log2_abundance_panel": 2.228727934508524,
+     "p75_log2_abundance_panel": 3.628760620732501,
+     "p95_log2_abundance_panel": 6.324064678759971,
+     "log2_abundance_iqr": 1.4000326862239771,
+     "n_lineages_evaluated": 0,
+     "per_lineage_stats": [],
+     "n_lineage_restricted_lineages": 0,
+     "method_version": "0.1.0",
+     "protein_abundance_source": "procan_dia_swath",
+     "allgene_percentile": 50.63551841826527,
+     "allgene_percentile_class": "mid",
+     "allgene_percentile_context": "procan-cellline-protein-abundance-per-protein-v1 panel-wide metric=median_log_abundance source=procan_dia_swath"
+    },
+    "interpretation_call": "sub_broad_detection",
+    "caveats": [],
+    "provenance": {
+     "method_calls": [
+      {
+       "method": "procan-protein-abundance",
+       "git_sha": "7e6f0e8",
+       "args": {
+        "target": "{target.symbol}"
+       }
+      }
+     ],
+     "input_manifest_ids": [
+      "procan-cellline-protein-abundance-per-protein-v1"
+     ]
+    }
+   },
+   {
+    "card_id": "hpa-pathology-cancer-ihc",
+    "card_version": "1.0.0",
+    "validation_state": "pass",
+    "summary": {
+     "protein_presence_class": "ihc_detected_moderate",
+     "fraction_detected": 0.6363636363636364,
+     "fraction_moderate_strong": 0.5454545454545454,
+     "staining_score": 1.5454545454545454,
+     "n_high": 4,
+     "n_medium": 2,
+     "n_low": 1,
+     "n_not_detected": 4,
+     "n_patients_total": 11,
+     "prognostic_type": "none",
+     "prognostic_is_significant": false,
+     "prognostic_p_value": null,
+     "hpa_cancer_type": "breast cancer",
+     "indication": "BRCA",
+     "presence_context": "hpa-pathology-cancer-ihc antibody staining; indication BRCA -> HPA type 'breast cancer' (HPA cancer axis is coarser than OncoTree)",
+     "_data_source": "hpa-pathology-cancer-ihc-per-gene-v1",
+     "method_version": "1.0.0"
+    },
+    "interpretation_call": "ihc_detected_moderate",
+    "caveats": [],
+    "provenance": {
+     "method_calls": [
+      {
+       "method": "hpa-pathology-cancer-ihc",
+       "git_sha": "7e6f0e8",
+       "args": {
+        "target": "{target.symbol}",
+        "indication": "{indication}"
+       }
+      }
+     ],
+     "input_manifest_ids": [
+      "hpa-pathology-cancer-ihc-per-gene-v1",
+      "hpa-pathology-cancer-ihc-v23"
+     ]
+    }
+   },
+   {
+    "card_id": "normal-tissue-liability",
+    "card_version": "1.0.0",
+    "validation_state": "passed_with_warnings",
+    "summary": {
+     "normal_tissue_breadth_class": "broad_normal_expression",
+     "essential_tissue_flag": "unknown",
+     "hpa_tissue_distribution": "Detected in many",
+     "hpa_tissue_specificity": "Tissue enriched",
+     "hpa_ihc_reliability": "enhanced",
+     "essential_tissue_low_reliability": false,
+     "n_essential_tissues_with_expression": 0,
+     "essential_tissues_flagged": [],
+     "n_specific_tissues": 1,
+     "specific_tissues": [
+      {
+       "tissue": "lymphoid tissue",
+       "intensity": 8296603.9
+      }
+     ],
+     "safety_tissue_flags": [
+      "broad"
+     ],
+     "method_version": "0.2.0"
+    },
+    "interpretation_call": "broad_normal_expression",
+    "caveats": [],
+    "provenance": {
+     "method_calls": [
+      {
+       "method": "hpa-normal-tissue-liability",
+       "git_sha": "7e6f0e8",
+       "args": {
+        "target": "{target.symbol}"
+       }
+      }
+     ],
+     "input_manifest_ids": [
+      "hpa-v25-1"
+     ]
+    },
+    "warning_ids": [
+     "broad_normal_footprint"
+    ]
+   },
+   {
+    "card_id": "sc-normal-celltype-expression",
+    "card_version": "1.0.0",
+    "validation_state": "pass",
+    "summary": {
+     "sc_normal_expression_class": "HIGH_LIABILITY",
+     "sc_normal_safety_essential_class": "critical_organ_liability",
+     "max_detection_cell_type": "airway submucosal gland collecting duct epithelial cell",
+     "max_detection_fraction": 0.8530927835051546,
+     "expressing_donor_fraction_max": 1.0,
+     "sc_normal_abundance_class": "moderate_abundance",
+     "sc_normal_peak_median_abund": 0.506717582174471,
+     "sc_normal_essential_max_cell_type": "kidney connecting tubule epithelial cell",
+     "sc_normal_essential_max_tissue": "kidney",
+     "sc_normal_essential_max_detection_fraction": 0.4622222222222222,
+     "sc_normal_essential_donor_fraction": 0.9906103286384976,
+     "sc_normal_essential_n_datasets_reliable": 17,
+     "sc_normal_essential_median_abund": 0.5500964556283098,
+     "sc_normal_essential_veto_grade": "accessible_high_severity",
+     "sc_normal_safety_detection_confidence": "confident",
+     "sc_normal_detection_caveat": null,
+     "sc_normal_breadth_null_fraction": 0.208067940552017,
+     "sc_normal_ceiling_detection_fraction": 0.8530927835051546,
+     "safety_essential_flags": {
+      "Schwann cell": 0.225,
+      "cardiac muscle cell": 0.16337017507756801,
+      "cardiac neuron": 0.05263157894736842,
+      "fetal cardiomyocyte": 0.06358381502890173,
+      "neuron": 0.0699685534591195,
+      "ventricular cardiac muscle cell": 0.1111111111111111,
+      "cholangiocyte": 0.21739130434782608,
+      "endothelial cell of periportal hepatic sinusoid": 0.05634920634920634,
+      "hepatocyte": 0.06278026905829596,
+      "intrahepatic cholangiocyte": 0.2426470588235294,
+      "midzonal region hepatocyte": 0.054093567251461985,
+      "vein endothelial cell": 0.06896551724137931,
+      "capillary endothelial cell": 0.05489417989417989,
+      "endothelial cell": 0.05361419963189874,
+      "endothelial cell of arteriole": 0.09039836567926456,
+      "epithelial cell of early distal convoluted tubule": 0.33402891456911776,
+      "epithelial cell of nephron": 0.3504006377498876,
+      "epithelial cell of proximal tubule": 0.1955958549222798,
+      "epithelial cell of proximal tubule segment 1": 0.06654635258358663,
+      "epithelial cell of proximal tubule segment 3": 0.09673659673659674,
+      "glomerular capillary endothelial cell": 0.06060606060606061,
+      "glomerular endothelial cell": 0.06703732106339469,
+      "kidney capillary endothelial cell": 0.06666666666666667,
+      "kidney collecting duct alpha-intercalated cell": 0.3748569139194139,
+      "kidney collecting duct cell": 0.4190503432494279,
+      "kidney collecting duct intercalated cell": 0.5,
+      "kidney collecting duct principal cell": 0.6073194856577646,
+      "kidney connecting tubule epithelial cell": 0.4622222222222222,
+      "kidney connecting tubule principal cell": 0.48502994011976047,
+      "kidney distal convoluted tubule epithelial cell": 0.45761494252873564,
+      "kidney inner medulla collecting duct epithelial cell": 0.625,
+      "kidney loop of Henle ascending limb epithelial cell": 0.1651821862348178,
+      "kidney loop of Henle cortical thick ascending limb epithelial cell": 0.5806451612903226,
+      "kidney loop of Henle descending limb epithelial cell": 0.06858108108108107,
+      "kidney loop of Henle epithelial cell": 0.349802371541502,
+      "kidney loop of Henle thick ascending limb epithelial cell": 0.3937007874015748,
+      "kidney loop of Henle thin ascending limb epithelial cell": 0.4444444444444444,
+      "kidney loop of Henle thin descending limb epithelial cell": 0.38414634146341464,
+      "kidney outer medulla collecting duct intercalated cell": 0.49159663865546216,
+      "kidney proximal convoluted tubule epithelial cell": 0.11258741258741259,
+      "mesonephric nephron tubule epithelial cell": 0.19644300727566694,
+      "nephron tubule epithelial cell": 0.7442178940961655,
+      "podocyte": 0.125,
+      "L2/3-6 intratelencephalic projecting glutamatergic neuron": 0.055226824457593686,
+      "L3 intratelencephalic projecting glutamatergic neuron": 0.07710597826086957,
+      "L4/5 intratelencephalic projecting glutamatergic neuron": 0.0913633119200571,
+      "L5 extratelencephalic projecting glutamatergic cortical neuron": 0.07526881720430108,
+      "L6b glutamatergic cortical neuron": 0.061046511627906974,
+      "L6b glutamatergic neuron of the primary motor cortex": 0.05063291139240506,
+      "astrocyte": 0.09587649626562898,
+      "astrocyte of the cerebral cortex": 0.16147308781869688,
+      "central nervous system neuron": 0.0625,
+      "corticothalamic-projecting glutamatergic cortical neuron": 0.05238095238095238,
+      "direct pathway medium spiny neuron": 0.13278495887191538,
+      "indirect pathway medium spiny neuron": 0.09543668297377497,
+      "mature astrocyte": 0.0625,
+      "medium spiny neuron": 0.08333333333333333,
+      "near-projecting glutamatergic cortical neuron": 0.055900621118012424,
+      "neuron of the forebrain": 0.11419215495018463,
+      "cycling pulmonary alveolar type 2 cell": 0.47265625,
+      "endothelial cell of artery": 0.07142857142857142,
+      "pulmonary alveolar epithelial cell": 0.2857142857142857,
+      "pulmonary alveolar type 1 cell": 0.31007751937984496,
+      "pulmonary alveolar type 2 cell": 0.1759776345145704,
+      "pulmonary artery endothelial cell": 0.067816091954023,
+      "vein endothelial cell of respiratory system": 0.05128205128205128,
+      "pancreatic acinar cell": 0.14015748031496064,
+      "BEST4+ colonocyte": 0.4243421052631579,
+      "BEST4+ enterocyte": 0.2782462057335582,
+      "colon endothelial cell": 0.1,
+      "colon epithelial cell": 0.5454040544293252,
+      "colon goblet cell": 0.45,
+      "colonocyte": 0.35443037974683544,
+      "early colonocyte": 0.6951219512195121,
+      "enteric neuron": 0.16326530612244897,
+      "enterocyte": 0.2813089993706734,
+      "enterocyte of epithelium of large intestine": 0.3691292517006802,
+      "gut absorptive cell": 0.3698622965451838,
+      "intestinal crypt stem cell": 0.4112903225806452,
+      "intestinal crypt stem cell of colon": 0.35947712418300654,
+      "intestinal crypt stem cell of large intestine": 0.35738003004190055,
+      "intestinal epithelial cell": 0.30404814873669156,
+      "intestine goblet cell": 0.17902930402930403,
+      "large intestine goblet cell": 0.17231638418079095,
+      "oligodendrocyte precursor cell": 0.16666666666666666,
+      "transit amplifying cell": 0.2727272727272727,
+      "transit amplifying cell of colon": 0.3398208546038949
+     },
+     "n_cell_types_above_20pct": 98,
+     "n_reliable_cell_types": 471,
+     "per_cell_type_top": [
+      {
+       "cell_type": "airway submucosal gland collecting duct epithelial cell",
+       "tissue": "lung",
+       "median_detection_fraction": 0.8530927835051546,
+       "expressing_donor_fraction": 1.0,
+       "n_donors_reliable": 16,
+       "median_abund": 0.506717582174471,
+       "n_datasets_reliable": 1,
+       "is_safety_essential": false
+      },
+      {
+       "cell_type": "nephron tubule epithelial cell",
+       "tissue": "kidney",
+       "median_detection_fraction": 0.7442178940961655,
+       "expressing_donor_fraction": 1.0,
+       "n_donors_reliable": 6,
+       "median_abund": 0.6660521899070913,
+       "n_datasets_reliable": 1,
+       "is_safety_essential": true
+      },
+      {
+       "cell_type": "pluripotent stem cell",
+       "tissue": "brain",
+       "median_detection_fraction": 0.7024793388429752,
+       "expressing_donor_fraction": 1.0,
+       "n_donors_reliable": 10,
+       "median_abund": 0.4961217802916662,
+       "n_datasets_reliable": 2,
+       "is_safety_essential": false
+      },
+      {
+       "cell_type": "early colonocyte",
+       "tissue": "colon",
+       "median_detection_fraction": 0.6951219512195121,
+       "expressing_donor_fraction": 1.0,
+       "n_donors_reliable": 34,
+       "median_abund": 0.36188905549946654,
+       "n_datasets_reliable": 3,
+       "is_safety_essential": true
+      },
+      {
+       "cell_type": "papillary tips cell",
+       "tissue": "kidney",
+       "median_detection_fraction": 0.6551724137931034,
+       "expressing_donor_fraction": 0.9166666666666666,
+       "n_donors_reliable": 12,
+       "median_abund": 0.7733409422600417,
+       "n_datasets_reliable": 3,
+       "is_safety_essential": false
+      },
+      {
+       "cell_type": "respiratory tract goblet cell",
+       "tissue": "lung",
+       "median_detection_fraction": 0.6537678207739308,
+       "expressing_donor_fraction": 1.0,
+       "n_donors_reliable": 16,
+       "median_abund": 0.4090208960736351,
+       "n_datasets_reliable": 4,
+       "is_safety_essential": false
+      },
+      {
+       "cell_type": "M cell of gut",
+       "tissue": "colon",
+       "median_detection_fraction": 0.625,
+       "expressing_donor_fraction": 1.0,
+       "n_donors_reliable": 6,
+       "median_abund": 0.4265437952708453,
+       "n_datasets_reliable": 5,
+       "is_safety_essential": false
+      },
+      {
+       "cell_type": "kidney inner medulla collecting duct epithelial cell",
+       "tissue": "kidney",
+       "median_detection_fraction": 0.625,
+       "expressing_donor_fraction": 1.0,
+       "n_donors_reliable": 13,
+       "median_abund": 0.8508223689028195,
+       "n_datasets_reliable": 1,
+       "is_safety_essential": true
+      },
+      {
+       "cell_type": "kidney collecting duct principal cell",
+       "tissue": "kidney",
+       "median_detection_fraction": 0.6073194856577646,
+       "expressing_donor_fraction": 1.0,
+       "n_donors_reliable": 179,
+       "median_abund": 0.7640184813075596,
+       "n_datasets_reliable": 8,
+       "is_safety_essential": true
+      },
+      {
+       "cell_type": "progenitor cell",
+       "tissue": "kidney",
+       "median_detection_fraction": 0.596749226006192,
+       "expressing_donor_fraction": 1.0,
+       "n_donors_reliable": 24,
+       "median_abund": 0.5738394984423563,
+       "n_datasets_reliable": 3,
+       "is_safety_essential": false
+      },
+      {
+       "cell_type": "respiratory tract epithelial cell",
+       "tissue": "lung",
+       "median_detection_fraction": 0.5869565217391305,
+       "expressing_donor_fraction": 0.9310344827586207,
+       "n_donors_reliable": 29,
+       "median_abund": 0.5918338728539738,
+       "n_datasets_reliable": 5,
+       "is_safety_essential": false
+      },
+      {
+       "cell_type": "kidney loop of Henle cortical thick ascending limb epithelial cell",
+       "tissue": "kidney",
+       "median_detection_fraction": 0.5806451612903226,
+       "expressing_donor_fraction": 1.0,
+       "n_donors_reliable": 17,
+       "median_abund": 0.35791857475819794,
+       "n_datasets_reliable": 1,
+       "is_safety_essential": true
+      },
+      {
+       "cell_type": "colon epithelial cell",
+       "tissue": "colon",
+       "median_detection_fraction": 0.5454040544293252,
+       "expressing_donor_fraction": 1.0,
+       "n_donors_reliable": 42,
+       "median_abund": 0.43266692528439454,
+       "n_datasets_reliable": 4,
+       "is_safety_essential": true
+      },
+      {
+       "cell_type": "renal principal cell",
+       "tissue": "kidney",
+       "median_detection_fraction": 0.5369571912534647,
+       "expressing_donor_fraction": 0.9861111111111112,
+       "n_donors_reliable": 72,
+       "median_abund": 0.6378562940275665,
+       "n_datasets_reliable": 10,
+       "is_safety_essential": false
+      },
+      {
+       "cell_type": "epithelial cell",
+       "tissue": "colon",
+       "median_detection_fraction": 0.5126050420168067,
+       "expressing_donor_fraction": 0.943089430894309,
+       "n_donors_reliable": 123,
+       "median_abund": 0.2980803070081906,
+       "n_datasets_reliable": 10,
+       "is_safety_essential": false
+      }
+     ],
+     "tissues_queried": [
+      "heart",
+      "liver",
+      "kidney",
+      "bone_marrow",
+      "brain",
+      "adrenal_gland",
+      "lung",
+      "pancreas",
+      "colon"
+     ],
+     "origin_tissues": [],
+     "indication": "BRCA",
+     "tissues_loaded": [
+      "heart",
+      "liver",
+      "kidney",
+      "bone_marrow",
+      "brain",
+      "adrenal_gland",
+      "lung",
+      "pancreas",
+      "colon"
+     ],
+     "tissues_missing": [],
+     "essential_tissues_missing": [],
+     "method_version": "0.1.0"
+    },
+    "interpretation_call": "accessible_high_severity",
+    "caveats": [],
+    "provenance": {
+     "method_calls": [
+      {
+       "method": "sc-normal-celltype-expression",
+       "git_sha": "7e6f0e8",
+       "args": {
+        "target": "{target.symbol}",
+        "indication": "{context.indication}"
+       }
+      }
+     ],
+     "input_manifest_ids": [
+      "sc-normal-celltype-expression-colon-v1",
+      "sc-normal-celltype-expression-lung-v1",
+      "sc-normal-celltype-expression-stomach-v1",
+      "sc-normal-celltype-expression-skin-v1",
+      "sc-normal-celltype-expression-small-intestine-v1",
+      "sc-normal-celltype-expression-heart-v1",
+      "sc-normal-celltype-expression-liver-v1",
+      "sc-normal-celltype-expression-kidney-v1",
+      "sc-normal-celltype-expression-bone-marrow-v1",
+      "sc-normal-celltype-expression-brain-v1",
+      "sc-normal-celltype-expression-esophagus-v1",
+      "sc-normal-celltype-expression-pancreas-v1",
+      "sc-normal-celltype-expression-ovary-v1",
+      "sc-normal-celltype-expression-prostate-gland-v1",
+      "sc-normal-celltype-expression-adrenal-gland-v1",
+      "sc-normal-celltype-expression-bladder-organ-v1",
+      "sc-normal-celltype-expression-large-intestine-v1",
+      "sc-normal-celltype-expression-spleen-v1",
+      "sc-normal-celltype-expression-uterus-v1"
+     ]
+    }
+   },
+   {
+    "card_id": "target-identity-summary",
+    "card_version": "1.0.0",
+    "validation_state": "pass",
+    "summary": {
+     "input_value": "ERBB2",
+     "resolved_hgnc_symbol": "ERBB2",
+     "resolved_hgnc_id": 3430,
+     "resolved_ensembl_id": "ENSG00000141736.0",
+     "resolved_uniprot_canonical": "P04626",
+     "resolution_status": "resolved",
+     "redirects_applied": [],
+     "resolver_release_pin": "resolver_v0.1.0-alpha",
+     "biology_axis_curated": "surface_intrinsic",
+     "biology_axis_source": "curated_lookup"
+    },
+    "interpretation_call": "uninterpreted",
+    "caveats": [],
+    "provenance": {
+     "method_calls": [
+      {
+       "method": "target-id-resolve",
+       "git_sha": "7e6f0e8",
+       "args": {
+        "symbol": "{target.symbol}",
+        "resolver_release": "{release_pin}"
+       }
+      }
+     ],
+     "input_manifest_ids": [
+      "target-id-resolver-release"
+     ]
+    }
+   }
+  ],
+  "source_properties": {
+   "patient_tumor_abundance": {
+    "card_id": "tumor-rna-distribution",
+    "property": "broadly_high",
+    "anchors": [
+     {
+      "field": "allgene_percentile",
+      "value": 96.71925354003906,
+      "scale": "pan_gene_percentile",
+      "semantic_role": "signal",
+      "interpretation_reach": "skills_local"
+     },
+     {
+      "field": "median_log2tpm",
+      "value": 6.271317958831787,
+      "scale": "log2_tpm",
+      "semantic_role": "signal",
+      "interpretation_reach": "skills_local"
+     },
+     {
+      "field": "p95_log2tpm",
+      "value": 10.04163646697998,
+      "scale": "log2_tpm",
+      "semantic_role": "signal",
+      "interpretation_reach": "skills_local"
+     },
+     {
+      "field": "fraction_tumor_above_normal_p95",
+      "value": 0.5687666370896185,
+      "scale": "fraction",
+      "semantic_role": "context",
+      "interpretation_reach": "skills_local"
+     }
+    ],
+    "comparability": {
+     "measurement_type": "tumor_rna_expression",
+     "sample_context": "tumor",
+     "grain": "bulk"
+    }
+   },
+   "tumor_normal_selectivity": {
+    "card_id": "tumor-rna-vs-adjacent",
+    "property": "strong_upregulation",
+    "anchors": [
+     {
+      "field": "log2_fc",
+      "value": 5.210059072639534,
+      "scale": "log2_fold_change",
+      "semantic_role": "signal",
+      "interpretation_reach": "skills_local"
+     },
+     {
+      "field": "q_value",
+      "value": 3.6514109886197233e-35,
+      "scale": "bh_q_value",
+      "semantic_role": "context",
+      "interpretation_reach": "skills_local"
+     },
+     {
+      "field": "gtex_log2_fc",
+      "value": 4.341123874396541,
+      "scale": "log2_fold_change",
+      "semantic_role": "context",
+      "interpretation_reach": "skills_local"
+     },
+     {
+      "field": "gtex_q_value",
+      "value": 2.5102772206180494e-278,
+      "scale": "bh_q_value",
+      "semantic_role": "context",
+      "interpretation_reach": "skills_local"
+     }
+    ],
+    "comparability": {
+     "measurement_type": "tumor_rna_dge_vs_adjacent",
+     "sample_context": "tumor",
+     "grain": "bulk"
+    }
+   },
+   "tumor_protein_abundance": {
+    "card_id": "tumor-protein-abundance-cptac",
+    "property": "not_significant",
+    "anchors": [
+     {
+      "field": "allgene_percentile",
+      "value": 79.7645866186078,
+      "scale": "pan_gene_percentile",
+      "semantic_role": "signal",
+      "interpretation_reach": "skills_local"
+     },
+     {
+      "field": "protein_effect_size",
+      "value": 0.56872124957413,
+      "scale": "standardized_effect",
+      "semantic_role": "signal",
+      "interpretation_reach": "skills_local"
+     },
+     {
+      "field": "protein_bh_q_value",
+      "value": 0.319942210629478,
+      "scale": "bh_q_value",
+      "semantic_role": "context",
+      "interpretation_reach": "skills_local"
+     }
+    ],
+    "comparability": {
+     "measurement_type": "tumor_protein_expression",
+     "sample_context": "tumor",
+     "grain": "bulk_protein"
+    }
+   },
+   "malignant_cell_coverage": {
+    "card_id": "tumor-scrna-celltype-expression",
+    "property": "malignant_subset_detected",
+    "anchors": [
+     {
+      "field": "malignant_detection_fraction",
+      "value": 0.2827014426460239,
+      "scale": "fraction",
+      "semantic_role": "signal",
+      "interpretation_reach": "skills_local"
+     },
+     {
+      "field": "malignant_n_donors",
+      "value": 20,
+      "scale": "donor_count",
+      "semantic_role": "context",
+      "interpretation_reach": "skills_local"
+     }
+    ],
+    "comparability": {
+     "measurement_type": "sc_tumor_celltype_expression",
+     "sample_context": "tumor",
+     "grain": "single_cell"
+    }
+   },
+   "tumor_elevation_breadth": {
+    "card_id": "tumor-elevation-breadth",
+    "property": "multi_tumor_elevated",
+    "anchors": [
+     {
+      "field": "n_cohorts_elevated",
+      "value": 3,
+      "scale": "cohort_count",
+      "semantic_role": "context",
+      "interpretation_reach": "skills_local"
+     },
+     {
+      "field": "n_cohorts_tested",
+      "value": 10,
+      "scale": "cohort_count",
+      "semantic_role": "context",
+      "interpretation_reach": "skills_local"
+     }
+    ],
+    "comparability": {
+     "measurement_type": "tumor_elevation_breadth",
+     "sample_context": "tumor",
+     "grain": "target"
+    }
+   },
+   "model_expression_structure": {
+    "card_id": "cellline-rna-distribution",
+    "property": "broadly_high",
+    "anchors": [
+     {
+      "field": "allgene_percentile",
+      "value": 77.80206298828125,
+      "scale": "pan_gene_percentile",
+      "semantic_role": "signal",
+      "interpretation_reach": "cross_repo_resolver"
+     }
+    ],
+    "comparability": {
+     "measurement_type": "cellline_rna_expression",
+     "sample_context": "cell_line",
+     "grain": "bulk"
+    },
+    "resolved_expression_properties": {
+     "presence": "supported",
+     "magnitude": "high",
+     "prevalence": "broad",
+     "heterogeneity": "high",
+     "lineage_restriction": "diffuse",
+     "selectivity": "unmeasured",
+     "localization": "unmeasured",
+     "subtype_restriction": "unmeasured"
+    }
+   }
+  },
+  "integrated_properties": {
+   "tumor_presence_concordance": {
+    "concordance_class": "tumor_presence_concordant",
+    "corroboration": "high",
+    "integration_method": "explicit_deterministic",
+    "grain": "tumor_presence (cross-source: bulk-RNA population average x single-cell malignant RNA x antibody-IHC protein)",
+    "resolved_source_count": 3,
+    "corroborating_independent_arm_count": 3,
+    "concordance_support": {
+     "agreed_direction": "present",
+     "agreeing_arms": [
+      "bulk_rna",
+      "sc_malignant",
+      "antibody_ihc"
+     ]
+    },
+    "source_support": [
+     {
+      "source": "bulk_rna",
+      "dependence_group": "bulk_rna",
+      "grain": "bulk_rna (population-averaged tumor transcriptome)",
+      "value": "present",
+      "presence_class": "broadly_high",
+      "present": true,
+      "resolved": true,
+      "quality_eligible": true,
+      "corroboration_eligible": true,
+      "provenance": {
+       "card_id": "tumor-rna-distribution",
+       "cohort": "bulk RNA-seq tumor cohort (population-averaged expression)"
+      },
+      "retained_quantitative": {
+       "high_fraction": 0.707187222715173,
+       "n_tumor_samples": 1127,
+       "median_tpm": null
+      }
+     },
+     {
+      "source": "sc_malignant",
+      "dependence_group": "sc_malignant",
+      "grain": "sc_rna (single-cell MALIGNANT-compartment transcriptome)",
+      "value": "present",
+      "presence_class": "malignant_subset_detected",
+      "present": true,
+      "resolved": true,
+      "quality_eligible": true,
+      "corroboration_eligible": true,
+      "provenance": {
+       "card_id": "tumor-scrna-celltype-expression",
+       "cohort": "single-cell RNA malignant-compartment cohort (per-cell resolution)"
+      },
+      "retained_quantitative": {
+       "malignant_detection_fraction": 0.2827014426460239,
+       "malignant_n_donors": 20,
+       "malignant_n_cells": 24489
+      }
+     },
+     {
+      "source": "antibody_ihc",
+      "dependence_group": "antibody_ihc",
+      "grain": "antibody_ihc (patient tissue-microarray immunostaining)",
+      "value": "present",
+      "presence_class": "ihc_detected_moderate",
+      "present": true,
+      "resolved": true,
+      "quality_eligible": true,
+      "corroboration_eligible": true,
+      "provenance": {
+       "card_id": "hpa-pathology-cancer-ihc",
+       "cohort": "HPA Pathology antibody-IHC (patient tissue microarrays)"
+      },
+      "retained_quantitative": {
+       "fraction_detected": 0.6363636363636364,
+       "staining_score": 1.5454545454545454,
+       "n_patients_total": 11
+      }
+     }
+    ],
+    "dependence_edges": [
+     {
+      "from_source": "bulk_rna",
+      "to_source": "sc_malignant",
+      "relation": "corroborates",
+      "basis": "tumor_presence_concordant"
+     },
+     {
+      "from_source": "bulk_rna",
+      "to_source": "antibody_ihc",
+      "relation": "corroborates",
+      "basis": "tumor_presence_concordant"
+     },
+     {
+      "from_source": "sc_malignant",
+      "to_source": "antibody_ihc",
+      "relation": "corroborates",
+      "basis": "tumor_presence_concordant"
+     }
+    ],
+    "positive_signal": {
+     "statement": "3 INDEPENDENT measurement groups AGREE on the antigen is PRESENT in tumor (bulk-RNA (tumor RNA-seq distribution), single-cell malignant RNA (tumor scRNA compartment), antibody-IHC (HPA Pathology)) \u2014 a cross-source-corroborated tumor-presence read, far more credible than any single-assay call.",
+     "source": "bulk_rna",
+     "provenance_ref": "bulk_rna"
+    },
+    "qualifying_signal": null,
+    "boundary_sensitive": false,
+    "boundary_note": "tumor-presence corroborated by >=2 INDEPENDENT measurement groups agreeing",
+    "evidence_dependence": {
+     "groups": [
+      {
+       "members": [
+        "bulk_rna"
+       ],
+       "relationship": "independent_modality"
+      },
+      {
+       "members": [
+        "sc_malignant"
+       ],
+       "relationship": "independent_modality"
+      },
+      {
+       "members": [
+        "antibody_ihc"
+       ],
+       "relationship": "independent_modality"
+      }
+     ],
+     "note": "Three genuinely INDEPENDENT measurement groups: bulk RNA-seq (population-averaged transcriptome), single-cell MALIGNANT-compartment RNA (per-cell resolution, blind to the microenvironment bulk cannot separate) and antibody-IHC protein immunostaining. They differ in detection technology, grain and failure mode, so their agreement is real cross-source corroboration (3 independent groups \u2192 HIGH corroboration), not a within-assay restatement.",
+     "derived_sources": {}
+    },
+    "informs": "the headline cross-source tumor-presence property \u2014 an antigen that bulk RNA-seq, single-cell malignant RNA and antibody-IHC all detect is far more credible than a single-layer call; the three groups are genuinely independent (distinct technology, grain and failure mode), so their agreement is real corroboration and their disagreement is a surfaced caveat, never a negation",
+    "evidence": "bulk-RNA broadly_high x sc-malignant malignant_subset_detected x antibody-IHC ihc_detected_moderate: AGREE on the tumor-presence call",
+    "provenance": {
+     "sources": [
+      {
+       "source": "bulk_rna",
+       "dependence_group": "bulk_rna",
+       "grain": "bulk_rna (population-averaged tumor transcriptome)",
+       "value": "present",
+       "presence_class": "broadly_high",
+       "present": true,
+       "resolved": true,
+       "quality_eligible": true,
+       "corroboration_eligible": true,
+       "provenance": {
+        "card_id": "tumor-rna-distribution",
+        "cohort": "bulk RNA-seq tumor cohort (population-averaged expression)"
+       },
+       "retained_quantitative": {
+        "high_fraction": 0.707187222715173,
+        "n_tumor_samples": 1127,
+        "median_tpm": null
+       }
+      },
+      {
+       "source": "sc_malignant",
+       "dependence_group": "sc_malignant",
+       "grain": "sc_rna (single-cell MALIGNANT-compartment transcriptome)",
+       "value": "present",
+       "presence_class": "malignant_subset_detected",
+       "present": true,
+       "resolved": true,
+       "quality_eligible": true,
+       "corroboration_eligible": true,
+       "provenance": {
+        "card_id": "tumor-scrna-celltype-expression",
+        "cohort": "single-cell RNA malignant-compartment cohort (per-cell resolution)"
+       },
+       "retained_quantitative": {
+        "malignant_detection_fraction": 0.2827014426460239,
+        "malignant_n_donors": 20,
+        "malignant_n_cells": 24489
+       }
+      },
+      {
+       "source": "antibody_ihc",
+       "dependence_group": "antibody_ihc",
+       "grain": "antibody_ihc (patient tissue-microarray immunostaining)",
+       "value": "present",
+       "presence_class": "ihc_detected_moderate",
+       "present": true,
+       "resolved": true,
+       "quality_eligible": true,
+       "corroboration_eligible": true,
+       "provenance": {
+        "card_id": "hpa-pathology-cancer-ihc",
+        "cohort": "HPA Pathology antibody-IHC (patient tissue microarrays)"
+       },
+       "retained_quantitative": {
+        "fraction_detected": 0.6363636363636364,
+        "staining_score": 1.5454545454545454,
+        "n_patients_total": 11
+       }
+      }
+     ],
+     "independence_note": "Bulk RNA-seq (population-averaged tumor transcriptome), single-cell MALIGNANT-compartment RNA (per-cell resolution, resolving the malignant fraction bulk cannot separate from the microenvironment) and antibody-IHC protein immunostaining (HPA Pathology) are three genuinely INDEPENDENT tumor-presence layers: different detection technology (RNA sequencing vs single-cell RNA vs antibody immunostaining), different grain (population-average vs single-cell vs per-patient stain) and different failure modes, so their agreement is real cross-source corroboration, not a within-assay restatement. There are NO same-modality dependent siblings in this family \u2014 all three arms are independent modalities, so resolved_source_count == corroborating_independent_arm_count. The antibody-IHC arm reuses the single-patient noise-floor gap (a lone stained patient is not a resolved detection)."
+    },
+    "_disclaimer": "L2b CROSS-SOURCE integration claim (deterministic, no LLM) \u2014 verdict-INERT provenance: never a signal tier, never averaged into a claim, never feeds the presence_verdict, the presence_verdict_by_modality, certainty.level, or any resolver rung."
+   },
+   "abundance_concordance": {
+    "concordance_class": "rna_high_protein_low",
+    "corroboration": "low",
+    "positive_signal": {
+     "statement": "Both independent RNA and mass-spec protein assays detect the target (tumor grain: RNA rank high, MS-protein rank moderate).",
+     "source": "rna_abundance",
+     "provenance_ref": "rna_abundance"
+    },
+    "qualifying_signal": {
+     "statement": "MS-protein abundance ranks BELOW RNA (tumor grain: RNA high vs MS-protein moderate) \u2014 a post-transcriptional attenuation / low proxy-quality signal: the presented protein is scarcer than the transcript implies, tempering RNA-based abundance expectations for abundance-dependent modalities (ADC/degrader payload delivery).",
+     "source": "ms_protein_abundance",
+     "provenance_ref": "ms_protein_abundance"
+    },
+    "source_support": {
+     "rna_abundance": {
+      "property": "rna_abundance_magnitude",
+      "card_id": "tumor-rna-distribution",
+      "grain": "tumor",
+      "stance": "higher_rank",
+      "summary": "RNA abundance high (top_decile)",
+      "fields": {
+       "allgene_percentile_class": "top_decile",
+       "magnitude_level": "high"
+      }
+     },
+     "ms_protein_abundance": {
+      "property": "ms_protein_abundance_magnitude",
+      "card_id": "tumor-protein-abundance-cptac",
+      "grain": "tumor",
+      "stance": "lower_rank",
+      "summary": "MS-protein abundance moderate (mid)",
+      "fields": {
+       "allgene_percentile_class": "mid",
+       "magnitude_level": "moderate"
+      }
+     }
+    },
+    "dependence_edges": [
+     {
+      "from_source": "ms_protein_abundance",
+      "to_source": "rna_abundance",
+      "relation": "qualifies",
+      "basis": "rna_high_protein_low"
+     }
+    ],
+    "boundary_sensitive": true,
+    "boundary_note": "concordance class rests on a single grain's RNA-vs-protein rank comparison with no corroborating (or a conflicting) cross-grain read \u2014 treat as near-boundary, not a flat assertion",
+    "grain": "tumor",
+    "rna_magnitude": "high",
+    "protein_magnitude": "moderate",
+    "integration_method": "explicit_deterministic",
+    "informs": "cross-source abundance-magnitude concordance \u2014 whether independent RNA and mass-spec protein reads agree the target sits at the same within-population abundance rank. A directional split (RNA rank above protein) flags post-transcriptional attenuation / low proxy-quality, informing proxy choice for abundance-dependent modalities (ADC/degrader payload delivery).",
+    "evidence": "tumor grain: RNA top_decile (high) RANKS ABOVE MS-protein mid (moderate); cross-grain corroboration low",
+    "provenance": {
+     "sources": [
+      {
+       "property": "rna_abundance_magnitude",
+       "card_id": "tumor-rna-distribution",
+       "grain": "tumor",
+       "role": "primary",
+       "fields": {
+        "allgene_percentile_class": "top_decile",
+        "magnitude_level": "high"
+       }
+      },
+      {
+       "property": "ms_protein_abundance_magnitude",
+       "card_id": "tumor-protein-abundance-cptac",
+       "grain": "tumor",
+       "role": "primary",
+       "fields": {
+        "allgene_percentile_class": "mid",
+        "magnitude_level": "moderate"
+       }
+      },
+      {
+       "property": "rna_abundance_magnitude",
+       "card_id": "cellline-rna-distribution",
+       "grain": "cell_line",
+       "role": "corroborating",
+       "fields": {
+        "allgene_percentile_class": "mid",
+        "magnitude_level": "moderate"
+       }
+      },
+      {
+       "property": "ms_protein_abundance_magnitude",
+       "card_id": "cellline-protein-abundance",
+       "grain": "cell_line",
+       "role": "corroborating",
+       "fields": {
+        "allgene_percentile_class": "mid",
+        "magnitude_level": "moderate"
+       }
+      }
+     ],
+     "independence_note": "RNA abundance (transcript-level) and mass-spec protein abundance are measured on INDEPENDENT assays with different molecular readouts and reference spaces; the comparison is on WITHIN-POPULATION rank CLASS, never raw magnitude (CPTAC/Gygi/ProCan mass-spec percentiles are pooled-reference-relative ratios, NOT scale-comparable to RNA TPM percentiles \u2014 #1512). Their rank agreement is a genuine cross-modality corroboration, not a within-assay restatement."
+    },
+    "_disclaimer": "L2b CROSS-SOURCE integration claim (deterministic, no LLM) \u2014 verdict-INERT provenance: never a signal tier, never averaged into a claim, never feeds the presence_verdict."
+   },
+   "bulk_vs_singlecell_coverage_concordance": {
+    "concordance_class": "bulk_masks_low_coverage",
+    "corroboration": "high",
+    "positive_signal": {
+     "statement": "Bulk RNA reports broadly_high tumour presence (continuous) \u2014 the antigen is broadly detected in the population-averaged read.",
+     "source": "bulk_tumor_presence",
+     "provenance_ref": "bulk_tumor_presence"
+    },
+    "qualifying_signal": {
+     "statement": "Single-cell malignant coverage is low (antigen-escape escape_risk_high) \u2014 a bulk-masked fraction of malignant cells lacks the antigen, an efficacy-escape risk the population-averaged bulk read hides.",
+     "source": "single_cell_malignant_coverage",
+     "provenance_ref": "single_cell_malignant_coverage"
+    },
+    "source_support": {
+     "bulk_tumor_presence": {
+      "card_id": "tumor-rna-distribution",
+      "stance": "positive",
+      "summary": "bulk broadly_high (continuous)",
+      "fields": {
+       "tumor_expression_class": "broadly_high",
+       "distribution_pattern": "continuous"
+      }
+     },
+     "single_cell_malignant_coverage": {
+      "card_id": "tumor-scrna-celltype-expression",
+      "stance": "qualifying",
+      "summary": "single-cell within-tumour coverage low; antigen-escape escape_risk_high",
+      "fields": {
+       "within_tumor_coverage_class": "low",
+       "tce_antigen_escape_class": "escape_risk_high"
+      }
+     }
+    },
+    "dependence_edges": [
+     {
+      "from_source": "single_cell_malignant_coverage",
+      "to_source": "bulk_tumor_presence",
+      "relation": "qualifies",
+      "basis": "bulk_masks_low_coverage"
+     }
+    ],
+    "boundary_sensitive": false,
+    "boundary_note": "concordance class corroborated by the orthogonal antigen-escape facet",
+    "integration_method": "explicit_deterministic",
+    "informs": "cross-source coverage concordance \u2014 informs tumor-cell-targeted modalities (ADC/TCE/CAR): a bulk-masked LOW-coverage antigen risks efficacy escape the population-averaged bulk read hides",
+    "evidence": "bulk broadly_high (continuous) MASKS single-cell within-tumour coverage low; antigen-escape escape_risk_high",
+    "provenance": {
+     "sources": [
+      {
+       "property": "bulk_tumor_presence",
+       "card_id": "tumor-rna-distribution",
+       "fields": {
+        "tumor_expression_class": "broadly_high",
+        "distribution_pattern": "continuous"
+       }
+      },
+      {
+       "property": "single_cell_malignant_coverage",
+       "card_id": "tumor-scrna-celltype-expression",
+       "fields": {
+        "within_tumor_coverage_class": "low",
+        "tce_antigen_escape_class": "escape_risk_high"
+       }
+      }
+     ],
+     "independence_note": "Bulk RNA (population-averaged tissue lysate) and single-cell malignant coverage are measured on INDEPENDENT assays sampling different biological grains; their agreement is a genuine cross-source corroboration, not a within-assay restatement."
+    },
+    "_disclaimer": "L2b CROSS-SOURCE integration claim (deterministic, no LLM) \u2014 verdict-INERT provenance: never a signal tier, never averaged into a claim, never feeds the presence_verdict."
+   },
+   "protein_presence_concordance": {
+    "concordance_class": "protein_presence_concordant",
+    "corroboration": "high",
+    "integration_method": "explicit_deterministic",
+    "grain": "protein_presence (cross-technology: antibody-IHC immunostaining x mass-spec peptide)",
+    "resolved_source_count": 4,
+    "corroborating_independent_arm_count": 2,
+    "concordance_support": {
+     "agreed_direction": "protein_detected"
+    },
+    "source_support": [
+     {
+      "source": "antibody_ihc",
+      "dependence_group": "antibody",
+      "grain": "antibody_ihc (patient tissue microarray)",
+      "value": "protein_detected",
+      "protein_presence_class": "ihc_detected_moderate",
+      "present": true,
+      "resolved": true,
+      "quality_eligible": true,
+      "corroboration_eligible": true,
+      "provenance": {
+       "card_id": "hpa-pathology-cancer-ihc",
+       "cohort": "breast cancer"
+      },
+      "retained_quantitative": {
+       "fraction_detected": 0.6363636363636364,
+       "staining_score": 1.5454545454545454,
+       "n_high": 4,
+       "n_medium": 2,
+       "n_low": 1,
+       "n_not_detected": 4,
+       "n_patients_total": 11
+      }
+     },
+     {
+      "source": "cptac_protein",
+      "dependence_group": "mass_spec",
+      "grain": "ms_protein (patient tumor)",
+      "value": "protein_detected",
+      "allgene_percentile_class": "mid",
+      "present": true,
+      "resolved": true,
+      "quality_eligible": true,
+      "corroboration_eligible": true,
+      "provenance": {
+       "card_id": "tumor-protein-abundance-cptac",
+       "cohort": "CPTAC TMT-MS whole-cell-lysate protein (patient tumor)"
+      },
+      "retained_quantitative": {
+       "allgene_percentile": 79.7645866186078,
+       "fraction_detected": null
+      }
+     },
+     {
+      "source": "gygi_protein",
+      "dependence_group": "mass_spec",
+      "grain": "ms_protein (cell line)",
+      "value": "protein_detected",
+      "allgene_percentile_class": "mid",
+      "present": true,
+      "resolved": true,
+      "quality_eligible": true,
+      "corroboration_eligible": false,
+      "provenance": {
+       "card_id": "cellline-protein-abundance",
+       "cohort": "DepMap-Gygi TMT-MS panel protein (cell line)"
+      },
+      "retained_quantitative": {
+       "allgene_percentile": 30.191909539735626,
+       "fraction_detected": 1.0
+      }
+     },
+     {
+      "source": "procan_protein",
+      "dependence_group": "mass_spec",
+      "grain": "ms_protein (cell line)",
+      "value": "protein_detected",
+      "allgene_percentile_class": "mid",
+      "present": true,
+      "resolved": true,
+      "quality_eligible": true,
+      "corroboration_eligible": false,
+      "provenance": {
+       "card_id": "cellline-protein-abundance-procan",
+       "cohort": "ProCan DIA-SWATH MS panel protein (cell line)"
+      },
+      "retained_quantitative": {
+       "allgene_percentile": 50.63551841826527,
+       "fraction_detected": 0.6333
+      }
+     }
+    ],
+    "dependence_edges": [
+     {
+      "from_source": "antibody_ihc",
+      "to_source": "cptac_protein",
+      "relation": "corroborates",
+      "basis": "protein_presence_concordant"
+     }
+    ],
+    "positive_signal": {
+     "statement": "Both INDEPENDENT protein modalities AGREE on the protein is PRESENT (antibody-IHC ihc_detected_moderate x mass-spec mid) \u2014 a cross-assay-corroborated protein-presence read.",
+     "source": "antibody_ihc",
+     "provenance_ref": "antibody_ihc"
+    },
+    "qualifying_signal": null,
+    "boundary_sensitive": false,
+    "boundary_note": "concordance corroborated by BOTH independent protein modality arms agreeing",
+    "evidence_dependence": {
+     "groups": [
+      {
+       "members": [
+        "antibody_ihc"
+       ],
+       "relationship": "independent_modality"
+      },
+      {
+       "members": [
+        "cptac_protein",
+        "gygi_protein",
+        "procan_protein"
+       ],
+       "relationship": "same_modality_cross_grain",
+       "note": "CPTAC TMT-MS (patient), DepMap-Gygi TMT-MS and ProCan DIA-SWATH (cell line) are ALL mass-spectrometry reads of protein presence \u2014 ONE independent MS arm, NOT two or three. CPTAC supplies the arm value; the cell-line MS siblings are corroboration-ineligible (they cannot buy a second independent arm) but may supply the MS arm's value as evidence when CPTAC is a gap (dependent != ignore)."
+      }
+     ],
+     "derived_sources": {}
+    },
+    "informs": "cross-source protein-presence concordance \u2014 a protein two INDEPENDENT detection technologies (antibody-IHC immunostaining + mass-spec peptide detection) both detect is far more credible than a single-assay call; the cell-line mass-spec reads are same-modality cross-grain siblings preserved as evidence but never double-counted as a second independent arm",
+    "evidence": "antibody-IHC ihc_detected_moderate x mass-spec mid: AGREE on the protein-presence call",
+    "provenance": {
+     "sources": [
+      {
+       "source": "antibody_ihc",
+       "dependence_group": "antibody",
+       "grain": "antibody_ihc (patient tissue microarray)",
+       "value": "protein_detected",
+       "protein_presence_class": "ihc_detected_moderate",
+       "present": true,
+       "resolved": true,
+       "quality_eligible": true,
+       "corroboration_eligible": true,
+       "provenance": {
+        "card_id": "hpa-pathology-cancer-ihc",
+        "cohort": "breast cancer"
+       },
+       "retained_quantitative": {
+        "fraction_detected": 0.6363636363636364,
+        "staining_score": 1.5454545454545454,
+        "n_high": 4,
+        "n_medium": 2,
+        "n_low": 1,
+        "n_not_detected": 4,
+        "n_patients_total": 11
+       }
+      },
+      {
+       "source": "cptac_protein",
+       "dependence_group": "mass_spec",
+       "grain": "ms_protein (patient tumor)",
+       "value": "protein_detected",
+       "allgene_percentile_class": "mid",
+       "present": true,
+       "resolved": true,
+       "quality_eligible": true,
+       "corroboration_eligible": true,
+       "provenance": {
+        "card_id": "tumor-protein-abundance-cptac",
+        "cohort": "CPTAC TMT-MS whole-cell-lysate protein (patient tumor)"
+       },
+       "retained_quantitative": {
+        "allgene_percentile": 79.7645866186078,
+        "fraction_detected": null
+       }
+      },
+      {
+       "source": "gygi_protein",
+       "dependence_group": "mass_spec",
+       "grain": "ms_protein (cell line)",
+       "value": "protein_detected",
+       "allgene_percentile_class": "mid",
+       "present": true,
+       "resolved": true,
+       "quality_eligible": true,
+       "corroboration_eligible": false,
+       "provenance": {
+        "card_id": "cellline-protein-abundance",
+        "cohort": "DepMap-Gygi TMT-MS panel protein (cell line)"
+       },
+       "retained_quantitative": {
+        "allgene_percentile": 30.191909539735626,
+        "fraction_detected": 1.0
+       }
+      },
+      {
+       "source": "procan_protein",
+       "dependence_group": "mass_spec",
+       "grain": "ms_protein (cell line)",
+       "value": "protein_detected",
+       "allgene_percentile_class": "mid",
+       "present": true,
+       "resolved": true,
+       "quality_eligible": true,
+       "corroboration_eligible": false,
+       "provenance": {
+        "card_id": "cellline-protein-abundance-procan",
+        "cohort": "ProCan DIA-SWATH MS panel protein (cell line)"
+       },
+       "retained_quantitative": {
+        "allgene_percentile": 50.63551841826527,
+        "fraction_detected": 0.6333
+       }
+      }
+     ],
+     "independence_note": "Antibody-IHC (HPA Pathology per-patient immunostaining) and mass-spec protein detection (CPTAC TMT-MS) are genuinely INDEPENDENT protein layers: a DIFFERENT detection technology (immunostaining vs peptide mass-spectrometry), a DIFFERENT cohort (HPA tissue microarrays vs CPTAC), and DIFFERENT failure modes (antibody specificity vs peptide detectability), so their agreement is real cross-assay corroboration, not a within-assay restatement. DepMap-Gygi and ProCan (cell-line MS) are SAME-MODALITY CROSS-GRAIN siblings of the CPTAC mass-spec arm (all three are mass-spectrometry \u2014 ONE modality arm), so they are corroboration-ineligible \u2014 never a second independent arm. #1512: mass-spec presence is read off the WITHIN-POPULATION rank CLASS (allgene_percentile_class), never a raw TMT-vs-IHC magnitude comparison. A single-patient ihc_detected_low is treated as a gap (the HPA antibody-specificity noise floor), not a resolved antibody detection."
+    },
+    "_disclaimer": "L2b CROSS-SOURCE integration claim (deterministic, no LLM) \u2014 verdict-INERT provenance: never a signal tier, never averaged into a claim, never feeds the presence_verdict, the presence_verdict_by_modality, or any resolver rung."
+   },
+   "cellline_heterogeneity_lineage_qualifier": {
+    "qualifier_class": "cellline_heterogeneity_is_cross_lineage",
+    "applies_to": "cellline_rna_panel",
+    "bound_fields": {
+     "heterogeneity": "high",
+     "prevalence": "broad",
+     "lineage_restriction": "diffuse",
+     "distribution_pattern": "continuous",
+     "coefficient_of_variation": 4.489081667622662,
+     "n_lineage_restricted_lineages": 0,
+     "n_lineages_evaluated": 28
+    },
+    "guards_misread": "within_tumour_antigen_negative_escape",
+    "caveat": "Cell-line-RNA panel heterogeneity (high, prevalence broad, lineage_restriction diffuse) is computed across the 28-lineage cell-line panel: its bimodality/dispersion tracks epithelial-vs-non-epithelial LINEAGE IDENTITY, NOT intra-indication (within-tumour) variation. Do NOT read it as a within-tumour antigen-negative-escape signal \u2014 the within-tumour malignant-coverage question is answered by the single-cell source.",
+    "escape_read_source": "bulk_vs_singlecell_coverage_concordance",
+    "provenance": {
+     "property": "cellline_expression_heterogeneity",
+     "card_id": "cellline-rna-distribution",
+     "fields": {
+      "heterogeneity": "high",
+      "prevalence": "broad",
+      "lineage_restriction": "diffuse",
+      "distribution_pattern": "continuous",
+      "coefficient_of_variation": 4.489081667622662,
+      "n_lineage_restricted_lineages": 0,
+      "n_lineages_evaluated": 28
+     }
+    },
+    "_disclaimer": "Per-source verdict-INERT qualifier (deterministic, no LLM) \u2014 never a signal tier, never averaged into a claim, never feeds the presence_verdict; PRESENTATION-support only."
+   }
+  },
+  "local_composites": {
+   "epistemic_type": "domain_local_composite",
+   "claims": {
+    "A": {
+     "signal": "strong",
+     "corroboration": "moderate",
+     "conflict": null,
+     "informs": "abundance \u2014 informs every modality (a degrader/SM needs the protein present)",
+     "corr_cite": {
+      "card_id": "rna-protein-concordance-tumor",
+      "fields": [
+       "rna_as_biomarker"
+      ]
+     },
+     "evidence": "anchored: within positives (3/4); 97th all-gene pct (percentile-led), 97th pct; proxy=rna_positive_proxy_partial",
+     "evidence_atom": {
+      "read": "broadly_high",
+      "values": {
+       "tumor_expression_class": "broadly_high",
+       "control_position_class": "within_positives",
+       "allgene_percentile": 96.71925354003906,
+       "median_log2tpm": 6.271317958831787,
+       "p95_log2tpm": 10.04163646697998,
+       "p5_log2tpm": 4.123487758636475,
+       "q1_log2tpm": 5.525284290313721,
+       "q3_log2tpm": 6.9596333503723145,
+       "mean_log2tpm": 6.380159373344736,
+       "sd_log2tpm": 1.57148551534344,
+       "distribution_pattern": "continuous"
+      },
+      "numeric": {
+       "allgene_percentile": 96.71925354003906,
+       "median_log2tpm": 6.271317958831787,
+       "p95_log2tpm": 10.04163646697998,
+       "p5_log2tpm": 4.123487758636475,
+       "q1_log2tpm": 5.525284290313721,
+       "q3_log2tpm": 6.9596333503723145,
+       "mean_log2tpm": 6.380159373344736,
+       "sd_log2tpm": 1.57148551534344
+      },
+      "categorical": {
+       "tumor_expression_class": "broadly_high",
+       "control_position_class": "within_positives",
+       "distribution_pattern": "continuous"
+      },
+      "cite": {
+       "card_id": "tumor-rna-distribution",
+       "fields": [
+        "allgene_percentile",
+        "control_position_class",
+        "distribution_pattern",
+        "mean_log2tpm",
+        "median_log2tpm",
+        "p5_log2tpm",
+        "p95_log2tpm",
+        "q1_log2tpm",
+        "q3_log2tpm",
+        "sd_log2tpm",
+        "tumor_expression_class"
+       ]
+      },
+      "entity": {
+       "measurement_type": "tumor_rna_expression",
+       "sample_context": "tumor"
+      },
+      "roles": {
+       "tumor_expression_class": "signal",
+       "control_position_class": "signal",
+       "allgene_percentile": "signal",
+       "median_log2tpm": "signal",
+       "p95_log2tpm": "signal",
+       "p5_log2tpm": "context",
+       "q1_log2tpm": "context",
+       "q3_log2tpm": "context",
+       "mean_log2tpm": "context",
+       "sd_log2tpm": "context",
+       "distribution_pattern": "signal"
+      }
+     }
+    },
+    "B": {
+     "signal": "strong",
+     "corroboration": "moderate",
+     "evidence": "RNA-DGE:up(fc/eff=5.21,q=4e-35); CPTAC:flat(fc/eff=0.57,q=3e-01)",
+     "conflict": "comparator discordance: RNA-DGE elevated but CPTAC flat",
+     "informs": "tumor-elevation \u2014 context for the selectivity / therapeutic-window lens",
+     "comparator_detail": "vs matched-adjacent 5.21 log2FC; vs GTEx-population 4.34 log2FC (q=3e-278); 57% tumours > matched-normal p95",
+     "evidence_atom": {
+      "read": "strong_upregulation",
+      "values": {
+       "expression_call_class": "strong_upregulation",
+       "log2_fc": 5.210059072639534,
+       "q_value": 3.6514109886197233e-35
+      },
+      "numeric": {
+       "log2_fc": 5.210059072639534,
+       "q_value": 3.6514109886197233e-35
+      },
+      "categorical": {
+       "expression_call_class": "strong_upregulation"
+      },
+      "cite": {
+       "card_id": "tumor-rna-vs-adjacent",
+       "fields": [
+        "expression_call_class",
+        "log2_fc",
+        "q_value"
+       ]
+      },
+      "entity": {
+       "measurement_type": "tumor_rna_dge_vs_adjacent",
+       "sample_context": "tumor"
+      },
+      "roles": {
+       "expression_call_class": "signal",
+       "log2_fc": "signal",
+       "q_value": "context"
+      }
+     }
+    },
+    "C": {
+     "signal": "weak",
+     "corroboration": "moderate",
+     "conflict": null,
+     "informs": "malignant-cell-intrinsic \u2014 informs tumor-cell-targeted modalities (ADC/TCE/CAR)",
+     "homogeneity_detail": "antigen-escape:escape_risk_high; inter-donor:variable; 30% donors broadly detecting",
+     "qc_detail": "malignant-annotation:curated",
+     "evidence": "malignant_subset_detected (malignant frac 0.28, n=20 donors); antigen-escape:escape_risk_high; inter-donor:variable; 30% donors broadly detecting; QC[malignant-annotation:curated]",
+     "evidence_atom": {
+      "read": "malignant_subset_detected",
+      "values": {
+       "sc_expression_class": "malignant_subset_detected",
+       "malignant_detection_fraction": 0.2827014426460239,
+       "malignant_n_donors": 20,
+       "caf_vs_malignant_class": "caf_low",
+       "top_microenvironment_compartment": "stromal"
+      },
+      "numeric": {
+       "malignant_detection_fraction": 0.2827014426460239,
+       "malignant_n_donors": 20
+      },
+      "categorical": {
+       "sc_expression_class": "malignant_subset_detected",
+       "caf_vs_malignant_class": "caf_low",
+       "top_microenvironment_compartment": "stromal"
+      },
+      "cite": {
+       "card_id": "tumor-scrna-celltype-expression",
+       "fields": [
+        "caf_vs_malignant_class",
+        "malignant_detection_fraction",
+        "malignant_n_donors",
+        "sc_expression_class",
+        "top_microenvironment_compartment"
+       ]
+      },
+      "entity": {
+       "measurement_type": "sc_tumor_celltype_expression",
+       "sample_context": "tumor",
+       "grain": "single_cell"
+      },
+      "roles": {
+       "sc_expression_class": "signal",
+       "malignant_detection_fraction": "signal",
+       "malignant_n_donors": "context",
+       "caf_vs_malignant_class": "signal",
+       "top_microenvironment_compartment": "context"
+      }
+     }
+    },
+    "D": {
+     "signal": "moderate",
+     "corroboration": "high",
+     "evidence": "breadth=multi_tumor_elevated; dist=continuous; tested over 27 cohorts/indications",
+     "conflict": null,
+     "informs": "generality/breadth \u2014 patient-population & pan-cancer framing",
+     "evidence_atom": {
+      "read": "multi_tumor_elevated",
+      "values": {
+       "tumor_elevation_breadth_class": "multi_tumor_elevated",
+       "rna_tumor_elevation_breadth_class": "multi_tumor_elevated",
+       "n_cohorts_elevated": 3,
+       "n_cohorts_tested": 10,
+       "rna_n_indications_elevated": 6,
+       "rna_n_indications_tested": 27
+      },
+      "numeric": {
+       "n_cohorts_elevated": 3,
+       "n_cohorts_tested": 10,
+       "rna_n_indications_elevated": 6,
+       "rna_n_indications_tested": 27
+      },
+      "categorical": {
+       "tumor_elevation_breadth_class": "multi_tumor_elevated",
+       "rna_tumor_elevation_breadth_class": "multi_tumor_elevated"
+      },
+      "cite": {
+       "card_id": "tumor-elevation-breadth",
+       "fields": [
+        "n_cohorts_elevated",
+        "n_cohorts_tested",
+        "rna_n_indications_elevated",
+        "rna_n_indications_tested",
+        "rna_tumor_elevation_breadth_class",
+        "tumor_elevation_breadth_class"
+       ]
+      },
+      "entity": {
+       "measurement_type": "tumor_elevation_breadth",
+       "grain": "target"
+      },
+      "roles": {
+       "tumor_elevation_breadth_class": "signal",
+       "rna_tumor_elevation_breadth_class": "signal",
+       "n_cohorts_elevated": "context",
+       "n_cohorts_tested": "context",
+       "rna_n_indications_elevated": "context",
+       "rna_n_indications_tested": "context"
+      }
+     }
+    },
+    "homogeneity": "moderately_homogeneous"
+   }
+  },
+  "l3d": {
+   "layer": "L3d",
+   "domain": "tumor_presence",
+   "title": "tumor-expression biology story",
+   "coherence": "cross_source_corroborated",
+   "headline": "3 INDEPENDENT measurement groups AGREE on the antigen is PRESENT in tumor (bulk-RNA (tumor RNA-seq distribution), single-cell malignant RNA (tumor scRNA compartment), antibody-IHC (HPA Pathology)) \u2014 a cross-source-corroborated tumor-presence read, far more credible than any single-assay call.",
+   "chapters": [
+    {
+     "aspect": "tumor_presence",
+     "aspect_question": "cross-source tumor PRESENCE integrated across bulk-RNA x single-cell malignant RNA x antibody-IHC",
+     "claim_id": "tumor_presence_concordance",
+     "reconstructable_from": "pooled_claim_vector",
+     "concordance_class": "tumor_presence_concordant",
+     "corroboration": "high",
+     "reads": "3 INDEPENDENT measurement groups AGREE on the antigen is PRESENT in tumor (bulk-RNA (tumor RNA-seq distribution), single-cell malignant RNA (tumor scRNA compartment), antibody-IHC (HPA Pathology)) \u2014 a cross-source-corroborated tumor-presence read, far more credible than any single-assay call.",
+     "caveat": null,
+     "boundary_sensitive": false,
+     "within_domain_role": "the headline cross-source tumor-presence property \u2014 an antigen that bulk RNA-seq, single-cell malignant RNA and antibody-IHC all detect is far more credible than a single-layer call; the three groups are genuinely independent (distinct technology, grain and failure mode), so their agreement is real corroboration and their disagreement is a surfaced caveat, never a negation"
+    },
+    {
+     "aspect": "coverage",
+     "aspect_question": "within-tumour COVERAGE \u2014 does bulk presence carry through to single-cell malignant coverage, or is a fraction bulk-masked?",
+     "claim_id": "bulk_vs_singlecell_coverage_concordance",
+     "reconstructable_from": "pooled_claim_vector",
+     "concordance_class": "bulk_masks_low_coverage",
+     "corroboration": "high",
+     "reads": "Bulk RNA reports broadly_high tumour presence (continuous) \u2014 the antigen is broadly detected in the population-averaged read.",
+     "caveat": "Single-cell malignant coverage is low (antigen-escape escape_risk_high) \u2014 a bulk-masked fraction of malignant cells lacks the antigen, an efficacy-escape risk the population-averaged bulk read hides.",
+     "boundary_sensitive": false,
+     "within_domain_role": "cross-source coverage concordance \u2014 informs tumor-cell-targeted modalities (ADC/TCE/CAR): a bulk-masked LOW-coverage antigen risks efficacy escape the population-averaged bulk read hides"
+    },
+    {
+     "aspect": "abundance",
+     "aspect_question": "ABUNDANCE agreement between the RNA transcript level and the protein antigen level",
+     "claim_id": "abundance_concordance",
+     "reconstructable_from": "pooled_claim_vector",
+     "concordance_class": "rna_high_protein_low",
+     "corroboration": "low",
+     "reads": "Both independent RNA and mass-spec protein assays detect the target (tumor grain: RNA rank high, MS-protein rank moderate).",
+     "caveat": "MS-protein abundance ranks BELOW RNA (tumor grain: RNA high vs MS-protein moderate) \u2014 a post-transcriptional attenuation / low proxy-quality signal: the presented protein is scarcer than the transcript implies, tempering RNA-based abundance expectations for abundance-dependent modalities (ADC/degrader payload delivery).",
+     "boundary_sensitive": true,
+     "within_domain_role": "cross-source abundance-magnitude concordance \u2014 whether independent RNA and mass-spec protein reads agree the target sits at the same within-population abundance rank. A directional split (RNA rank above protein) flags post-transcriptional attenuation / low proxy-quality, informing proxy choice for abundance-dependent modalities (ADC/degrader payload delivery)."
+    },
+    {
+     "aspect": "protein_presence",
+     "aspect_question": "PROTEIN presence folded across independent antibody-IHC and mass-spec arms",
+     "claim_id": "protein_presence_concordance",
+     "reconstructable_from": "pooled_claim_vector",
+     "concordance_class": "protein_presence_concordant",
+     "corroboration": "high",
+     "reads": "Both INDEPENDENT protein modalities AGREE on the protein is PRESENT (antibody-IHC ihc_detected_moderate x mass-spec mid) \u2014 a cross-assay-corroborated protein-presence read.",
+     "caveat": null,
+     "boundary_sensitive": false,
+     "within_domain_role": "cross-source protein-presence concordance \u2014 a protein two INDEPENDENT detection technologies (antibody-IHC immunostaining + mass-spec peptide detection) both detect is far more credible than a single-assay call; the cell-line mass-spec reads are same-modality cross-grain siblings preserved as evidence but never double-counted as a second independent arm"
+    }
+   ],
+   "caveats": [
+    {
+     "aspect": "coverage",
+     "claim_id": "bulk_vs_singlecell_coverage_concordance",
+     "caveat": "Single-cell malignant coverage is low (antigen-escape escape_risk_high) \u2014 a bulk-masked fraction of malignant cells lacks the antigen, an efficacy-escape risk the population-averaged bulk read hides."
+    },
+    {
+     "aspect": "abundance",
+     "claim_id": "abundance_concordance",
+     "caveat": "MS-protein abundance ranks BELOW RNA (tumor grain: RNA high vs MS-protein moderate) \u2014 a post-transcriptional attenuation / low proxy-quality signal: the presented protein is scarcer than the transcript implies, tempering RNA-based abundance expectations for abundance-dependent modalities (ADC/degrader payload delivery)."
+    }
+   ],
+   "cross_domain_claims": [],
+   "scope": {
+    "within_domain": "tumor_presence",
+    "excludes": [
+     "tumor_selectivity",
+     "on_target_safety",
+     "tractability",
+     "therapeutic_window"
+    ],
+    "note": "L3d domain interpretation \u2014 stays strictly inside tumor-presence's semantic scope (presence / abundance / coverage-heterogeneity / subtype-restriction / protein confirmation). It does NOT conclude anything that requires another domain's evidence; that cross-domain implication is reserved for an L3f decision frame."
+   },
+   "integration_method": "deterministic_template_traversal",
+   "provenance": {
+    "claim_ids": [
+     {
+      "claim_id": "tumor_presence_concordance",
+      "vector": "pooled_claim_vector"
+     },
+     {
+      "claim_id": "bulk_vs_singlecell_coverage_concordance",
+      "vector": "pooled_claim_vector"
+     },
+     {
+      "claim_id": "abundance_concordance",
+      "vector": "pooled_claim_vector"
+     },
+     {
+      "claim_id": "protein_presence_concordance",
+      "vector": "pooled_claim_vector"
+     }
+    ],
+    "reconstructable": "each chapter's claim_id indexes back into the named presence claim vector (pooled) or by-subtype claim vector for the full L2b integration claim; the L3d story asserts nothing the L2 claims do not already carry"
+   },
+   "_disclaimer": "L3d WITHIN-DOMAIN interpretation (SK#1940) \u2014 DETERMINISTIC template/traversal assembly (no LLM authorship, reproducible by contract), verdict-INERT: never a signal tier, never averaged, never feeds the presence_verdict, presence_verdict_by_modality, certainty.level, or any resolver rung. The opt-in --synthesize LLM narration is a SEPARATE view above this layer. Traceable back to the L2b claim IDs it cites; makes NO cross-domain conclusion."
+  },
+  "synthesis": {
+   "headline": "tumor-presence: broadly_high_expression (expression-broadly-high-supportive)",
+   "caveats_summary": "Exploratory subskill envelope emitted by tumor-presence@1.25.0 around its own deterministic resolver verdict; not a composed target-profile and not concurrence-reviewed. cards_missing=[].",
+   "gate": "tumor-presence",
+   "verdict": "broadly_high_expression",
+   "driving_rule_id": "expression-broadly-high-supportive",
+   "fired_rule_ids": [
+    "expression-broadly-high-supportive",
+    "expression-strong-upregulation-supportive",
+    "protein-abundance-broadly-moderate-neutral",
+    "purity-independent-neutral",
+    "rna-protein-adequate-proxy-supportive",
+    "rna-tumor-breadth-multi-supportive",
+    "sc-expression-malignant-subset-detected-supportive",
+    "tumor-breadth-multi-supportive",
+    "tumor-expression-broadly-high-supportive",
+    "tvn-sc-normal-critical-organ-veto"
+   ]
+  },
+  "renderings": {
+   "markdown": "dashboard.md"
+  },
+  "schema_version": 1,
+  "claim_record": {
+   "axis": "tumor_presence",
+   "finding": {
+    "state": "broadly_high_expression",
+    "direction": "supports",
+    "magnitude": {
+     "level": "strong",
+     "value": null,
+     "scale": null,
+     "distance_to_cut": null
+    },
+    "availability": "measured_positive"
+   },
+   "certainty": {
+    "level": "low",
+    "coverage": "high",
+    "corroboration": "low",
+    "unknown_mass": 0.0,
+    "corroboration_boundary_fragile": true,
+    "corroboration_note": "rna_as_biomarker proxy call is boundary-fragile \u2014 the adequate/partial/poor label can flip by sampling alone (classifying-correlation 95% CI [0.3383, 0.6279] straddles a class cut); corroboration demoted one level (presence verdict unchanged)"
+   },
+   "provenance": {
+    "fired_rule_ids": [
+     "expression-broadly-high-supportive",
+     "expression-strong-upregulation-supportive",
+     "protein-abundance-broadly-moderate-neutral",
+     "purity-independent-neutral",
+     "rna-protein-adequate-proxy-supportive",
+     "rna-tumor-breadth-multi-supportive",
+     "sc-expression-malignant-subset-detected-supportive",
+     "tumor-breadth-multi-supportive",
+     "tumor-expression-broadly-high-supportive",
+     "tvn-sc-normal-critical-organ-veto"
+    ],
+    "cards": [
+     "cellline-protein-abundance",
+     "cellline-protein-abundance-procan",
+     "cellline-rna-distribution",
+     "cellline-rna-distribution-by-subtype",
+     "cellline-rna-protein-concordance",
+     "expression-purity-confound",
+     "hpa-pathology-cancer-ihc",
+     "normal-tissue-liability",
+     "rna-protein-concordance-tumor",
+     "sc-normal-celltype-expression",
+     "tumor-elevation-breadth",
+     "tumor-protein-abundance-cptac",
+     "tumor-protein-distribution-by-subtype",
+     "tumor-rna-distribution",
+     "tumor-rna-distribution-by-subtype",
+     "tumor-rna-vs-adjacent",
+     "tumor-scrna-celltype-expression"
+    ],
+    "legacy_verdict": "broadly_high_expression",
+    "versions": {
+     "tumor-rna-distribution": "0.1.0",
+     "tumor-protein-abundance-cptac": "1.2.0",
+     "cellline-protein-abundance": "0.1.0",
+     "tumor-scrna-celltype-expression": "0.1.0",
+     "tumor-rna-distribution-by-subtype": "0.1.0",
+     "expression-purity-confound": "0.1.0",
+     "cellline-rna-protein-concordance": "0.1.0",
+     "rna-protein-concordance-tumor": "0.1.0",
+     "cellline-protein-abundance-procan": "0.1.0",
+     "hpa-pathology-cancer-ihc": "1.0.0",
+     "normal-tissue-liability": "0.2.0",
+     "sc-normal-celltype-expression": "0.1.0"
+    }
+   },
+   "context": {
+    "target": {
+     "symbol": "ERBB2",
+     "hgnc_id": 3430,
+     "ensembl": "ENSG00000141736.0",
+     "uniprot": "P04626"
+    },
+    "indication": {
+     "scope": "SPECIFIC",
+     "oncotree_code": "BRCA"
+    },
+    "subtype": {
+     "scope": "NOT_STRATIFIED"
+    },
+    "modality": {
+     "scope": "ALL"
+    }
+   },
+   "identity": {
+    "context_id": "ab13f37e55b54e28",
+    "logical_key": "ab13f37e55b54e28::tumor_presence",
+    "l0_digest": "3bac15ebdddc53a7",
+    "ruleset_version": "1.25.0",
+    "record_revision_id": "3ad9d1ad6e420730"
+   }
+  }
+ },
+ "decision": {
+  "run_health": {
+   "skill_name": "tumor-presence",
+   "skill_version": "1.25.0",
+   "status": "ok",
+   "n_cards_consumed": 17,
+   "n_cards_resolved": 17,
+   "n_cards_fired": 9,
+   "cards_fired": [
+    "cellline-protein-abundance",
+    "cellline-rna-distribution",
+    "cellline-rna-protein-concordance",
+    "expression-purity-confound",
+    "sc-normal-celltype-expression",
+    "tumor-elevation-breadth",
+    "tumor-rna-distribution",
+    "tumor-rna-vs-adjacent",
+    "tumor-scrna-celltype-expression"
+   ],
+   "cards_missing": [],
+   "cards_skipped_a4": [],
+   "provenance_warnings": [],
+   "read_secs": 27.121,
+   "compute_secs": 6.5694,
+   "total_secs": 116.9299
+  }
+ }
+}
