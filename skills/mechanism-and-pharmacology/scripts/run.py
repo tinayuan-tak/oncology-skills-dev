@@ -52,7 +52,7 @@ _MECHANISM_VALUE_TIERS = {
 
 
 SKILL_NAME = "mechanism-and-pharmacology"
-SKILL_VERSION = "1.12.0"  # 1.12.0 (2026-10-01): + driver-pathway-position card (pathway-context epic SK#2314 P1) — target+indication-conditioned POSITIONAL read (member/upstream/downstream of the indication's frequently-altered driver pathway); SOFT/VERDICT-INERT display facet (soft axis_fit rules only, no resolver — mechanism_verdict byte-stable, resolver keys only on network_class).   # 1.11.0 (2026-09-19): CASE-027-D1 — VERDICT-INERT mechanism_verdict_currency note: names that mechanism_verdict measures signaling-network ANNOTATION-DENSITY currency, so a partial/sparse verdict on a non-signaling mechanism class (surface antigen / neomorphic-metabolic enzyme / structural protein / synthetic-lethal partner) is expected by construction, NOT a poorly-characterized target. Constant scale-disclaimer (no over-call risk), complements curation_gap_note; cannot assert the class (points to target-profile mechanism_mismatch). Spine byte-stable (resolver keys only on network_class; replay guard asserts verdict + driving_rule_id).   # 1.10.2 (2026-09-12): curation_gap_note signal-specificity split (20-target lit-panel) — target-specific (phospho/co-essentiality) vs indication/expression-level (PROGENy/tahoe) signals; context-level-only thin targets get thin_network_context_level_signal_only (no curation-gap over-call for surface antigens like CEACAM5/MSLN). Verdict-inert.   # 1.10.1 (2026-09-12): mapped-MoA guard note — has_actionable_moa/has_pd_marker now require a MAPPED MoA class (method fix); confirmation-caveat note text + docs updated (31-class ontology, Reactome=context). Verdict-inert; spine byte-stable.   # 1.10.0 (2026-09-04): VERDICT-INERT prediction_lane_caveat MATERIALITY gate — fires only when the non-curated (kinome-prediction + co-essentiality) lanes are at least as large as the curated network, so it goes quiet on curated-dominant hubs (MYC/TP53) where firing on ~every target was noise. Spine byte-stable.   # 1.9.0 (2026-09-04): --literature lane (run_wired_skill make_literature_fn(MECHANISM_PHARMACOLOGY)) + VERDICT-INERT actionable-MoA INFLATION surfacing (mechanism_confirmation_caveat = has_actionable_moa off a CONTEXT-FREE curated edge without indication-operative validation, clinically-precedented false-demote guard; prediction_lane_caveat = kinome-atlas/co-essentiality lanes carried alongside but never merged; curation_gap_note; mechanism_provenance quorum summary; MECHANISM_PHARMACOLOGY thesis + polarity_note). Spine byte-stable (resolver keys only on network_class).   # 1.8.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 1.7.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.                       # stamped into provenance.yaml — MUST equal SKILL.md metadata.version
+SKILL_VERSION = "1.13.0"  # 1.13.0 (2026-10-01): pathway-activity-context (PROGENy) promoted from pure display to a target-conditioned mechanism CONFIDENCE note (pathway_activation_confidence_note; SK#2314 B1) — member AND relatively_high (z>=+1) raises confidence language, member AND relatively_low (z<=-1) is the honest negative caution; follows the coessential-module confidence-facet precedent exactly. VERDICT-INERT (resolver keys only on network_class; mechanism_verdict byte-stable).   # 1.12.0 (2026-10-01): + driver-pathway-position card (pathway-context epic SK#2314 P1) — target+indication-conditioned POSITIONAL read (member/upstream/downstream of the indication's frequently-altered driver pathway); SOFT/VERDICT-INERT display facet (soft axis_fit rules only, no resolver — mechanism_verdict byte-stable, resolver keys only on network_class).   # 1.11.0 (2026-09-19): CASE-027-D1 — VERDICT-INERT mechanism_verdict_currency note: names that mechanism_verdict measures signaling-network ANNOTATION-DENSITY currency, so a partial/sparse verdict on a non-signaling mechanism class (surface antigen / neomorphic-metabolic enzyme / structural protein / synthetic-lethal partner) is expected by construction, NOT a poorly-characterized target. Constant scale-disclaimer (no over-call risk), complements curation_gap_note; cannot assert the class (points to target-profile mechanism_mismatch). Spine byte-stable (resolver keys only on network_class; replay guard asserts verdict + driving_rule_id).   # 1.10.2 (2026-09-12): curation_gap_note signal-specificity split (20-target lit-panel) — target-specific (phospho/co-essentiality) vs indication/expression-level (PROGENy/tahoe) signals; context-level-only thin targets get thin_network_context_level_signal_only (no curation-gap over-call for surface antigens like CEACAM5/MSLN). Verdict-inert.   # 1.10.1 (2026-09-12): mapped-MoA guard note — has_actionable_moa/has_pd_marker now require a MAPPED MoA class (method fix); confirmation-caveat note text + docs updated (31-class ontology, Reactome=context). Verdict-inert; spine byte-stable.   # 1.10.0 (2026-09-04): VERDICT-INERT prediction_lane_caveat MATERIALITY gate — fires only when the non-curated (kinome-prediction + co-essentiality) lanes are at least as large as the curated network, so it goes quiet on curated-dominant hubs (MYC/TP53) where firing on ~every target was noise. Spine byte-stable.   # 1.9.0 (2026-09-04): --literature lane (run_wired_skill make_literature_fn(MECHANISM_PHARMACOLOGY)) + VERDICT-INERT actionable-MoA INFLATION surfacing (mechanism_confirmation_caveat = has_actionable_moa off a CONTEXT-FREE curated edge without indication-operative validation, clinically-precedented false-demote guard; prediction_lane_caveat = kinome-atlas/co-essentiality lanes carried alongside but never merged; curation_gap_note; mechanism_provenance quorum summary; MECHANISM_PHARMACOLOGY thesis + polarity_note). Spine byte-stable (resolver keys only on network_class).   # 1.8.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 1.7.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.                       # stamped into provenance.yaml — MUST equal SKILL.md metadata.version
 #        facet (verdict-inert; SIGNOR cross-referenced)
 # 1.5.0: pathway-activity-context (PROGENy)
 # 1.4.0: + tahoe-drug-perturbation MoA facet (verdict-inert)
@@ -558,6 +558,62 @@ def _curation_gap_note(network_class, phospho, pathway_activity, tahoe, coess_pa
     }
 
 
+# ── pathway-activation CONFIDENCE facet (SK#2314 B1, 2026-10-01) — target-CONDITIONED read over
+#    pathway-activity-context (PROGENy). Promotes the card from pure DISPLAY to a mechanism CONFIDENCE
+#    note, following the coessential-module precedent EXACTLY (functional-requirement's
+#    _dependency_confidence_note): a confidence facet raises/lowers CONFIDENCE LANGUAGE only — it never
+#    fires a rule and never moves mechanism_verdict (the resolver keys only on
+#    signaling-network-mechanism's network_class; this reads a sibling card entirely outside that rung).
+#
+#    The conjunction: the target's own PROGENy pathway membership (is it a responsive gene of a given
+#    pathway?) crossed against that pathway's cross-indication activity class in THIS cohort:
+#      - member AND relatively_high (z >= +1)  -> a positive mechanism-confidence note (the validated
+#        standout cohorts: Androgen/PRAD, Estrogen/BRCA, Hypoxia/KIRC).
+#      - member AND relatively_low (z <= -1)   -> the honest NEGATIVE: a caution note (the target's
+#        pathway is comparatively quiescent here, worth surfacing, never a verdict demote).
+#      - no membership, or membership with neither extreme -> silent (None); absent entirely when the
+#        card itself is data_unavailable (both lists are then empty, so the conjunction is vacuous).
+def _pathway_activation_confidence_note(
+    target,
+    target_pathway_membership,
+    relatively_high_pathways,
+    relatively_low_pathways,
+) -> dict | None:
+    """Target-conditioned PROGENy activity read, verdict-INERT. None when the target has no PROGENy
+    pathway membership, or its member pathway(s) sit at neither activity extreme in this cohort (incl.
+    pathway-activity-context data_unavailable, where both lists are empty by construction)."""
+    membership = set(target_pathway_membership or [])
+    if not membership:
+        return None
+    high = set(relatively_high_pathways or [])
+    low = set(relatively_low_pathways or [])
+    active_member = sorted(membership & high)
+    low_member = sorted(membership & low)
+    who = target or "the target"
+    if active_member:
+        return {
+            "reason": "member_of_relatively_active_pathway",
+            "pathways": active_member,
+            "note": (
+                f"{who} is a PROGENy responsive gene of {', '.join(active_member)}, which is relatively "
+                "ACTIVE in this cohort (cross-indication z >= +1) — a mechanism CONFIDENCE note "
+                "(raises confidence language only; not a dependency/efficacy claim, never fires a rule, "
+                "never moves mechanism_verdict)."
+            ),
+        }
+    if low_member:
+        return {
+            "reason": "member_of_relatively_low_pathway",
+            "pathways": low_member,
+            "note": (
+                f"CAUTION: {who} is a PROGENy responsive gene of {', '.join(low_member)}, which is "
+                "relatively LOW activity in this cohort (cross-indication z <= -1) — the honest negative "
+                "read (a confidence caveat, not a verdict demote; the resolver owns the verdict)."
+            ),
+        }
+    return None
+
+
 # ── VERDICT-INERT mechanism-verdict CURRENCY note (CASE-027-D1; 2026-09-19). The mechanism_verdict is a
 #    signaling-network CHARACTERIZATION class — calibrated to curated signaling-edge / phospho ANNOTATION
 #    DENSITY (mechanism_claims.py caps it at moderate; NETWORK is curation, not target biology). For a target
@@ -717,6 +773,11 @@ def _headline(cards, fired, verdict_pair, target=None):
     _kinome = _as_dict(get_card_field(cards, "signaling-network-mechanism", "kinome_atlas_predictions"))
     _coess = _as_dict(get_card_field(cards, "signaling-network-mechanism", "coessentiality_context"))
     _pathway_activity = get_card_field(cards, "pathway-activity-context", "pathway_activity_class")
+    _target_pathway_membership = _as_list(
+        get_card_field(cards, "pathway-activity-context", "target_pathway_membership")
+    )
+    _relatively_high_pathways = _as_list(get_card_field(cards, "pathway-activity-context", "relatively_high_pathways"))
+    _relatively_low_pathways = _as_list(get_card_field(cards, "pathway-activity-context", "relatively_low_pathways"))
     _n_up = headline.get("n_upstream_regulators") or 0
     _n_dn = headline.get("n_downstream_effectors") or 0
     _n_coess = (_coess.get("n_partners") or 0) if _coess.get("data_available") else 0
@@ -766,6 +827,16 @@ def _headline(cards, fired, verdict_pair, target=None):
         _pathway_activity,
         headline.get("tahoe_perturbation_class"),
         _n_coess,
+    )
+    # SK#2314 B1 (2026-10-01): target-conditioned pathway-activation CONFIDENCE note (member of a
+    # relatively-active PROGENy pathway in this cohort -> positive; member of a relatively-low one ->
+    # the honest negative caution). Verdict-INERT (see function docstring); None when the target has no
+    # PROGENy membership or its member pathway(s) sit at neither extreme.
+    headline["pathway_activation_confidence_note"] = _pathway_activation_confidence_note(
+        target,
+        _target_pathway_membership,
+        _relatively_high_pathways,
+        _relatively_low_pathways,
     )
     # CASE-027-D1: name the signaling-annotation-density CURRENCY of the mechanism_verdict — a constant,
     # verdict-INERT scale-disclaimer for the under-reads verdicts (partial/sparse/data_unavailable/
@@ -851,6 +922,9 @@ _SYNTHESIS_FACET_KEYS = (
     "mechanism_confirmation_caveat",
     "prediction_lane_caveat",
     "curation_gap_note",
+    # SK#2314 B1: target-conditioned pathway-activation CONFIDENCE note (PROGENy membership x
+    # cross-indication activity). None when the target has no membership or sits at neither extreme.
+    "pathway_activation_confidence_note",
     # CASE-027-D1: the verdict-inert signaling-annotation-density CURRENCY disclaimer on mechanism_verdict.
     "mechanism_verdict_currency",
     "mechanism_provenance",
