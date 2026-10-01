@@ -46,8 +46,13 @@ def _install_fakes(monkeypatch):
     """Fake the fork context (so no real fork) + tag the thread-pool fallback 'THREAD' so the two
     branches are distinguishable by their return values."""
     monkeypatch.setattr(multiprocessing, "get_context", lambda method: _FakeCtx())
+    # Patch the RESOLVING namespace: _read_cards_process now lives in _skills_common.cards
+    # (#2380 split) and calls _read_cards_threaded resolved in that submodule's globals, not the
+    # package root. skc._read_cards_threaded is the re-export; patching it no longer intercepts the
+    # call site inside cards.py — patch skc.cards._read_cards_threaded (the function the process
+    # reader actually invokes on its thread-pool fallback arm).
     monkeypatch.setattr(
-        skc,
+        skc.cards,
         "_read_cards_threaded",
         lambda card_ids, target, indication, subgroup_context, max_workers, plot_data_root=None: [
             f"THREAD:{c}" for c in card_ids
