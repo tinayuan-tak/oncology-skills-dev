@@ -39,8 +39,11 @@ from pathlib import Path
 import yaml
 from jsonschema import Draft202012Validator
 
+# N3-1 #2144/#2423: env override, else derived one level above this monorepo's root (where the
+# kept rnd-...-data-catalog sibling symlink points) — mirrors onc_methods.roots.data_catalog_root().
 DEFAULT_CATALOG_REPO = Path(
-    os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")
+    os.environ.get("DATA_CATALOG_ROOT")
+    or Path(__file__).resolve().parent.parent.parent.parent / "rnd-computational-biology-oncology-data-catalog"
 )
 
 # data_source → catalog expected_n_* field suffix. The COADREAD catalog carries

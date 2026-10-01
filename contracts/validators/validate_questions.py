@@ -9,10 +9,10 @@ Two layers (mirrors validate_cards.py):
       cards/. A dangling measurement_type is a card that will never join the question (a silent
       empty-signal row in the evidence_graph dashboard).
 
-CROSS-REPO: questions.yaml lives in the sibling claude-oncology-skills repo (like the figure-emission
-check in validate_cards.py). We locate it via $CLAUDE_ONCOLOGY_SKILLS_ROOT (default: the standard
-checkout path) and GRACEFULLY SKIP layer-1/2 when that repo is absent (isolated CI) — the schema itself
-is always checked for well-formedness.
+CROSS-REPO (historically): questions.yaml lives in the (now in-tree, SK#2063) claude-oncology-skills
+repo (like the figure-emission check in validate_cards.py). We locate it via
+$CLAUDE_ONCOLOGY_SKILLS_ROOT (default: this repo's own root) and GRACEFULLY SKIP layer-1/2 when that
+repo is absent (isolated CI) — the schema itself is always checked for well-formedness.
 
 Usage:
   python validators/validate_questions.py                 # all skills' questions.yaml (+ resolution)
@@ -32,11 +32,9 @@ from jsonschema import Draft202012Validator
 
 REPO = Path(__file__).resolve().parent.parent
 CARDS_DIR = REPO / "cards"
-SKILLS_REPO = Path(
-    os.environ.get(
-        "CLAUDE_ONCOLOGY_SKILLS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills"
-    )
-)
+# N3-1 #2144 / #2423: since the SK#2063 monorepo consolidation, questions.yaml lives IN-TREE in this
+# same repo (claude-oncology-skills), so the default is the in-tree repo root, not a $HOME literal.
+SKILLS_REPO = Path(os.environ.get("CLAUDE_ONCOLOGY_SKILLS_ROOT") or REPO.parent)
 
 
 def _load_schema() -> dict:

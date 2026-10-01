@@ -40,14 +40,17 @@ from typing import Optional
 import yaml
 from jsonschema import Draft202012Validator
 
+_REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 PRODUCTS_PATH = Path(__file__).resolve().parent.parent / "vocabularies" / "products.yaml"
 # Sibling data-catalog checkout, for the required_inputs[].product_id referential-integrity check.
 # A product_id resolves against EITHER a data-catalog manifest id OR a registered products.yaml
-# product id (the two legitimate namespaces). Located via env, defaulting to the sibling path;
-# graceful-skip when absent (e.g. the checkout-only contracts-validate runner) — mirrors the
-# _SKILLS_REPO figure-emission sibling pattern so the check never false-fails in isolated CI.
+# product id (the two legitimate namespaces). Located via env, else derived one level above this
+# monorepo's root (where the kept rnd-...-data-catalog sibling symlink points, N3-1 #2144/#2423 —
+# mirrors onc_methods.roots.data_catalog_root()); graceful-skip when absent (e.g. the checkout-only
+# contracts-validate runner) — mirrors the _SKILLS_REPO figure-emission sibling pattern so the check
+# never false-fails in isolated CI.
 _DATA_CATALOG_REPO = Path(
-    os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")
+    os.environ.get("DATA_CATALOG_ROOT") or _REPO_ROOT.parent / "rnd-computational-biology-oncology-data-catalog"
 )
 
 # Recognized CEL-subset operators and reserved tokens (B1 § compose-dashboard subsection 2)
@@ -112,11 +115,9 @@ PANORAMA_RECORD_FIELDS = {"per_subgroup_metrics", "per_stratum_metrics"}
 # the skills repo (graceful-skip if the sibling repo is absent, e.g. isolated CI).
 # This replaces an earlier method-`call:`-keyed heuristic: the live producer is the
 # registry, not the analysis-methods emit_* (which serve the batch/precompute path).
-_SKILLS_REPO = Path(
-    os.environ.get(
-        "CLAUDE_ONCOLOGY_SKILLS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills"
-    )
-)
+# Since the SK#2063 monorepo consolidation this validator lives IN-TREE in the skills repo itself,
+# so the default is this repo's own root, not a $HOME literal (N3-1 #2144/#2423).
+_SKILLS_REPO = Path(os.environ.get("CLAUDE_ONCOLOGY_SKILLS_ROOT") or _REPO_ROOT)
 # The CARD_FIGURE_EMITTERS registry literal. As of the figure-consolidation Stage-4 split the
 # monolith `_figure_emitters.py` became a package: the registry now lives in
 # `_figure_emitters/_registry.py`. We try the package form first, then fall back to the legacy
@@ -154,10 +155,11 @@ _FIGURE_EMITTERS_CANDIDATES = (
 # python in a checkout with no analysis-methods dependencies installed, so importing for real would
 # fail on pandas/boto3 rather than on the wiring. Both halves graceful-skip when the sibling repo is
 # absent (isolated CI), mirroring the _SKILLS_REPO figure-emission pattern above.
-# SK#2196: the default was the "/home/sagemaker-user/rnd-...-analysis-methods" literal — the ARCHIVED
-# pre-merge clone, whose per-module dirs survive only as untracked __pycache__ shells after the AM
-# re-founding, so every card's METHOD_MODULE_MISSING check failed locally while CI (which exports
-# ANALYSIS_METHODS_ROOT) stayed green. analysis-methods is IN-TREE as methods/ since SK#2063.
+# SK#2196: the default used to be a bare $HOME-anchored analysis-methods sibling-clone literal —
+# the ARCHIVED pre-merge clone, whose per-module dirs survive only as untracked __pycache__ shells
+# after the AM re-founding, so every card's METHOD_MODULE_MISSING check failed locally while CI
+# (which exports ANALYSIS_METHODS_ROOT) stayed green. analysis-methods is IN-TREE as methods/ since
+# SK#2063; the default below is now derived purely from this file's own on-disk location.
 _ANALYSIS_METHODS_REPO = Path(
     os.environ.get("ANALYSIS_METHODS_ROOT", str(Path(__file__).resolve().parents[2] / "methods"))
 )

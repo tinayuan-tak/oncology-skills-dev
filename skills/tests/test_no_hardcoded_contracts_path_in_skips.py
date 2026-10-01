@@ -29,9 +29,10 @@ at ``$HOME`` on the dev box, instead of this checkout's own contracts/methods tr
 (SK#2063 folded target-contracts/analysis-methods IN as contracts/ and methods/).
 ``test_no_prod_code_hardcodes_the_home_rnd_default`` below ratchets that class shut
 across the whole repo's non-test code, mirroring the exact enumeration grep used to
-find and fix the original 62 offenders. ``contracts/validators/`` is temporarily
-excluded — it is issue #2090's live in-flight scope; once that lands, drop the
-exclusion so the ratchet covers it too.
+find and fix the original 62 offenders. ``contracts/validators/`` was temporarily
+excluded pending #2090 (closed as the /nonexistent-shim retirement, unrelated); #2423
+fixed the 5 remaining ``contracts/validators/`` literals and dropped that exclusion,
+so the ratchet now covers that subtree too.
 
 SK#2196 EXTENSION — the two blind spots that let this class survive #2137, each
 measured as a live local-only RED:
@@ -127,8 +128,9 @@ def test_no_test_builds_a_contracts_path_from_the_bare_literal() -> None:
 
 
 def _tracked_prod_py_files() -> list[Path]:
-    """All tracked .py files EXCLUDING tests, and excluding contracts/validators/ (issue #2090's
-    active carve-out scope — drop this exclusion once #2090 lands and migrate that subtree too)."""
+    """All tracked .py files EXCLUDING tests. #2423 fixed the 5 contracts/validators/ offenders
+    and dropped that subtree's former carve-out (issue #2090, closed, unrelated) — the ratchet
+    now covers contracts/validators/ too."""
     out = subprocess.run(
         ["git", "ls-files", "*.py"],
         cwd=REPO_ROOT,
@@ -141,8 +143,6 @@ def _tracked_prod_py_files() -> list[Path]:
         if Path(rel).name.startswith("test_"):
             continue
         if "/tests/" in rel or rel.startswith("tests/"):
-            continue
-        if rel.startswith("contracts/validators/"):
             continue
         path = REPO_ROOT / rel
         if path == _THIS_FILE:
