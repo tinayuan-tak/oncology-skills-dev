@@ -55,6 +55,16 @@
 # the skills' ASTs fail-loud and reconciles both directions.
 
 enum_id: claim_axis
+# 1.4.0 — arc #2210 Wave-1d (issue #2213, the selectivity seed) landed
+# contracts/vocabularies/property_catalog/selectivity.yaml (6 l2a properties), so tumor-selectivity's WIN
+# additionally cites selectivity.tumor_vs_normal_rna_window + selectivity.protein_tvn_window_cptac +
+# selectivity.protein_tvn_window_tphp alongside its already-landed l2b family, and DIST/INT — empty since
+# v1.0.0 pending exactly this catalog — now resolve selectivity.patient_distribution_separation /
+# selectivity.malignant_cell_intrinsicity respectively, while SAFE additionally cites
+# selectivity.sc_normal_tissue_window alongside its already-landed l2b family. MINOR per
+# `governance.versioning`: `resolves:` entries added, none removed, no label/`critical` touched;
+# resolved_axes 26->28, resolved_properties 34->40, floors ratcheted to 26/35 (preserving the v1.0.0
+# margins of 2/5); the landed-l2a-catalog coverage dimension moves 5/15 -> 6/15.
 # 1.3.0 — arc #2210 Wave-1c (issue #2212, the genomic seed) landed
 # contracts/vocabularies/property_catalog/genomic.yaml (7 l2a properties), so genomic-alteration-profile's
 # SNV additionally cites genomic.mutation_recurrence_exome + genomic.mutation_recurrence_panel alongside
@@ -81,7 +91,7 @@ enum_id: claim_axis
 # the eight properties it declares. MINOR per `governance.versioning`: `resolves:` entries added, none
 # removed, no label or `critical` flag touched. PAN_ESSENTIAL is the one safety axis still empty, and
 # its `resolves_pending:` now says WHY rather than pointing at a wave that has already landed.
-version: 1.3.0
+version: 1.4.0
 
 description: |
   One governed entry per (skill, axis_key): the display label, the decision question the axis informs,
@@ -685,24 +695,25 @@ axes:
     critical: true
     resolves:
       - integrated_families.selectivity
+      - selectivity.tumor_vs_normal_rna_window
+      - selectivity.protein_tvn_window_cptac
+      - selectivity.protein_tvn_window_tphp
   - skill: tumor-selectivity
     axis_key: DIST
     label: "distributional separation"
     informs: |
       Do the tumour and normal distributions separate, or merely differ in central tendency?
     critical: false
-    resolves: []
-    resolves_pending: |
-      arc #2210 Wave-1d, issue #2213 (selectivity l2a catalog)
+    resolves:
+      - selectivity.patient_distribution_separation
   - skill: tumor-selectivity
     axis_key: INT
     label: "tumor-cell-intrinsic"
     informs: |
       Is the window driven by the tumour cells themselves rather than by composition?
     critical: false
-    resolves: []
-    resolves_pending: |
-      arc #2210 Wave-1d, issue #2213 (selectivity l2a catalog)
+    resolves:
+      - selectivity.malignant_cell_intrinsicity
   - skill: tumor-selectivity
     axis_key: SAFE
     label: "normal-tissue window"
@@ -711,6 +722,7 @@ axes:
     critical: false
     resolves:
       - integrated_families.normal_liability
+      - selectivity.sc_normal_tissue_window
 
 # ── inverse index 1: skill -> gate + display order ──────────────────────────────────
 skills:
@@ -931,6 +943,41 @@ properties:
     resolved_by:
       - skill: on-target-safety-liability
         axis_key: BURDEN
+  selectivity.malignant_cell_intrinsicity:
+    resolved_by:
+      - skill: tumor-selectivity
+        axis_key: INT
+  selectivity.patient_distribution_separation:
+    resolved_by:
+      - skill: tumor-selectivity
+        axis_key: DIST
+  selectivity.protein_tvn_window_cptac:
+    resolved_by:
+      - skill: tumor-selectivity
+        axis_key: WIN
+    note: |
+      Resolved by the SAME axis (WIN) as selectivity.tumor_vs_normal_rna_window and
+      selectivity.protein_tvn_window_tphp: WIN's decision question ("is there a window at all") is
+      answered by the RNA and protein substrates alike. protein_tvn_window_cptac and
+      protein_tvn_window_tphp additionally share ONE dependence_group (`protein_ms`) in selectivity.yaml
+      — same-modality siblings, not two independent protein platforms (the #1667 lesson).
+  selectivity.protein_tvn_window_tphp:
+    resolved_by:
+      - skill: tumor-selectivity
+        axis_key: WIN
+    note: |
+      See selectivity.protein_tvn_window_cptac's note — the two share ONE dependence_group (`protein_ms`).
+  selectivity.sc_normal_tissue_window:
+    resolved_by:
+      - skill: tumor-selectivity
+        axis_key: SAFE
+  selectivity.tumor_vs_normal_rna_window:
+    resolved_by:
+      - skill: tumor-selectivity
+        axis_key: WIN
+    note: |
+      Resolved by the SAME axis (WIN) as selectivity.protein_tvn_window_cptac /
+      selectivity.protein_tvn_window_tphp — see that note.
   tumor_presence.malignant_cell_coverage:
     resolved_by:
       - skill: tumor-presence
@@ -956,38 +1003,38 @@ population_floors:
   skills: 15
   axes: 55
   distinct_axis_keys: 55
-  resolved_axes: 24
-  resolved_properties: 29
+  resolved_axes: 26
+  resolved_properties: 35
   note: |
-    Anti-vacuity, not decoration. Floors sit at or BELOW the measured population (measured at v1.3.0: 15 skills, 61 axes, 60 distinct axis_keys, 26 resolved axes, 34 resolved properties; at v1.2.0 the last two were 23 and 28; at v1.1.0 they were 19 and 23; at v1.0.0 they were 14 and 15) so that legitimate additive growth never reds, while a discovery glob that silently matches nothing does. The two resolve-floors are RATCHETED with each wave that populates `resolves:`, preserving their v1.0.0 margin below measured (2 and 5): a floor left at the pre-wave number would still pass on a registry that had silently lost everything the wave added, which is precisely the shrink a floor exists to catch. `skills` is a FLOOR and not pinned to equality on purpose: contracts/ may not read skills' HeadlineSpecs (dependency direction), so the equality half lives in skills/_skills_common/tests/test_claim_axis_registry_coverage.py, which reds when a 16th skill declares axes with no entry here.
+    Anti-vacuity, not decoration. Floors sit at or BELOW the measured population (measured at v1.4.0: 15 skills, 61 axes, 60 distinct axis_keys, 28 resolved axes, 40 resolved properties; at v1.3.0 the last two were 26 and 34; at v1.2.0 they were 23 and 28; at v1.1.0 they were 19 and 23; at v1.0.0 they were 14 and 15) so that legitimate additive growth never reds, while a discovery glob that silently matches nothing does. The two resolve-floors are RATCHETED with each wave that populates `resolves:`, preserving their v1.0.0 margin below measured (2 and 5): a floor left at the pre-wave number would still pass on a registry that had silently lost everything the wave added, which is precisely the shrink a floor exists to catch. `skills` is a FLOOR and not pinned to equality on purpose: contracts/ may not read skills' HeadlineSpecs (dependency direction), so the equality half lives in skills/_skills_common/tests/test_claim_axis_registry_coverage.py, which reds when a 16th skill declares axes with no entry here.
 
 coverage_dimensions:
   - dimension: axes_resolving_a_catalogued_property
-    measured: 26
+    measured: 28
     total: 61
     is_a_gate: false
     rationale: |
-      26 of 61 axes cite a property today (14 at v1.0.0, +5 from Wave-1a's safety.yaml, +4 from
-      Wave-1b's dependency.yaml, +3 from Wave-1c's genomic.yaml: genomic-alteration-profile's CN, FUS and
-      DEP — empty since v1.0.0 pending exactly this catalog — now resolve it; SNV already resolved its
-      l2b family, so it did not change this count even though it gained two l2a properties, mirroring
-      functional-requirement's DEP at the Wave-1b wave). They come from the five landed l2a catalogs plus
-      the l2b family catalog Wave-0a landed. The other 35 are not defects and not holes in this file: the
-      l2a catalogs for selectivity and surface are the remaining Wave-1 items owned by #2213-#2214. A
-      GATE on this number would either block the wave behind its own successors or force catalog entries
+      28 of 61 axes cite a property today (14 at v1.0.0, +5 from Wave-1a's safety.yaml, +4 from
+      Wave-1b's dependency.yaml, +3 from Wave-1c's genomic.yaml, +2 from Wave-1d's selectivity.yaml:
+      tumor-selectivity's DIST and INT — empty since v1.0.0 pending exactly this catalog — now resolve it;
+      WIN and SAFE already resolved their l2b families, so they did not change this count even though
+      they each gained l2a properties, mirroring SNV/DEP's precedent at the Wave-1c wave). They come from
+      the six landed l2a catalogs plus the l2b family catalog Wave-0a landed. The other 33 are not defects
+      and not holes in this file: the l2a catalog for surface is the remaining Wave-1 item owned by #2214.
+      A GATE on this number would either block the wave behind its own successor or force catalog entries
       to be invented ahead of the measurement they record. So it is REPORTED. Fail-open promotes; an
       unmeasured number would be worse than a small one, which is why `measured` is required to be an int
-      and `resolves_pending:` is required on every one of the 35.
+      and `resolves_pending:` is required on every one of the 33.
   - dimension: domains_with_a_landed_l2a_property_catalog
-    measured: 5
+    measured: 6
     total: 15
     is_a_gate: false
     rationale: |
-      expression.yaml, tumor_presence.yaml, safety.yaml (Wave-1a), dependency.yaml (Wave-1b) and — as of
-      Wave-1c — genomic.yaml are the five landed `l2a_property` files; the 13 entries in
-      integrated_families.yaml are `l2b_family` folds, not per-domain properties. This is the upstream
-      cause of the dimension above, recorded separately so a reader does not mistake sparse `resolves:`
-      coverage for sloppy registration here.
+      expression.yaml, tumor_presence.yaml, safety.yaml (Wave-1a), dependency.yaml (Wave-1b),
+      genomic.yaml (Wave-1c) and — as of Wave-1d — selectivity.yaml are the six landed `l2a_property`
+      files; the 13 entries in integrated_families.yaml are `l2b_family` folds, not per-domain
+      properties. This is the upstream cause of the dimension above, recorded separately so a reader
+      does not mistake sparse `resolves:` coverage for sloppy registration here.
   - dimension: skills_using_a_letter_axis_scheme
     measured: 1
     total: 15

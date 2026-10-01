@@ -21,8 +21,10 @@ signal_fn / corroboration_fn ClaimSpec contract directly.
 
 Verdict-INERT: reads the ALREADY-computed _headline; never feeds the selectivity resolver or the
 normal-breadth veto. The CEACAM5/TACSTD2 offline replay guard freezes selectivity_class byte-stable.
-All inputs are read from `headline` (populated by run.py::_headline via card_summary/get_card_field);
-the `cards` param is accepted for contract-uniformity but unused here.
+Axis signals/corroboration are read from `headline` (populated by run.py::_headline via
+card_summary/get_card_field); the `cards` param ADDITIONALLY feeds the L2a `source_properties` map
+(PR-1d, SK#2210 Wave-1d, #2213) via `_source_properties(cards_by_id(cards))` — a pure projection that
+reads card summaries directly (never the headline), still verdict-inert and read by no rule/ladder.
 """
 
 from __future__ import annotations
@@ -35,9 +37,11 @@ from _skills_common.claim_vector_core import (
     build_claim_vector,
     build_key_signals,
     cap_corroboration,
+    cards_by_id,
     corroboration_from_arms,
     sig_ge,
 )
+from _skills_common.reliability import _derive_reliability
 
 # ── enum → tier maps (grounded in the target-contracts card summary_fields_vocabulary) ────────────
 # tumor-vs-normal-selectivity.selectivity_class (raw pre-veto tumor-vs-origin class)
@@ -719,6 +723,14 @@ def _selectivity_concordance_claim(h: dict) -> "dict | None":
         "cptac_tmt": "CPTAC TMT-MS tumor-vs-normal protein",
         "tphp_dia": "TPHP DIA-MS tumor-vs-normal protein",
     }
+    # card_id (PR-1d, #2213): all three arms reconstruct downward to their L1 card, mirroring genomic's
+    # PR-1c additive fix to `_recurrence_concordance_claim` — additive, byte-stable for any existing
+    # reader keying on headline_field/cohort.
+    _card_id = {
+        "rna_bulk": "tumor-vs-normal-selectivity",
+        "cptac_tmt": "tumor-protein-abundance-cptac",
+        "tphp_dia": "tumor-vs-normal-protein-abundance-tphp",
+    }
     _grain = {"rna_bulk": "bulk_rna_transcript", "cptac_tmt": "ms_protein", "tphp_dia": "ms_protein"}
     _field = {
         "rna_bulk": "axis_a_selectivity_class",
@@ -750,7 +762,11 @@ def _selectivity_concordance_claim(h: dict) -> "dict | None":
             "resolved": r,
             "quality_eligible": r,  # a resolved read is usable evidence (may supply its group's arm value)
             "corroboration_eligible": corroboration_eligible,  # eligible to count as INDEPENDENT replication?
-            "provenance": {"headline_field": _field[source], "cohort": _cohort[source]},
+            "provenance": {
+                "headline_field": _field[source],
+                "cohort": _cohort[source],
+                "card_id": _card_id[source],
+            },
             "retained_quantitative": _quant[source],
         }
 
@@ -903,6 +919,252 @@ def _selectivity_concordance_claim(h: dict) -> "dict | None":
     }
 
 
+# ── L2a: NAMED typed source_properties map (PR-1d of epic SK#2210 / #1507, replicating the genomic ──
+# seed PR-1c for the SELECTIVITY domain). See selectivity.yaml (contracts/vocabularies/property_catalog/)
+# for the governance record this projection must stay coherent with. Property table is AUTHORITATIVE
+# per issue #2213 — implemented verbatim, not re-derived.
+#
+# The scale/unit slot for each retained quantitative anchor (envelope-v0: a raw value + its declared
+# scale, never a `decision_weight`/`modality_relevance`). Absent → "raw".
+_SELECTIVITY_ANCHOR_SCALE = {
+    # tumor-vs-normal-selectivity (bulk RNA, 3-cell DESeq2 sensitivity).
+    "max_abs_log2fc": "log2_fold_change",
+    "log2fc_cell_a": "log2_fold_change",
+    "log2fc_cell_c": "log2_fold_change",
+    "q_value_cell_a": "q_value",
+    "q_value_cell_c": "q_value",
+    "cells_supporting": "comparator_count",
+    "cells_ran": "comparator_count",
+    # tumor-vs-normal-percentile-crossing (per-sample distributional separation).
+    "fraction_tumor_above_normal_p95": "fraction",
+    "distribution_overlap_tumor_normal": "overlap_coefficient",
+    "n_tumor_samples": "sample_count",
+    "n_normal_samples": "sample_count",
+    # tumor-scrna-celltype-expression (malignant-compartment detection).
+    "malignant_detection_fraction": "fraction",
+    "malignant_n_donors": "donor_count",
+    # sc-normal-celltype-expression (normal-tissue breadth).
+    "n_cell_types_above_20pct": "cell_type_count",
+    "max_detection_fraction": "fraction",
+    # protein MS tumor-vs-normal (CPTAC TMT + TPHP DIA, same scale shape on both siblings).
+    "protein_effect_size": "log2_fold_change",
+    "protein_bh_q_value": "bh_q_value",
+    "protein_median_log2_tumor": "log2_abundance",
+    "protein_median_log2_normal": "log2_abundance",
+}
+
+# Data-driven recipe (keyed by the L2a property name from the architecture's source_properties shape).
+# `property_field` is the resolved observational class of that source; `anchors` are its retained
+# quantitative anchors, in reading order; `context` fields are retained categorical/label qualifiers.
+# Every `card_id`/`property_field`/anchor/context name below is taken VERBATIM from issue #2213's
+# authoritative property table and verified against `contracts/cards/<card_id>.card.yaml`
+# `outputs.summary_fields`.
+#
+# `malignant_cell_intrinsicity` reads `tumor-scrna-celltype-expression`, a card SHARED with
+# tumor-presence — its `reliability`/dependence story is carried on this entry's catalog record
+# (`dependence_group: sc_tumor_atlas`, the SAME token tumor_presence.yaml uses for its own entry on this
+# card) so no downstream integration double-counts it as an independent arm.
+#
+# `protein_tvn_window_cptac` and `protein_tvn_window_tphp` are same-modality (mass-spec protein)
+# siblings — two entries because the cohorts/grains differ (CPTAC TMT per-cohort vs TPHP DIA body-atlas),
+# not because they are independent evidence; both share `dependence_group: protein_ms` (the #1667 lesson:
+# never let a cohort/grain split read as a second independent platform).
+#
+# NO `comparability.valence` marker anywhere: a tumor-vs-normal WINDOW (RNA or protein), a distributional
+# separation, a malignant-intrinsic detection fraction, and a normal-tissue breadth count are all the
+# SIGNAL this domain is looking for (the window itself), not a liability — mirrors genomic/dependency's
+# default-frame call exactly. NO `interpretation` provenance object either: every property_field below is
+# a VERBATIM card read (no skills-layer disjunction decides any of these six classes).
+#
+# RELIABILITY (#2306): each entry's own n-anchor (where the AUTHORITATIVE anchor list names a genuine
+# sample-size field, not a comparator/breadth COUNT) is wired as `n_effective_anchor`. `malignant_
+# detection_fraction` is the one detection/abundance-kind anchor in this table (single-cell malignant
+# compartment detection), so `malignant_cell_intrinsicity` ALSO names the calibrated `sc_malignant_
+# detection_fraction` scheme (#2329) — the RICH field this issue's scope note anticipates firing on this
+# domain. No property here resolves from `allgene_percentile` (none of the six anchors in the
+# authoritative table are an allgene-percentile read — `selectivity_allgene_percentile*` exists on the
+# tumor-vs-normal-selectivity card but is NOT in the table, and `tumor-vs-normal-percentile-crossing`'s
+# own `allgene_percentile` call is similarly undeclared on that card's summary_fields), so NO entry names
+# a `floor_tie_anchor` and `artifact_flags` stays `[]` uniformly. No property's anchors carry a
+# purity-confound r (the `expression-purity-confound` card is not among the six source cards), so NO
+# entry names a `purity_confound_anchor` and `confound_flags` stays `[]` uniformly. `powered` reads
+# 'unmeasured' uniformly — no selectivity property-kind has a calibrated admissibility floor in
+# `onc_methods.reliability_calibration.powered_floors` yet.
+_SOURCE_PROPERTY_RECIPES_SELECTIVITY = (
+    {
+        "name": "tumor_vs_normal_rna_window",
+        "card_id": "tumor-vs-normal-selectivity",
+        "property_field": "selectivity_class",
+        "anchors": (
+            "max_abs_log2fc",
+            "log2fc_cell_a",
+            "log2fc_cell_c",
+            "q_value_cell_a",
+            "q_value_cell_c",
+            "cells_supporting",
+            "cells_ran",
+        ),
+        "context": ("comparator_concordance", "dominant_direction"),
+        "comparability": {
+            "measurement_type": "tcga_gtex_three_cell_dge_sensitivity",
+            "sample_context": "tumor_vs_tcga_adjacent_and_gtex_normal",
+            "grain": "target",
+        },
+        # No genuine sample-N anchor in the authoritative table: cells_supporting/cells_ran are a
+        # 0-3 comparator-FAMILY count, not a patient/sample size, so n_effective is honestly OMITTED
+        # rather than fabricated from a count that is not a denominator.
+        "reliability": {},
+    },
+    {
+        "name": "patient_distribution_separation",
+        "card_id": "tumor-vs-normal-percentile-crossing",
+        "property_field": "selectivity_class",
+        "anchors": (
+            "fraction_tumor_above_normal_p95",
+            "distribution_overlap_tumor_normal",
+            "n_tumor_samples",
+            "n_normal_samples",
+        ),
+        "context": (),
+        "comparability": {
+            "measurement_type": "tumor_vs_normal_percentile_crossing",
+            "sample_context": "tumor_per_sample_vs_matched_gtex_normal",
+            "grain": "target",
+        },
+        # n_effective = n_tumor_samples — the denominator `fraction_tumor_above_normal_p95` is itself
+        # computed over.
+        "reliability": {"n_effective_anchor": "n_tumor_samples"},
+    },
+    {
+        "name": "malignant_cell_intrinsicity",
+        "card_id": "tumor-scrna-celltype-expression",
+        "property_field": "sc_expression_class",
+        "anchors": ("malignant_detection_fraction", "malignant_n_donors"),
+        "context": ("caf_vs_malignant_class",),
+        "comparability": {
+            "measurement_type": "sc_tumor_malignant_compartment_detection",
+            "sample_context": "cellxgene_tumor_atlas_malignant_compartment",
+            "grain": "target",
+        },
+        # n_effective = malignant_n_donors — "reliable donors backing the malignant call" (the power
+        # behind malignant_detection_fraction, per the card's own comment). detection_strength (#2329):
+        # the ONE detection/abundance-kind property in this table — malignant_detection_fraction is
+        # exactly the datum the calibrated sc_malignant_detection_fraction scheme reads (dropout-aware
+        # cuts imported from sc_tumor_expression_celltype.stats). The RICH field this domain fires.
+        "reliability": {
+            "n_effective_anchor": "malignant_n_donors",
+            "detection_strength_scheme": "sc_malignant_detection_fraction",
+            "detection_strength_anchor": "malignant_detection_fraction",
+        },
+    },
+    {
+        "name": "sc_normal_tissue_window",
+        "card_id": "sc-normal-celltype-expression",
+        "property_field": "sc_normal_safety_essential_class",
+        "anchors": ("n_cell_types_above_20pct", "max_detection_fraction"),
+        "context": (),
+        "comparability": {
+            "measurement_type": "sc_normal_organ_aware_safety_essential",
+            "sample_context": "cellxgene_normal_tissue_atlas",
+            "grain": "target",
+        },
+        # No genuine sample-N anchor in the authoritative table: n_cell_types_above_20pct is a BREADTH
+        # count (how many cell types), not a sample size, and max_detection_fraction is a fraction —
+        # n_effective is honestly OMITTED. No calibrated detection scheme covers NORMAL-tissue detection
+        # (the sc_malignant_detection_fraction scheme's cuts are malignant-compartment-specific) — stays
+        # OMITTED, not borrowed from a differently-calibrated scheme.
+        "reliability": {},
+    },
+    {
+        "name": "protein_tvn_window_cptac",
+        "card_id": "tumor-protein-abundance-cptac",
+        "property_field": "protein_expression_class",
+        "anchors": (
+            "protein_effect_size",
+            "protein_bh_q_value",
+            "protein_median_log2_tumor",
+            "protein_median_log2_normal",
+        ),
+        "context": (),
+        "comparability": {
+            "measurement_type": "cptac_tmt_ms_protein_tumor_vs_normal",
+            "sample_context": "cptac_pdc_per_cohort_tumor_vs_normal",
+            "grain": "target",
+        },
+        # No per-target sample-N anchor in the authoritative table (n_tumor_samples/n_normal_samples
+        # exist on this card but are not in #2213's table) — n_effective honestly OMITTED. No calibrated
+        # detection scheme for mass-spec protein presence (the IHC scheme reads a protein_presence_class
+        # token this card does not emit) — detection_strength stays OMITTED.
+        "reliability": {},
+    },
+    {
+        "name": "protein_tvn_window_tphp",
+        "card_id": "tumor-vs-normal-protein-abundance-tphp",
+        "property_field": "protein_expression_class",
+        "anchors": (
+            "protein_effect_size",
+            "protein_bh_q_value",
+            "protein_median_log2_tumor",
+            "protein_median_log2_normal",
+        ),
+        "context": ("cohort_pick_basis", "protein_detection_complete"),
+        "comparability": {
+            "measurement_type": "tphp_dia_ms_protein_tumor_vs_body_atlas_normal",
+            "sample_context": "tphp_matched_carcinoma_cohort_vs_body_atlas",
+            "grain": "target",
+        },
+        # Same honest omissions as the CPTAC sibling (no per-target sample-N / detection-scheme anchor
+        # in #2213's authoritative table for this property).
+        "reliability": {},
+    },
+)
+
+
+def _typed_selectivity_anchor(field, value):
+    """One retained quantitative anchor: {field, value, scale}. tumor-selectivity carries no field-
+    disposition semantic_role / interpretation_reach source to project yet (unlike safety's
+    `field_disposition.yaml`) — the minimal envelope-v0 shape is the honest one."""
+    return {"field": field, "value": value, "scale": _SELECTIVITY_ANCHOR_SCALE.get(field, "raw")}
+
+
+def _source_properties(c: dict) -> "dict | None":
+    """The NAMED, typed L2a source_properties map for the SELECTIVITY domain (PR-1d, #2210/#2213): one
+    entry per source/grain, lifting the per-source observational properties out of the four claim signal
+    blocks into an explicit, recoverable object. Returns None when no source resolves (whole key omitted
+    → byte-stable), matching the dependency/safety/genomic atom discipline on this vector. Pure
+    projection, verdict-inert, carries no signal tier. Takes the cards-by-id map only: every selectivity
+    class below is a verbatim card read, so unlike presence/safety there is no headline-evaluated
+    disjunction to report."""
+    out = {}
+    for recipe in _SOURCE_PROPERTY_RECIPES_SELECTIVITY:
+        summ = c.get(recipe["card_id"], {}) or {}
+        prop = summ.get(recipe["property_field"])
+        # A source with no card / no resolved observational class emits no entry (byte-stable).
+        if not prop or prop == "data_unavailable":
+            continue
+        entry = {
+            "card_id": recipe["card_id"],
+            # The L1 card field the class token was read from — NAMED on the entry (following the
+            # safety/dependency/genomic seeds) so every entry reconstructs to L1 as
+            # {card_id, property_field, property}.
+            "property_field": recipe["property_field"],
+            "property": prop,
+            "anchors": [_typed_selectivity_anchor(f, summ[f]) for f in recipe["anchors"] if summ.get(f) is not None],
+            "comparability": dict(recipe["comparability"]),
+        }
+        # Retained categorical qualifiers that orient the anchors without being quantities themselves.
+        # OMITTED entirely when the card supplies none, keeping a partial-card run byte-stable.
+        context = {f: summ[f] for f in recipe["context"] if summ.get(f) is not None}
+        if context:
+            entry["context"] = context
+        # The typed `reliability` facet (#2306 rollout step 4): a PURE projection over the entry's OWN
+        # retained anchors + this recipe's n-anchor/detection-scheme spec. Verdict-inert (SK#2091).
+        # Always present (powered is required); every OTHER field on the entry stays byte-identical.
+        entry["reliability"] = _derive_reliability(entry["anchors"], recipe["reliability"])
+        out[recipe["name"]] = entry
+    return out or None
+
+
 def selectivity_claim_vector(headline: dict, cards: list) -> dict:
     """The verdict-inert claim vector {WIN,DIST,INT,SAFE: {signal, corroboration, evidence, conflict,
     informs}, _disclaimer}. Projection over the computed headline."""
@@ -915,6 +1177,13 @@ def selectivity_claim_vector(headline: dict, cards: list) -> dict:
     _sc = _selectivity_concordance_claim(headline)
     if _sc is not None:
         vec["selectivity_concordance"] = _sc
+    # L2a NAMED source_properties map (PR-1d, #2210/#2213): the per-source observational properties
+    # lifted out of the four claim signal blocks into a named, typed, L1-reconstructable object. Carries
+    # NO `signal` key on any entry → not a chip, not a tier, read by no rule/verdict/ladder. OMITTED
+    # entirely (byte-stable) when no source resolves, matching the concordance-claim discipline above.
+    _props = _source_properties(cards_by_id(cards))
+    if _props is not None:
+        vec["source_properties"] = _props
     return vec
 
 

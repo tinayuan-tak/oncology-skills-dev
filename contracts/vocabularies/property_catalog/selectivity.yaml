@@ -1,0 +1,685 @@
+# selectivity.yaml — the tumor-selectivity SELECTIVITY source properties.
+#
+# Register (not engine) for the six per-source observational properties the tumor-selectivity skill
+# resolves and exports as `claim_vector.source_properties` / `evidence_package.source_properties`
+# (skills/_skills_common/selectivity_claims.py::_SOURCE_PROPERTY_RECIPES_SELECTIVITY). See README.md for
+# the entry shape and the identifiability test that admits `role: estimator`. PR-1d of epic SK#2210
+# (#1507, issue #2213), replicating the safety (PR-1a), dependency (PR-1b) and genomic (PR-1c) seeds for
+# the selectivity domain.
+catalog_id: selectivity
+kind: l2a_property
+version: 1.0.0
+
+description: |
+  Like dependency/genomic, this is a DEFAULT/descriptive-frame domain: a tumor-vs-normal RNA or protein
+  window, a distributional separation, a malignant-intrinsic detection fraction, a normal-tissue breadth
+  count — these are the SIGNAL this domain is looking for (the window itself), not a liability. So NO
+  entry carries a `comparability.valence` marker (mirrors dependency.yaml / genomic.yaml exactly, and for
+  the same reason: the property-catalog validator's closed ENTRY_KEYS cannot yet govern a second token,
+  so minting one would be ungoverned drift).
+
+  Likewise NO entry carries an `interpretation` provenance object: every selectivity class below is a
+  VERBATIM read of a card summary field — there is no skills-layer disjunction deciding any of these six
+  classes (unlike tumor-presence's normal-tissue-safety disjunction).
+
+  SIX properties, implementing issue #2213's authoritative property table verbatim:
+    * `tumor_vs_normal_rna_window` and `patient_distribution_separation` are the two bulk-RNA
+      tumor-vs-normal reads — a 3-cell DESeq2 sensitivity window (TCGA-adjacent + GTEx) and an
+      orthogonal per-sample percentile-crossing read. Different cards, different statistics (a
+      significance-and-magnitude class vs a distributional-overlap class), so these are genuinely
+      independent sources, not a grain split of one.
+    * `malignant_cell_intrinsicity` reads `tumor-scrna-celltype-expression`, a card SHARED WITH
+      tumor-presence. Its `dependence_group` (`sc_tumor_atlas`) is the SAME token tumor_presence.yaml
+      uses for its own entry on this card — load-bearing: a downstream integration must not read the two
+      domains' reads of this one atlas as two independent arms.
+    * `sc_normal_tissue_window` reads the organ-aware normal-tissue breadth card
+      (`sc-normal-celltype-expression`) — the therapeutic-window liability framing, not a safety verdict
+      (SAFETY is owned by on-target-safety-liability).
+    * `protein_tvn_window_cptac` and `protein_tvn_window_tphp` are SAME-MODALITY (mass-spec protein)
+      siblings sharing ONE `dependence_group` (`protein_ms`) — two entries because the cohorts/grains
+      differ (CPTAC TMT per-cohort vs TPHP DIA body-atlas-normal), never a second independent platform
+      (the #1667 lesson this issue explicitly names).
+
+  What is NOT here, deliberately:
+    * NO `selectivity_allgene_percentile*` entry. Issue #2213's authoritative table does not name it for
+      `tumor_vs_normal_rna_window` (its anchors are max_abs_log2fc/log2fc_cell_a/log2fc_cell_c/
+      q_value_cell_a/q_value_cell_c/cells_supporting/cells_ran only), so minting a 7th property for an
+      orphaned-but-emitted field would exceed this issue's scope. Same for the undeclared
+      `allgene_percentile` the percentile-crossing METHOD computes but the card never declares.
+    * NO `selectivity_concordance` L2b entry here — this catalog is L2a (per-source) only; the L2b
+      cross-source island (bulk-RNA x protein-MS window concordance, SK#1752) is already landed and
+      exported separately via `_evidence_sections`'s `integrated_properties` section.
+
+  A domain-wide fact recorded once rather than six times: every entry's `entity_grain` is `target`. Each
+  card emits a gene-level read (a selectivity class, a distributional-overlap statistic, a detection
+  fraction, a breadth count), never a per-sample read, so the six are commensurable on GRAIN; what
+  separates them is `measurement_type` and `sample_context` (TCGA/GTEx bulk-RNA DESeq2 vs TCGA/GTEx
+  per-sample percentile-crossing vs CELLxGENE tumor atlas vs CELLxGENE normal atlas vs CPTAC TMT-MS vs
+  TPHP DIA-MS — six genuinely distinct substrates).
+
+governance:
+  role: |
+    Authoritative for: what each selectivity property MEANS, which observables estimate it, and which
+    numbers decide its value. NOT authoritative for the value vocabulary — each property's tokens are
+    owned by its own card's `summary_fields_vocabulary` in cards/, and the scalar selectivity_class
+    VERDICT is owned by the target-contracts selectivity resolver + normal-breadth veto, never by this
+    file or the projection that reads it.
+  versioning: |
+    Semver. Adding a property or an observable is a MINOR bump. Correcting a rationale, a unit, or a
+    `source:` path is a PATCH bump. Removing a property, or changing an existing property's `grain`, is
+    BREAKING and requires a MAJOR bump plus coordination via the wip-registry —
+    `validate_property_catalog.py --additive-against <ref>` makes an un-bumped removal RED.
+  ownership: |
+    Epic #1507 (evidence-property architecture), arc #2210 Wave-1d (issue #2213, the selectivity
+    generalisation of the tumour-presence L2a reference vertical SK#1941, replicating the safety seed
+    PR-1a, the dependency seed PR-1b, and the genomic seed PR-1c). Threshold rationales marked UNKNOWN
+    below are the re-sequenced Wave-3 docs sweep's subject (#2219, which runs AFTER 1b-1e), not this PR's
+    — this PR pins each determinant's `source:` and value so the sweep has a verified anchor to document.
+  change_discipline: |
+    `property_id`s are published names referenced from outside this directory (the claim_axis registry's
+    `resolves:` field, which uses the QUALIFIED `selectivity.<property_id>` form — the bare form is
+    ambiguous across catalogs and the validator rejects it). Migrate by add -> consume -> remove, never a
+    bare rename.
+
+properties:
+
+  tumor_vs_normal_rna_window:
+    status: resolvable
+    definition: |
+      Is there a tumour-versus-normal bulk-RNA expression window at all — a 3-cell DESeq2 sensitivity
+      contrast (tumor vs TCGA-adjacent-normal raw, tumor vs TCGA-adjacent ComBat(TSS), tumor vs
+      GTEx-population raw) agreeing on direction + magnitude? The core selectivity signal this domain is
+      built around; `patient_distribution_separation` below is the orthogonal per-sample distributional
+      cross-check, not a replication arm of this one.
+    grain:
+      measurement_type: tcga_gtex_three_cell_dge_sensitivity
+      sample_context: tumor_vs_tcga_adjacent_and_gtex_normal
+      entity_grain: target
+    observables:
+      - card_id: tumor-vs-normal-selectivity
+        field: selectivity_class
+        role: estimator
+        dependence_group: tcga_gtex_sensitivity_dge
+        emission: class_token
+        note: |
+          strong_tumor_selective / modest_tumor_selective / field_effect_tumor_selective /
+          not_selective / discordant_across_comparators / data_unavailable.
+      - card_id: tumor-vs-normal-selectivity
+        field: max_abs_log2fc
+        role: estimator
+        dependence_group: tcga_gtex_sensitivity_dge
+        emission: anchor
+        note: max |log2FC| across the comparator cells that ran — the secondary magnitude gate.
+      - card_id: tumor-vs-normal-selectivity
+        field: log2fc_cell_a
+        role: estimator
+        dependence_group: tcga_gtex_sensitivity_dge
+        emission: anchor
+        note: tumor vs TCGA-adjacent-normal, raw — the within-patient field-effect-inflated arm.
+      - card_id: tumor-vs-normal-selectivity
+        field: log2fc_cell_c
+        role: estimator
+        dependence_group: tcga_gtex_sensitivity_dge
+        emission: anchor
+        note: tumor vs GTEx population-normal, raw (naive joint) — the source-contaminated-baseline arm.
+      - card_id: tumor-vs-normal-selectivity
+        field: q_value_cell_a
+        role: estimator
+        dependence_group: tcga_gtex_sensitivity_dge
+        emission: anchor
+      - card_id: tumor-vs-normal-selectivity
+        field: q_value_cell_c
+        role: estimator
+        dependence_group: tcga_gtex_sensitivity_dge
+        emission: anchor
+      - card_id: tumor-vs-normal-selectivity
+        field: cells_supporting
+        role: estimator
+        dependence_group: tcga_gtex_sensitivity_dge
+        emission: anchor
+        note: |
+          comparator cells sig<0.05 in the dominant direction (0-cells_ran, <=3) — the trust-anchor
+          numerator. Not this entry's `reliability.n_effective_anchor`: a 0-3 comparator-FAMILY count,
+          not a sample/patient size (see `reliability` below).
+      - card_id: tumor-vs-normal-selectivity
+        field: cells_ran
+        role: estimator
+        dependence_group: tcga_gtex_sensitivity_dge
+        emission: anchor
+        note: denominator for cells_supporting — how many comparator cells actually tested this gene.
+      - card_id: tumor-vs-normal-selectivity
+        field: comparator_concordance
+        role: estimator
+        dependence_group: tcga_gtex_sensitivity_dge
+        emission: anchor
+        note: |
+          concordant / discordant / single_comparator — do the TCGA-adjacent and GTEx comparator
+          FAMILIES agree? Carried as context on the class, not a separate quantity.
+      - card_id: tumor-vs-normal-selectivity
+        field: dominant_direction
+        role: estimator
+        dependence_group: tcga_gtex_sensitivity_dge
+        emission: anchor
+        note: up / down / none — carried as context.
+    determinants:
+      - name: STRONG_SELECTIVITY_LOG2FC
+        value: 1.5
+        unit: log2_fold_change
+        source: methods/onc_methods/dge_deseq2/read/__init__.py:1278
+        rationale: |
+          A unanimous up call with raw max|log2FC| >= 1.5 (~2.83-fold) classifies strong_tumor_selective
+          (gated additionally on the TCGA-adjacent family having measured + agreed, FIX 4b). USER-SET
+          from an ~30-gene backtest (2026-08-07), not a formal power/ROC derivation per the method's own
+          "KNOWN LIMITATIONS" note — treat as a screen, not a validated cut. Whether 1.5 is itself a
+          published convention is adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+      - name: MODEST_SELECTIVITY_LOG2FC
+        value: 0.5
+        unit: log2_fold_change
+        source: methods/onc_methods/dge_deseq2/read/__init__.py:1286
+        rationale: |
+          A unanimous up call with raw max|log2FC| in [0.5, 1.5) classifies modest_tumor_selective.
+          Same ~30-gene backtest origin as STRONG_SELECTIVITY_LOG2FC. UNKNOWN as a formal calibration;
+          adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+      - name: MIN_SUPPORTING_FRAC_STRONG
+        value: 1.0
+        unit: fraction_of_comparator_families
+        source: methods/onc_methods/dge_deseq2/read/__init__.py:1276
+        rationale: |
+          `unanimous = supporting == families_ran` — every independent comparator FAMILY that ran must
+          agree on direction (FIX 4a, measured on all 29 shipped sensitivity products / 890,801 rows,
+          2026-09-12: the per-cell `>= 2/3` tier collapsed into "every family that ran agrees" once the
+          denominator was corrected to families rather than cells). UNKNOWN as a calibration; adjudicated
+          by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+    reliability: {}
+    # No `n_effective_anchor`: cells_supporting/cells_ran are a 0-3 comparator-FAMILY count, not a
+    # sample/patient size — n_effective is honestly OMITTED rather than fabricated from a count that is
+    # not a denominator. See selectivity_claims.py's recipe comment.
+    dependence_note: |
+      Shares NO dependence_group with `patient_distribution_separation`: the two properties are measured
+      on genuinely DIFFERENT substrates (whole-cohort DESeq2 sensitivity contrast vs per-sample
+      percentile-crossing), so agreement between them is a real cross-method cross-check. The
+      `selectivity_concordance` L2b island (SK#1752) integrates this property against the PROTEIN-MS
+      arms, not against `patient_distribution_separation`.
+    consumers:
+      - skill: tumor-selectivity
+        axis_key: WIN
+        surface: source_properties.tumor_vs_normal_rna_window
+        note: the primary bulk-RNA substrate for the WIN axis.
+
+  patient_distribution_separation:
+    status: resolvable
+    definition: |
+      Do the tumour and normal distributions separate on a PER-SAMPLE basis — what fraction of tumour
+      samples clear the normal p95, and how much do the two distributions overlap? The orthogonal
+      distributional cross-check to `tumor_vs_normal_rna_window`'s whole-cohort DESeq2 contrast: a gene
+      can have a significant mean shift (DESeq2) yet a tumor-high SUBSET only (this card's per-sample
+      lens is the honest read of that heterogeneity).
+    grain:
+      measurement_type: tumor_vs_normal_percentile_crossing
+      sample_context: tumor_per_sample_vs_matched_gtex_normal
+      entity_grain: target
+    observables:
+      - card_id: tumor-vs-normal-percentile-crossing
+        field: selectivity_class
+        role: estimator
+        dependence_group: tcga_gtex_percentile_crossing
+        emission: class_token
+        note: strongly_tumor_enriched / enriched_subset / minimally_enriched / not_enriched / data_unavailable.
+      - card_id: tumor-vs-normal-percentile-crossing
+        field: fraction_tumor_above_normal_p95
+        role: estimator
+        dependence_group: tcga_gtex_percentile_crossing
+        emission: anchor
+        note: the headline enrichment metric — fraction of tumor samples clearing the matched-normal p95.
+      - card_id: tumor-vs-normal-percentile-crossing
+        field: distribution_overlap_tumor_normal
+        role: estimator
+        dependence_group: tcga_gtex_percentile_crossing
+        emission: anchor
+        note: OVL in [0,1]; 0 = clean separation (wide window).
+      - card_id: tumor-vs-normal-percentile-crossing
+        field: n_tumor_samples
+        role: estimator
+        dependence_group: tcga_gtex_percentile_crossing
+        emission: anchor
+        note: |
+          THE DENOMINATOR fraction_tumor_above_normal_p95 is computed over, and this entry's
+          `reliability.n_effective_anchor`.
+      - card_id: tumor-vs-normal-percentile-crossing
+        field: n_normal_samples
+        role: estimator
+        dependence_group: tcga_gtex_percentile_crossing
+        emission: anchor
+    determinants:
+      - name: STRONG_FRAC_P95
+        value: 0.5
+        unit: fraction_of_tumours
+        source: contracts/cards/tumor-vs-normal-percentile-crossing.card.yaml:142
+        rationale: |
+          Applied by the skill-side reader (evidence_salience.contract_threshold), not a card predicate:
+          >= half the tumours clear normal p95 AND distribution_overlap_tumor_normal <= 0.4 ->
+          strongly_tumor_enriched. UNKNOWN as a published calibration; adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+      - name: STRONG_MAX_OVERLAP
+        value: 0.4
+        unit: overlap_coefficient
+        source: methods/onc_methods/tcga_gtex_expression_distribution/read.py:668
+        rationale: |
+          The method applies overlap <= 0.4 alongside frac_p95 >= 0.5 in _classify_percentile_crossing to
+          gate strongly_tumor_enriched. UNKNOWN as a calibration; adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+      - name: ENRICHED_SUBSET_FRAC_P95
+        value: 0.25
+        unit: fraction_of_tumours
+        source: methods/onc_methods/tcga_gtex_expression_distribution/read.py:670
+        rationale: |
+          frac_p95 >= 0.25 (below the strong bar) -> enriched_subset — a real tumor-high subset above
+          normal p95. UNKNOWN as a calibration; adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+      - name: NOT_ENRICHED_FRAC_P95
+        value: 0.05
+        unit: fraction_of_tumours
+        source: methods/onc_methods/tcga_gtex_expression_distribution/read.py:672
+        rationale: |
+          frac_p95 < 0.05 -> not_tumor_enriched — essentially no separation. UNKNOWN as a calibration;
+          adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+    reliability:
+      n_effective_anchor: n_tumor_samples
+    dependence_note: |
+      See `tumor_vs_normal_rna_window`'s dependence_note — the two properties share NO dependence_group
+      (whole-cohort DESeq2 contrast vs per-sample percentile-crossing are different substrates/methods).
+    consumers:
+      - skill: tumor-selectivity
+        axis_key: DIST
+        surface: source_properties.patient_distribution_separation
+        note: the primary substrate for the DIST axis (distributional separation).
+
+  malignant_cell_intrinsicity:
+    status: resolvable
+    definition: |
+      Is the tumor-vs-normal window driven by the tumour cells THEMSELVES, or by tissue composition
+      (CAF/stromal/immune contamination of a bulk read)? Measured by the cross-donor median single-cell
+      detection fraction within the MALIGNANT compartment, contrasted against the top-detecting
+      microenvironment compartment on the same card.
+    grain:
+      measurement_type: sc_tumor_malignant_compartment_detection
+      sample_context: cellxgene_tumor_atlas_malignant_compartment
+      entity_grain: target
+    observables:
+      - card_id: tumor-scrna-celltype-expression
+        field: sc_expression_class
+        role: estimator
+        dependence_group: sc_tumor_atlas
+        emission: class_token
+        note: |
+          malignant_broadly_detected / malignant_subset_detected / microenvironment_dominant /
+          broadly_low / data_unavailable.
+      - card_id: tumor-scrna-celltype-expression
+        field: malignant_detection_fraction
+        role: estimator
+        dependence_group: sc_tumor_atlas
+        emission: anchor
+        note: |
+          cross-donor median detection in the malignant compartment — this entry's
+          `reliability.detection_strength_anchor` (the ONE detection/abundance-kind property in this
+          catalog; the calibrated `sc_malignant_detection_fraction` scheme reads this value directly).
+      - card_id: tumor-scrna-celltype-expression
+        field: malignant_n_donors
+        role: estimator
+        dependence_group: sc_tumor_atlas
+        emission: anchor
+        note: |
+          reliable donors backing the malignant call (floor = MIN_RELIABLE_DONORS) — the power behind
+          malignant_detection_fraction, and this entry's `reliability.n_effective_anchor`.
+      - card_id: tumor-scrna-celltype-expression
+        field: caf_vs_malignant_class
+        role: estimator
+        dependence_group: sc_tumor_atlas
+        emission: anchor
+        note: |
+          caf_dominant / malignant_dominant / shared_caf_malignant / caf_low / data_unavailable — carried
+          as context: the explicit CAF-vs-malignant contrast, display-only, does not alter sc_expression_class.
+    determinants:
+      - name: MALIGNANT_BROADLY_DETECTED_MIN
+        value: 0.5
+        unit: fraction
+        source: methods/onc_methods/sc_tumor_expression_celltype/stats.py:23
+        rationale: |
+          Malignant median detection >= 0.5 (cross-donor) -> malignant_broadly_detected / target in most
+          tumor cells. Also the floor the calibrated `sc_malignant_detection_fraction` detection_strength
+          scheme (#2329) classifies `strong` at. UNKNOWN as a formal calibration; adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+      - name: MALIGNANT_SUBSET_DETECTED_MIN
+        value: 0.10
+        unit: fraction
+        source: methods/onc_methods/sc_tumor_expression_celltype/stats.py:24
+        rationale: |
+          0.10 <= malignant detection < 0.5 -> malignant_subset_detected — a real target-high tumor-cell
+          subset. Also the `moderate` floor for the detection_strength scheme (#2329). UNKNOWN as a
+          calibration; adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+      - name: MIN_RELIABLE_DONORS
+        value: 5
+        unit: donors
+        source: methods/onc_methods/sc_tumor_expression_celltype/stats.py:36
+        rationale: |
+          Mirrors the sibling sc_normal_expression reader's MIN_RELIABLE_DONORS=5 — the donor-count floor
+          behind a trustworthy malignant_detection_fraction call. UNKNOWN as a calibration; adjudicated by
+          #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+    reliability:
+      n_effective_anchor: malignant_n_donors
+    dependence_note: |
+      `sc_tumor_atlas` is the SAME dependence_group tumor_presence.yaml declares for its own entries on
+      this card (tumor-scrna-celltype-expression). A fold spanning tumor-selectivity AND tumor-presence
+      must read agreement between the two domains' reads of this one atlas as ONE measurement, not two
+      independent arms.
+    consumers:
+      - skill: tumor-selectivity
+        axis_key: INT
+        surface: source_properties.malignant_cell_intrinsicity
+        note: the primary substrate for the INT axis (tumor-cell-intrinsic vs composition-driven).
+
+  sc_normal_tissue_window:
+    status: resolvable
+    definition: |
+      Which normal tissues fall inside the tumor-vs-normal window and become the dose-limiting
+      liability — an organ-aware, single-cell safety-essential read (critical_organ_liability /
+      origin_tissue_liability / none) over the normal-tissue atlas. SAFETY VERDICT is owned by
+      on-target-safety-liability; this property is the WINDOW framing selectivity reads it under.
+    grain:
+      measurement_type: sc_normal_organ_aware_safety_essential
+      sample_context: cellxgene_normal_tissue_atlas
+      entity_grain: target
+    observables:
+      - card_id: sc-normal-celltype-expression
+        field: sc_normal_safety_essential_class
+        role: estimator
+        dependence_group: sc_normal_atlas
+        emission: class_token
+        note: critical_organ_liability / origin_tissue_liability / none / data_unavailable.
+      - card_id: sc-normal-celltype-expression
+        field: n_cell_types_above_20pct
+        role: estimator
+        dependence_group: sc_normal_atlas
+        emission: anchor
+        note: breadth indicator — how many cell types have median detection > 0.20.
+      - card_id: sc-normal-celltype-expression
+        field: max_detection_fraction
+        role: estimator
+        dependence_group: sc_normal_atlas
+        emission: anchor
+        note: median detection fraction of the cell type with the highest reading.
+    determinants:
+      - name: SAFETY_ESSENTIAL_FLAG_FLOOR
+        value: 0.05
+        unit: fraction
+        source: methods/onc_methods/sc_normal_expression/stats.py:610
+        rationale: |
+          Below this detection floor a cell type carries no safety-essential expression at all ->
+          `none`. UNKNOWN as a formal calibration; adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+      - name: CRITICAL_ORGAN_OFF_ORIGIN_DET_FLOOR
+        value: 0.20
+        unit: fraction
+        source: methods/onc_methods/sc_normal_expression/stats.py:599
+        rationale: |
+          An off-origin essential-cell hit at or above this detection floor fires the hard-veto
+          critical_organ_liability class (heart/liver/kidney/marrow, non-origin). UNKNOWN as a
+          calibration; adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+    reliability: {}
+    # No `n_effective_anchor`: n_cell_types_above_20pct is a BREADTH count (how many cell types), not a
+    # sample size, and max_detection_fraction is a fraction — n_effective is honestly OMITTED. No
+    # calibrated detection scheme covers NORMAL-tissue detection (the sc_malignant_detection_fraction
+    # scheme's cuts are malignant-compartment-specific) — detection_strength stays OMITTED, not borrowed.
+    dependence_note: |
+      Shares NO dependence_group with `malignant_cell_intrinsicity`: the normal-tissue atlas
+      (sc-normal-celltype-expression) and the tumor atlas (tumor-scrna-celltype-expression) are
+      genuinely DIFFERENT CELLxGENE substrates, so agreement/disagreement between them is a real
+      cross-substrate cross-check, not one measurement counted twice.
+    consumers:
+      - skill: tumor-selectivity
+        axis_key: SAFE
+        surface: source_properties.sc_normal_tissue_window
+        note: the primary substrate for the SAFE axis (normal-tissue window liability).
+
+  protein_tvn_window_cptac:
+    status: resolvable
+    definition: |
+      Is there a tumour-versus-normal PROTEIN-level window — a CPTAC TMT-MS per-cohort tumor-vs-normal
+      effect size, moderated-t significance, and the raw median log2 abundances behind it? The protein-
+      layer cross-check to `tumor_vs_normal_rna_window`'s RNA-level call: post-transcriptional regulation
+      can decouple the two, so agreement/disagreement is decision-useful (the L2b `selectivity_concordance`
+      island, already landed, integrates exactly this).
+    grain:
+      measurement_type: cptac_tmt_ms_protein_tumor_vs_normal
+      sample_context: cptac_pdc_per_cohort_tumor_vs_normal
+      entity_grain: target
+    observables:
+      - card_id: tumor-protein-abundance-cptac
+        field: protein_expression_class
+        role: estimator
+        dependence_group: protein_ms
+        emission: class_token
+        note: strong_up / modest_up / small_effect / not_significant / modest_down / strong_down / data_unavailable.
+      - card_id: tumor-protein-abundance-cptac
+        field: protein_effect_size
+        role: estimator
+        dependence_group: protein_ms
+        emission: anchor
+        note: median_log2_tumor - median_log2_normal (RAW log2) — the class thresholds on this.
+      - card_id: tumor-protein-abundance-cptac
+        field: protein_bh_q_value
+        role: estimator
+        dependence_group: protein_ms
+        emission: anchor
+      - card_id: tumor-protein-abundance-cptac
+        field: protein_median_log2_tumor
+        role: estimator
+        dependence_group: protein_ms
+        emission: anchor
+      - card_id: tumor-protein-abundance-cptac
+        field: protein_median_log2_normal
+        role: estimator
+        dependence_group: protein_ms
+        emission: anchor
+    determinants:
+      - name: CPTAC_STRONG_UP_EFFECT
+        value: 1.5
+        unit: log2_fold_change
+        source: methods/onc_methods/cptac_protein_deg/steps/03_pool_and_write.py:13
+        rationale: |
+          logFC > 1.5 AND q < 0.05 -> strong_up. UNKNOWN as a formal calibration; adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+      - name: CPTAC_MODEST_UP_EFFECT
+        value: 0.5
+        unit: log2_fold_change
+        source: methods/onc_methods/cptac_protein_deg/steps/03_pool_and_write.py:14
+        rationale: |
+          logFC > 0.5 AND q < 0.05 (below the strong bar) -> modest_up. UNKNOWN as a calibration;
+          adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+      - name: CPTAC_SIGNIFICANCE_Q
+        value: 0.05
+        unit: bh_q_value
+        source: methods/onc_methods/cptac_protein_deg/steps/03_pool_and_write.py:148
+        rationale: |
+          Conventional BH-adjusted significance floor within cohort. UNKNOWN as a calibration;
+          adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+    reliability: {}
+    # No `n_effective_anchor`: n_tumor_samples/n_normal_samples exist on this card but are NOT in issue
+    # #2213's authoritative anchor list for this property — n_effective is honestly OMITTED rather than
+    # adding an anchor the table does not name. No calibrated detection scheme for mass-spec protein
+    # presence (the IHC scheme reads a protein_presence_class token this card does not emit) —
+    # detection_strength stays OMITTED.
+    dependence_note: |
+      `protein_tvn_window_cptac` and `protein_tvn_window_tphp` share ONE dependence_group (`protein_ms`)
+      — same-modality mass-spec protein siblings, not two independent platforms (the #1667 lesson). A
+      fold must not read agreement between them as independent cross-platform corroboration; the L2b
+      `selectivity_concordance` island treats TPHP as corroboration-ineligible for exactly this reason.
+    consumers:
+      - skill: tumor-selectivity
+        axis_key: WIN
+        surface: source_properties.protein_tvn_window_cptac
+        note: |
+          The protein-layer substrate ALONGSIDE tumor_vs_normal_rna_window on the WIN axis; also feeds
+          the L2b selectivity_concordance island as its CPTAC-protein arm.
+
+  protein_tvn_window_tphp:
+    status: resolvable
+    definition: |
+      The SAME tumor-vs-normal protein-window question as `protein_tvn_window_cptac`, answered on the
+      TPHP DIA-MS platform against a body-atlas normal (same organism part) instead of a per-cohort
+      adjacent normal — a SAME-MODALITY, different-cohort/grain sibling, not a second independent
+      protein platform.
+    grain:
+      measurement_type: tphp_dia_ms_protein_tumor_vs_body_atlas_normal
+      sample_context: tphp_matched_carcinoma_cohort_vs_body_atlas
+      entity_grain: target
+    observables:
+      - card_id: tumor-vs-normal-protein-abundance-tphp
+        field: protein_expression_class
+        role: estimator
+        dependence_group: protein_ms
+        emission: class_token
+        note: strong_up / modest_up / unchanged / modest_down / strong_down / data_unavailable.
+      - card_id: tumor-vs-normal-protein-abundance-tphp
+        field: protein_effect_size
+        role: estimator
+        dependence_group: protein_ms
+        emission: anchor
+        note: median_log2_tumor - median_log2_normal (RAW log2, DETECTED samples only).
+      - card_id: tumor-vs-normal-protein-abundance-tphp
+        field: protein_bh_q_value
+        role: estimator
+        dependence_group: protein_ms
+        emission: anchor
+      - card_id: tumor-vs-normal-protein-abundance-tphp
+        field: protein_median_log2_tumor
+        role: estimator
+        dependence_group: protein_ms
+        emission: anchor
+      - card_id: tumor-vs-normal-protein-abundance-tphp
+        field: protein_median_log2_normal
+        role: estimator
+        dependence_group: protein_ms
+        emission: anchor
+      - card_id: tumor-vs-normal-protein-abundance-tphp
+        field: cohort_pick_basis
+        role: estimator
+        dependence_group: protein_ms
+        emission: anchor
+        note: |
+          indication_mapped / pan_cancer_max_abs_log2fc_* — carried as context: declares whether this row
+          is an indication-matched cohort or a pan-cancer extremum fallback (never read the latter as an
+          indication-scoped claim).
+      - card_id: tumor-vs-normal-protein-abundance-tphp
+        field: protein_detection_complete
+        role: estimator
+        dependence_group: protein_ms
+        emission: anchor
+        note: |
+          bool — BOTH arms fully detected. Carried as context: false means protein_effect_size is
+          confounded by missingness, not "no effect" (gates DIRECTIONAL reads, per the card's own
+          warning_predicates).
+    determinants:
+      - name: TPHP_STRONG_UP_ABS_LOG2FC
+        value: 1.0
+        unit: log2_fold_change
+        source: contracts/cards/tumor-vs-normal-protein-abundance-tphp.card.yaml:162
+        rationale: |
+          Applied in the DERIVED BUILD (parameters.effect_strong_abs_log2fc), not resolvable to a
+          methods/ file — the card's own threshold_roles note is the nearest checkable anchor for a cutoff
+          applied one step further upstream. |log2fc| >= 1.0 at q<0.05 -> strong_up/strong_down. UNKNOWN
+          as a calibration; adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+      - name: TPHP_MODEST_UP_ABS_LOG2FC
+        value: 0.585
+        unit: log2_fold_change
+        source: contracts/cards/tumor-vs-normal-protein-abundance-tphp.card.yaml:163
+        rationale: |
+          Same derived-build provenance as TPHP_STRONG_UP_ABS_LOG2FC. 0.585 <= |log2fc| < 1.0 at q<0.05 ->
+          modest_up/modest_down. UNKNOWN as a calibration; adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+      - name: TPHP_SIGNIFICANCE_Q
+        value: 0.05
+        unit: bh_q_value
+        source: contracts/cards/tumor-vs-normal-protein-abundance-tphp.card.yaml:164
+        rationale: |
+          BH q cutoff applied within cohort in the derived build; the reader does not re-test. UNKNOWN as
+          a calibration; adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+    reliability: {}
+    # Same honest omissions as the CPTAC sibling — no per-target sample-N / detection-scheme anchor in
+    # issue #2213's authoritative table for this property.
+    dependence_note: |
+      See `protein_tvn_window_cptac`'s dependence_note — the two share ONE dependence_group
+      (`protein_ms`), deliberately, per the #1667 lesson this issue names explicitly.
+    consumers:
+      - skill: tumor-selectivity
+        axis_key: WIN
+        surface: source_properties.protein_tvn_window_tphp
+        note: |
+          A SAME-MODALITY sibling of protein_tvn_window_cptac on the WIN axis; also feeds the L2b
+          selectivity_concordance island, where it is deliberately corroboration-INELIGIBLE (one protein
+          arm read twice, not a second independent platform).

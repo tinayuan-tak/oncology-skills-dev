@@ -23,84 +23,89 @@
         },
         "panel_consistency": {
           "evidence": {
-            "blocked_on": "#1663",
-            "blocked_on_note": "n_tumor/n_adjacent read None for every roster target in this vintage (flagships included) -- zero power/coverage variation exists to grade a genuine power dimension on. Blocked on #1663 (stranded n_tumor); re-measure also owed at #868's DGE re-materialization.",
             "capture_method": "scorecard_adapter.py::_load_package -> skills/tumor-selectivity/scripts/run.py --target <T> --indication <I> (direct, no --full-package fan-out; per #2030, eval/run_scorecard_panel.py --emit times out at 900s)",
+            "card_data_unavailable_by_target": {
+              "EPCAM/COADREAD": "When getting information for key 'data-catalog/derived/coadread-dge-tumor-vs-normal-sensitivity-v1/sensitivity.parquet' in bucket 'onc-compbio': AWS Error ACCESS_DENIED during HeadObject operation: No response body.",
+              "ERBB2/BRCA": "When getting information for key 'data-catalog/derived/brca-dge-tumor-vs-normal-sensitivity-v1/sensitivity.parquet' in bucket 'onc-compbio': AWS Error ACCESS_DENIED during HeadObject operation: No response body.",
+              "HTR1D/COADREAD": "When getting information for key 'data-catalog/derived/coadread-dge-tumor-vs-normal-sensitivity-v1/sensitivity.parquet' in bucket 'onc-compbio': AWS Error ACCESS_DENIED during HeadObject operation: No response body.",
+              "KRAS/COADREAD": "When getting information for key 'data-catalog/derived/coadread-dge-tumor-vs-normal-sensitivity-v1/sensitivity.parquet' in bucket 'onc-compbio': AWS Error ACCESS_DENIED during HeadObject operation: No response body.",
+              "PLK1/COADREAD": "When getting information for key 'data-catalog/derived/coadread-dge-tumor-vs-normal-sensitivity-v1/sensitivity.parquet' in bucket 'onc-compbio': AWS Error ACCESS_DENIED during HeadObject operation: No response body."
+            },
             "checks": {
-              "all_card_data_unavailable": false,
-              "all_pass": true,
+              "all_card_data_unavailable": true,
+              "all_pass": false,
               "all_roster_rows_present": true,
-              "direction_class_not_constant": true,
-              "htr1d_matches_expected_archetype": true,
+              "direction_class_not_constant": false,
+              "htr1d_matches_expected_archetype": false,
               "thin_coverage_control_degrades": false,
-              "window_class_not_constant": true
+              "window_class_not_constant": false
             },
             "method": "per-target rows across the whole 5-target roster (not one flagship), COMPUTED live by collect_panel_rows() (see module docstring) rather than hand-typed: tumor-selectivity's verdict-bearing card classes must differ meaningfully across archetypes (flagship surface, flagship intrinsic driver, amplified surface, pan-essential control) rather than collapsing to one constant reading. HTR1D's thin-coverage/abstention archetype lives in the surface-modality-fit vertical, NOT here (issue #2070 diagnosis + eval/SCORECARD_PANEL_ROSTER.md's per-skill x per-target table): in tumor-selectivity's DGE vertical, HTR1D's expectation is the OPPOSITE of degradation -- a measured strong_tumor_selective, concordant row, checked by htr1d_matches_expected_archetype. Coverage of an archetype stress is skill-relative; a global thin-coverage label applied to every skill was the root cause this issue fixes.",
-            "null_reason": "all measurable/applicable conjuncts pass (rows present; direction/window classes non-constant across the roster; HTR1D reads its tumor-selectivity-specific expectation -- a measured strong_tumor_selective, concordant row), but the power/coverage grading dimension is structurally blocked on #1663 -- left NULL rather than a GREEN the panel cannot structurally earn.",
+            "null_reason": "the full 5-pair roster resolved a package for every target, but the two verdict-bearing cards (tumor-vs-normal-selectivity, modality-therapeutic-window) reported a live-read error for EVERY row in this environment \u2014 this credential context lacks S3 access to the underlying *-dge-tumor-vs-normal-sensitivity-v1 derived products (ACCESS_DENIED), not a genuine constant biological reading. Scoring a run this environment cannot actually reach would be a fabricated pass/fail, so panel_consistency is left NULL with this disposition rather than a false RED.",
             "roster_source": "eval/SCORECARD_PANEL_ROSTER.md",
             "rows": [
               {
-                "card_data_unavailable": false,
-                "card_data_unavailable_reason": null,
-                "comparator_concordance": "discordant",
-                "dominant_direction": "up",
+                "card_data_unavailable": true,
+                "card_data_unavailable_reason": "When getting information for key 'data-catalog/derived/coadread-dge-tumor-vs-normal-sensitivity-v1/sensitivity.parquet' in bucket 'onc-compbio': AWS Error ACCESS_DENIED during HeadObject operation: No response body.",
+                "comparator_concordance": null,
+                "dominant_direction": null,
                 "indication": "COADREAD",
-                "selectivity_class": "field_effect_tumor_selective",
+                "selectivity_class": null,
                 "source": "skills/tumor-selectivity/scripts/.panel_cache/EPCAM__coadread/decision.json",
                 "status": "OK",
                 "target": "EPCAM",
-                "therapeutic_window_class": "narrow_window"
+                "therapeutic_window_class": null
               },
               {
-                "card_data_unavailable": false,
-                "card_data_unavailable_reason": null,
-                "comparator_concordance": "discordant",
-                "dominant_direction": "down",
+                "card_data_unavailable": true,
+                "card_data_unavailable_reason": "When getting information for key 'data-catalog/derived/coadread-dge-tumor-vs-normal-sensitivity-v1/sensitivity.parquet' in bucket 'onc-compbio': AWS Error ACCESS_DENIED during HeadObject operation: No response body.",
+                "comparator_concordance": null,
+                "dominant_direction": null,
                 "indication": "COADREAD",
-                "selectivity_class": "discordant_across_comparators",
+                "selectivity_class": null,
                 "source": "skills/tumor-selectivity/scripts/.panel_cache/KRAS__coadread/decision.json",
                 "status": "OK",
                 "target": "KRAS",
-                "therapeutic_window_class": "no_therapeutic_window"
+                "therapeutic_window_class": null
               },
               {
-                "card_data_unavailable": false,
-                "card_data_unavailable_reason": null,
-                "comparator_concordance": "concordant",
-                "dominant_direction": "up",
+                "card_data_unavailable": true,
+                "card_data_unavailable_reason": "When getting information for key 'data-catalog/derived/brca-dge-tumor-vs-normal-sensitivity-v1/sensitivity.parquet' in bucket 'onc-compbio': AWS Error ACCESS_DENIED during HeadObject operation: No response body.",
+                "comparator_concordance": null,
+                "dominant_direction": null,
                 "indication": "BRCA",
-                "selectivity_class": "strong_tumor_selective",
+                "selectivity_class": null,
                 "source": "skills/tumor-selectivity/scripts/.panel_cache/ERBB2__brca/decision.json",
                 "status": "OK",
                 "target": "ERBB2",
-                "therapeutic_window_class": "narrow_window"
+                "therapeutic_window_class": null
               },
               {
-                "card_data_unavailable": false,
-                "card_data_unavailable_reason": null,
-                "comparator_concordance": "concordant",
-                "dominant_direction": "up",
+                "card_data_unavailable": true,
+                "card_data_unavailable_reason": "When getting information for key 'data-catalog/derived/coadread-dge-tumor-vs-normal-sensitivity-v1/sensitivity.parquet' in bucket 'onc-compbio': AWS Error ACCESS_DENIED during HeadObject operation: No response body.",
+                "comparator_concordance": null,
+                "dominant_direction": null,
                 "indication": "COADREAD",
-                "selectivity_class": "strong_tumor_selective",
+                "selectivity_class": null,
                 "source": "skills/tumor-selectivity/scripts/.panel_cache/PLK1__coadread/decision.json",
                 "status": "OK",
                 "target": "PLK1",
-                "therapeutic_window_class": "no_therapeutic_window"
+                "therapeutic_window_class": null
               },
               {
-                "card_data_unavailable": false,
-                "card_data_unavailable_reason": null,
-                "comparator_concordance": "concordant",
-                "dominant_direction": "up",
+                "card_data_unavailable": true,
+                "card_data_unavailable_reason": "When getting information for key 'data-catalog/derived/coadread-dge-tumor-vs-normal-sensitivity-v1/sensitivity.parquet' in bucket 'onc-compbio': AWS Error ACCESS_DENIED during HeadObject operation: No response body.",
+                "comparator_concordance": null,
+                "dominant_direction": null,
                 "indication": "COADREAD",
-                "selectivity_class": "strong_tumor_selective",
+                "selectivity_class": null,
                 "source": "skills/tumor-selectivity/scripts/.panel_cache/HTR1D__coadread/decision.json",
                 "status": "OK",
                 "target": "HTR1D",
-                "therapeutic_window_class": "narrow_window"
+                "therapeutic_window_class": null
               }
             ],
-            "status_as_of": "2026-09-29"
+            "status_as_of": "2026-10-01"
           },
           "status": "NULL"
         },
@@ -122,48 +127,96 @@
       "notes": "L1 = tumor-selectivity's 10 composed cards (2 verdict-driving + sc-normal-celltype-expression normal-breadth veto instrument; the rest additive/verdict-inert display \u2014 see run.py CARDS comments). accuracy left NULL per this issue's directive (re-derivation is separate issue #2001)."
     },
     "L2a": {
-      "built": false,
+      "built": true,
       "criteria": {
         "accuracy": {
-          "evidence": null,
+          "evidence": {
+            "null_reason": "PR-1d (epic SK#2210 / #1507, #2213) BUILT this layer for tumor-selectivity but did not build a measurement for it. The exemplar's machinery (skills/tumor-presence/scripts/scorecard_adapter.py envelope_rows/envelope_checks: --emit-envelope across the panel roster, then per-criterion checks over the emitted section bytes) has no tumor-selectivity counterpart, so there is nothing to report here that would not be a claim about un-run checks. Left NULL rather than promoted on the strength of the layer existing. The structural pins that DO exist are cited in `structural_pins` below; they are correctness guards on the export, not a measurement of this criterion.",
+            "structural_pins": [
+              "skills/tumor-selectivity/tests/test_evidence_package_sections.py",
+              "contracts/tests/validators/test_property_catalog.py (sweeps selectivity.yaml)",
+              "contracts/tests/validators/test_claim_axis_enum.py (selectivity.* resolves reconciliation)"
+            ]
+          },
           "status": "NULL"
         },
         "fail_open": {
-          "evidence": null,
+          "evidence": {
+            "null_reason": "PR-1d (epic SK#2210 / #1507, #2213) BUILT this layer for tumor-selectivity but did not build a measurement for it. The exemplar's machinery (skills/tumor-presence/scripts/scorecard_adapter.py envelope_rows/envelope_checks: --emit-envelope across the panel roster, then per-criterion checks over the emitted section bytes) has no tumor-selectivity counterpart, so there is nothing to report here that would not be a claim about un-run checks. Left NULL rather than promoted on the strength of the layer existing. The structural pins that DO exist are cited in `structural_pins` below; they are correctness guards on the export, not a measurement of this criterion.",
+            "structural_pins": [
+              "skills/tumor-selectivity/tests/test_evidence_package_sections.py",
+              "contracts/tests/validators/test_property_catalog.py (sweeps selectivity.yaml)",
+              "contracts/tests/validators/test_claim_axis_enum.py (selectivity.* resolves reconciliation)"
+            ]
+          },
           "status": "NULL"
         },
         "panel_consistency": {
-          "evidence": null,
+          "evidence": {
+            "null_reason": "PR-1d (epic SK#2210 / #1507, #2213) BUILT this layer for tumor-selectivity but did not build a measurement for it. The exemplar's machinery (skills/tumor-presence/scripts/scorecard_adapter.py envelope_rows/envelope_checks: --emit-envelope across the panel roster, then per-criterion checks over the emitted section bytes) has no tumor-selectivity counterpart, so there is nothing to report here that would not be a claim about un-run checks. Left NULL rather than promoted on the strength of the layer existing. The structural pins that DO exist are cited in `structural_pins` below; they are correctness guards on the export, not a measurement of this criterion.",
+            "structural_pins": [
+              "skills/tumor-selectivity/tests/test_evidence_package_sections.py",
+              "contracts/tests/validators/test_property_catalog.py (sweeps selectivity.yaml)",
+              "contracts/tests/validators/test_claim_axis_enum.py (selectivity.* resolves reconciliation)"
+            ]
+          },
           "status": "NULL"
         },
         "utilization": {
-          "evidence": null,
+          "evidence": {
+            "null_reason": "PR-1d (epic SK#2210 / #1507, #2213) BUILT this layer for tumor-selectivity but did not build a measurement for it. The exemplar's machinery (skills/tumor-presence/scripts/scorecard_adapter.py envelope_rows/envelope_checks: --emit-envelope across the panel roster, then per-criterion checks over the emitted section bytes) has no tumor-selectivity counterpart, so there is nothing to report here that would not be a claim about un-run checks. Left NULL rather than promoted on the strength of the layer existing. The structural pins that DO exist are cited in `structural_pins` below; they are correctness guards on the export, not a measurement of this criterion.",
+            "structural_pins": [
+              "skills/tumor-selectivity/tests/test_evidence_package_sections.py",
+              "contracts/tests/validators/test_property_catalog.py (sweeps selectivity.yaml)",
+              "contracts/tests/validators/test_claim_axis_enum.py (selectivity.* resolves reconciliation)"
+            ]
+          },
           "status": "NULL"
         }
       },
-      "notes": "L2a (source_properties) is NOT_BUILT: tumor-selectivity has not exported a SK#1941-style envelope section. run.py composes 10 cards straight into a headline/verdict with no named, reconstructable per-source export. Architecture gap, not a defect."
+      "notes": "L2a = source_properties (SK#1941-shape EXPORTED section, --emit-envelope), built by PR-1d of epic SK#2210 / #1507: 6 per-source observational properties (selectivity_claims.py::_SOURCE_PROPERTY_RECIPES_SELECTIVITY), governed by contracts/vocabularies/property_catalog/selectivity.yaml. BUILT, NOT MEASURED \u2014 every criterion NULL with its reason; see _L2_UNMEASURED_NULL_REASON."
     },
     "L2b": {
-      "built": false,
+      "built": true,
       "criteria": {
         "accuracy": {
-          "evidence": null,
+          "evidence": {
+            "null_reason": "PR-1d (epic SK#2210 / #1507, #2213) BUILT this layer for tumor-selectivity but did not build a measurement for it. The exemplar's machinery (skills/tumor-presence/scripts/scorecard_adapter.py envelope_rows/envelope_checks: --emit-envelope across the panel roster, then per-criterion checks over the emitted section bytes) has no tumor-selectivity counterpart, so there is nothing to report here that would not be a claim about un-run checks. Left NULL rather than promoted on the strength of the layer existing. The structural pins that DO exist are cited in `structural_pins` below; they are correctness guards on the export, not a measurement of this criterion.",
+            "structural_pins": [
+              "skills/tumor-selectivity/tests/test_evidence_package_sections.py"
+            ]
+          },
           "status": "NULL"
         },
         "fail_open": {
-          "evidence": null,
+          "evidence": {
+            "null_reason": "PR-1d (epic SK#2210 / #1507, #2213) BUILT this layer for tumor-selectivity but did not build a measurement for it. The exemplar's machinery (skills/tumor-presence/scripts/scorecard_adapter.py envelope_rows/envelope_checks: --emit-envelope across the panel roster, then per-criterion checks over the emitted section bytes) has no tumor-selectivity counterpart, so there is nothing to report here that would not be a claim about un-run checks. Left NULL rather than promoted on the strength of the layer existing. The structural pins that DO exist are cited in `structural_pins` below; they are correctness guards on the export, not a measurement of this criterion.",
+            "structural_pins": [
+              "skills/tumor-selectivity/tests/test_evidence_package_sections.py"
+            ]
+          },
           "status": "NULL"
         },
         "panel_consistency": {
-          "evidence": null,
+          "evidence": {
+            "null_reason": "PR-1d (epic SK#2210 / #1507, #2213) BUILT this layer for tumor-selectivity but did not build a measurement for it. The exemplar's machinery (skills/tumor-presence/scripts/scorecard_adapter.py envelope_rows/envelope_checks: --emit-envelope across the panel roster, then per-criterion checks over the emitted section bytes) has no tumor-selectivity counterpart, so there is nothing to report here that would not be a claim about un-run checks. Left NULL rather than promoted on the strength of the layer existing. The structural pins that DO exist are cited in `structural_pins` below; they are correctness guards on the export, not a measurement of this criterion.",
+            "structural_pins": [
+              "skills/tumor-selectivity/tests/test_evidence_package_sections.py"
+            ]
+          },
           "status": "NULL"
         },
         "utilization": {
-          "evidence": null,
+          "evidence": {
+            "null_reason": "PR-1d (epic SK#2210 / #1507, #2213) BUILT this layer for tumor-selectivity but did not build a measurement for it. The exemplar's machinery (skills/tumor-presence/scripts/scorecard_adapter.py envelope_rows/envelope_checks: --emit-envelope across the panel roster, then per-criterion checks over the emitted section bytes) has no tumor-selectivity counterpart, so there is nothing to report here that would not be a claim about un-run checks. Left NULL rather than promoted on the strength of the layer existing. The structural pins that DO exist are cited in `structural_pins` below; they are correctness guards on the export, not a measurement of this criterion.",
+            "structural_pins": [
+              "skills/tumor-selectivity/tests/test_evidence_package_sections.py"
+            ]
+          },
           "status": "NULL"
         }
       },
-      "notes": "L2b (integrated_properties) is NOT_BUILT: no concordance-island section exists for this skill."
+      "notes": "L2b = integrated_properties (SK#1941-shape EXPORTED section), built by PR-1d of epic SK#2210 / #1507: the selectivity_concordance island (SK#1752, bulk-RNA x protein-MS tumor-vs-normal window concordance). BUILT, NOT MEASURED \u2014 every criterion NULL with its reason."
     },
     "L3": {
       "built": false,

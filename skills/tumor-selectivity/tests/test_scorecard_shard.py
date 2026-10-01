@@ -12,7 +12,8 @@ promises siblings:
      placeholder residue — a partial or hand-typed panel cannot ship as GREEN;
   3. the panel checks have TEETH: fed a doctored panel (every target emitting one constant class),
      `collect_panel_rows` reds its own checks — the pass is a live function of the package bytes.
-  4. L2a/L2b/L3/L4 are all NOT_BUILT for this skill (no exported envelope sections exist).
+  4. L2a/L2b are BUILT-but-UNMEASURED (PR-1d, #2213 exported the source_properties/
+     selectivity_concordance sections); L3/L4 stay NOT_BUILT (no l3d story / synthesis layer exists).
   5. (#2070) the `dominant_direction`/`selectivity_class` token-space fix has its own mutation teeth:
      a synthetic degraded HTR1D row (degraded `selectivity_class`, ordinary `dominant_direction`)
      proves `thin_coverage_control_degrades` reads the FIXED field — RED-failing if the dead
@@ -52,7 +53,7 @@ def _shard_dict() -> dict:
 
 def test_shard_validates_and_upper_layers_are_not_built():
     shard = cs.shard_from_dict(_shard_dict(), expected_skill="tumor-selectivity")
-    for layer in ("L2a", "L2b", "L3", "L4"):
+    for layer in ("L3", "L4"):
         assert cs.cell_rollup(shard.cells[layer]) == cs.NOT_BUILT
     # L1: utilization/fail_open are always measured (never NULL); accuracy is deliberately NULL
     # (re-derivation is separate issue #2001, per this issue's directive). panel_consistency is
@@ -73,6 +74,46 @@ def test_shard_validates_and_upper_layers_are_not_built():
     # passed (-> NULL/#1663) or failed (-> RED) — the blocker must be named either way.
     if checks and not checks.get("all_card_data_unavailable") and checks.get("all_roster_rows_present"):
         assert evidence.get("blocked_on") == "#1663", "power-grading blocker must be named #1663"
+
+
+def test_committed_shard_equals_the_adapter_output():
+    """ROUND-TRIP TEETH: the committed file IS what build_shard() produces. Reds on any drift between
+    the adapter and the committed artifact (in either direction), so neither can silently diverge."""
+    ad = _load_adapter()
+    assert _shard_dict() == ad.build_shard().to_dict(), (
+        "scorecard/tumor-selectivity.json has drifted from scorecard_adapter.build_shard() — re-run "
+        "`python skills/tumor-selectivity/scripts/scorecard_adapter.py` and re-render."
+    )
+
+
+def test_l2_layers_are_built_but_unmeasured():
+    """PR-1d (#2213) BUILT L2a/L2b, so NOT_BUILT (built=False) would understate the artifact — but
+    building a layer is not measuring it, so every criterion stays NULL with a reason and the cell rolls
+    up NULL, never GREEN. The rollup (any NULL blocks GREEN) is what enforces that; this pins the inputs
+    to it."""
+    shard = cs.shard_from_dict(_shard_dict(), expected_skill="tumor-selectivity")
+    for layer in ("L2a", "L2b"):
+        cell = shard.cells[layer]
+        assert cell.built is True, f"{layer} is exported by run.py::_evidence_sections — built must be True"
+        assert cs.cell_rollup(cell) == cs.NULL, f"{layer} rolled up {cs.cell_rollup(cell)}, expected NULL (unmeasured)"
+        for name in cs.CRITERIA:
+            crit = cell.criteria[name]
+            assert crit.status == cs.NULL, f"{layer}/{name} claims {crit.status} with no measurement built"
+            assert (crit.evidence or {}).get("null_reason"), f"{layer}/{name} is NULL with no reason recorded"
+            assert (crit.evidence or {}).get("structural_pins"), f"{layer}/{name} names no structural pin"
+
+
+def test_every_l2_structural_pin_cites_an_existing_file():
+    """A structural pin naming a file that does not exist is a fabricated guard reference."""
+    data = _shard_dict()
+    checked = 0
+    for layer in ("L2a", "L2b"):
+        for name, crit in data["cells"][layer]["criteria"].items():
+            for entry in (crit["evidence"] or {}).get("structural_pins", []):
+                rel = entry.split(" ")[0]
+                assert (REPO_ROOT / rel).exists(), f"{layer}/{name} structural pin cites missing file {rel}"
+                checked += 1
+    assert checked >= 8, f"suspiciously few structural pins checked ({checked}) — did the evidence shrink?"
 
 
 def test_every_green_criterion_cites_an_existing_test_file():
