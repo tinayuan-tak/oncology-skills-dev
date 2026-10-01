@@ -384,6 +384,28 @@ def build_summary_atom(*, card_id, summary, keys, read, entity, exclude_fields=(
     )
 
 
+def mk_atom(card, field, keys, entity, *, exclude_fields=(), skill=None):
+    """Closure factory for a ClaimSpec `atom_fn(headline, cards_by_id)`: reads `card`'s summary off the
+    cards-by-id map at build time, uses `summary[field]` as the atom's `read` string, and delegates to
+    build_summary_atom over `keys`. Replaces the byte-identical per-module `_mk_atom` closures
+    (cis_coherence/mechanism/surface) and their entity-baked variants (differentiation/tractability),
+    which each re-declared this same `def fn(h, c): s = c.get(card) or {}; _atom(card, s, keys, …)`."""
+
+    def fn(h, c):
+        s = c.get(card) or {}
+        return build_summary_atom(
+            card_id=card,
+            summary=s,
+            keys=keys,
+            read=s.get(field),
+            entity=entity,
+            exclude_fields=exclude_fields,
+            skill=skill,
+        )
+
+    return fn
+
+
 # ── the spec + builders ──────────────────────────────────────────────────────────────────────────
 @dataclass(frozen=True)
 class ClaimSpec:
@@ -492,8 +514,8 @@ __all__ = [
     "CORROBORATION_ORD",
     "ClaimSpec",
     "build_atom",
-    "split_measurement_values",
     "build_summary_atom",
+    "mk_atom",
     "build_claim_vector",
     "build_key_signals",
     "cards_by_id",

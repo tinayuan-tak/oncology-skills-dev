@@ -101,20 +101,7 @@ _E_TAHOE = {"measurement_type": "tahoe_drug_perturbation", "grain": "target"}
 _E_PRED = {"measurement_type": "dependency_predictability", "grain": "target"}
 
 
-from _skills_common.claim_vector_core import build_summary_atom  # shared atom builder (Group D)
-
-
-def _atom(card_id, summary, keys, entity, read):
-    return build_summary_atom(card_id=card_id, summary=summary, keys=keys, read=read, entity=entity)
-
-
-def _mk_atom(card, field, keys, entity):
-    def fn(h, c):
-        s = c.get(card) or {}
-        return _atom(card, s, keys, entity, s.get(field))
-
-    return fn
-
+from _skills_common.claim_vector_core import mk_atom  # shared atom-fn closure factory (Group D)
 
 MECHANISM_CLAIM_SPEC = [
     ClaimSpec(
@@ -124,7 +111,7 @@ MECHANISM_CLAIM_SPEC = [
         _corr(_C_NET, "network_class", _NETWORK_SIGNAL),
         _INFORMS["NETWORK"],
         # MoA hooks fold into the NETWORK atom (same card — not an orthogonal axis)
-        _mk_atom(
+        mk_atom(
             _C_NET,
             "network_class",
             (
@@ -144,7 +131,7 @@ MECHANISM_CLAIM_SPEC = [
         _sig(_C_PHOS, "phospho_activity_class", _PHOSPHO_SIGNAL),
         _corr(_C_PHOS, "phospho_activity_class", _PHOSPHO_SIGNAL),
         _INFORMS["PHOSPHO"],
-        _mk_atom(
+        mk_atom(
             _C_PHOS,
             "phospho_activity_class",
             (
@@ -164,7 +151,7 @@ MECHANISM_CLAIM_SPEC = [
         _sig(_C_PATH, "pathway_activity_class", _PATHWAY_SIGNAL),
         _corr(_C_PATH, "pathway_activity_class", _PATHWAY_SIGNAL),
         _INFORMS["PATHWAY"],
-        _mk_atom(
+        mk_atom(
             _C_PATH,
             "pathway_activity_class",
             ("pathway_activity_class", "relatively_high_pathways", "target_pathway_membership", "n_pathways_profiled"),
@@ -177,7 +164,7 @@ MECHANISM_CLAIM_SPEC = [
         _sig(_C_TAHOE, "tahoe_perturbation_class", _PERTURBATION_SIGNAL),
         _corr(_C_TAHOE, "tahoe_perturbation_class", _PERTURBATION_SIGNAL),
         _INFORMS["PERTURBATION"],
-        _mk_atom(
+        mk_atom(
             _C_TAHOE,
             "tahoe_perturbation_class",
             (
@@ -196,7 +183,7 @@ MECHANISM_CLAIM_SPEC = [
         _sig(_C_PRED, "predictability_class", _PREDICTABILITY_SIGNAL),
         _corr(_C_PRED, "predictability_class", _PREDICTABILITY_SIGNAL),
         _INFORMS["PREDICTABILITY"],
-        _mk_atom(
+        mk_atom(
             _C_PRED,
             "predictability_class",
             ("predictability_class", "pred_dominant_feature_class", "pred_top_features_rf"),
@@ -217,10 +204,15 @@ _DISCLAIMER = (
 
 
 def mechanism_claim_vector(headline: dict, cards: list) -> dict:
+    """The mechanism-and-pharmacology claim vector {PHOSPHO, NETWORK, PATHWAY, PERTURBATION,
+    PREDICTABILITY: {signal, corroboration, evidence, conflict, informs}, _disclaimer}. DESCRIPTIVE /
+    verdict-inert projection over the computed headline + card summaries."""
     return build_claim_vector(MECHANISM_CLAIM_SPEC, headline, cards, _DISCLAIMER)
 
 
 def mechanism_key_signals(headline: dict, cards: list) -> dict:
+    """A brief, DETERMINISTIC, CITED read (available without the LLM) over the mechanism claim vector —
+    ranked supports + a deterministic headline. Verdict-inert."""
     vec = mechanism_claim_vector(headline, cards)
     keys = ("PHOSPHO", "NETWORK", "PATHWAY", "PERTURBATION", "PREDICTABILITY")
     return build_key_signals(

@@ -209,3 +209,12 @@ def _derive_reliability(anchors, spec: dict) -> dict:
     if strength is not None:
         out["detection_strength"] = strength
     return out
+
+
+# `_derive_reliability` keeps its leading underscore for history, but it is a DE-FACTO PUBLIC entrypoint:
+# it is the shared deriver imported cross-module by every emitter of the typed `reliability` facet
+# (source_properties_core + the selectivity/genomic/surface claim modules). `__all__` makes that
+# intent explicit (#2382) so the underscore no longer reads as "do not import me". The other names here
+# (`_powered_floor_for`, `_detection_strength_for`, `_confound_r_cut`, `_detection_strength_for`) stay
+# genuinely module-private.
+__all__ = ["_derive_reliability"]

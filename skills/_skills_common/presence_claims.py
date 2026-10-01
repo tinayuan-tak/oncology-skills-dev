@@ -23,7 +23,6 @@ composed target-profile fan-out reads.
 
 from __future__ import annotations
 
-import functools
 import math
 import re
 from typing import Optional
@@ -64,6 +63,7 @@ from _skills_common.presence_tiers import (  # single-source abundance ladder + 
     abundance_tier_from_median,
     abundance_tier_from_percentile,
 )
+from _skills_common.source_properties_core import build_source_properties  # shared L2a recipe loop (#2373)
 from _skills_common.subgroup_derivation import _SUBGROUP_N_FLOOR  # single-source per-stratum power floor (#1625)
 from _skills_common.subtype_axis import (  # SK#1518 shared axis-quality gate
     SUBTYPE_DIFFERENTIAL_CLASSES,
@@ -753,68 +753,34 @@ _SOURCE_PROPERTY_RECIPES = (
 )
 
 
-@functools.lru_cache(maxsize=None)
-def _presence_reach_map() -> dict:
-    """{(card_id, field): interpretation_reach} for the tumor-presence ledger — the SECOND disposition
-    axis (SK#1525), read-only, sourced the same way `role_for` sources the first axis. Empty when the
-    ledger is absent, so anchor typing stays additive/byte-stable where the source is missing."""
-    from _skills_common.field_disposition_contract import INTERPRETATION_REACH
-    from _skills_common.field_disposition_ledger import LEDGER_NAME, _default_skills_root, iter_rows, load_ledger
-
-    path = _default_skills_root() / "tumor-presence" / LEDGER_NAME
-    if not path.exists():
-        return {}
-    doc = load_ledger(path)
-    return {
-        (cid, field): spec["interpretation_reach"]
-        for cid, field, spec in iter_rows(doc)
-        if spec.get("interpretation_reach") in INTERPRETATION_REACH
-    }
-
-
-def _typed_anchor(card_id, field, value):
-    """One retained quantitative anchor: {field, value, scale} + the two-axis field-disposition typing
-    (semantic_role via the ledger's role axis, interpretation_reach via its reach axis, #1525) when the
-    ledger declares them. Typing keys are OMITTED when the ledger does not classify the field, so the
-    anchor never fabricates a disposition it cannot source."""
-    from _skills_common.field_disposition_ledger import role_for
-
-    anchor = {"field": field, "value": value, "scale": _ANCHOR_SCALE.get(field, "raw")}
-    role = role_for(card_id, field, "tumor-presence")
-    if role is not None:
-        anchor["semantic_role"] = role
-    reach = _presence_reach_map().get((card_id, field))
-    if reach is not None:
-        anchor["interpretation_reach"] = reach
-    return anchor
+def _presence_entry_extra(recipe, summ, entry):
+    # Cell-line RNA: when the shared resolved expression_properties object is present, retain it
+    # (recoverable structured property), mirroring the _expression_property_atom passthrough. Omitted
+    # when the card lacks it (the committed EPCAM golden path), keeping that run byte-stable.
+    if recipe["name"] == "model_expression_structure" and isinstance(summ.get("expression_properties"), dict):
+        entry["resolved_expression_properties"] = summ["expression_properties"]
 
 
 def _source_properties(c) -> "dict | None":
     """The NAMED, typed L2a source_properties map (SK#1939): one entry per source/grain, lifting the
     per-source observational properties out of the A/B/C/D + expression_properties claim blocks into an
     explicit, recoverable object. Returns None when no source resolves (whole key omitted → byte-stable),
-    matching the atom discipline on this vector. Pure projection, verdict-inert, carries no signal tier."""
-    out = {}
-    for recipe in _SOURCE_PROPERTY_RECIPES:
-        summ = c.get(recipe["card_id"], {}) or {}
-        prop = summ.get(recipe["property_field"])
-        # A source with no card / no resolved observational class emits no entry (byte-stable).
-        if not prop or prop == "data_unavailable":
-            continue
-        anchors = [_typed_anchor(recipe["card_id"], f, summ[f]) for f in recipe["anchors"] if summ.get(f) is not None]
-        entry = {
-            "card_id": recipe["card_id"],
-            "property": prop,
-            "anchors": anchors,
-            "comparability": dict(recipe["comparability"]),
-        }
-        # Cell-line RNA: when the shared resolved expression_properties object is present, retain it
-        # (recoverable structured property), mirroring the _expression_property_atom passthrough. Omitted
-        # when the card lacks it (the committed EPCAM golden path), keeping that run byte-stable.
-        if recipe["name"] == "model_expression_structure" and isinstance(summ.get("expression_properties"), dict):
-            entry["resolved_expression_properties"] = summ["expression_properties"]
-        out[recipe["name"]] = entry
-    return out or None
+    matching the atom discipline on this vector. Pure projection, verdict-inert, carries no signal tier.
+
+    The recipe loop + the ledger-sourced `reach_map` / `typed_anchor` now live in the shared
+    source_properties_core (#2373); presence passes its own recipe table + anchor-scale map and omits
+    the `property_field`/`context`/`reliability` facets the gating domains add (its L2a object is
+    golden-blocked at this shape — #2061 / #1984 own the tumour-presence golden)."""
+    return build_source_properties(
+        c,
+        _SOURCE_PROPERTY_RECIPES,
+        anchor_scale=_ANCHOR_SCALE,
+        skill="tumor-presence",
+        include_property_field=False,
+        include_context=False,
+        include_reliability=False,
+        entry_extra=_presence_entry_extra,
+    )
 
 
 # ── per-source QUALIFIER: cell-line-panel heterogeneity is CROSS-LINEAGE, not within-tumour escape ──
@@ -1567,6 +1533,10 @@ def presence_claim_vector(headline: dict, cards: list) -> dict:
 
 # ── key signals: a brief, direct, CITED read (deterministic; available without the LLM) ────────
 def presence_key_signals(headline: dict, cards: list) -> dict:
+    """A brief, DETERMINISTIC, CITED read (available without the LLM) over the tumor-presence claim
+    vector + the raw card summaries (RNA distribution / RNA-vs-adjacent / CPTAC protein / breadth):
+    ranked supports + a deterministic headline + the weakest-critical caveat. Verdict-inert projection,
+    never a gate."""
     c = _by_id(cards)
     vec = presence_claim_vector(headline, cards)
     trd = c.get("tumor-rna-distribution", {})
@@ -1812,6 +1782,10 @@ def presence_strength_from_state(presence_state: dict, claim_vector: dict) -> st
 # collapsed word (which can read "strongly up-regulated" for an ALB contamination artifact or
 # "broadly expressed" for a PECAM1 stromal signal). Verdict-INERT display text.
 def presence_state_phrase(state: dict) -> str:
+    """The human-facing one-SENTENCE rendering of a typed presence_state object (from
+    derive_presence_state): e.g. "Abundantly present in tumor and tumor-elevated", "Present in the tumor
+    microenvironment (stromal, not malignant-cell-intrinsic)", or a conflict/absence phrasing. Pure
+    projection over the state dict; verdict-inert."""
     if not isinstance(state, dict) or not state.get("present"):
         return "Presence not assessed"
     p, mal = state.get("present"), state.get("malignant_intrinsic")
@@ -1840,6 +1814,10 @@ def presence_state_phrase(state: dict) -> str:
 
 # The one WORD as a pure render of the typed object (Phase 2 will point presence_verdict at this).
 def render_presence_label(state: dict) -> str:
+    """The one-WORD presence label as a pure render of the typed presence_state object (e.g.
+    `present_broadly_tumor_elevated_protein_confirmed`, `present_rna_only`, `absent`,
+    `presence_untested`). Pure projection over the state dict; verdict-inert (Phase 2 will point
+    presence_verdict at this)."""
     p = (state or {}).get("present")
     if p == "no":
         return "absent"

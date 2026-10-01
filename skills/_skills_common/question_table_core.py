@@ -86,18 +86,23 @@ _SIG_META_INFORMS = {
 }
 
 
-def _sig_informs(tier: str, label: str) -> dict:
+def sig_informs(tier: str, label: str) -> dict:
+    """A signal cell on the DESCRIPTIVE `informs` meter (never supports/opposes): tier + ordinal fill +
+    polarity + label. The informs-polarity counterpart of `sig`, for a skill hand-rolling a bespoke row
+    (e.g. differentiation's non-claim-vector Q4/Q5) outside `cv_axis_row`."""
     fill, pol = _SIG_META_INFORMS.get(tier, (0, "none"))
     return {"tier": tier, "fill": fill, "polarity": pol, "label": label}
 
 
-def cv_axis_row(qid: str, question: str, cv: dict, key: str) -> dict:
-    """One row driven by a claim_vector axis atom (signal × corroboration × evidence), informs polarity."""
+def cv_axis_row(qid: str, question: str, cv: dict, key: str, support: str = "") -> dict:
+    """One row driven by a claim_vector axis atom (signal × corroboration × evidence), informs polarity.
+    `support` is an OPTIONAL secondary-evidence string (defaults empty, so existing callers via
+    build_cv_question_table are byte-stable); a skill with a per-question support line passes it here."""
     atom = (cv or {}).get(key) or {}
     tier = atom.get("signal", "unmeasured")
     corr = atom.get("corroboration", "unmeasured")
     primary = atom.get("evidence") or "data_unavailable"
-    return row(qid, question, primary, "", _sig_informs(tier, str(tier)), conf(corr, f"corroboration: {corr}"))
+    return row(qid, question, primary, support, sig_informs(tier, str(tier)), conf(corr, f"corroboration: {corr}"))
 
 
 def build_cv_question_table(headline: dict, questions) -> list:

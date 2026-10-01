@@ -102,24 +102,26 @@ def _tdl_corr(h, c):
 from _skills_common.claim_vector_core import build_summary_atom  # shared atom builder (Group D)
 
 
-def _atom(card_id, summary, keys, entity, read):
-    return build_summary_atom(card_id=card_id, summary=summary, keys=keys, read=read, entity=entity)
-
-
 def _modality_atom(h, c):
     s = c.get(_C_MOD) or {}
-    return _atom(
-        _C_MOD,
-        s,
-        ("modality_implication_class", "modality_implication_basis", "scaffolding_function", "modality_context"),
-        _E_MOD,
-        s.get("modality_implication_class"),
+    return build_summary_atom(
+        card_id=_C_MOD,
+        summary=s,
+        keys=("modality_implication_class", "modality_implication_basis", "scaffolding_function", "modality_context"),
+        entity=_E_MOD,
+        read=s.get("modality_implication_class"),
     )
 
 
 def _tdl_atom(h, c):
     s = c.get(_C_TDL) or {}
-    return _atom(_C_TDL, s, ("tdl_class", "tdl_meaning", "target_family", "novelty_score"), _E_TDL, s.get("tdl_class"))
+    return build_summary_atom(
+        card_id=_C_TDL,
+        summary=s,
+        keys=("tdl_class", "tdl_meaning", "target_family", "novelty_score"),
+        entity=_E_TDL,
+        read=s.get("tdl_class"),
+    )
 
 
 TARGET_INTRINSIC_CLAIM_SPEC = [
@@ -152,10 +154,15 @@ _DISCLAIMER = (
 
 
 def target_intrinsic_claim_vector(headline: dict, cards: list) -> dict:
+    """The target-intrinsic claim vector {MODALITY_ROUTING, TRACTABILITY_PRECEDENT: {signal,
+    corroboration, evidence, conflict, informs}, _disclaimer}. Indication-INDEPENDENT, descriptive /
+    verdict-inert projection over the computed headline + card summaries."""
     return build_claim_vector(TARGET_INTRINSIC_CLAIM_SPEC, headline, cards, _DISCLAIMER)
 
 
 def target_intrinsic_key_signals(headline: dict, cards: list) -> dict:
+    """A brief, DETERMINISTIC, CITED read (available without the LLM) over the target-intrinsic claim
+    vector — ranked supports + a deterministic headline. Verdict-inert."""
     vec = target_intrinsic_claim_vector(headline, cards)
     return build_key_signals(
         vec,

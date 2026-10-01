@@ -158,20 +158,7 @@ def _patient_corr(card, field, smap, agree_key):
     return fn
 
 
-from _skills_common.claim_vector_core import build_summary_atom  # shared atom builder (Group D)
-
-
-def _atom(card_id, summary, keys, entity, read):
-    return build_summary_atom(card_id=card_id, summary=summary, keys=keys, read=read, entity=entity)
-
-
-def _mk_atom(card, field, keys, entity):
-    def fn(h, c):
-        s = c.get(card) or {}
-        return _atom(card, s, keys, entity, s.get(field))
-
-    return fn
-
+from _skills_common.claim_vector_core import mk_atom  # shared atom-fn closure factory (Group D)
 
 CIS_COHERENCE_CLAIM_SPEC = [
     ClaimSpec(
@@ -187,7 +174,7 @@ CIS_COHERENCE_CLAIM_SPEC = [
         # SILENCING keeps its `_patient_corr` fold until its own concordance claim lands.
         _plain_corr(_C_CIS, "cis_dosage_class", _CIS_DOSAGE_SIGNAL),
         _INFORMS["CIS_DOSAGE"],
-        _mk_atom(
+        mk_atom(
             _C_CIS,
             "cis_dosage_class",
             (
@@ -227,7 +214,7 @@ CIS_COHERENCE_CLAIM_SPEC = [
         # boolean is untouched (still feeds its verdict-inert caveats).
         _plain_corr(_C_METH, "methylation_silencing_class", _SILENCING_SIGNAL),
         _INFORMS["SILENCING"],
-        _mk_atom(
+        mk_atom(
             _C_METH,
             "methylation_silencing_class",
             (
@@ -261,7 +248,7 @@ CIS_COHERENCE_CLAIM_SPEC = [
         ),
         _plain_corr(_C_CORR, "correlation_class", _EXPR_DEP_SIGNAL),
         _INFORMS["EXPR_DEP"],
-        _mk_atom(
+        mk_atom(
             _C_CORR,
             "correlation_class",
             (
@@ -289,7 +276,7 @@ CIS_COHERENCE_CLAIM_SPEC = [
         ),
         _plain_corr(_C_AMPX, "amp_expr_stratification_class", _CONJOINT_SIGNAL),
         _INFORMS["CONJOINT"],
-        _mk_atom(
+        mk_atom(
             _C_AMPX,
             "amp_expr_stratification_class",
             (
@@ -1808,6 +1795,11 @@ def _isoform_splice_concordance_claim(c: dict) -> "dict | None":
 
 
 def cis_coherence_claim_vector(headline: dict, cards: list) -> dict:
+    """The cis-coherence claim vector {CIS_DOSAGE, CONJOINT, EXPR_DEP, SILENCING: {signal, corroboration,
+    evidence, conflict, informs}, _disclaimer} plus the four verdict-INERT L2b concordance claims
+    (cis-dosage, methylation-silencing, expression↔dependency, isoform-splice), each key-OMITTED until a
+    grain/modality resolves. Pure projection over the computed headline + card summaries; writes nothing
+    back (the consuming skill's verdict spine stays byte-identical)."""
     vec = build_claim_vector(CIS_COHERENCE_CLAIM_SPEC, headline, cards, _DISCLAIMER)
     # L2b CROSS-GRAIN integration claim (SK#1781, epic #1779 / parent #1507): cell-line × patient
     # cis-dosage-coupling concordance. Carries NO `signal` key → not a chip, not a tier; OMITTED
@@ -1848,6 +1840,9 @@ def cis_coherence_claim_vector(headline: dict, cards: list) -> dict:
 
 
 def cis_coherence_key_signals(headline: dict, cards: list) -> dict:
+    """A brief, DETERMINISTIC, CITED read (available without the LLM) over the cis-coherence claim
+    vector: ranks the leg axes, surfaces the strong ones as supports, and derives a deterministic
+    headline. Verdict-inert."""
     vec = cis_coherence_claim_vector(headline, cards)
     keys = ("CIS_DOSAGE", "CONJOINT", "EXPR_DEP", "SILENCING")
     return build_key_signals(

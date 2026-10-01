@@ -76,24 +76,9 @@ _INFORMS = {
 }
 
 
-from _skills_common.claim_vector_core import build_summary_atom  # shared atom builder (Group D)
+from _skills_common.claim_vector_core import mk_atom  # shared atom-fn closure factory (Group D)
 
-
-def _atom(card_id, summary, keys, read):
-    return build_summary_atom(
-        card_id=card_id,
-        summary=summary,
-        keys=keys,
-        read=read,
-        entity={"measurement_type": "small_molecule_tractability", "grain": "target"},
-    )
-
-
-def _mk_atom(card, field, keys):
-    def fn(h, c):
-        return _atom(card, c.get(card) or {}, keys, (c.get(card) or {}).get(field))
-
-    return fn
+_TRACT_ENTITY = {"measurement_type": "small_molecule_tractability", "grain": "target"}
 
 
 _C_POT, _C_ACT = "measured-potency-tractability", "prism-compound-activity"
@@ -142,7 +127,7 @@ SMALL_MOLECULE_CLAIM_SPEC = [
         _sig(_C_POT, "measured_bioactivity_class", _POTENCY_SIGNAL),
         _corr_present(_C_POT, "measured_bioactivity_class", _POTENCY_SIGNAL),
         _INFORMS["POTENCY"],
-        _mk_atom(
+        mk_atom(
             _C_POT,
             "measured_bioactivity_class",
             (
@@ -153,6 +138,7 @@ SMALL_MOLECULE_CLAIM_SPEC = [
                 "chembl_max_clinical_phase",
                 "bindingdb_best_p_affinity",
             ),
+            _TRACT_ENTITY,
         ),
     ),
     ClaimSpec(
@@ -161,7 +147,7 @@ SMALL_MOLECULE_CLAIM_SPEC = [
         _sig(_C_ACT, "prism_activity_class", _ACTIVITY_SIGNAL),
         _activity_corr,
         _INFORMS["ACTIVITY"],
-        _mk_atom(
+        mk_atom(
             _C_ACT,
             "prism_activity_class",
             (
@@ -170,6 +156,7 @@ SMALL_MOLECULE_CLAIM_SPEC = [
                 "highest_clinical_phase",
                 "median_log2auc_across_compounds",
             ),
+            _TRACT_ENTITY,
         ),
     ),
     ClaimSpec(
@@ -178,7 +165,7 @@ SMALL_MOLECULE_CLAIM_SPEC = [
         _sig(_C_STR, "structural_ligandability_class", _STRUCT_SIGNAL),
         _corr_present(_C_STR, "structural_ligandability_class", _STRUCT_SIGNAL),
         _INFORMS["STRUCT"],
-        _mk_atom(
+        mk_atom(
             _C_STR,
             "structural_ligandability_class",
             (
@@ -197,6 +184,7 @@ SMALL_MOLECULE_CLAIM_SPEC = [
                 "has_cryptic_site",
                 "n_ligandability_axes",
             ),
+            _TRACT_ENTITY,
         ),
     ),
     ClaimSpec(
@@ -205,7 +193,7 @@ SMALL_MOLECULE_CLAIM_SPEC = [
         _sig(_C_DRUG, "known_drug_tractability_class", _DRUG_SIGNAL),
         _corr_present(_C_DRUG, "known_drug_tractability_class", _DRUG_SIGNAL),
         _INFORMS["DRUG"],
-        _mk_atom(
+        mk_atom(
             _C_DRUG,
             "known_drug_tractability_class",
             (
@@ -215,6 +203,7 @@ SMALL_MOLECULE_CLAIM_SPEC = [
                 "n_antineoplastic_interactions",
                 "n_approved_drug_interactions",
             ),
+            _TRACT_ENTITY,
         ),
     ),
     ClaimSpec(
@@ -223,7 +212,7 @@ SMALL_MOLECULE_CLAIM_SPEC = [
         _sig(_C_DEG, "degradability_feasibility_class", _DEGRADER_SIGNAL),
         _corr_present(_C_DEG, "degradability_feasibility_class", _DEGRADER_SIGNAL),
         _INFORMS["DEGRADER"],
-        _mk_atom(
+        mk_atom(
             _C_DEG,
             "degradability_feasibility_class",
             (
@@ -232,6 +221,7 @@ SMALL_MOLECULE_CLAIM_SPEC = [
                 "n_e3_ligases_literature",
                 "degrader_precedent",
             ),
+            _TRACT_ENTITY,
         ),
     ),
 ]
@@ -244,6 +234,9 @@ _DISCLAIMER = (
 
 
 def small_molecule_claim_vector(headline: dict, cards: list) -> dict:
+    """The small-molecule tractability claim vector (the SMALL_MOLECULE_CLAIM_SPEC axes: {signal,
+    corroboration, evidence, conflict, informs}, _disclaimer). Verdict-inert projection over the computed
+    headline + card summaries; writes nothing back."""
     return build_claim_vector(SMALL_MOLECULE_CLAIM_SPEC, headline, cards, _DISCLAIMER)
 
 
@@ -266,6 +259,10 @@ _NEGATIVE_SNAPSHOT_HEADLINE = {
 
 
 def small_molecule_key_signals(headline: dict, cards: list) -> dict:
+    """A brief, DETERMINISTIC, CITED read (available without the LLM) over the small-molecule claim
+    vector. A resolved NEGATIVE druggability_snapshot (off-target / intractable / unhit / indirect) wins
+    the headline over the positive-valence claim signals. Verdict-inert — reads the resolved snapshot,
+    never moves it."""
     vec = small_molecule_claim_vector(headline, cards)
     v = (headline or {}).get("druggability_snapshot")
     neg_headline = _NEGATIVE_SNAPSHOT_HEADLINE.get(v)

@@ -401,7 +401,10 @@ _CORROBORATION_READERS = {
     "skills/_skills_common/presence_claims_figure.py": "PROJECTION figure_palette.REL_DOTS; also renders it as prose",
     # --- delegate to question_table_core.conf, so covered by CONF_DOTS above -----------------------
     "skills/_skills_common/dependency_question_table.py": "DELEGATES to question_table_core.conf",
-    "skills/_skills_common/differentiation_question_table.py": "DELEGATES to question_table_core.conf",
+    # differentiation_question_table.py REMOVED (#2374): its Q1-Q3 rows now delegate to the shared
+    # question_table_core.cv_axis_row (which performs the `corroboration` field-read, already covered by
+    # the question_table_core.py entry above), so this module no longer reads the field directly. Q4/Q5
+    # call conf() with LITERAL tiers, not a corroboration field-read.
     "skills/_skills_common/presence_question_table.py": (
         "DELEGATES row confidence to question_table_core.conf; also PASS-THROUGH — copies the L2b "
         "coverage / abundance / subtype_restriction concordance claims' `corroboration` token VERBATIM "

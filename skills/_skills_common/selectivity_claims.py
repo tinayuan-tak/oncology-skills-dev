@@ -466,16 +466,12 @@ def _safe_corroboration(h, c):
 from _skills_common.claim_vector_core import build_summary_atom  # shared atom builder (Group D)
 
 
-def _satom(card_id: str, summary: dict, keys: tuple, entity: dict, read) -> dict | None:
-    return build_summary_atom(card_id=card_id, summary=summary, keys=keys, read=read, entity=entity)
-
-
 def _win_atom(h, c):
     cid = "tumor-vs-normal-selectivity"
-    return _satom(
-        cid,
-        c.get(cid) or {},
-        (
+    return build_summary_atom(
+        card_id=cid,
+        summary=c.get(cid) or {},
+        keys=(
             "selectivity_class",
             "max_abs_log2fc",
             "cells_supporting",
@@ -483,58 +479,62 @@ def _win_atom(h, c):
             "comparator_concordance",
             "dominant_direction",
         ),
-        {"measurement_type": "tumor_vs_normal_selectivity", "sample_context": "tumor"},
-        (c.get(cid) or {}).get("selectivity_class"),
+        entity={"measurement_type": "tumor_vs_normal_selectivity", "sample_context": "tumor"},
+        read=(c.get(cid) or {}).get("selectivity_class"),
     )
 
 
 def _dist_atom(h, c):
     cid = "tumor-vs-normal-percentile-crossing"
-    return _satom(
-        cid,
-        c.get(cid) or {},
-        (
+    return build_summary_atom(
+        card_id=cid,
+        summary=c.get(cid) or {},
+        keys=(
             "selectivity_class",
             "fraction_tumor_above_normal_p95",
             "distribution_overlap_tumor_normal",
             "n_tumor_samples",
             "n_normal_samples",
         ),
-        {"measurement_type": "tumor_vs_normal_percentile_crossing", "sample_context": "tumor"},
-        (c.get(cid) or {}).get("selectivity_class"),
+        entity={"measurement_type": "tumor_vs_normal_percentile_crossing", "sample_context": "tumor"},
+        read=(c.get(cid) or {}).get("selectivity_class"),
     )
 
 
 def _int_atom(h, c):
     cid = "tumor-scrna-celltype-expression"
-    return _satom(
-        cid,
-        c.get(cid) or {},
-        (
+    return build_summary_atom(
+        card_id=cid,
+        summary=c.get(cid) or {},
+        keys=(
             "sc_expression_class",
             "malignant_detection_fraction",
             "caf_vs_malignant_class",
             "top_microenvironment_compartment",
             "malignant_n_donors",
         ),
-        {"measurement_type": "sc_tumor_celltype_expression", "sample_context": "tumor", "grain": "single_cell"},
-        (c.get(cid) or {}).get("sc_expression_class"),
+        entity={"measurement_type": "sc_tumor_celltype_expression", "sample_context": "tumor", "grain": "single_cell"},
+        read=(c.get(cid) or {}).get("sc_expression_class"),
     )
 
 
 def _safe_atom(h, c):
     cid = "sc-normal-celltype-expression"
-    return _satom(
-        cid,
-        c.get(cid) or {},
-        (
+    return build_summary_atom(
+        card_id=cid,
+        summary=c.get(cid) or {},
+        keys=(
             "sc_normal_safety_essential_class",
             "sc_normal_expression_class",
             "n_cell_types_above_20pct",
             "max_detection_fraction",
         ),
-        {"measurement_type": "sc_normal_celltype_expression", "sample_context": "normal", "grain": "single_cell"},
-        (c.get(cid) or {}).get("sc_normal_safety_essential_class"),
+        entity={
+            "measurement_type": "sc_normal_celltype_expression",
+            "sample_context": "normal",
+            "grain": "single_cell",
+        },
+        read=(c.get(cid) or {}).get("sc_normal_safety_essential_class"),
     )
 
 

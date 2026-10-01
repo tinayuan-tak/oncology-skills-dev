@@ -29,9 +29,6 @@ contract-uniformity with presence_claims but unused here.
 
 from __future__ import annotations
 
-import functools
-from pathlib import Path
-
 from _skills_common.claim_vector_core import (
     ClaimSpec,
     build_claim_vector,
@@ -43,7 +40,7 @@ from _skills_common.claim_vector_core import (
     corroboration_from_arms,
     sig_ge,
 )
-from _skills_common.reliability import _derive_reliability
+from _skills_common.source_properties_core import build_source_properties  # shared L2a recipe loop (#2373)
 
 # ── enum → tier maps (grounded in the target-contracts card summary_fields_vocabulary) ────────────
 # CRISPR dependency_class: common_essential | common_essential_underpowered | strongly_selective |
@@ -230,18 +227,15 @@ def _chem_corroboration(h, c):
 # keys, so a downstream reasoner (e.g. cross-evidence-hypothesis) can cite the value by a discrete
 # token — satisfying its traceability HARD RULE — and JOIN across axes on the entity. Verdict-inert
 # provenance: the ordinal signal/corroboration tiers are untouched (the atom is never averaged). These
-# read the raw card summaries from `c` (cards_by_id); returns None when the source card is absent, so
-# the axis stays byte-stable (no evidence_atom key).
-def _atom(card_id: str, summary: dict, keys: tuple, entity: dict, read) -> dict | None:
-    return build_summary_atom(card_id=card_id, summary=summary, keys=keys, read=read, entity=entity)
-
-
+# The per-axis atom_fns below read the raw card summaries from `c` (cards_by_id) and build a citable
+# evidence atom via the shared claim_vector_core.build_summary_atom; each returns None when the source
+# card is absent, so the axis stays byte-stable (no evidence_atom key).
 def _dep_atom(h, c):
     cid = "pan-cancer-crispr-dependency-distribution"
-    return _atom(
-        cid,
-        c.get(cid) or {},
-        (
+    return build_summary_atom(
+        card_id=cid,
+        summary=c.get(cid) or {},
+        keys=(
             "bimodality_coefficient",
             "distribution_shape",
             "fraction_strongly_dependent",
@@ -251,17 +245,17 @@ def _dep_atom(h, c):
             "selectivity_index",
             "dep_control_position_class",
         ),
-        {"measurement_type": "crispr_lof_dependency", "sample_context": "cell_line", "stratum": "pan_cancer"},
-        h.get("crispr_call"),
+        entity={"measurement_type": "crispr_lof_dependency", "sample_context": "cell_line", "stratum": "pan_cancer"},
+        read=h.get("crispr_call"),
     )
 
 
 def _sel_atom(h, c):
     cid = "dependency-lineage-selectivity"
-    return _atom(
-        cid,
-        c.get(cid) or {},
-        (
+    return build_summary_atom(
+        card_id=cid,
+        summary=c.get(cid) or {},
+        keys=(
             "enrichment_class",
             "lineage_variance_explained",
             "lineage_omnibus_kruskal_h",
@@ -269,36 +263,36 @@ def _sel_atom(h, c):
             "n_enriched_lineages",
             "n_lineages_evaluated",
         ),
-        {"measurement_type": "crispr_lof_dependency", "sample_context": "cell_line", "grain": "target_lineage"},
-        h.get("lineage_selectivity"),
+        entity={"measurement_type": "crispr_lof_dependency", "sample_context": "cell_line", "grain": "target_lineage"},
+        read=h.get("lineage_selectivity"),
     )
 
 
 def _cond_atom(h, c):
     cid = "partner-conditional-dependency"
-    return _atom(
-        cid,
-        c.get(cid) or {},
-        ("partner_stratification_class", "n_partner_deficient", "partner_stratification_q"),
-        {"sample_context": "cell_line", "stratum": "partner_deficient"},
-        h.get("partner_conditional_class"),
+    return build_summary_atom(
+        card_id=cid,
+        summary=c.get(cid) or {},
+        keys=("partner_stratification_class", "n_partner_deficient", "partner_stratification_q"),
+        entity={"sample_context": "cell_line", "stratum": "partner_deficient"},
+        read=h.get("partner_conditional_class"),
     )
 
 
 def _chem_atom(h, c):
     cid = "prism-crispr-concordance"
-    return _atom(
-        cid,
-        c.get(cid) or {},
-        (
+    return build_summary_atom(
+        card_id=cid,
+        summary=c.get(cid) or {},
+        keys=(
             "crispr_prism_concordance_class",
             "n_compounds_evaluated",
             "n_dual_responders",
             "best_spearman_r_crispr",
             "best_spearman_r_rnai",
         ),
-        {"sample_context": "cell_line", "stratum": "pan_cancer"},
-        h.get("prism_concordance_class"),
+        entity={"sample_context": "cell_line", "stratum": "pan_cancer"},
+        read=h.get("prism_concordance_class"),
     )
 
 
@@ -707,90 +701,24 @@ _SOURCE_PROPERTY_RECIPES_DEPENDENCY = (
 _DEPENDENCY_SKILL = "functional-requirement"
 
 
-@functools.lru_cache(maxsize=None)
-def _dependency_reach_map(skills_root: "str | None" = None) -> dict:
-    """{(card_id, field): interpretation_reach} for the functional-requirement ledger — the SECOND
-    disposition axis (SK#1525), read-only, sourced the same way `role_for` sources the first axis.
-
-    Returns {} when this skill's ledger declares the reach axis on no row (the mechanism is wired anyway
-    and proven by a test pointing it at a ledger that DOES declare it, so anchors type themselves the day
-    the FR ledger gains reach rows). Empty when the ledger is absent, so anchor typing stays
-    additive/byte-stable where the source is missing. Mirrors safety_claims._safety_reach_map."""
-    from _skills_common.field_disposition_contract import INTERPRETATION_REACH
-    from _skills_common.field_disposition_ledger import (
-        LEDGER_NAME,
-        _default_skills_root,
-        iter_rows,
-        load_ledger,
-    )
-
-    root = Path(skills_root) if skills_root else _default_skills_root()
-    path = root / _DEPENDENCY_SKILL / LEDGER_NAME
-    if not path.exists():
-        return {}
-    doc = load_ledger(path)
-    return {
-        (cid, field): spec["interpretation_reach"]
-        for cid, field, spec in iter_rows(doc)
-        if spec.get("interpretation_reach") in INTERPRETATION_REACH
-    }
-
-
-def _typed_dependency_anchor(card_id, field, value, *, skills_root=None):
-    """One retained quantitative anchor: {field, value, scale} + the ledger-declared disposition typing
-    (semantic_role via the role axis, interpretation_reach via the reach axis, #1525) when this skill's
-    ledger declares them. Typing keys are OMITTED when the ledger does not classify the field, so the
-    anchor never fabricates a disposition it cannot source."""
-    from _skills_common.field_disposition_ledger import role_for
-
-    anchor = {"field": field, "value": value, "scale": _DEPENDENCY_ANCHOR_SCALE.get(field, "raw")}
-    role = role_for(card_id, field, _DEPENDENCY_SKILL, skills_root=Path(skills_root) if skills_root else None)
-    if role is not None:
-        anchor["semantic_role"] = role
-    reach = _dependency_reach_map(skills_root).get((card_id, field))
-    if reach is not None:
-        anchor["interpretation_reach"] = reach
-    return anchor
-
-
 def _source_properties(c: dict, *, skills_root=None) -> "dict | None":
     """The NAMED, typed L2a source_properties map for the DEPENDENCY domain (PR-1b): one entry per
     source/grain, lifting the per-source observational properties out of the four claim signal blocks
     into an explicit, recoverable object. Returns None when no source resolves (whole key omitted →
     byte-stable), matching the atom discipline on this vector. Pure projection, verdict-inert, carries no
     signal tier. Takes the cards-by-id map only: every dependency class is a verbatim card read, so
-    unlike the safety domain there is no headline-evaluated disjunction to report."""
-    out = {}
-    for recipe in _SOURCE_PROPERTY_RECIPES_DEPENDENCY:
-        summ = c.get(recipe["card_id"], {}) or {}
-        prop = summ.get(recipe["property_field"])
-        # A source with no card / no resolved observational class emits no entry (byte-stable).
-        if not prop or prop == "data_unavailable":
-            continue
-        entry = {
-            "card_id": recipe["card_id"],
-            # The L1 card field the class token was read from — NAMED on the entry (following the safety
-            # seed) so every entry reconstructs to L1 as {card_id, property_field, property}.
-            "property_field": recipe["property_field"],
-            "property": prop,
-            "anchors": [
-                _typed_dependency_anchor(recipe["card_id"], f, summ[f], skills_root=skills_root)
-                for f in recipe["anchors"]
-                if summ.get(f) is not None
-            ],
-            "comparability": dict(recipe["comparability"]),
-        }
-        # Retained categorical qualifiers that orient the anchors without being quantities themselves.
-        # OMITTED entirely when the card supplies none, keeping a partial-card run byte-stable.
-        context = {f: summ[f] for f in recipe["context"] if summ.get(f) is not None}
-        if context:
-            entry["context"] = context
-        # The typed `reliability` facet (#2306 step 2): a PURE projection over the entry's OWN retained
-        # anchors + this recipe's n-anchor spec. Verdict-inert (SK#2091). Always present (powered is
-        # required); every OTHER field on the entry stays byte-identical. See _skills_common/reliability.py.
-        entry["reliability"] = _derive_reliability(entry["anchors"], recipe["reliability"])
-        out[recipe["name"]] = entry
-    return out or None
+    unlike the safety domain there is no headline-evaluated disjunction to report (interpretation_fns
+    omitted).
+
+    The recipe loop + the ledger-sourced `reach_map` / `typed_anchor` now live in the shared
+    source_properties_core (#2373); dependency passes its own recipe table + anchor-scale map + skill."""
+    return build_source_properties(
+        c,
+        _SOURCE_PROPERTY_RECIPES_DEPENDENCY,
+        anchor_scale=_DEPENDENCY_ANCHOR_SCALE,
+        skill=_DEPENDENCY_SKILL,
+        skills_root=skills_root,
+    )
 
 
 def dependency_claim_vector(headline: dict, cards: list) -> dict:

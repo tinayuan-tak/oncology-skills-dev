@@ -791,16 +791,12 @@ SNV, CN, FUS, SPL, DEP, ROLE = "SNV", "CN", "FUS", "SPL", "DEP", "ROLE"
 from _skills_common.claim_vector_core import build_summary_atom  # shared atom builder (Group D)
 
 
-def _gatom(card_id: str, summary: dict, keys: tuple, entity: dict, read) -> dict | None:
-    return build_summary_atom(card_id=card_id, summary=summary, keys=keys, read=read, entity=entity)
-
-
 def _snv_atom(h, c):
     cid = "mutation-hotspot-frequency"
-    return _gatom(
-        cid,
-        c.get(cid) or {},
-        (
+    return build_summary_atom(
+        card_id=cid,
+        summary=c.get(cid) or {},
+        keys=(
             "driver_recurrence_class",
             "pooled_mutation_frequency",
             "overall_mutation_frequency",
@@ -809,17 +805,17 @@ def _snv_atom(h, c):
             "n_samples_in_indication",
             "n_samples_mutated",
         ),
-        {"measurement_type": "mutation_hotspot_recurrence", "grain": "target_indication"},
-        _recurrence_class(h),
+        entity={"measurement_type": "mutation_hotspot_recurrence", "grain": "target_indication"},
+        read=_recurrence_class(h),
     )
 
 
 def _cn_atom(h, c):
     cid = "copy-number-distribution"
-    return _gatom(
-        cid,
-        c.get(cid) or {},
-        (
+    return build_summary_atom(
+        card_id=cid,
+        summary=c.get(cid) or {},
+        keys=(
             "copy_number_class",
             "cn_distribution_shape",
             "cn_median_panel",
@@ -827,28 +823,28 @@ def _cn_atom(h, c):
             "cn_fraction_deep_deletion",
             "patient_focal_cn_class",
         ),
-        {"measurement_type": "copy_number_alteration", "sample_context": "cell_line"},
-        (c.get(cid) or {}).get("copy_number_class"),
+        entity={"measurement_type": "copy_number_alteration", "sample_context": "cell_line"},
+        read=(c.get(cid) or {}).get("copy_number_class"),
     )
 
 
 def _fus_atom(h, c):
     cid = "fusion-rearrangement-landscape"
-    return _gatom(
-        cid,
-        c.get(cid) or {},
-        ("fusion_class", "n_samples_with_fusion", "genie_sv_frequency", "genie_sv_recurrence_percentile"),
-        {"measurement_type": "fusion_rearrangement", "grain": "target_indication"},
-        (c.get(cid) or {}).get("fusion_class"),
+    return build_summary_atom(
+        card_id=cid,
+        summary=c.get(cid) or {},
+        keys=("fusion_class", "n_samples_with_fusion", "genie_sv_frequency", "genie_sv_recurrence_percentile"),
+        entity={"measurement_type": "fusion_rearrangement", "grain": "target_indication"},
+        read=(c.get(cid) or {}).get("fusion_class"),
     )
 
 
 def _gdep_atom(h, c):
     cid = "mutation-stratified-dependency"
-    return _gatom(
-        cid,
-        c.get(cid) or {},
-        (
+    return build_summary_atom(
+        card_id=cid,
+        summary=c.get(cid) or {},
+        keys=(
             "mutation_stratification_class",
             "delta_chronos_hotspot_mut_vs_wt",
             "median_chronos_hotspot_mutant",
@@ -858,12 +854,12 @@ def _gdep_atom(h, c):
             "n_hotspot_wildtype",
             "evidence_scope",
         ),
-        {
+        entity={
             "measurement_type": "mutation_stratified_dependency",
             "sample_context": "cell_line",
             "stratum": "hotspot_mutant_vs_wt",
         },
-        (c.get(cid) or {}).get("mutation_stratification_class"),
+        read=(c.get(cid) or {}).get("mutation_stratification_class"),
     )
 
 

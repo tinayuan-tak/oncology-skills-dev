@@ -9,10 +9,19 @@ logic lives in the methods repo:
   methods/gdc_somatic_hotspot/read.py
   methods/tempus_rwd_aggregator/read.py
 
-This module is a THIN DISPATCH LAYER: each card_id maps to a method-module function
-call. No data-extraction logic lives here. If a future contributor is reading this
-file to figure out 'how does the framework get data?' — the answer is in methods/,
-not here.
+This module is PREDOMINANTLY A DISPATCH LAYER: each card_id maps to a method-module
+function call, and for the great majority of cards NO data-extraction logic lives here
+— the extraction is in methods/. If a future contributor is reading this file to figure
+out 'how does the framework get data?' — for a single-source card the answer is in
+methods/, not here.
+
+THE EXCEPTION — COMPOSED cards. A handful of dispatchers do carry substantial inline
+logic, because they COMPOSE several method reads into one derived card and the
+composition rules themselves live at this orchestration boundary (not in any single
+method module): e.g. `_dispatch_adc_tce_modality_fit` (fit-class / endocytosis /
+GPI-rescue rules), `_dispatch_genomic_instability_state`, `_breadth_layer_concordance`,
+and `_canonical_cohort`. For those cards the "how" is partly here; the per-source reads
+they combine are still in methods/.
 
 Why this separation matters:
   - Methods are skill-runtime-agnostic. A Jupyter notebook, a SageMaker batch job,

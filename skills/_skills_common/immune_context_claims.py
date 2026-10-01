@@ -507,6 +507,10 @@ def _antigen_phenotype_frame(h, c) -> str:
 
 
 def immune_context_claim_vector(headline: dict, cards: list) -> dict:
+    """The immune-context claim vector {IMMUNE: {signal, corroboration, evidence, conflict, informs},
+    _disclaimer} plus the non-atom scalar frames (reference / heterogeneity / suppression /
+    antigen-phenotype) carried losslessly onto the spine. Verdict-inert projection over the computed
+    headline + card summaries."""
     vec = build_claim_vector(IMMUNE_CONTEXT_CLAIM_SPEC, headline, cards, _DISCLAIMER)
     # NON-ATOM scalars (no `signal` key) — chips skip them, `skill_report.claim_scalars` carries them onto
     # the spine losslessly, so every consumer of the report sees the frames next to the class token.
@@ -525,6 +529,9 @@ def _til_discordance_caveat(headline: dict):
 
 
 def immune_context_key_signals(headline: dict, cards: list) -> dict:
+    """A brief, DETERMINISTIC, CITED read (available without the LLM) over the immune-context claim
+    vector; an orthogonal-platform (absolute-density / spatial) disagreement qualifies the headline and
+    supplies the caveat. Verdict-inert."""
     vec = immune_context_claim_vector(headline, cards)
     # An ORTHOGONAL-platform disagreement qualifies the headline and supplies the caveat — the relative
     # hot/cold call is contradicted by an absolute-density or spatial card, so the deterministic surface

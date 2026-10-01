@@ -70,24 +70,9 @@ _INFORMS = {
 }
 
 
-from _skills_common.claim_vector_core import build_summary_atom  # shared atom builder (Group D)
+from _skills_common.claim_vector_core import mk_atom  # shared atom-fn closure factory (Group D)
 
-
-def _atom(card_id, summary, keys, read):
-    return build_summary_atom(
-        card_id=card_id,
-        summary=summary,
-        keys=keys,
-        read=read,
-        entity={"measurement_type": "differentiation_landscape", "grain": "target_indication"},
-    )
-
-
-def _mk_atom(card, field, keys):
-    def fn(h, c):
-        return _atom(card, c.get(card) or {}, keys, (c.get(card) or {}).get(field))
-
-    return fn
+_DIFF_ENTITY = {"measurement_type": "differentiation_landscape", "grain": "target_indication"}
 
 
 _C_COMUT, _C_SURV = "co-mutation-and-mutual-exclusivity", "expression-clinical-association"
@@ -119,7 +104,7 @@ DIFFERENTIATION_CLAIM_SPEC = [
         _sig(_C_COMUT, "cooccurrence_class", _COMUT_SIGNAL),
         _corr(_C_COMUT, "cooccurrence_class", _COMUT_SIGNAL),
         _INFORMS["COMUT"],
-        _mk_atom(
+        mk_atom(
             _C_COMUT,
             "cooccurrence_class",
             (
@@ -130,6 +115,7 @@ DIFFERENTIATION_CLAIM_SPEC = [
                 "top_mutually_exclusive",
                 "n_pairs_panel_intersect_eligible",
             ),
+            _DIFF_ENTITY,
         ),
     ),
     ClaimSpec(
@@ -138,7 +124,7 @@ DIFFERENTIATION_CLAIM_SPEC = [
         _sig(_C_SURV, "survival_association_class", _SURVIVAL_SIGNAL),
         _survival_corr,
         _INFORMS["SURVIVAL"],
-        _mk_atom(
+        mk_atom(
             _C_SURV,
             "survival_association_class",
             # (#1820 F4) + median_ostime_high/low_days — the KM EFFECT SIZE (magnitude), not just the
@@ -153,6 +139,7 @@ DIFFERENTIATION_CLAIM_SPEC = [
                 "median_ostime_high_days",
                 "median_ostime_low_days",
             ),
+            _DIFF_ENTITY,
         ),
     ),
     ClaimSpec(
@@ -163,10 +150,11 @@ DIFFERENTIATION_CLAIM_SPEC = [
         _INFORMS["PROGNOSIS"],
         # (#1820 F5) + pan_cancer_prognostic_class — the clean independent pan-cancer prognostic arm,
         # retained on the atom alongside the indication-approx class.
-        _mk_atom(
+        mk_atom(
             _C_PROG,
             "prognostic_class",
             ("prognostic_class", "pan_cancer_prognostic_class", "meta_z", "pan_cancer_meta_z", "n_precog_datasets"),
+            _DIFF_ENTITY,
         ),
     ),
     ClaimSpec(
@@ -175,7 +163,7 @@ DIFFERENTIATION_CLAIM_SPEC = [
         _sig(_C_NODE, "node_leverage_class", _NODE_SIGNAL),
         _corr(_C_NODE, "node_leverage_class", _NODE_SIGNAL),
         _INFORMS["NODE"],
-        _mk_atom(
+        mk_atom(
             _C_NODE,
             "node_leverage_class",
             # (#1820 F7) + single_ko_leverage_understated — the caveat flag qualifying node_leverage_class
@@ -187,6 +175,7 @@ DIFFERENTIATION_CLAIM_SPEC = [
                 "strongest_buffering_paralog",
                 "single_ko_leverage_understated",
             ),
+            _DIFF_ENTITY,
         ),
     ),
 ]
@@ -200,10 +189,16 @@ _DISCLAIMER = (
 
 
 def differentiation_claim_vector(headline: dict, cards: list) -> dict:
+    """The differentiation-landscape claim vector {COMUT, SURVIVAL, PROGNOSIS, NODE: {signal,
+    corroboration, evidence, conflict, informs}, _disclaimer}. DESCRIPTIVE / verdict-inert projection
+    over the computed headline + card summaries (its signals INFORM patient-selection / positioning,
+    never a nomination gate)."""
     return build_claim_vector(DIFFERENTIATION_CLAIM_SPEC, headline, cards, _DISCLAIMER)
 
 
 def differentiation_key_signals(headline: dict, cards: list) -> dict:
+    """A brief, DETERMINISTIC, CITED read (available without the LLM) over the differentiation claim
+    vector — ranked supports + a deterministic headline. Verdict-inert."""
     vec = differentiation_claim_vector(headline, cards)
     return build_key_signals(
         vec,

@@ -91,19 +91,7 @@ _INFORMS = {
 }
 
 
-from _skills_common.claim_vector_core import build_summary_atom  # shared atom builder (Group D)
-
-
-def _atom(card_id, summary, keys, entity, read):
-    return build_summary_atom(card_id=card_id, summary=summary, keys=keys, read=read, entity=entity)
-
-
-def _mk_atom(card, field, keys, entity):
-    def fn(h, c):
-        return _atom(card, c.get(card) or {}, keys, entity, (c.get(card) or {}).get(field))
-
-    return fn
-
+from _skills_common.claim_vector_core import mk_atom  # shared atom-fn closure factory (Group D)
 
 _C_FIT, _C_TOP = "adc-tce-modality-fit", "surface-topology-and-ptm"
 _C_DEN, _C_SAFE, _C_SHED = "surface-abundance-density", "normal-tissue-liability", "shed-ectodomain-liability"
@@ -389,7 +377,7 @@ SURFACE_CLAIM_SPEC = [
         _sig(_C_FIT, "fit_class", _FIT_SIGNAL),
         _fit_corr,
         _INFORMS["FIT"],
-        _mk_atom(
+        mk_atom(
             _C_FIT,
             "fit_class",
             (
@@ -409,7 +397,7 @@ SURFACE_CLAIM_SPEC = [
         _sig(_C_TOP, "ecd_engineerability_class", _TOPOLOGY_SIGNAL),
         _corr(_C_TOP, "ecd_engineerability_class", _TOPOLOGY_SIGNAL),
         _INFORMS["TOPOLOGY"],
-        _mk_atom(
+        mk_atom(
             _C_TOP,
             "ecd_engineerability_class",
             (
@@ -429,7 +417,7 @@ SURFACE_CLAIM_SPEC = [
         _sig(_C_DEN, "surface_density_class", _DENSITY_SIGNAL),
         _corr(_C_DEN, "surface_density_class", _DENSITY_SIGNAL),
         _INFORMS["DENSITY"],
-        _mk_atom(
+        mk_atom(
             _C_DEN,
             "surface_density_class",
             (
@@ -451,7 +439,7 @@ SURFACE_CLAIM_SPEC = [
         _sig(_C_SAFE, "normal_tissue_breadth_class", _SAFETY_SIGNAL),
         _corr(_C_SAFE, "normal_tissue_breadth_class", _SAFETY_SIGNAL),
         _INFORMS["SAFETY"],
-        _mk_atom(
+        mk_atom(
             _C_SAFE,
             "normal_tissue_breadth_class",
             (
@@ -471,7 +459,7 @@ SURFACE_CLAIM_SPEC = [
         _sig(_C_SHED, "shed_liability_class", _SHED_SIGNAL),
         _corr(_C_SHED, "shed_liability_class", _SHED_SIGNAL),
         _INFORMS["SHED"],
-        _mk_atom(
+        mk_atom(
             _C_SHED,
             "shed_liability_class",
             (

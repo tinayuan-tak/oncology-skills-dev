@@ -332,8 +332,6 @@ __all__ = [
     "derive_confidence",
     "rank_tension",
     "headline_hero_plot_data",
-    "compose_headline_text",
-    "collect_citations",
     "build_headline",
     "build_synthesis_facet",
 ]

@@ -36,9 +36,6 @@ without this.
 
 from __future__ import annotations
 
-import functools
-from pathlib import Path
-
 from _skills_common.claim_vector_core import (
     ClaimSpec,
     build_claim_vector,
@@ -49,7 +46,7 @@ from _skills_common.claim_vector_core import (
     corroboration_from_arms,
     sig_ge,
 )
-from _skills_common.reliability import _derive_reliability
+from _skills_common.source_properties_core import build_source_properties  # shared L2a recipe loop (#2373)
 
 # ── enum → LIABILITY tier maps (grounded in the target-contracts card summary_fields_vocabulary) ────
 _CONSTRAINT_SIGNAL = {
@@ -792,75 +789,71 @@ def _pharmacovigilance_corr(h, c):
 from _skills_common.claim_vector_core import build_summary_atom  # shared atom builder (Group D)
 
 
-def _atom(card_id, summary, keys, entity, read):
-    return build_summary_atom(card_id=card_id, summary=summary, keys=keys, read=read, entity=entity)
-
-
 def _constraint_atom(h, c):
     cid = "gnomad-lof-constraint"
-    return _atom(
-        cid,
-        c.get(cid) or {},
-        ("constraint_class", "pli_score", "loeuf_score", "mis_z_score", "obs_lof_count", "exp_lof_count"),
-        {"measurement_type": "gnomad_lof_constraint", "grain": "target", "valence": "liability"},
-        (c.get(cid) or {}).get("constraint_class"),
+    return build_summary_atom(
+        card_id=cid,
+        summary=c.get(cid) or {},
+        keys=("constraint_class", "pli_score", "loeuf_score", "mis_z_score", "obs_lof_count", "exp_lof_count"),
+        entity={"measurement_type": "gnomad_lof_constraint", "grain": "target", "valence": "liability"},
+        read=(c.get(cid) or {}).get("constraint_class"),
     )
 
 
 def _burden_atom(h, c):
     cid = "gene-burden-safety"
-    return _atom(
-        cid,
-        c.get(cid) or {},
-        ("burden_safety_class", "min_pvalue", "top_disease"),
-        {"measurement_type": "gene_burden_safety", "grain": "target", "valence": "liability"},
-        (c.get(cid) or {}).get("burden_safety_class"),
+    return build_summary_atom(
+        card_id=cid,
+        summary=c.get(cid) or {},
+        keys=("burden_safety_class", "min_pvalue", "top_disease"),
+        entity={"measurement_type": "gene_burden_safety", "grain": "target", "valence": "liability"},
+        read=(c.get(cid) or {}).get("burden_safety_class"),
     )
 
 
 def _dosage_atom(h, c):
     cid = "clingen-dosage"
-    return _atom(
-        cid,
-        c.get(cid) or {},
-        ("dosage_sensitivity_class", "germline_inheritance_mode", "top_disease"),
-        {"measurement_type": "dosage_sensitivity_safety", "grain": "target", "valence": "liability"},
-        (c.get(cid) or {}).get("dosage_sensitivity_class"),
+    return build_summary_atom(
+        card_id=cid,
+        summary=c.get(cid) or {},
+        keys=("dosage_sensitivity_class", "germline_inheritance_mode", "top_disease"),
+        entity={"measurement_type": "dosage_sensitivity_safety", "grain": "target", "valence": "liability"},
+        read=(c.get(cid) or {}).get("dosage_sensitivity_class"),
     )
 
 
 def _clinvar_atom(h, c):
     cid = "clinvar-pathogenicity-safety"
-    return _atom(
-        cid,
-        c.get(cid) or {},
-        ("clinvar_pathogenic_class", "top_disease"),
-        {"measurement_type": "clinvar_germline_pathogenicity_safety", "grain": "target", "valence": "liability"},
-        (c.get(cid) or {}).get("clinvar_pathogenic_class"),
+    return build_summary_atom(
+        card_id=cid,
+        summary=c.get(cid) or {},
+        keys=("clinvar_pathogenic_class", "top_disease"),
+        entity={"measurement_type": "clinvar_germline_pathogenicity_safety", "grain": "target", "valence": "liability"},
+        read=(c.get(cid) or {}).get("clinvar_pathogenic_class"),
     )
 
 
 def _mouseko_atom(h, c):
     cid = "mouse-ko-phenotype"
-    return _atom(
-        cid,
-        c.get(cid) or {},
-        ("ko_phenotype_class", "top_lethal_label"),
-        {"measurement_type": "mouse_ko_phenotype_safety", "grain": "target", "valence": "liability"},
-        (c.get(cid) or {}).get("ko_phenotype_class"),
+    return build_summary_atom(
+        card_id=cid,
+        summary=c.get(cid) or {},
+        keys=("ko_phenotype_class", "top_lethal_label"),
+        entity={"measurement_type": "mouse_ko_phenotype_safety", "grain": "target", "valence": "liability"},
+        read=(c.get(cid) or {}).get("ko_phenotype_class"),
     )
 
 
 def _paness_atom(h, c):
     cid = "pan-cancer-crispr-dependency-distribution"
-    return _atom(
-        cid,
-        c.get(cid) or {},
+    return build_summary_atom(
+        card_id=cid,
+        summary=c.get(cid) or {},
         # broad_dependency_band added #1794 (VERDICT-BEARING as of safety.resolver 2.4.0) — the atom
         # binds only non-None keys, so pre-0.3.0 packages stay byte-identical.
-        ("dependency_class", "pan_essential_score", "distribution_shape", "broad_dependency_band"),
-        {"measurement_type": "crispr_lof_dependency", "grain": "target", "valence": "liability"},
-        (c.get(cid) or {}).get("dependency_class"),
+        keys=("dependency_class", "pan_essential_score", "distribution_shape", "broad_dependency_band"),
+        entity={"measurement_type": "crispr_lof_dependency", "grain": "target", "valence": "liability"},
+        read=(c.get(cid) or {}).get("dependency_class"),
     )
 
 
@@ -876,35 +869,35 @@ def _normaltissue_atom(h, c):
         tphp.get("tphp_hpa_blind_vital_organ_liability_class") == _TPHP_BLIND_LIABILITY
         and (c.get(cid) or {}).get("essential_tissue_flag") != "present"
     ):
-        return _atom(
-            "normal-tissue-protein-abundance-tphp",
-            tphp,
-            (
+        return build_summary_atom(
+            card_id="normal-tissue-protein-abundance-tphp",
+            summary=tphp,
+            keys=(
                 "tphp_hpa_blind_vital_organ_liability_class",
                 "n_hpa_blind_vital_organs_above_abundance_floor",
                 "hpa_blind_vital_organs_above_floor",
                 "hpa_blind_vital_organs_uncovered",
             ),
-            {"measurement_type": "normal_tissue_protein_abundance", "grain": "target", "valence": "liability"},
-            tphp.get("tphp_hpa_blind_vital_organ_liability_class"),
+            entity={"measurement_type": "normal_tissue_protein_abundance", "grain": "target", "valence": "liability"},
+            read=tphp.get("tphp_hpa_blind_vital_organ_liability_class"),
         )
-    return _atom(
-        cid,
-        c.get(cid) or {},
-        ("essential_tissue_flag", "essential_tissues_flagged", "normal_tissue_breadth_class"),
-        {"measurement_type": "normal_tissue_protein_breadth", "grain": "target", "valence": "liability"},
-        (c.get(cid) or {}).get("essential_tissue_flag"),
+    return build_summary_atom(
+        card_id=cid,
+        summary=c.get(cid) or {},
+        keys=("essential_tissue_flag", "essential_tissues_flagged", "normal_tissue_breadth_class"),
+        entity={"measurement_type": "normal_tissue_protein_breadth", "grain": "target", "valence": "liability"},
+        read=(c.get(cid) or {}).get("essential_tissue_flag"),
     )
 
 
 def _pharmacovigilance_atom(h, c):
     cid = "drug-warning-safety"
-    return _atom(
-        cid,
-        c.get(cid) or {},
-        ("drug_warning_class", "has_black_box", "toxicity_classes", "warning_types", "n_targeted_warned_drugs"),
-        {"measurement_type": "drug_warning_safety", "grain": "target", "valence": "liability"},
-        (c.get(cid) or {}).get("drug_warning_class"),
+    return build_summary_atom(
+        card_id=cid,
+        summary=c.get(cid) or {},
+        keys=("drug_warning_class", "has_black_box", "toxicity_classes", "warning_types", "n_targeted_warned_drugs"),
+        entity={"measurement_type": "drug_warning_safety", "grain": "target", "valence": "liability"},
+        read=(c.get(cid) or {}).get("drug_warning_class"),
     )
 
 
@@ -1147,53 +1140,6 @@ _SOURCE_PROPERTY_RECIPES_SAFETY = (
 _SAFETY_SKILL = "on-target-safety-liability"
 
 
-@functools.lru_cache(maxsize=None)
-def _safety_reach_map(skills_root: "str | None" = None) -> dict:
-    """{(card_id, field): interpretation_reach} for the on-target-safety-liability ledger — the SECOND
-    disposition axis (SK#1525), read-only, sourced the same way `role_for` sources the first axis.
-
-    This skill's ledger declares the ROLE axis on every row and the REACH axis on NONE today, so this
-    returns {} and no anchor carries an `interpretation_reach` key. The mechanism is wired anyway, and
-    proven by a test that points it at a ledger which DOES declare the axis, so the day the safety
-    ledger gains reach rows the anchors type themselves instead of silently staying untyped. Empty when
-    the ledger is absent, so anchor typing stays additive/byte-stable where the source is missing."""
-    from _skills_common.field_disposition_contract import INTERPRETATION_REACH
-    from _skills_common.field_disposition_ledger import (
-        LEDGER_NAME,
-        _default_skills_root,
-        iter_rows,
-        load_ledger,
-    )
-
-    root = Path(skills_root) if skills_root else _default_skills_root()
-    path = root / _SAFETY_SKILL / LEDGER_NAME
-    if not path.exists():
-        return {}
-    doc = load_ledger(path)
-    return {
-        (cid, field): spec["interpretation_reach"]
-        for cid, field, spec in iter_rows(doc)
-        if spec.get("interpretation_reach") in INTERPRETATION_REACH
-    }
-
-
-def _typed_safety_anchor(card_id, field, value, *, skills_root=None):
-    """One retained quantitative anchor: {field, value, scale} + the ledger-declared disposition typing
-    (semantic_role via the role axis, interpretation_reach via the reach axis, #1525) when this skill's
-    ledger declares them. Typing keys are OMITTED when the ledger does not classify the field, so the
-    anchor never fabricates a disposition it cannot source."""
-    from _skills_common.field_disposition_ledger import role_for
-
-    anchor = {"field": field, "value": value, "scale": _SAFETY_ANCHOR_SCALE.get(field, "raw")}
-    role = role_for(card_id, field, _SAFETY_SKILL, skills_root=Path(skills_root) if skills_root else None)
-    if role is not None:
-        anchor["semantic_role"] = role
-    reach = _safety_reach_map(skills_root).get((card_id, field))
-    if reach is not None:
-        anchor["interpretation_reach"] = reach
-    return anchor
-
-
 # The three arms of `_normaltissue_sig`, as STABLE tokens. The function is a three-way OR whose fired arm
 # is invisible from its returned tier alone: two different targets can both read `strong` because the HPA
 # essential-tissue flag is `present`, or because TPHP quantified the protein in an organ HPA cannot see —
@@ -1252,48 +1198,24 @@ def _source_properties(h: dict, c: dict, *, skills_root=None) -> "dict | None":
     Takes BOTH the headline and the cards-by-id map: the entries themselves are projected from the CARD
     summaries (`c`), while the `interpretation` provenance reports a disjunction evaluated over the
     HEADLINE (`h`) — the same input `_normaltissue_sig` reads in production, so the reported arm is the
-    arm that actually fired rather than one re-derived from differently-named card fields."""
-    out = {}
-    for recipe in _SOURCE_PROPERTY_RECIPES_SAFETY:
-        summ = c.get(recipe["card_id"], {}) or {}
-        prop = summ.get(recipe["property_field"])
-        # A source with no card / no resolved observational class emits no entry (byte-stable).
-        if not prop or prop == "data_unavailable":
-            continue
-        entry = {
-            "card_id": recipe["card_id"],
-            # The L1 card field the class token was read from. NAMED on the entry (a divergence from the
-            # presence reference, which records it only in the recipe) because without it the `property`
-            # value alone is not always self-describing and the reconstructability claim is only half
-            # true: this domain's `normal_tissue_protein_liability` reads `essential_tissue_flag`, whose
-            # value is the bare token `present` — present of WHAT is unanswerable from the export. With
-            # the field name every entry genuinely reconstructs to L1 as {card_id, property_field,
-            # property}, which is what this module and presence_claims.py both already CLAIM. The same
-            # gap exists in the presence entries; it is not fixed here because that object is golden-
-            # blocked (#2061 / #1984 PR-B own the tumour-presence golden). 1b-1e copy THIS shape.
-            "property_field": recipe["property_field"],
-            "property": prop,
-            "anchors": [
-                _typed_safety_anchor(recipe["card_id"], f, summ[f], skills_root=skills_root)
-                for f in recipe["anchors"]
-                if summ.get(f) is not None
-            ],
-            "comparability": dict(recipe["comparability"]),
-        }
-        # Retained categorical qualifiers that orient the anchors without being quantities themselves.
-        # OMITTED entirely when the card supplies none, keeping a partial-card run byte-stable.
-        context = {f: summ[f] for f in recipe["context"] if summ.get(f) is not None}
-        if context:
-            entry["context"] = context
-        interp_fn = _SAFETY_INTERPRETATION_FNS.get(recipe["name"])
-        if interp_fn is not None:
-            entry["interpretation"] = interp_fn(h)
-        # The typed `reliability` facet (#2306 step 2): a PURE projection over the entry's OWN retained
-        # anchors + this recipe's n-anchor spec. Verdict-inert (SK#2091). Always present (powered is
-        # required); every OTHER field on the entry stays byte-identical. See _skills_common/reliability.py.
-        entry["reliability"] = _derive_reliability(entry["anchors"], recipe["reliability"])
-        out[recipe["name"]] = entry
-    return out or None
+    arm that actually fired rather than one re-derived from differently-named card fields.
+
+    The recipe loop + the ledger-sourced `reach_map` / `typed_anchor` now live in the shared
+    source_properties_core (#2373); safety passes its own recipe table + anchor-scale map + skill, and —
+    uniquely — the `interpretation_fns` map (keyed on recipe name) that reports the normal-tissue
+    disjunction arm evaluated over the headline `h`. The `property_field` is NAMED on each entry (a
+    divergence from the presence reference) because `normal_tissue_protein_liability` reads
+    `essential_tissue_flag`, whose bare `present` token is not self-describing without it; so every entry
+    reconstructs to L1 as {card_id, property_field, property}."""
+    return build_source_properties(
+        c,
+        _SOURCE_PROPERTY_RECIPES_SAFETY,
+        anchor_scale=_SAFETY_ANCHOR_SCALE,
+        skill=_SAFETY_SKILL,
+        skills_root=skills_root,
+        headline=h,
+        interpretation_fns=_SAFETY_INTERPRETATION_FNS,
+    )
 
 
 SAFETY_CLAIM_SPEC = [

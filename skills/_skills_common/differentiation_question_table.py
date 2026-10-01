@@ -25,32 +25,15 @@ from __future__ import annotations
 from typing import Optional
 
 from _skills_common.question_table_core import conf as _conf
+from _skills_common.question_table_core import cv_axis_row as _axis_row
 from _skills_common.question_table_core import row as _row
+from _skills_common.question_table_core import sig_informs as _sig
 
-# Signal tier → (meter fill 0-5, polarity). Differentiation is DESCRIPTIVE: a present signal INFORMS
-# patient-selection / positioning; it never "supports"/"opposes" the nomination.
-_SIG_META = {
-    "strong": (5, "informs"),
-    "moderate": (3, "informs"),
-    "weak": (2, "informs"),
-    "absent": (1, "informs"),
-    "unmeasured": (0, "none"),
-}
-
-
-def _sig(tier: str, label: str) -> dict:
-    fill, pol = _SIG_META.get(tier, (0, "none"))
-    return {"tier": tier, "fill": fill, "polarity": pol, "label": label}
-
-
-def _axis_row(qid: str, question: str, cv: dict, key: str, support: str = "") -> dict:
-    """One row driven by a claim_vector axis atom (signal × corroboration × evidence)."""
-    atom = (cv or {}).get(key) or {}
-    tier = atom.get("signal", "unmeasured")
-    corr = atom.get("corroboration", "unmeasured")
-    primary = atom.get("evidence") or "data_unavailable"
-    return _row(qid, question, primary, support, _sig(tier, str(tier)), _conf(corr, f"corroboration: {corr}"))
-
+# Signal (`_sig` = sig_informs) + the cv-driven row builder (`_axis_row` = cv_axis_row) are the shared
+# descriptive-table helpers (question_table_core): differentiation is DESCRIPTIVE, so a present signal
+# INFORMS patient-selection / positioning and never "supports"/"opposes" the nomination. Q1–Q3 reuse
+# cv_axis_row (which carries the optional `support` line); only the bespoke non-claim-vector Q4/Q5 are
+# hand-rolled below.
 
 # clinical stage → a coarse precedent Signal tier (descriptive; verdict-inert)
 _STAGE_SIG = {"approved": "strong", "phase_3": "strong", "pivotal": "strong", "phase_2": "moderate", "phase_1": "weak"}
