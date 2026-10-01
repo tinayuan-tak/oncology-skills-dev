@@ -107,6 +107,13 @@ ESSENTIAL_TISSUES = HPA_ESSENTIAL_TISSUES
 # canonical anchor for `gut` (see the SCALAR ANCHOR convention in essential_organs.py).
 GI_TISSUES = {"intestine", "stomach"}
 
+# HPA's closed 16-tissue vocabulary for specific intensity (sorted alphabetically for display)
+HPA_16_TISSUES = [
+    "blood vessel", "bone marrow", "cerebral cortex", "fallopian tube",
+    "heart muscle", "intestine", "kidney", "liver", "lung", "lymphoid tissue",
+    "ovary", "pancreas", "salivary gland", "skeletal muscle", "skin", "stomach",
+]
+
 
 from onc_methods.target_id_sidecar import s3_client
 
@@ -481,7 +488,8 @@ def emit_normal_tissue_bar(summary: dict, target_symbol: str, out_dir, target_co
         takeaway=take,
     ) as F:
         fig = F.fig
-        gs = fig.add_gridspec(2, 1, height_ratios=[1.0, max(1.4, 0.4 * len(rows) + 0.6)], hspace=0.6)
+        # Always show all 16 tissues in bottom panel
+        gs = fig.add_gridspec(2, 1, height_ratios=[1.0, 5.0], hspace=0.6)
         ax_l = fig.add_subplot(gs[0])
         ax_b = fig.add_subplot(gs[1])
 
@@ -528,65 +536,56 @@ def emit_normal_tissue_bar(summary: dict, target_symbol: str, out_dir, target_co
             decided += f"   ·   {n_spec} tissue-enriched"
         ax_l.text(0, -0.42, decided, fontsize=7, color="#8A8F94", va="top", clip_on=False)
 
-        # ---- enriched-tissue bars ----
-        if rows:
-            labels = [r[0] for r in rows]
-            vals = [r[1] / 1e6 for r in rows]  # ×10⁶ → drop 1e7 offset
+        # ---- all-tissue bars (show all 16 HPA tissues, enriched or not) ----
+        # Build intensity lookup from specific_tissues
+        intensity_map = {r[0]: r[1] for r in rows}
 
-            def _col(lab):
-                if lab in essential_set:
-                    return pal.REFLINE_KILLER["color"]  # essential organ = red
-                if lab in gi_set:
-                    return "#E08214"  # GI tract = amber
-                return pal.TUMOR_LINE
+        # Sort tissues: enriched first (by intensity desc), then non-enriched alphabetically
+        enriched = [(t, intensity_map[t]) for t in HPA_16_TISSUES if t in intensity_map]
+        enriched.sort(key=lambda x: x[1], reverse=True)
+        non_enriched = [(t, 0) for t in HPA_16_TISSUES if t not in intensity_map]
+        all_tissues = enriched + non_enriched
 
-            ypos = list(range(len(labels)))
-            ax_b.barh(ypos, vals, color=[_col(l) for l in labels], height=0.62, edgecolor="#FFFFFF", linewidth=0.6)
-            ax_b.set_yticks(ypos)
-            ax_b.set_yticklabels([l.title() for l in labels], fontsize=8)
-            ax_b.invert_yaxis()
-            # note 4: HPA gives a RELATIVE tissue-enrichment score here (no absolute High/Med/Low per
-            # tissue). Make that explicit + carry HPA's own qualitative call (specificity) as the level.
-            pal.axis_label(ax_b, "x", "Tissue-enrichment", "HPA relative IHC score (×10⁶) — no absolute H/M/L")
-            spec = summary.get("hpa_tissue_specificity")
-            if spec:
-                ax_b.annotate(
-                    f"HPA specificity: {spec}",
-                    xy=(0.99, 1.02),
-                    xycoords="axes fraction",
-                    ha="right",
-                    va="bottom",
-                    fontsize=7,
-                    color=pal.INK_MUTED,
-                    clip_on=False,
-                )
-            ax_b.grid(axis="x", alpha=0.25, linewidth=0.4)
-            ax_b.grid(axis="y", visible=False)
-            if len(rows) == 1:
-                ax_b.set_title(
-                    "only 1 tissue is IHC-enriched — breadth (above) carries the signal",
-                    fontsize=7,
-                    color="#8A8F94",
-                    style="italic",
-                    loc="left",
-                    pad=3,
-                )
-            from matplotlib.patches import Patch
+        labels = [t[0] for t in all_tissues]
+        vals = [t[1] / 1e6 if t[1] else 0 for t in all_tissues]
 
-            leg = []
-            if any(l in essential_set for l in labels):
-                leg.append(Patch(facecolor=pal.REFLINE_KILLER["color"], label="essential organ"))
-            if any(l in gi_set for l in labels):
-                leg.append(Patch(facecolor="#E08214", label="GI tract"))
-            if leg:
-                ax_b.legend(handles=leg, loc="lower right", fontsize=7, frameon=False)
-        else:
-            ax_b.axis("off")
-            note = {
-                "broad_normal_expression": "broadly expressed; no single tissue is IHC-enriched",
-                "not_detected_in_normal": "not detected in normal tissue — favorable window",
-            }.get(breadth, f"breadth: {breadth.replace('_', ' ')}")
-            ax_b.text(0.5, 0.6, note, ha="center", va="center", fontsize=9, color="#5A626A")
+        def _col(lab, has_value):
+            if not has_value:
+                return "#E7ECEF"  # light gray for no enrichment
+            if lab in essential_set:
+                return pal.REFLINE_KILLER["color"]  # essential organ = red
+            if lab in gi_set:
+                return "#E08214"  # GI tract = amber
+            return pal.TUMOR_LINE
+
+        colors = [_col(l, l in intensity_map) for l in labels]
+        ypos = list(range(len(labels)))
+        ax_b.barh(ypos, vals, color=colors, height=0.62, edgecolor="#FFFFFF", linewidth=0.6)
+        ax_b.set_yticks(ypos)
+        ax_b.set_yticklabels([l.title() for l in labels], fontsize=6.5)
+        ax_b.invert_yaxis()
+
+        # Add gray background box for non-enriched tissues section
+        n_enriched = len(enriched)
+        n_non_enriched = len(non_enriched)
+        if n_non_enriched > 0:
+            y_start = n_enriched - 0.5
+            y_end = len(all_tissues) - 0.5
+            ax_b.axhspan(y_start, y_end, color="#E7ECEF", alpha=0.4, zorder=0)
+
+        pal.axis_label(ax_b, "x", "Tissue-enrichment", "HPA relative IHC score (×10⁶)")
+        ax_b.grid(axis="x", alpha=0.25, linewidth=0.4)
+        ax_b.grid(axis="y", visible=False)
+
+        from matplotlib.patches import Patch
+        leg = [
+            Patch(facecolor=pal.REFLINE_KILLER["color"], label="essential organ"),
+            Patch(facecolor="#E08214", label="GI tract"),
+            Patch(facecolor=pal.TUMOR_LINE, label="other tissue"),
+            Patch(facecolor="#E7ECEF", edgecolor="#333", linewidth=0.5, label="not enriched"),
+        ]
+        ax_b.legend(handles=leg, loc="lower right", fontsize=6, frameon=True,
+                    facecolor="white", edgecolor="#333", framealpha=1.0)
     return out_path
 
 
