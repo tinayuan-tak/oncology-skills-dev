@@ -933,6 +933,11 @@ SUB_SKILL_CARDS = {
         "cellline-surfaceome-abundance",  # #2025: cell-line surfaceome MS abundance (additive; no rule
         # maps it, no resolver rung consumes it → composed surface verdict byte-stable). Composer-
         # consistency with surface-modality-fit's own run.py CARDS entry.
+        "surface-localization-concordance",  # #2067, surfaceome 26Q3 arc #2024; target-contracts#966
+        # MERGED: BRIDGE derived card cross-tabbing cellline-surfaceome-abundance's cell-line
+        # surface_localization_class against protein-surface-evidence's orthogonal surface_confirmation_
+        # class. interpretation: rules_pending — additive; no rule/resolver rung consumes it → composed
+        # surface verdict byte-stable. Composer-consistency with surface-modality-fit's own run.py CARDS.
     ],
     "on-target-safety-liability": [
         "gnomad-lof-constraint",

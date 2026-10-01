@@ -551,6 +551,18 @@ surface-colocalization-avidity:
   target: ERBB2
   window_best_partner: null
   window_verdict: data_unavailable
+surface-localization-concordance:
+  cellline_median_enrichment_log2ratio: 3.6245272357637
+  cellline_n_lines_enrichment_evaluated: 64
+  cellline_surface_localization_class: surface_confirmed
+  concordance_substrate: cellline-surfaceome-abundance x protein-surface-evidence
+    (target-grain surface-localization corroboration)
+  method_version: 1.0.0
+  orthogonal_measured_in_cspa: true
+  orthogonal_n_celllines_detected: 12
+  orthogonal_surface_confirmation_class: confirmed_high
+  surface_context_concordance_class: concordant_surface
+  target: ERBB2
 surface-topology-and-ptm:
   _ptm_coverage: data_unavailable
   ecd_engineerability_class: large_ecd

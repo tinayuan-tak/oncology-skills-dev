@@ -163,6 +163,14 @@ composition:
                                        # rules_pending on the card — no rule/rung reads either facet. ADDITIVE
                                        # display facet, verdict byte-stable (fit_class resolves off
                                        # adc-tce-modality-fit).
+    - surface-localization-concordance # (in run.py CARDS; wired 2026-09-30, #2067, surfaceome 26Q3 arc #2024;
+                                       # target-contracts#966 MERGED) the BRIDGE derived card cross-tabbing
+                                       # cellline-surfaceome-abundance's cell-line surface_localization_class
+                                       # against protein-surface-evidence's orthogonal wet-lab
+                                       # surface_confirmation_class (CSPA MS + HPA-IF) — both source cards already
+                                       # composed above. interpretation: rules_pending on the card — no rule/rung
+                                       # reads any of its fields. ADDITIVE display facet, verdict byte-stable
+                                       # (fit_class resolves off adc-tce-modality-fit).
   # DATA_TO_SKILL_CONTRACT.md Rule 3 — the PULL half: this gate-view declares the
   # measurement_type CLAIMS it needs to answer "is this target biologics-viable", independent of
   # which datasets provide them. Keys resolve against target-contracts/vocabularies/
@@ -220,6 +228,11 @@ composition:
                                        # atlas breadth). PROMOTED: its block-O2 rules feed the surface_modality pmhc_tce_supported
                                        # rung (the pMHC-TCE route when the folded surface is neither_viable). Additive for a
                                        # surface-viable antigen (no verdict flip).
+    - surface_localization_concordance # (#2067, 2026-09-30, surfaceome 26Q3 arc #2024; target-contracts#966 MERGED)
+                                       # surface-localization-concordance — derived concordance-fusion cross-tabbing
+                                       # cellline-surfaceome-abundance's surface_localization_class against
+                                       # protein-surface-evidence's surface_confirmation_class. interpretation:
+                                       # rules_pending → ADDITIVE display facet, verdict byte-stable.
   rules_scope:
     - all
   synthesis:

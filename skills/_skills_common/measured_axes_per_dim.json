@@ -216,13 +216,15 @@
       "dim_displayed_context": null,
       "dim_verdict_member": "druggability",
       "gate_short": "surface_modality",
-      "n_declared_cards": 25,
-      "n_declared_types": 22,
+      "n_declared_cards": 26,
+      "n_declared_types": 23,
       "n_measurement_descriptor_fields": 90,
       "n_types_with_measurement_descriptor": 22,
       "skill_dir": "surface-modality-fit",
       "static_state": "descriptor_covered",
-      "types_without_measurement_descriptor": [],
+      "types_without_measurement_descriptor": [
+        "surface_localization_concordance"
+      ],
       "verdict_bearing": true
     },
     "target_intrinsic": {
@@ -343,10 +345,11 @@
       ],
       "n_axes_counted": 4,
       "n_axes_descriptor_covered": 4,
-      "n_declared_types": 51,
-      "n_types_without_measurement_descriptor": 1,
+      "n_declared_types": 52,
+      "n_types_without_measurement_descriptor": 2,
       "not_a_fanout_axes": [],
       "types_without_measurement_descriptor": [
+        "surface_localization_concordance",
         "target_identity"
       ],
       "verdict_member_axes": [
@@ -576,6 +579,7 @@
         "surface-abundance-density",
         "surface-bulk-pair-selectivity",
         "surface-colocalization-avidity",
+        "surface-localization-concordance",
         "surface-topology-and-ptm",
         "surfaceome-cohort-ranking",
         "surfaceome-family-classification",
@@ -804,6 +808,7 @@
         "shed_ectodomain_liability",
         "surface_confirmation",
         "surface_density",
+        "surface_localization_concordance",
         "surface_topology",
         "surfaceome_family"
       ],
@@ -877,17 +882,18 @@
     "n_axes_descriptor_covered": 15,
     "n_axes_no_declared_types": 0,
     "n_axes_not_a_fanout_axis": 3,
-    "n_declared_cards_distinct": 140,
-    "n_declared_types_distinct": 123,
+    "n_declared_cards_distinct": 141,
+    "n_declared_types_distinct": 124,
     "n_dims": 6,
     "n_fanout_axes": 15,
     "n_gated_axes": 8,
     "n_salience_spec_types": 122,
     "n_spec_types_pulled_by_no_axis": 0,
     "n_types_with_measurement_descriptor": 122,
-    "n_types_without_measurement_descriptor": 1
+    "n_types_without_measurement_descriptor": 2
   },
   "types_without_measurement_descriptor": [
+    "surface_localization_concordance",
     "target_identity"
   ]
 }

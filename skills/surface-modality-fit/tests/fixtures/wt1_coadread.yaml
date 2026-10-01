@@ -432,6 +432,18 @@ surface-colocalization-avidity:
   target: WT1
   window_best_partner: null
   window_verdict: data_unavailable
+surface-localization-concordance:
+  cellline_median_enrichment_log2ratio: null
+  cellline_n_lines_enrichment_evaluated: 0
+  cellline_surface_localization_class: insufficient
+  concordance_substrate: cellline-surfaceome-abundance x protein-surface-evidence
+    (target-grain surface-localization corroboration)
+  method_version: 1.0.0
+  orthogonal_measured_in_cspa: true
+  orthogonal_n_celllines_detected: 0
+  orthogonal_surface_confirmation_class: not_surface
+  surface_context_concordance_class: insufficient
+  target: WT1
 surface-topology-and-ptm:
   _ptm_coverage: data_unavailable
   ecd_engineerability_class: no_extracellular_domain

@@ -543,6 +543,14 @@ CARDS = [
     # interpretation: rules_pending — no interpretation rule and no resolver rung keys this
     # card_id, so it is ADDITIVE display-only: fit_class and every resolver rung stay byte-
     # stable with or without it (verdict-INERT).
+    "surface-localization-concordance",  # (#2067, surfaceome 26Q3 arc #2024; target-contracts#966
+    # MERGED): the BRIDGE derived card relating cellline-surfaceome-abundance's cell-line paired-
+    # assay surface_localization_class to protein-surface-evidence's orthogonal wet-lab
+    # surface_confirmation_class (CSPA MS + HPA-IF) — a target-grain surface-localization
+    # CORROBORATION across two independent platforms (both source cards already composed above).
+    # interpretation: rules_pending on the card — no interpretation rule and no resolver rung keys
+    # this card_id, so it is ADDITIVE display-only: fit_class and every resolver rung stay byte-
+    # stable with or without it (verdict-INERT).
 ]
 
 QUESTION = (
@@ -1265,6 +1273,21 @@ def _headline(cards, fired, verdict_pair):
         ),
         "surfaceome_fraction_lines_predicted_enriched": get_card_field(
             cards, "cellline-surfaceome-abundance", "fraction_lines_predicted_enriched"
+        ),
+        # surface-localization-concordance (#2067, surfaceome 26Q3 arc #2024; target-contracts#966) —
+        # the BRIDGE derived card cross-tabbing cellline-surfaceome-abundance's cell-line paired-assay
+        # surface_localization_class against protein-surface-evidence's orthogonal wet-lab
+        # surface_confirmation_class (CSPA MS + HPA-IF). interpretation: rules_pending on the card —
+        # no rule/rung reads any of its fields, so this projection is purely additive display:
+        # fit_class and every resolver rung stay byte-stable with or without it (verdict-INERT).
+        "surface_localization_concordance_class": get_card_field(
+            cards, "surface-localization-concordance", "surface_context_concordance_class"
+        ),
+        "surface_localization_concordance_cellline_class": get_card_field(
+            cards, "surface-localization-concordance", "cellline_surface_localization_class"
+        ),
+        "surface_localization_concordance_orthogonal_class": get_card_field(
+            cards, "surface-localization-concordance", "orthogonal_surface_confirmation_class"
         ),
     }
     # Orthogonality facet (2026-08-07) — VERDICT-INERT display meta-facet. Counts the

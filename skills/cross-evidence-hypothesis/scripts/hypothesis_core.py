@@ -272,6 +272,12 @@ DIMENSION_CARDS: dict[str, frozenset[str]] = {
             # (additive; no rule maps it, no resolver rung consumes it → composed surface verdict
             # byte-stable), so this mirror must carry it too (test_dimension_cards_matches_spine).
             "cellline-surfaceome-abundance",
+            # #2067 (surfaceome 26Q3 arc #2024; target-contracts#966 MERGED): BRIDGE derived card
+            # cross-tabbing cellline-surfaceome-abundance against protein-surface-evidence, added to
+            # SUB_SKILL_CARDS[surface-modality-fit] (interpretation: rules_pending — additive, no
+            # rule/resolver rung consumes it), so this mirror must carry it too
+            # (test_dimension_cards_matches_spine).
+            "surface-localization-concordance",
         }
     ),  # 2026-08-25 IEDB pMHC epitope ground truth (mirrors SUB_SKILL_CARDS[surface-modality-fit]; verdict-inert display)
     "immune_context": frozenset(
