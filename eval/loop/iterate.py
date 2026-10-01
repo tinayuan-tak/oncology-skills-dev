@@ -247,6 +247,14 @@ def process_package(
         bundle = _substrate.assemble_from_objects(evidence_package, decision, contracts_root=contracts_root)
 
     judge_result = _judge.judge(bundle, decision, llm=llm, max_tokens=max_tokens)
+    # Stamp each finding with the (gene, indication) pair it was proposed against BEFORE containment, so the
+    # provenance flows through containment / tiers / adversary (all copy-preserving) into the tier_report —
+    # the cross-run compiler (compile_findings.py) groups by structural signature and lists these source
+    # pairs as a finding's evidence. (The hash-chained ledger drops _source, like _containment/_adversary.)
+    _src = {"candidate_key": entry.candidate_key, "target": entry.target, "indication": entry.indication}
+    for _f in judge_result.get("findings") or []:
+        if isinstance(_f, dict):
+            _f.setdefault("_source", _src)
     containment = _containment.contain(judge_result, bundle)
     adversary: dict = {"skipped": "disabled", "n_in": 0, "n_killed": 0, "n_survived": 0, "annotated": []}
     if run_adversary:

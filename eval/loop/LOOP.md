@@ -240,3 +240,30 @@ Representative grounded findings (propose-only — recorded, NOT applied):
 
 These are candidate refinements of the dependency skill's property layers for human adjudication; none
 was auto-applied (STOP-A). They are the deliverable of a report-only first run — not a verdict change.
+
+---
+
+## 6. Compiling findings across runs → issues (`compile_findings.py`)
+
+The loop is run skill-by-skill, pair-by-pair; each run's record is the committed
+`iterations/<skill>/<iter>/iteration_report.json`. **`eval/loop/compile_findings.py`** is a read-only
+pass over those records that compiles ONE ranked, deduplicated log and (opt-in) emits GitHub issues — so
+you run loops whenever, then compile/emit on demand over any subset without re-running an LLM.
+
+```bash
+# digest only (always safe): a committed JSON+MD roll-up of every run under iterations/
+python eval/loop/compile_findings.py --out-dir eval/loop/sweeps/latest
+# restrict to one skill dir, and show the issue plan WITHOUT writing (dry-run):
+python eval/loop/compile_findings.py --skill functional-requirement --open --repo <owner/repo>
+# actually file/update issues (idempotent — fingerprint-deduped):
+python eval/loop/compile_findings.py --open --repo <owner/repo> --yes
+```
+
+- **The issue unit is a RECURRING STRUCTURAL FINDING**, deduped on `signature(skill, kind, datum-shape)`,
+  with the (gene, indication) pairs that exhibited it carried as evidence and recurrence as a ranking
+  signal (`iterate.py` stamps each finding with its `_source` pair → the tier_report → here).
+- **Issue bar:** adversary-SURVIVORS in T2/T3. A critic-KILLED finding stays in the log (with its kill
+  reason — an audit trail for the critic) but is not an issue candidate.
+- **Emit is two-phase / idempotent:** the digest is always written; `--open` files/updates issues deduped
+  on a `<!-- loop-finding-fp: <sig> -->` body marker (re-sweep → a comment, never a duplicate; a CLOSED
+  issue is left resolved). Default `--open` is a DRY-RUN plan; `--yes` writes. Propose-only (STOP-A).
