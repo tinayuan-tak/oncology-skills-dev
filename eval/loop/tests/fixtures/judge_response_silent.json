@@ -1,0 +1,8 @@
+{
+ "findings": {
+  "value": [],
+  "_source": "llm_synthesized",
+  "_model_id": "us.anthropic.claude-opus-4-8",
+  "_prompt_hash": "0000000000000000000000000000000000000000000000000000000000000000"
+ }
+}

@@ -1,0 +1,54 @@
+{
+ "findings": {
+  "value": [
+   {
+    "kind": "divergence",
+    "target": "L2b.tumor_presence_concordance",
+    "finding": "The L2b family is tokenized tumor_presence_discordant (symmetric, no attribution), but BOTH independent views attribute the split directionally: sc malignant non-detection + IHC-mostly-negative read as malignant-intrinsic-low while bulk-present is immune/stromal-weighted. Propose a human consider a directional disposition (bulk-present-is-microenvironment-weighted) rather than a symmetric discordance.",
+    "why": "sc malignant_detection_fraction 0.02439 + IHC n_not_detected=10/12 + purity r=-0.39 all point the same way; the coverage family already names bulk_masks_low_coverage.",
+    "datum_refs": [
+     "l2b.tumor_presence_concordance.token",
+     "l2b.bulk_vs_singlecell_coverage_concordance.token",
+     "l2b.tumor_presence_concordance.arms[single_cell_malignant_coverage].datum.malignant_detection_fraction"
+    ],
+    "views_divergent": ["deterministic", "literature", "narrative"]
+   },
+   {
+    "kind": "missing_relationship",
+    "target": "L2b (new island linking bulk presence to purity confound)",
+    "finding": "The expression-purity correlation (r=-0.39) is cited by BOTH narrative and literature as the mechanistic reason bulk reads present while malignant-cell coverage is low, yet it appears in NO L2b family and NO L3 chapter. Propose surfacing a microenvironment-confound relationship tying bulk_presence + purity + malignant_low into one explanatory island.",
+    "why": "The confound explains the tumor_presence discordance but is structurally unrepresented.",
+    "datum_refs": ["l2a.expression_purity_confound.anchors.r", "l2b.bulk_vs_singlecell_coverage_concordance.token"]
+   },
+   {
+    "kind": "surface_unused_signal",
+    "target": "L3 story / caveats",
+    "finding": "The IHC arm's raw tier breakdown (n_high=1, n_medium=1, n_not_detected=10 of 12) is computed in the protein_presence datum but the L3 headline only says IHC detects the antigen. Propose the L3 headline/caveat surface the tier distribution so the IHC signal is not read as stronger than 10/12 not-detected warrants. NOTE: ihc_detected_low and corroboration:high are CORRECT BY CONTRACT (>=2 patients detected; independence-agreement not strength) — the gap is narrative surfacing, not a mislabelled class.",
+    "why": "The datum exists but is not surfaced; the class label itself is contract-correct.",
+    "datum_refs": [
+     "l2b.protein_presence_concordance.arms[ihc].datum.n_high",
+     "l2b.protein_presence_concordance.arms[ihc].datum.n_not_detected",
+     "l3.headline"
+    ]
+   },
+   {
+    "kind": "class_not_supported_by_datum",
+    "target": "L2b.tumor_presence_concordance bulk arm",
+    "finding": "The bulk_rna arm is class broadly_moderate with datum high_fraction=0.0222 and median_tpm=null. A high_fraction of 2.2% is a thin basis for present-by-breadth; it is present-by-distribution-percentile, not present-by-broad-detection. Propose a human check whether present on the bulk arm should be qualified as distribution-level rather than detection-level.",
+    "why": "high_fraction 0.0222 contradicts a broad-detection reading on the label's own terms.",
+    "datum_refs": ["l2b.tumor_presence_concordance.arms[bulk_rna].datum.high_fraction", "l2b.tumor_presence_concordance.arms[bulk_rna].class"]
+   },
+   {
+    "kind": "new_family",
+    "target": "L2b (elevation-breadth / induced-context axis)",
+    "finding": "The resolver's single_tumor_elevated (1/7 cohorts) captures bulk tumor-vs-normal contrast only, while the literature-documented driver (inducible, immune-context PD-L1) is orthogonal and unmeasured by any arm. Propose a human consider a family/caveat flagging the elevation axis as measuring a contrast this target's biology largely escapes, so narrow breadth is not over-read as low relevance.",
+    "why": "Literature axis D explicitly extends the omics; the blind spot is structural.",
+    "datum_refs": ["l2a.tumor_elevation_breadth.anchors.n_cohorts_elevated"],
+    "views_divergent": ["deterministic", "literature"]
+   }
+  ],
+  "_source": "llm_synthesized",
+  "_model_id": "us.anthropic.claude-opus-4-8",
+  "_prompt_hash": "940b2a6934ac6dd2abb4dc8bcfbf85728a0a86f08f413f71cae700e2723a9b24"
+ }
+}
