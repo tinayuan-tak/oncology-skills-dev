@@ -402,6 +402,59 @@ Consumers that need the population distinction must read **`presence_verdict`** 
 phrase) or **`tumor_high_fraction`** (the raw prevalence, newly lifted into the headline in 1.22.0) —
 not `presence_signal_strength`.
 
+## Three audited asymmetries that are DELIBERATE (SK#1747, 2026-10-01)
+
+A refinement audit flagged three oddities here as probable dead code / probable bugs. All three were
+re-measured against the current tree and all three are **kept, on the record, with the reason gated** —
+no behaviour changed, no verdict moved, `presence_verdict` / `presence_verdict_by_modality` / the resolver
+goldens are byte-stable. Each is pinned in
+`tests/test_legacy_ns_and_documented_asymmetries.py`, which reds when the reason expires; the full
+reasoning sits beside the code it governs. Recorded here so a later completeness sweep does not "finish"
+any of them.
+
+**1. The `ns` legacy token stays — and the old justification for it was wrong.** `ns` is accepted by
+`_skills_common/presence_cardboard_figure._NO_SIGNAL`, run.py's `_MEASURED_UNRULED_PRESENT`, and
+`_PRESENCE_READER['tumor_protein_abundance']['present_synonyms']`. Both earlier comments called it "a
+DECLARED legacy key"; it is **not declared** — contracts dropped it from
+`tumor-protein-abundance-cptac.protein_expression_class` on 2026-08-21 (review M3) once
+`cptac_protein_deg` METHOD_VERSION 1.2.0 split it into `not_significant` (q>=0.05) + `small_effect`
+(q<0.05, negligible Cohen's d), and the current producer cannot emit it. It is retained anyway, for a
+reason that is *not* "nothing emits it today": (a) a **frozen pre-split product vintage** is committed in
+this tree — `tests/fixtures/epcam_coadread.yaml` carries `protein_expression_class: ns` under
+`method_version: 1.0.0` — and these readers run against whatever vintage a card resolved; (b) dropping it
+from the *bucket* reader is **fail-open**: `bulk_protein_ms/tumor` would fall from `measured` to
+`data_unavailable`, a FALSE ABSENCE for a protein that was measured and found flat. So the binding
+invariant is **agreement**: all three readers accept `ns`, or none do. Retirement is a coupled change
+(re-freeze the fixture, then drop it from all three in one commit), not a token deletion.
+
+**2. `ihc_not_detected` is fenced out of the LADDER, not out of its own bucket.** The audit read this as a
+polarity asymmetry ("can down-weight another bucket, fenced off from its own"). It is not one. The fence
+is per-**bucket** and symmetric: `protein_ihc` has no ladder, so its bucket arrives via the
+measured-unruled passthrough with `driving_rule_id: None`, and `_any_modality_presence_positive` excludes
+every such bucket — `ihc_detected_high` is excluded by the identical clause. And the negative is not
+fenced off from its own readout: the bucket's verdict *is* `ihc_not_detected`, `presence_matrix` tiers it
+at 0, `_protein_confirmation_state` reads it (`measured_absent`, see 1.23.0), and `presence_claims`
+consumes it. The one thing it cannot do is **rank** — i.e. be a killer rung. Making that symmetric means
+minting a `protein_ihc` ladder whose `ihc_not_detected` rung can veto the collapsed verdict: a
+verdict-moving change in the **false-negative** direction, on the framework's lowest-specificity protein
+modality (48.6% of `ihc_detected_low` cells rest on one stained patient — see 1.24.0). Same discipline as
+the single-cell leg (#1516 F1: supportive-only, no killer rung). The cross-bucket
+`presence_headline_conflict` guard is the compensating channel and fires on exactly this shape.
+
+**3. `_CLAIM_A_TO_TIER` merging `moderate` and `weak` onto tier 2 is load-bearing.** The map is a
+**ceiling**, not a label — it bounds the emitted word's tier and is never rendered, while claim A's own
+`signal` carries `moderate` vs `weak` into the claim vector and the data package untouched
+(data-package > verdict). Preserving the distinction in the ceiling means `weak`→1, and tier 1 is where
+the measured-NEGATIVE tokens live: `broadly_moderate_expression`'s only within-family tier-1 sibling is
+`broadly_low_expression`, a member of `_MEASURED_NEGATIVE_VERDICTS`, so that split would flip PRESENT into
+absent — which the cap explicitly forbids. In the contrast family the tier-1 neighbour is a DOWN-contrast
+(a selectivity statement, not a weaker abundance one — the same category error `_PROTEIN_ABSENCE_RIDS` was
+narrowed to avoid). Only the tumor-tissue family has a benign target, so a "symmetric" weak tier would be
+expressible in 1 of 3 lens families and dangerous in the other 2. Relatedly, claim A's `absent` (the
+abundance FLOOR anchor) and `unmeasured` are deliberately **absent** from the map and impose no cap at
+all: the cap governs the RELATIVE distribution tier, and absolute-abundance concern rides on
+`abundance_floor_flag` (EPCAM reads A=strong yet floor=`present_low_abundance`).
+
 ## Version history
 
 | version | date | change |

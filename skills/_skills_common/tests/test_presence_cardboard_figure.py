@@ -223,8 +223,14 @@ def test_the_inversion_that_motivated_this_gate_stays_fixed():
         "tumor_intrinsic is declared favourable and must render as a signal; it rendered no_signal "
         "for as long as _NO_SIGNAL was substring-tested first and contained the 2-char token 'ns'."
     )
-    # 'ns' itself is a DECLARED legacy key (tumor-presence/run.py:884-893 maps it exactly) and must
-    # keep working as a measured negative — the fix was exactness, not deleting the token.
+    # 'ns' itself must keep working as a measured negative — the fix was exactness, not deleting the
+    # token. NOTE (SK#1747, 2026-10-01): this pin used to justify itself with "a DECLARED legacy key",
+    # which is no longer true — contracts dropped `ns` from tumor-protein-abundance-cptac's vocabulary on
+    # 2026-08-21 after the cptac_protein_deg 1.2.0 not_significant/small_effect split. The token is
+    # retained for a DIFFERENT, still-live reason (the sibling reader in tumor-presence/scripts/run.py
+    # still accepts it, and a frozen pre-split fixture still emits it); the retention condition itself is
+    # gated in tumor-presence/tests/test_legacy_ns_and_documented_asymmetries.py, which reds when it
+    # expires. Do not re-justify this line from the declared vocabulary.
     assert _bucket("ns", "signal") == "no_signal"
 
 

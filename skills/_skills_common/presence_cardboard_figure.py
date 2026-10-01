@@ -114,7 +114,32 @@ _NO_SIGNAL = frozenset(
         "strong_downregulation",
         "downregulation",
         "sparsely",
-        "ns",  # DECLARED legacy pre-split key (see run.py:884-893); exact-only, so no longer a trap
+        # `ns` — PRE-SPLIT LEGACY PRODUCT TOKEN, deliberately retained (SK#1747 item 1, audited
+        # 2026-10-01). The earlier comment here called it a "DECLARED legacy key"; that is now FALSE and
+        # the correction matters, because "declared" was the whole stated reason for membership:
+        # tumor-protein-abundance-cptac's `protein_expression_class` vocabulary DROPPED `ns` on 2026-08-21
+        # (contracts review M3) when cptac_protein_deg METHOD_VERSION 1.2.0 split it into
+        # `not_significant` (q>=0.05) + `small_effect` (q<0.05, negligible d). So `ns` is UNDECLARED and
+        # the current producer cannot emit it.
+        #
+        # It stays anyway, and NOT because "no card emits it today" — inert-by-corpus is not safe-by-
+        # contract, and here the corpus is not even inert: skills/tumor-presence/tests/fixtures/
+        # epcam_coadread.yaml still carries `protein_expression_class: ns` under `method_version: 1.0.0`,
+        # a frozen PRE-split product vintage. The binding reason is SIBLING AGREEMENT. This module reads
+        # `decision['cards']`, i.e. emitted packages of ANY product vintage, and the sibling reader of the
+        # SAME field — tumor-presence/scripts/run.py `_MEASURED_UNRULED_PRESENT` + `_PRESENCE_READER`
+        # `present_synonyms` — still accepts `ns` as a flat/present-but-not-elevated read. Removing it HERE
+        # alone would make the two readers of one field disagree about the vocabulary they accept (this
+        # module's header calls itself "convergence on that shape, not a new design"), and a real
+        # pre-split `ns` would render ? ("we cannot interpret this") instead of the correct ○. Removing it
+        # THERE is the fail-OPEN direction: the bulk_protein_ms/tumor bucket would drop from `measured` to
+        # `data_unavailable` — a FALSE ABSENCE for a protein that was measured and found flat.
+        #
+        # Retirement is therefore a coupled, fixture-re-freezing change, not a token deletion, and it is
+        # gated: test_the_ns_token_is_accepted_by_both_readers_or_neither in
+        # skills/tumor-presence/tests/test_legacy_ns_and_documented_asymmetries.py pins the agreement in
+        # BOTH directions and names the fixture, so it reds the moment either half moves alone.
+        "ns",
     }
 )
 # Tokens where the measurement COULD NOT BE MADE. These are not measured negatives, and this module's

@@ -739,6 +739,33 @@ _MEASURED_NEGATIVE_VERDICTS = frozenset(
         # modality" descriptor — the point of the guard for an ADC/degrader/TCE call. SPINE BYTE-STABLE:
         # protein_ihc has no ladder (see _MEASUREMENT_RANK), so this token is never a collapse rung; it
         # reaches _MEASURED_NEGATIVE_VERDICTS only through the cross-bucket per_modality scan.
+        #
+        # THE "OWN-BUCKET FENCE" IS INTENTIONAL — reviewed SK#1747 item 2, 2026-10-01, and DECLINED as a
+        # change. The audit read this as a polarity asymmetry ("it can down-weight another bucket but is
+        # fenced off from its own"). It is not one; read the consumers:
+        #   • The fence is per-BUCKET, not per-POLARITY, and it is SYMMETRIC. protein_ihc has no ladder, so
+        #     the bucket's verdict arrives via the _MEASURED_UNRULED_PRESENT passthrough with
+        #     driving_rule_id None — and `_any_modality_presence_positive` excludes every driving_rule_id-
+        #     less bucket. `ihc_detected_high` is excluded by exactly the same clause. Neither polarity
+        #     votes in the rule-derived spine; there is no direction in which IHC is privileged.
+        #   • It is NOT fenced off from its own bucket's READOUT. The protein_ihc/tumor bucket's verdict IS
+        #     `ihc_not_detected` (evidence_state `measured`), presence_matrix tiers it at 0 (the lowest
+        #     measured tier), _protein_confirmation_state reads it via _IHC_ABSENT_VERDICT, and
+        #     presence_claims consumes it for the protein_only_rna_absent / measured-absence calls. The
+        #     negative informs its own bucket everywhere a verdict-INERT facet lives.
+        #   • What it genuinely cannot do is RANK — i.e. act as a killer rung inside a ladder. Making that
+        #     "symmetric" means minting a protein_ihc ladder whose `ihc_not_detected` rung can veto the
+        #     collapsed presence verdict. That is VERDICT-MOVING in the false-negative direction, on the
+        #     framework's lowest-specificity protein modality: HPA antibody IHC has known antibody-
+        #     specificity artefacts (see the single-patient guard at _IHC_MIN_CONFIRMATORY_DETECTED, where
+        #     48.6% of ihc_detected_low cells rest on ONE stained patient), and an indication-grain
+        #     antibody read must not kill a target-wide nomination. That is the same discipline already
+        #     recorded for the single-cell leg (#1516 F1: "the sc leg is SUPPORTIVE-ONLY (no killer
+        #     rung) … the harm a tier-cap would guard against is bounded to over-crediting, not a false
+        #     negative"). A degrader/ADC reader is not left unwarned either: the cross-bucket
+        #     `presence_headline_conflict` guard fires on exactly this shape and says so in words.
+        # Pinned by test_legacy_ns_and_documented_asymmetries.py (no protein_ihc ladder; the negative
+        # still reaches the conflict guard; the spine word is unchanged by it).
         "ihc_not_detected",
     }
 )
@@ -843,6 +870,33 @@ CONFLICTED_PROTEIN_PRESENT_RNA_ABSENT = "conflicted_protein_present_rna_absent" 
 # floor=present_low_abundance, and must NOT be capped). strong→tier 3 (EPCAM/ERBB2 byte-stable);
 # moderate/weak→tier 2 (USP8). We cap only tier-3→tier-2 (never into the tier-1 measured-NEGATIVE
 # tokens: absolute-abundance concerns stay on abundance_floor_flag, and must not flip PRESENT→absent).
+#
+# MODERATE AND WEAK BOTH MAP TO 2 — information-losing by construction, and INTENTIONAL (reviewed
+# SK#1747 item 3, 2026-10-01; DECLINED as a change). Three reasons, in order of force:
+#   1. THIS MAP IS A CEILING, NOT A LABEL. The value is `allowed`, an upper bound on the emitted word's
+#      tier; it is never rendered. Claim A's own `signal` (strong|moderate|weak|absent|unmeasured) is
+#      carried verbatim in the claim vector and the data package, so the moderate/weak distinction is NOT
+#      lost from the deliverable — only from a ceiling that was never meant to transmit it
+#      (data_package_over_verdict: the one-word verdict must dictate nothing).
+#   2. THERE IS NO SAFE TIER-1 DEMOTION TARGET. Preserving the distinction means weak→1, i.e. a
+#      _TIER2_TO_TIER1 map. Per _PRESENCE_TIER, tier 1 holds `broadly_low_expression` (a member of
+#      _MEASURED_NEGATIVE_VERDICTS), `tumor_sparsely_expressed`, and `lineage_restricted`. For the
+#      cell-line-RNA family the only within-family tier-1 sibling of `broadly_moderate_expression` IS
+#      `broadly_low_expression` — so weak→1 would flip a PRESENT call into a measured-ABSENT one, which the
+#      cap explicitly forbids two lines above ("never into the tier-1 measured-NEGATIVE tokens … must not
+#      flip PRESENT→absent"). For the contrast family, `modestly_upregulated_in_tumor`'s tier-1 neighbour is
+#      a DOWN-contrast — a selectivity statement, not a weaker abundance one, the same category error
+#      _PROTEIN_ABSENCE_RIDS was narrowed to avoid. Only the tumor-tissue family has a benign target
+#      (tumor_moderately_expressed → tumor_sparsely_expressed), so a "symmetric" weak tier would be
+#      expressible in 1 of 3 lens families and dangerous in the other 2 — a worse asymmetry than the merge.
+#   3. WEAK IS ALREADY THE WEAKEST *RELATIVE* READ THAT IS CAPPED AT ALL. Claim A's `absent` (the abundance
+#      FLOOR anchor) and `unmeasured` are deliberately ABSENT from this map, so they impose no cap: this
+#      cap governs the RELATIVE distribution tier only, and absolute-abundance concern is carried on
+#      abundance_floor_flag instead (the EPCAM case named below — A=strong yet floor=present_low_abundance).
+#      A weak-vs-moderate split inside a relative ceiling would be reading absolute abundance off the
+#      wrong axis.
+# Pinned by test_legacy_ns_and_documented_asymmetries.py (no cap below 2; every demotion target stays
+# presence-positive), so "finishing" this map into tier 1 reds rather than shipping a silent verdict move.
 _CLAIM_A_TO_TIER = {"strong": 3, "moderate": 2, "weak": 2}
 _TIER3_TO_TIER2 = {  # within-lens-family tier-3 → tier-2 demotion
     "broadly_high_expression": "broadly_moderate_expression",  # cell-line RNA panel
@@ -1209,8 +1263,23 @@ _COMPARATOR_BUCKETS = {
 # (bucket) -> (card_id, field, {raw_class: bucket_verdict}) for cards that emit a MEASURED-PRESENT class
 # that fires no rule by design (so cannot rank into a ladder). Used to mark such a bucket `measured`
 # instead of data_unavailable. tumor-protein-abundance-cptac's flat classes = protein quantified but not
-# tumor-elevated (present in both tumor and normal). `ns` is the pre-split legacy key, kept for
-# backward-compat; `not_significant`/`small_effect` are the current split (both mean present-but-flat).
+# tumor-elevated (present in both tumor and normal). `not_significant`/`small_effect` are the CURRENT
+# split (both mean present-but-flat).
+#
+# `ns` is the PRE-SPLIT legacy key and is kept DELIBERATELY (SK#1747 item 1, audited 2026-10-01). It is
+# no longer DECLARED — contracts dropped it from this card's `protein_expression_class` vocabulary on
+# 2026-08-21 (review M3) once cptac_protein_deg METHOD_VERSION 1.2.0 split it into `not_significant`
+# (q>=0.05) + `small_effect` (q<0.05, negligible Cohen's d) — so the current producer cannot emit it.
+# Retention is a PRODUCT-VINTAGE read, not a corpus measurement: this rescue runs against whatever
+# summary a card resolved, and a pre-split product row still says `ns` (the frozen fixture
+# tests/fixtures/epcam_coadread.yaml carries exactly that, under `method_version: 1.0.0`). Dropping the
+# key is the FAIL-OPEN direction — the bulk_protein_ms/tumor bucket would fall from `measured` to
+# `data_unavailable`, i.e. a FALSE ABSENCE for a protein that WAS measured and found flat, which is the
+# single error mode this rescue exists to prevent. The sibling display reader
+# (_skills_common/presence_cardboard_figure._NO_SIGNAL) accepts `ns` for the same field and for the same
+# reason; the two must move together, and
+# tests/test_legacy_ns_and_documented_asymmetries.py::test_the_ns_token_is_accepted_by_both_readers_or_neither
+# pins that in both directions.
 _MEASURED_UNRULED_PRESENT = {
     ("bulk_protein_ms", "tumor"): (
         "tumor-protein-abundance-cptac",
