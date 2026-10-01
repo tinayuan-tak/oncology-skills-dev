@@ -1,3 +1,20 @@
+driver-pathway-position:
+  _method_version: 0.1.0
+  _source: SIGNOR directed edges x Sanchez-Vega per-gene membership x per-indication
+    alteration freq; verdict-inert positional read
+  downstream_altered_members: []
+  driver_pathway_position_class: pathway_not_frequently_altered
+  frequently_altered_pathways:
+  - Cell Cycle
+  - RTK RAS
+  - TP53
+  - WNT
+  member_altered_pathways: []
+  n_downstream_altered_members: 0
+  n_upstream_altered_members: 0
+  target_og_tsg_role: null
+  target_pathways: []
+  upstream_altered_members: []
 pathway-activity-context:
   _method_version: 0.1.0
   _source: PROGENy (Schubert 2018, Apache-2.0); verdict-inert cohort pathway-activity

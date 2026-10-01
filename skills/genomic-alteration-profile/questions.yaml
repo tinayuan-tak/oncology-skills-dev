@@ -71,8 +71,8 @@ questions:
   # for this axis that deliberately does NOT feed its signal), so they belong to axis SNV, not to DEP.
   measurement_types: [mutation_variant_class_spectrum, mutation_hotspot_frequency, mutation_clonality,
     variant_level_interpretation, variant_functional_effect_mave, functional_gene_state, alteration_role,
-    oncogenic_pathway_alteration, genomic_instability_state, mutational_signature_context,
-    ddr_deficiency_context]
+    oncogenic_pathway_alteration, driver_pathway_position, genomic_instability_state,
+    mutational_signature_context, ddr_deficiency_context]
 - id: copy_number_driver
   legacy_id: CN
   seq: 2

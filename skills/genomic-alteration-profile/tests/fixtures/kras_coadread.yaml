@@ -149,6 +149,25 @@ ddr-deficiency-context:
   pooled_from:
   - COAD
   - READ
+driver-pathway-position:
+  _method_version: 0.1.0
+  _source: SIGNOR directed edges x Sanchez-Vega per-gene membership x per-indication
+    alteration freq; verdict-inert positional read
+  downstream_altered_members: []
+  driver_pathway_position_class: member_of_frequently_altered_pathway
+  frequently_altered_pathways:
+  - Cell Cycle
+  - RTK RAS
+  - TP53
+  - WNT
+  member_altered_pathways:
+  - RTK-RAS
+  n_downstream_altered_members: 0
+  n_upstream_altered_members: 0
+  target_og_tsg_role: OG
+  target_pathways:
+  - RTK-RAS
+  upstream_altered_members: []
 functional-gene-state:
   functional_state_class: sporadic_biallelic_inactivation
   indication: COADREAD

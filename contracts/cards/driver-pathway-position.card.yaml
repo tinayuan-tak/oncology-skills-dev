@@ -1,0 +1,104 @@
+# Card — DRIVER-PATHWAY POSITION  (pathway-context epic SK#2314 P1; verdict-inert at birth)
+#
+# The deterministic, target-CONDITIONED, indication-CONDITIONED positional read the framework lacked:
+# does {target} sit IN / UPSTREAM of / DOWNSTREAM of the frequently-altered DRIVER pathway in THIS
+# indication? Nothing today connects the three pieces — SIGNOR gives local directed edges
+# (target-grain, indication-blind); Sanchez-Vega per-gene membership gives which of the 10 canonical
+# oncogenic pathways a gene belongs to (indication-independent); the per-(pathway x indication)
+# alteration-frequency rollup gives which pathways are frequently altered in a cohort (target-
+# independent). This card is their CROSS-READ.
+#
+# SOFT, VERDICT-INERT CONTEXT (the pathway-node-leverage pattern): the measurement_type
+# (driver_pathway_position) is registered at evidence_tier=inferred, which MACHINE-ENFORCES softness —
+# an inferred provider can never fire a measured-strength killer. Its rules fire ONLY on the soft
+# axis_fit channel and are deliberately NOT wired into any resolver. Graduation (should pathway
+# position ever move a verdict?) is epic G1's decision, not this card's.
+#
+# POSITION, NOT DESIRABILITY (respects CROSS_EVIDENCE_INTEGRATION_ROADMAP.md WS3): the MARK2->YAP/TAZ
+# membership-lens verdict was rejected as overfit — membership of a frequently-altered pathway must
+# NEVER imply leverage or that the target is a good one. This card reports WHERE the target sits, not
+# whether hitting it is desirable; the dependency / tractability / selectivity axes own that.
+
+card_id: driver-pathway-position
+version: 0.1.0
+
+status: wired
+
+# tier intentionally UNSET (mirrors pathway-node-leverage): the claim is target-anchored yet
+# computed indication-CONDITIONED (the frequently-altered set is per-indication), so neither `target`
+# (would forbid the indication conditioning) nor `indication` (would forbid the target anchor) fits
+# cleanly. applies_when references no indication.* / subtype.* keys.
+
+question: "Does {target.symbol} sit in / upstream of / downstream of the frequently-altered driver pathway in {indication.label}?"
+
+applies_when:
+  - "true"   # any target x indication; data_unavailable-safe when inputs are absent
+
+required_inputs:
+  # Sanchez-Vega per-gene oncogenic-pathway MEMBERSHIP (F1 product, catalog#738): the target's
+  # membership of the 10 canonical oncogenic pathways + the member set of each altered pathway.
+  - product_id: sanchez-vega-oncogenic-pathway-membership-per-gene-v1
+  # per-(pathway x indication) alteration FREQUENCY: which pathways are the indication's drivers
+  # (frequently altered, >= the reader's 50% cohort bar). Reused via the oncogenic_pathway_alteration reader.
+  - product_id: oncogenic-pathway-alteration-per-indication-v1
+  # SIGNOR directed EDGES (per-gene): places the target up/downstream of altered-pathway members when
+  # it is not itself a member. OPTIONAL / fail-soft — absence only drops the up/downstream leg (the
+  # member + null classes still resolve), never blocks the read.
+  - product_id: signor-mechanism-network-per-gene-v1
+    optional: true
+  # Reactome per-UniProt pathway membership: the honest-null discriminator — tells
+  # `no_pathway_assignment` (no annotation anywhere) from `pathway_not_frequently_altered`. OPTIONAL / fail-soft.
+  - product_id: reactome-pathway-per-uniprot-v1
+    optional: true
+
+methods:
+  - call: driver-pathway-position
+    module: driver_pathway_position
+    entrypoint: read_driver_pathway_position
+    args:
+      target: "{target.symbol}"
+      indication: "{indication}"
+
+outputs:
+  summary_fields:
+    - driver_pathway_position_class    # PRIMARY categorical — the positional headline
+    - target_pathways                  # the target's Sanchez-Vega oncogenic-pathway membership(s)
+    - frequently_altered_pathways      # the indication's driver pathways (frequently altered, cohort >= 50%)
+    - member_altered_pathways          # intersection: altered pathway(s) the target is a member of
+    - upstream_altered_members         # altered-pathway members that REGULATE the target (-> target downstream)
+    - downstream_altered_members       # altered-pathway members the target REGULATES (-> target upstream)
+    - n_upstream_altered_members       # count (SIGNOR support for the downstream call)
+    - n_downstream_altered_members     # count (SIGNOR support for the upstream call)
+    - target_og_tsg_role               # curated OG/TSG role of the target within its pathway (context)
+
+  summary_fields_vocabulary:
+    driver_pathway_position_class:
+      - member_of_frequently_altered_pathway        # target is a curated member of a frequently-altered driver pathway
+      - downstream_of_frequently_altered_pathway     # a member of the altered pathway regulates the target (SIGNOR)
+      - upstream_of_frequently_altered_pathway       # the target regulates a member of the altered pathway (SIGNOR)
+      - pathway_not_frequently_altered               # target HAS a pathway assignment, but it is not a frequently-altered one
+      - no_pathway_assignment                        # honest null — no Sanchez-Vega membership and no Reactome assignment
+      - data_unavailable                             # membership product unreachable / indication absent / inputs missing
+
+warning_predicates:
+  - warning_id: position_is_not_leverage
+    if: "driver_pathway_position_class == \"member_of_frequently_altered_pathway\""
+    message: "Membership of a frequently-altered driver pathway is a POSITIONAL fact, not evidence of leverage or target quality (the MARK2->YAP/TAZ membership-lens verdict was rejected as overfit). The dependency / tractability / selectivity axes own desirability; this card only locates the target."
+  - warning_id: directed_position_is_local
+    if: "driver_pathway_position_class == \"upstream_of_frequently_altered_pathway\" || driver_pathway_position_class == \"downstream_of_frequently_altered_pathway\""
+    message: "The up/downstream call rests on LOCAL SIGNOR directed edges intersected with the altered pathway's member set — a one-hop adjacency, not a full epistasis / path analysis. Treat it as a directional hint, not a proven causal chain."
+
+caveats:
+  - "SOFT, verdict-inert context: contributes no hard-gate veto and never raises certainty (measurement_type registered at evidence_tier=inferred). Reports position only; the rules fire on the soft axis_fit channel and are not wired into any resolver."
+  - "POSITION, NOT DESIRABILITY: membership / adjacency to a frequently-altered pathway does NOT imply the target is a good one (the MARK2->YAP/TAZ membership-lens verdict was rejected as overfit, CROSS_EVIDENCE_INTEGRATION_ROADMAP WS3)."
+  - "Membership is the Sanchez-Vega 10 oncogenic pathways only (curated templates); a gene outside those templates reads no_pathway_assignment unless Reactome carries a (non-oncogenic) pathway, which reads pathway_not_frequently_altered. Not a general pathway-membership claim."
+  - "The frequently-altered set is per-indication cohort alteration frequency (>= 50%), a cohort-level property; a target in such a pathway is not thereby itself altered. Indication-conditioned: the same target reads differently across indications."
+  - "The up/downstream legs rest on local one-hop SIGNOR directed edges; absence of SIGNOR data (fail-soft) drops only those legs. Both direction member-sets are carried for inspection; a tie resolves to downstream."
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — this card is the (only) VIEW of the `driver_pathway_position` claim
+# (registered in vocabularies/measurement_types.yaml, derived_from oncogenic_pathway_alteration +
+# signaling_network_mechanism at evidence_tier: inferred). No modality_relevance: pathway position is
+# modality-independent and routes to no modality-fit gate.
+measurement_type: driver_pathway_position
+entity_grains: [target]
+schema_version: 1

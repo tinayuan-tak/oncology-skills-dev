@@ -162,6 +162,7 @@ DIMENSION_CARDS: dict[str, frozenset[str]] = {
             "mutation-type-counts",
             "mutational-signature-context",
             "oncogenic-pathway-alteration",
+            "driver-pathway-position",  # SK#2314 P1: mirrors SUB_SKILL_CARDS[genomic-alteration-profile] (verdict-inert positional facet, dual home)
             "target-clonality",
             "variant-level-interpretation",
             "variant-effect-mave-mavedb",  # MAVEdb MEASURED variant-effect facet; mirrors SUB_SKILL_CARDS[genomic-alteration-profile] (verdict-inert)
@@ -181,6 +182,7 @@ DIMENSION_CARDS: dict[str, frozenset[str]] = {
             # dependency-predictability added to SUB_SKILL_CARDS[mechanism-and-pharmacology] (facet-parity,
             # claim-vector rollout 2026-08-20), so this mirror must carry it (test_dimension_cards_matches_spine).
             "dependency-predictability",
+            "driver-pathway-position",  # SK#2314 P1: mirrors SUB_SKILL_CARDS[mechanism-and-pharmacology] (verdict-inert positional facet, dual home)
         }
     ),
     "safety": frozenset(

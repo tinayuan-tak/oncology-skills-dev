@@ -12,9 +12,9 @@ attribution_keypaths:
 - post_resolver_clamp/modality_conditional/expected_inert_arms/[]/rule_id
 - resolve/[]/driving_rule
 counts:
-  total: 453
+  total: 459
   gating: 156
-  display: 297
+  display: 303
 gating:
 - adc-preferred-supportive
 - alteration-role-gof-driver-supportive
@@ -241,6 +241,12 @@ display:
 - domain-modality-inhibitor-sufficient-degrader-neutral
 - domain-modality-removal-favored-degrader-supportive
 - domain-modality-scaffolding-degrader-supportive-dominant
+- driver-pathway-position-data-unavailable-insufficient
+- driver-pathway-position-downstream-neutral
+- driver-pathway-position-member-neutral
+- driver-pathway-position-no-assignment-insufficient
+- driver-pathway-position-not-frequently-altered-neutral
+- driver-pathway-position-upstream-neutral
 - e7-data-unavailable-insufficient
 - e7-mixed-engagement-neutral
 - e7-rnai-confirmed-weak-supportive

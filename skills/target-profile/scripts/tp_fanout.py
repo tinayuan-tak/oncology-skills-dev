@@ -750,6 +750,9 @@ SUB_SKILL_CARDS = {
         # profile. Feeds NO mechanism resolver rung (verdict byte-stable);
         # composing it restores the PREDICTABILITY axis + the SIGNOR x-ref.
         # (ALSO composed under genomic-alteration-profile — dual home.)
+        "driver-pathway-position",  # (SK#2314 P1, 2026-10-01) target+indication-conditioned POSITIONAL
+        # read vs the indication's frequently-altered driver pathway. SOFT / VERDICT-INERT (no mechanism
+        # resolver rung — verdict byte-stable). HOMED here; ALSO composed under genomic-alteration-profile (dual home).
     ],
     "genomic-alteration-profile": [  # reframed from mutation-profile
         # 2026-08-20 facet-parity (generalized guard): genomic's _build_headline lifts these two
@@ -804,6 +807,9 @@ SUB_SKILL_CARDS = {
         "oncogenic-pathway-alteration",  # 2026-08-11 oncogenic-pathway
         # alteration context. In genomic-alteration-profile CARDS,
         # composed under no entry → dropped. VERDICT-INERT render facet.
+        "driver-pathway-position",  # (SK#2314 P1, 2026-10-01) target+indication-conditioned POSITIONAL read
+        # vs the frequently-altered driver pathway, surfaced alongside oncogenic-pathway-alteration. SOFT /
+        # VERDICT-INERT (no genomic rung → verdict byte-stable). HOMED in mechanism-and-pharmacology (dual home).
         "target-clonality",  # scientific-gap (2026-08-14): mutation clonality/truncality
         # (ccf). In genomic-alteration-profile CARDS →
         # composer-consistency requires it here. VERDICT-INERT (no rules).

@@ -1,0 +1,111 @@
+# Interpretation rules for the DRIVER-PATHWAY-POSITION card (pathway-context epic SK#2314 P1).
+#
+# Maps the card's `driver_pathway_position_class` -> a SOFT, verdict-inert context signal on the
+# biology-axis channel (`axis_fit`). The pathway-node-leverage pattern.
+#
+# ATTACH MODEL: driver-pathway-position is an indication-conditioned POSITIONAL context signal. It is
+# deliberately NOT wired into any resolver (mechanism.resolver.yaml keys only on the signaling-network-
+# mechanism card's network_class; the genomic resolver keys on its own alteration rungs). These rules
+# FIRE (appear in fired_rule_ids, carry rationale) and are surfaced additively by the home skill
+# (mechanism-and-pharmacology) + the genomic-alteration-profile surface, and consumed by the cross-
+# evidence hypothesis agent as a context input / evidence-path seed. Graduation to verdict-affecting is
+# epic G1's explicit decision, not this card's.
+#
+# INVARIANTS:
+#   - SOFT, never a veto: signals are neutral / insufficient ONLY — NEVER supportive / opposing /
+#     killer. POSITION IS NOT DESIRABILITY: membership of (or adjacency to) a frequently-altered driver
+#     pathway must never read as a positive lean (the MARK2->YAP/TAZ membership-lens verdict was
+#     rejected as overfit, CROSS_EVIDENCE_INTEGRATION_ROADMAP WS3). So even the "member" class is
+#     NEUTRAL — it locates the target, it does not endorse it.
+#   - Never raises certainty: the measurement_type (driver_pathway_position) is registered at
+#     evidence_tier: inferred, which machine-enforces that it cannot fire a measured-strength killer or
+#     lift certainty by double-counting. These rules affect (soft) context/fit only.
+#   - Modality-independent: the signal is on `axis_fit` (biology axis), NOT a per-modality channel; the
+#     card declares no modality_relevance.
+#
+# axis: intracellular_intrinsic — matches the pathway-node-leverage sibling. The home skills bind rules
+# by card_id (composition.rules_scope), not by file axis, so this grouping does NOT pull the card into
+# the intracellular nomination ladder (no resolver rung keys on driver_pathway_position_class).
+
+rules_id: driver-pathway-position
+version: 1.0.0
+axis: intracellular_intrinsic
+schema_version: 1
+
+rules:
+  - rule_id: driver-pathway-position-member-neutral
+    when:
+      card_id: driver-pathway-position
+      field: driver_pathway_position_class
+      equals: member_of_frequently_altered_pathway
+    signals:
+      axis_fit: neutral
+    rationale: |
+      The target is a curated member of a pathway that is frequently altered in this indication's
+      cohort (a driver pathway). This LOCATES the target inside the altered driver biology — a context
+      fact for the mechanism / genomic-alteration picture. NEUTRAL by design: membership is NOT
+      leverage and NOT a positive lean (the membership-lens-implies-desirability verdict was rejected
+      as overfit); the dependency / tractability / selectivity axes own target quality.
+
+  - rule_id: driver-pathway-position-downstream-neutral
+    when:
+      card_id: driver-pathway-position
+      field: driver_pathway_position_class
+      equals: downstream_of_frequently_altered_pathway
+    signals:
+      axis_fit: neutral
+    rationale: |
+      A member of the indication's frequently-altered driver pathway regulates the target (SIGNOR
+      directed edge, altered-member -> target) — the target sits DOWNSTREAM of the altered driver, a
+      candidate effector node. NEUTRAL context: a directional hint for the hypothesis agent (an
+      altered driver may route signal through this target), not a lean on target quality.
+
+  - rule_id: driver-pathway-position-upstream-neutral
+    when:
+      card_id: driver-pathway-position
+      field: driver_pathway_position_class
+      equals: upstream_of_frequently_altered_pathway
+    signals:
+      axis_fit: neutral
+    rationale: |
+      The target regulates a member of the indication's frequently-altered driver pathway (SIGNOR
+      directed edge, target -> altered-member) — the target sits UPSTREAM of the altered driver.
+      NEUTRAL context: a directional hint (hitting the target may modulate the altered pathway), not a
+      lean on target quality. One-hop adjacency, not a proven epistatic chain.
+
+  - rule_id: driver-pathway-position-not-frequently-altered-neutral
+    when:
+      card_id: driver-pathway-position
+      field: driver_pathway_position_class
+      equals: pathway_not_frequently_altered
+    signals:
+      axis_fit: neutral
+    rationale: |
+      The target has a pathway assignment, but it is not one of the indication's frequently-altered
+      driver pathways, and no local directed edge places it adjacent to one. NEUTRAL: the target is not
+      positioned within the altered driver biology here — informational, neither favorable nor
+      unfavorable (indication-conditioned; it may read differently elsewhere).
+
+  - rule_id: driver-pathway-position-no-assignment-insufficient
+    when:
+      card_id: driver-pathway-position
+      field: driver_pathway_position_class
+      equals: no_pathway_assignment
+    signals:
+      axis_fit: insufficient
+    rationale: |
+      The honest null: the target has NO oncogenic-pathway membership (Sanchez-Vega) and no Reactome
+      pathway assignment, so its position relative to the driver pathway cannot be read. A coverage gap
+      (evidence in-scope but absent), NOT a negative signal — INSUFFICIENT, never a fabricated position.
+
+  - rule_id: driver-pathway-position-data-unavailable-insufficient
+    when:
+      card_id: driver-pathway-position
+      field: driver_pathway_position_class
+      equals: data_unavailable
+    signals:
+      axis_fit: insufficient
+    rationale: |
+      Driver-pathway position could not be computed (membership product unreachable, indication not in
+      the alteration product, or a live-read error). Evidence is in-scope but missing — a coverage gap,
+      not a negative signal. INSUFFICIENT.

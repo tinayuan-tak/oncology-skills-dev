@@ -462,14 +462,14 @@ skill_objectives:
       - {q: "Which alteration class carries a biomarker-stratified dependency?", answered_by: [mutation-stratified-dependency, copy-number-stratified-dependency, fusion-stratified-dependency, amp-expr-stratified-dependency, cross-consortium-dependency, dependency-predictability]}
       - {q: "Genotype → drug-response biomarker?", answered_by: [mutation-drug-response]}
       - {q: "Clonal / biallelic state of the alteration?", answered_by: [target-clonality, functional-gene-state]}
-      - {q: "Cohort genome context (instability, signatures, pathways)?", answered_by: [genomic-instability-state, mutational-signature-context, ddr-deficiency-context, oncogenic-pathway-alteration]}
+      - {q: "Cohort genome context (instability, signatures, pathways)?", answered_by: [genomic-instability-state, mutational-signature-context, ddr-deficiency-context, oncogenic-pathway-alteration, driver-pathway-position]}   # driver-pathway-position (SK#2314 P1): target+indication-conditioned position vs the frequently-altered driver pathway; verdict-inert, homed in mechanism-and-pharmacology
       - {q: "Patient ↔ model genomic-event match?", answered_by: [genomic-event-model-match]}
       - {q: "Splice-form dysregulation (aberrant splicing at the target)?", answered_by: [tumor-splice-dysregulation]}   # R10: transcript-form alteration, display-inert
   - skill: mechanism-and-pharmacology
     objective: "What is the target's network position / MoA hook / PD marker?"
     primary_axis: mechanism
     questions:
-      - {q: "Network position + actionable MoA class / hook?", answered_by: [signaling-network-mechanism]}
+      - {q: "Network position + actionable MoA class / hook?", answered_by: [signaling-network-mechanism, driver-pathway-position]}   # driver-pathway-position (SK#2314 P1): is the target in / upstream of / downstream of the indication's frequently-altered driver pathway? verdict-inert positional context
       - {q: "Pathway-activity context?", answered_by: [pathway-activity-context, phospho-pathway-activity]}
       - {q: "MoA / PD-marker perturbation signature?", answered_by: [tahoe-drug-perturbation]}
       - {q: "Which omics features (candidate mechanistic partners) best predict the dependency (feature-attribution)?", answered_by: [dependency-predictability]}   # M3: relabeled from a mis-copied 'confidence' framing
@@ -875,6 +875,7 @@ question_hierarchies:
         - functional_gene_state
         - alteration_role
         - oncogenic_pathway_alteration
+        - driver_pathway_position
       context_types:
       - genomic_instability_state
       - ddr_deficiency_context
@@ -933,6 +934,7 @@ question_hierarchies:
       - id: network_read
         measurement_types:
         - signaling_network_mechanism
+        - driver_pathway_position
     - id: PHOSPHO
       questions:
       - id: phospho_read

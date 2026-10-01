@@ -614,6 +614,17 @@
         "protein_class",
         "scaffolding_function"
       ],
+      "driver-pathway-position": [
+        "downstream_altered_members",
+        "driver_pathway_position_class",
+        "frequently_altered_pathways",
+        "member_altered_pathways",
+        "n_downstream_altered_members",
+        "n_upstream_altered_members",
+        "target_og_tsg_role",
+        "target_pathways",
+        "upstream_altered_members"
+      ],
       "drug-warning-safety": [
         "drug_warning_class",
         "ensembl_gene_id",
@@ -2202,8 +2213,8 @@
     "n_meta_key": 3,
     "n_no_reads_detected": 7,
     "n_reads_detected": 609,
-    "n_roster_cards": 150,
-    "n_roster_fields": 1868,
+    "n_roster_cards": 151,
+    "n_roster_fields": 1877,
     "n_undeclared_pairs": 5,
     "n_units": 23,
     "n_units_with_undeclared_reads": 1

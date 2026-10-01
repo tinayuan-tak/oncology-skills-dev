@@ -8,6 +8,7 @@ sub_groups:
   - id: network_read
     measurement_types:
     - signaling_network_mechanism
+    - driver_pathway_position
 - id: PHOSPHO
   questions:
   - id: phospho_read

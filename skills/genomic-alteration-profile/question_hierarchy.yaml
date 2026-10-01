@@ -15,6 +15,7 @@ sub_groups:
     - functional_gene_state
     - alteration_role
     - oncogenic_pathway_alteration
+    - driver_pathway_position
   context_types:
   - genomic_instability_state
   - ddr_deficiency_context

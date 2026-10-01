@@ -111,13 +111,15 @@
       "dim_displayed_context": null,
       "dim_verdict_member": "biological",
       "gate_short": "genomic_alteration",
-      "n_declared_cards": 26,
-      "n_declared_types": 23,
+      "n_declared_cards": 27,
+      "n_declared_types": 24,
       "n_measurement_descriptor_fields": 114,
       "n_types_with_measurement_descriptor": 23,
       "skill_dir": "genomic-alteration-profile",
       "static_state": "descriptor_covered",
-      "types_without_measurement_descriptor": [],
+      "types_without_measurement_descriptor": [
+        "driver_pathway_position"
+      ],
       "verdict_bearing": true
     },
     "immune_context": {
@@ -156,13 +158,15 @@
       "dim_displayed_context": null,
       "dim_verdict_member": "biological",
       "gate_short": "mechanism",
-      "n_declared_cards": 5,
-      "n_declared_types": 5,
+      "n_declared_cards": 6,
+      "n_declared_types": 6,
       "n_measurement_descriptor_fields": 13,
       "n_types_with_measurement_descriptor": 5,
       "skill_dir": "mechanism-and-pharmacology",
       "static_state": "descriptor_covered",
-      "types_without_measurement_descriptor": [],
+      "types_without_measurement_descriptor": [
+        "driver_pathway_position"
+      ],
       "verdict_bearing": true
     },
     "safety": {
@@ -288,10 +292,12 @@
       ],
       "n_axes_counted": 6,
       "n_axes_descriptor_covered": 6,
-      "n_declared_types": 61,
-      "n_types_without_measurement_descriptor": 0,
+      "n_declared_types": 62,
+      "n_types_without_measurement_descriptor": 1,
       "not_a_fanout_axes": [],
-      "types_without_measurement_descriptor": [],
+      "types_without_measurement_descriptor": [
+        "driver_pathway_position"
+      ],
       "verdict_member_axes": [
         "dependency",
         "expression",
@@ -484,6 +490,7 @@
         "cross-consortium-dependency",
         "ddr-deficiency-context",
         "dependency-predictability",
+        "driver-pathway-position",
         "functional-gene-state",
         "fusion-rearrangement-landscape",
         "fusion-stratified-dependency",
@@ -518,6 +525,7 @@
       ],
       "mechanism": [
         "dependency-predictability",
+        "driver-pathway-position",
         "pathway-activity-context",
         "phospho-pathway-activity",
         "signaling-network-mechanism",
@@ -720,6 +728,7 @@
         "cross_consortium_dependency",
         "ddr_deficiency_context",
         "dependency_predictability",
+        "driver_pathway_position",
         "functional_gene_state",
         "fusion_rearrangement",
         "fusion_stratified_dependency",
@@ -750,6 +759,7 @@
       ],
       "mechanism": [
         "dependency_predictability",
+        "driver_pathway_position",
         "pathway_activity_context",
         "phospho_pathway_activity",
         "signaling_network_mechanism",
@@ -884,17 +894,18 @@
     "n_axes_descriptor_covered": 15,
     "n_axes_no_declared_types": 0,
     "n_axes_not_a_fanout_axis": 3,
-    "n_declared_cards_distinct": 141,
-    "n_declared_types_distinct": 124,
+    "n_declared_cards_distinct": 142,
+    "n_declared_types_distinct": 125,
     "n_dims": 6,
     "n_fanout_axes": 15,
     "n_gated_axes": 8,
     "n_salience_spec_types": 122,
     "n_spec_types_pulled_by_no_axis": 0,
     "n_types_with_measurement_descriptor": 122,
-    "n_types_without_measurement_descriptor": 2
+    "n_types_without_measurement_descriptor": 3
   },
   "types_without_measurement_descriptor": [
+    "driver_pathway_position",
     "surface_localization_concordance",
     "target_identity"
   ]

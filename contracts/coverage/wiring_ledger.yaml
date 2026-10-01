@@ -6,16 +6,16 @@ _doc: 'I.4 wiring ledger: every data-catalog manifest id by wiring status -- rea
   reads, declares, OR names it; the wiring worklist). `dark` is the number I.4 moves, a sound lower bound
   on the truly-unwired set. Regenerate with validators/build_wiring_ledger.py; --self-check gates drift.'
 sibling_shas:
-  analysis-methods: bd79c66
-  skills: a49c07bf
-  data-catalog: 13aef19
-n_catalog_datasets: 552
+  analysis-methods: 7a7f50b2
+  skills: 17ebb5d3
+  data-catalog: a134675
+n_catalog_datasets: 555
 counts:
   read: 153
-  declared_only: 250
+  declared_only: 251
   referenced_only: 29
-  dark: 120
-n_literal_reads: 71
+  dark: 122
+n_literal_reads: 72
 dark_by_source_family:
   cbioportal: 17
   genie: 10
@@ -65,6 +65,7 @@ dark_by_source_family:
   peng: 1
   peptideatlas: 1
   pooled: 1
+  progeny: 1
   rancho: 1
   replogle: 1
   schutte: 1
@@ -72,6 +73,7 @@ dark_by_source_family:
   tflink: 1
   vandewetering: 1
   williams: 1
+  wu: 1
 read:
 - allgene-depmap-rank-26q3-v1
 - allgene-tumor-rank-v1
@@ -356,6 +358,7 @@ declared_only:
 - pubtator3-snapshot-2026-08-17
 - read-dge-tumor-vs-normal-sensitivity-v1
 - saltz-tcga-til-cellreports-2018
+- sanchez-vega-oncogenic-pathway-membership-per-gene-v1
 - sanchez-vega-oncogenic-pathways-2018
 - sanger-drug-combination-synergy-per-target-v1
 - sanger-drug-combinations-2022
@@ -610,6 +613,7 @@ dark:
 - prism-repurposing-19q4
 - prism-repurposing-dmc-23q2v2
 - prism-repurposing-secondary-20q2
+- progeny-pathway-activity-per-sample-v1
 - rancho-lung-cancer-atlas-2024
 - replogle-perturb-seq-figshare-20029387-snapshot-2026-09-14
 - sc-pseudobulk-donor-celltype-coadread-v2
@@ -628,3 +632,4 @@ dark:
 - ucsc-genomicsuperdups-hg38-snapshot-2026-08-28
 - vandewetering-crc-organoids-geo-snapshot-2026-09-14
 - williams-2017-crc-cetuximab-sirna-pubchem-snapshot-2026-09-14
+- wu-hegde-2026-membrane-topology

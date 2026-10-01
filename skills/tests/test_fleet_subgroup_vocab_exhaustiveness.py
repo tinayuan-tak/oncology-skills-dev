@@ -138,6 +138,15 @@ _KNOWN_DEFAULTING = {
     # mechanism-and-pharmacology: 30 unmapped (26 invert a present signal to `absent` = under-reads)
     "mechanism-and-pharmacology": frozenset(
         {
+            # driver-pathway-position (SK#2314 P1): a VERDICT-INERT positional card, NOT subgroup-
+            # stratified — its driver_pathway_position_class tokens are not subgroup present/absent
+            # signals, so they fall through to default_classify in the --figures subgroup panel
+            # (data_unavailable is already ledgered below). Ledgered, not mapped, per the ratchet.
+            "member_of_frequently_altered_pathway",
+            "downstream_of_frequently_altered_pathway",
+            "upstream_of_frequently_altered_pathway",
+            "pathway_not_frequently_altered",
+            "no_pathway_assignment",
             "arm_level_cn",
             "bidirectionally_perturbed",
             "cross_gene_copy_number",
@@ -280,6 +289,14 @@ _KNOWN_DEFAULTING = {
     # genomic-alteration-profile: 58 unmapped (52 invert a present signal to `absent` = under-reads)
     "genomic-alteration-profile": frozenset(
         {
+            # driver-pathway-position (SK#2314 P1): verdict-inert positional facet surfaced here, NOT
+            # subgroup-stratified — its driver_pathway_position_class tokens default in the --figures
+            # subgroup panel (data_unavailable already ledgered below). Ledgered, not mapped (ratchet).
+            "member_of_frequently_altered_pathway",
+            "downstream_of_frequently_altered_pathway",
+            "upstream_of_frequently_altered_pathway",
+            "pathway_not_frequently_altered",
+            "no_pathway_assignment",
             "amp_expr_negative_more_dependent",
             "arm_level_cn",
             "bottom_decile",

@@ -1445,6 +1445,29 @@ measurement_types:
     providers:
       - {kind: derived_from, inputs: [crispr_lof_dependency], method: pathway_node_leverage, evidence_tier: inferred}
 
+  driver_pathway_position:
+    # pathway-context epic SK#2314 P1 (2026-10-01). The deterministic, target-CONDITIONED, indication-
+    # CONDITIONED positional claim the framework lacked: does the target sit IN / UPSTREAM of /
+    # DOWNSTREAM of the frequently-altered DRIVER pathway in THIS indication? The CROSS-READ of
+    # Sanchez-Vega per-gene oncogenic-pathway membership x per-(pathway x indication) alteration
+    # frequency (oncogenic_pathway_alteration) x SIGNOR directed edges (signaling_network_mechanism).
+    #
+    # derived_from [oncogenic_pathway_alteration, signaling_network_mechanism]: the position is a
+    # cross-tab of which pathways are the indication's drivers (the former) and the target's directed
+    # adjacency to their members (the latter), with Sanchez-Vega per-gene membership as the join. The
+    # membership product is the join key, not a per-target measurement_type DAG edge (documented here).
+    #
+    # evidence_tier: inferred — this is a DERIVED positional composition, and it is the machine home for
+    # the SOFT invariant: it must never fire a measured-strength killer and never raises certainty (a
+    # context annotation, not a nomination gate). POSITION, NOT DESIRABILITY (the MARK2->YAP/TAZ
+    # membership-lens verdict was rejected as overfit). NO modality_relevance: pathway position is
+    # modality-independent and routes to no modality-fit gate.
+    claim: "Does the target sit in / upstream of / downstream of the indication's frequently-altered driver pathway (Sanchez-Vega membership x per-indication alteration frequency x SIGNOR directed edges)?"
+    entity_grains: [target]
+    cards: [driver-pathway-position]
+    providers:
+      - {kind: derived_from, inputs: [oncogenic_pathway_alteration, signaling_network_mechanism], method: driver_pathway_position, evidence_tier: inferred}
+
   target_safety_prioritisation:
     # P5 Slice 1 (2026-07-24) — Open Targets 26.06 engineered target-prioritisation scores as
     # safety-ORIENTING CONTEXT. Verdict-inert (no resolver reference, no warning); NOT modality-

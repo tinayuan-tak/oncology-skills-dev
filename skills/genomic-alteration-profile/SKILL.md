@@ -28,7 +28,7 @@ description: |
   --modality flag. See CHANGELOG.md for development history.
 
 metadata:
-  version: 2.20.0
+  version: 2.21.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -73,6 +73,10 @@ composition:
     - mutational-signature-context           # indication-level mutagenic-process context (TCGA MC3 → COSMIC v3.3 SBS)
     - ddr-deficiency-context                 # indication-level DDR/HRD cohort context (Knijnenburg 2018)
     - oncogenic-pathway-alteration           # indication-level oncogenic-pathway alteration freq (Sanchez-Vega 2018)
+    - driver-pathway-position                # (SK#2314 P1) target+indication-conditioned POSITIONAL read — IN/UPSTREAM/
+                                             # DOWNSTREAM of the indication's frequently-altered driver pathway. Surfaced
+                                             # alongside oncogenic-pathway-alteration; SOFT/VERDICT-INERT (no genomic rung →
+                                             # verdict byte-stable). HOMED in mechanism-and-pharmacology. Position, not desirability.
     - cross-consortium-dependency            # Q4 CONFIDENCE (verdict-inert): Broad↔Sanger CRISPR agreement
     - dependency-predictability              # Q4 CONFIDENCE (verdict-inert): omics-learnability + lineage-collapse flag
     - subgroup-stratified-mutation-frequency # DESCRIPTIVE per-stratum mutation-frequency panorama (emits no
@@ -113,6 +117,7 @@ composition:
     - mutational_signature_context           # mutational-signature-context (indication-level cohort context)
     - ddr_deficiency_context                 # ddr-deficiency-context (indication-level cohort context)
     - oncogenic_pathway_alteration           # oncogenic-pathway-alteration (indication-level cohort context)
+    - driver_pathway_position                # driver-pathway-position (positional read; verdict-inert soft context)
     - cross_consortium_dependency            # cross-consortium-dependency (Q4 confidence; verdict-inert)
     - dependency_predictability              # dependency-predictability (Q4 confidence; verdict-inert)
   # rules_scope = cards whose rules actually enter the genomic_alteration resolver.

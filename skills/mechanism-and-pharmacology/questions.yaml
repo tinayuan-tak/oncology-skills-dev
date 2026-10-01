@@ -71,7 +71,7 @@ questions:
   text: Signaling-network topology + MoA hooks (upstream regulators / downstream effectors)?
   axis_id: NETWORK
   role: context
-  measurement_types: [signaling_network_mechanism]
+  measurement_types: [signaling_network_mechanism, driver_pathway_position]
 - id: phospho_read
   legacy_id: Q2
   seq: 2

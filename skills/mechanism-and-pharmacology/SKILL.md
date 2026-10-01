@@ -20,7 +20,7 @@ description: |
   candidate hooks for small-molecule / degrader / molecular-glue programs?
 
 metadata:
-  version: 1.11.0
+  version: 1.12.0
   owner: ryan.abo@takeda.com
   requires_preflight: false
   method_version_pins:
@@ -48,6 +48,12 @@ composition:
                                         # dependency, filtered to mechanistically-plausible partner-gene classes
                                         # and cross-referenced against SIGNOR partners. DISPLAY-ONLY facet —
                                         # feeds NO resolver (mechanism_verdict byte-stable); NOT in rules_scope.
+    - driver-pathway-position           # ADDED 2026-10-01 (pathway-context epic SK#2314 P1): target+indication-
+                                        # conditioned POSITIONAL read — IN / UPSTREAM of / DOWNSTREAM of the
+                                        # indication's frequently-altered driver pathway (Sanchez-Vega per-gene
+                                        # membership x per-indication alteration frequency x SIGNOR directed edges).
+                                        # SOFT / VERDICT-INERT: soft axis_fit rules only, wired to NO resolver
+                                        # (mechanism_verdict byte-stable). Reports position, NOT desirability.
   # DATA_TO_SKILL_CONTRACT Rule 3 — the measurement_type claims pulled, ONE per card in cards_used.
   # 2026-08-14 review: added pathway_activity_context — the pathway-activity-context card (PROGENy,
   # added 2026-08-10) was in cards_used but its type was omitted here. test_mechanism_measurement_types.py
@@ -58,6 +64,7 @@ composition:
     - phospho_pathway_activity               # phospho-pathway-activity
     - pathway_activity_context               # pathway-activity-context (PROGENy)
     - dependency_predictability              # dependency-predictability (feature-attribution facet)
+    - driver_pathway_position                # driver-pathway-position (positional read; verdict-inert soft context)
   rules_scope:
     - all
   synthesis:

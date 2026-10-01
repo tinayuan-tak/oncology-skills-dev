@@ -102,7 +102,7 @@ env:
   # changes sibling-root resolution to a HARD ERROR on absence, which is a separate decision with a
   # different blast radius (this repo installs data-catalog as an editable pixi dep). The residual
   # 7783d39..main window is exactly what the nightly DC@main lane covers.
-  DATA_CATALOG_SHA: 7783d3947dea0f8ecd5f4eeab5e52f261be51814
+  DATA_CATALOG_SHA: c0ac7c3ccf702a0de80f467eb4c1f5cb391eb98e
 
 jobs:
   # CHANGE-DETECTION (#2092). Fast (~checkout-only) job that diffs the PR against its merge-base and
