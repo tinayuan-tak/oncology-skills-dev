@@ -652,10 +652,15 @@ _NONCRIT_FILL, _NONCRIT_LINE = "#a9c5db", "#5b7f99"  # non-critical — muted bl
 
 
 def emit_liability_svg(
-    target: str, out_dir: Path, contracts_dir=DEFAULT_TARGET_CONTRACTS, *, presampled=None
+    target: str,
+    out_dir: Path,
+    contracts_dir=DEFAULT_TARGET_CONTRACTS,
+    *,
+    indication: Optional[str] = None,
+    presampled=None,
 ) -> Optional[Path]:
     """Tier-3 SVG for the Q3 liability card: per-GTEx-tissue median expression bar (ranked),
-    critical organs highlighted red, the HIGH cutoff marked. None if the target is absent.
+    critical organs highlighted red. Optionally shows the tumor median for the indication.
 
     presampled (figure Stage 6): OPT-IN atlas {tissue: [values]} from persisted plot_data → draw
     OFFLINE with no live re-read. None = read live (legacy)."""
@@ -688,12 +693,31 @@ def emit_liability_svg(
     edges = [(_CRITICAL_LINE if t in crit else _NONCRIT_LINE) for t in labels]
     fig, ax = plt.subplots(figsize=(7.2, max(3.5, 0.26 * len(rows) + 1.0)))
     ax.barh(range(len(rows)), vals, color=colors, edgecolor=edges, linewidth=0.8, alpha=0.85)
-    ax.axvline(_st.HIGH_LOG2TPM, color="#444", linewidth=1.0, linestyle="--", zorder=3)
-    ax.text(_st.HIGH_LOG2TPM, len(rows) - 0.3, " high cutoff", color="#444", fontsize=7, va="top")
+
+    # Add tumor median line if indication is provided
+    tumor_median = None
+    if indication:
+        tumor_vals = _read.read_tumor_samples(target, indication)
+        if tumor_vals:
+            tumor_median = float(np.median(tumor_vals))
+            ax.axvline(tumor_median, color="#1f4e79", linewidth=1.5, linestyle=":", zorder=3)
+
     ax.set_yticks(range(len(rows)))
     ax.set_yticklabels(labels, fontsize=6.5)
     ax.set_xlabel("median log2(TPM + 1) — GTEx normal (recount3 / GENCODE v26)")
-    ax.set_title(f"{target} — normal-tissue expression atlas (critical organs in red)")
+
+    # Title with indication info if provided
+    if indication and tumor_median is not None:
+        ax.set_title(f"{target} — normal-tissue expression atlas (critical organs in red)")
+        # Add legend for tumor median line
+        from matplotlib.lines import Line2D
+        legend_handles = [
+            Line2D([0], [0], color="#1f4e79", linewidth=1.5, linestyle=":", label=f"{indication} tumor median"),
+        ]
+        ax.legend(handles=legend_handles, loc="lower right", fontsize=7, frameon=True, framealpha=0.9)
+    else:
+        ax.set_title(f"{target} — normal-tissue expression atlas (critical organs in red)")
+
     ax.grid(axis="x", alpha=0.25, linewidth=0.4)
     fig.tight_layout()
     fig.savefig(out_path)
