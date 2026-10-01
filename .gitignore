@@ -68,3 +68,16 @@ skills/*/*_cohort_assignments.csv
 !.claude/config
 !.claude/hooks/
 .claude/branch-scope
+
+# Retired relational skills (#1254, #654) — their names survive only as
+# card-id/dispatch-key strings in combination-and-vulnerability and
+# _skills_common; nothing should ever write scripts/tests under these paths
+# again. Guards against a stray scaffold/mkdir re-creating the empty dirs (#2367).
+skills/synthetic-lethal-partners/
+skills/combinatorial-dependency/
+skills/combo-and-resistance/
+skills/compose-dashboard/
+
+# Ad hoc run-output scratch dropped at the repo root by manual batch
+# invocations (e.g. `batch/expression_rna_COADREAD/`) — never commit it (#2367).
+/batch/
