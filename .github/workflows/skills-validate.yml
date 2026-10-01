@@ -93,16 +93,14 @@ env:
   # guard and the consumer-read are one atomic unit. Never bump this pin in a PR that cannot run
   # `contracts-pytest` (the leg that checks data-catalog out and exports DATA_CATALOG_ROOT).
   #
-  # PINNED — data-catalog main @ 7783d39 (2026-09-29, DC#731 "resync vendored measurement_types.yaml
-  # from monorepo source of truth"). Bumped from 13aef194 (2026-09-19, depmap-predictability-26q1-v4
-  # manifest) by SK#2097: at 13aef194 the vendored measurement_types.yaml predates DC#731 and is
-  # missing `depmap_cell_line_rna` + 3 sibling families (102 differing lines), so the new byte-sync
-  # guard was born red against the old pin while data-catalog `main` was genuinely in sync. Bumped to
-  # the resync commit ITSELF, deliberately NOT to DC main HEAD (15acfb0): DC#725 landed after it and
-  # changes sibling-root resolution to a HARD ERROR on absence, which is a separate decision with a
-  # different blast radius (this repo installs data-catalog as an editable pixi dep). The residual
-  # 7783d39..main window is exactly what the nightly DC@main lane covers.
-  DATA_CATALOG_SHA: c0ac7c3ccf702a0de80f467eb4c1f5cb391eb98e
+  # PINNED — data-catalog main @ c8fc6f08 (2026-10-01, DC#749 "mint depmap-predictability-26q3-v4
+  # manifest"). Bumped from c0ac7c3 (pre-#749) by this PR (#814): the depmap_predictability default
+  # pin flips 26q1-v4 -> 26q3-v4 and cli.py's RELEASE_PIN_TO_PARQUET now resolves 26q3-v4 via
+  # s3_uri_for("depmap-predictability-26q3-v4") at module scope — which raises at import unless the
+  # pinned data-catalog checkout contains that manifest. c8fc6f08 is the DC merge commit of #749, so
+  # the manifest is present. This bump + the pin-flip are ONE atomic PR (the bump IS the integration
+  # test). The residual c8fc6f08..main window is covered by the nightly DC@main lane.
+  DATA_CATALOG_SHA: c8fc6f08e436aca30d6467bd710f9587fe9a8dee
 
 jobs:
   # CHANGE-DETECTION (#2092). Fast (~checkout-only) job that diffs the PR against its merge-base and

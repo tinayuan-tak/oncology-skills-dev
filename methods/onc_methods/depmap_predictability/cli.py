@@ -1,19 +1,18 @@
 #!/usr/bin/env python3
 """depmap-predictability CLI (v2 — DepMap-parity + extensions thin lookup).
 
-Reads ONE row out of the frozen derived parquet (default pin 26q1-v4; 26q3-v4 selectable)
-`s3://onc-compbio/data-catalog/derived/depmap-predictability-26q1-v4/predictability_per_gene.parquet`
+Reads ONE row out of the frozen derived parquet (default pin 26q3-v4; 26q1-v* selectable)
+`s3://onc-compbio/data-catalog/derived/depmap-predictability-26q3-v4/predictability_per_gene.parquet`
 via pyarrow predicate pushdown. The parquet was produced by the sibling
-precompute method (`depmap_predictability_precompute`). v1/v2/v3 remain selectable
-via --release-pin for reproducibility (v4 re-materializes v3's exact gene set / model /
-CV with real SHAP attributions; v3 widened the gene-set gate 0.30 → 0.15 over v2).
+precompute method (`depmap_predictability_precompute`). The 26q1-v* pins remain selectable
+via --release-pin for reproducibility (26q3-v4 is the #786 genome-scope recompute on the 26Q3
+substrate — 18,432 genes, real SHAP; 26q1-v4 re-materialized v3's medium 9,240-gene set).
 
 v2 schema exposes:
   - pearson_r_rf + r² + bootstrap 95% CI (primary DepMap-parity scalar)
   - top_features_rf_shap: top-ranked features by mean(|SHAP|)
-    TreeExplainer attribution in the default 26q1-v4 pin, which ran with `shap` 0.52.0
-    installed. 26q3-v4 (the #786 recompute build) shares this SHAP treatment and is
-    selectable via --release-pin.
+    TreeExplainer attribution in the default 26q3-v4 pin, which ran with `shap` 0.52.0
+    installed. 26q1-v4 shares this SHAP treatment and is selectable via --release-pin.
     ⚠ VINTAGE CAVEAT: older pins (26q1-v1/v2/v3, materialized BEFORE 2026-09-16) are
     NOT SHAP. The precompute lazy-imported `shap`, found it absent, and took its
     documented fallback path: the column carries RF impurity importances. Human-facing
@@ -53,22 +52,17 @@ METHOD_VERSION = "0.2.0"
 DEFAULT_TARGET_CONTRACTS = Path(contracts_root())
 
 # Release-pin → parquet S3 URI. 26q3-v4 (real TreeExplainer SHAP attributions on the 26Q3
-# substrate) is the CANONICAL build from the #786 recompute, but stays SELECTABLE-not-default:
-# its artifact is materialized post-#786 and its manifest is minted only at #814, so the default
-# is HELD at 26q1-v4 to avoid a dangling default at a missing artifact (flip tracked in #814). The
-# 26q1-v* keys are RETAINED for reproducibility of historical runs: 26q1-v4 (SHAP, 9,240 genes), v3 (same
-# gene set / model / CV as v4 but `shap` was absent at precompute so attributions fell back to
-# RF impurity / XGB gain), v2 (0.30 gate, 3,730 genes). Only ONE 26q3 vintage is regenerated
-# (v4) — there is no 26q3-v2/v3 (those were pre-SHAP intermediate builds that will never be
-# re-run). 26q1-v2/v3/v4 resolve from their data-catalog manifests (single source of truth).
-# 26q3-v4 and 26q1-v1 are NOT YET in the catalog so their URIs stay HARDCODED (same treatment):
-#   - 26q1-v1: predates the manifest era (never minted).
-#   - 26q3-v4 (#786 BLOCKED): the derived product is produced by this recompute but the
-#     depmap-predictability-26q3-v4 manifest is minted by data-catalog only AFTER the artifact
-#     lands in S3. Until then s3_uri_for would raise at IMPORT and brick the module. TODO(#786
-#     follow-up): swap to s3_uri_for("depmap-predictability-26q3-v4") once that manifest lands.
+# substrate, 18,432 genes) is the CANONICAL build from the #786 recompute and the DEFAULT pin
+# (#814): its artifact is in S3 and its depmap-predictability-26q3-v4 manifest is minted, so it
+# resolves from the catalog like the other minted pins. The 26q1-v* keys are RETAINED for
+# reproducibility of historical runs: 26q1-v4 (SHAP, 9,240 genes), v3 (same gene set / model / CV
+# as v4 but `shap` was absent at precompute so attributions fell back to RF impurity / XGB gain),
+# v2 (0.30 gate, 3,730 genes). Only ONE 26q3 vintage is regenerated (v4) — there is no 26q3-v2/v3
+# (those were pre-SHAP intermediate builds that will never be re-run). 26q1-v2/v3/v4 + 26q3-v4
+# resolve from their data-catalog manifests (single source of truth).
+# 26q1-v1 is NOT in the catalog so its URI stays HARDCODED (predates the manifest era, never minted).
 RELEASE_PIN_TO_PARQUET = {
-    "26q3-v4": "s3://onc-compbio/data-catalog/derived/depmap-predictability-26q3-v4/predictability_per_gene.parquet",
+    "26q3-v4": s3_uri_for("depmap-predictability-26q3-v4"),
     "26q1-v1": "s3://onc-compbio/data-catalog/derived/depmap-predictability-26q1-v1/predictability_per_gene.parquet",
     "26q1-v2": s3_uri_for("depmap-predictability-26q1-v2"),
     "26q1-v3": s3_uri_for("depmap-predictability-26q1-v3"),
@@ -97,7 +91,7 @@ def _importance_axis_label(summary: dict) -> str:
     """Axis/label text for the plotted `importance` values, derived from the
     resolved pin. v4+ pins carry mean(|SHAP|) TreeExplainer attributions; the
     legacy v1-v3 pins used RF impurity / XGB gain. Default to the SHAP wording
-    when the pin is absent (the default pin is 26q1-v4)."""
+    when the pin is absent (the default pin is 26q3-v4)."""
     pin = summary.get("_release_pin") or ""
     ver = pin.rsplit("-v", 1)[-1] if "-v" in pin else ""
     try:
@@ -451,7 +445,7 @@ def emit_manifest(target: str, release_pin: str, summary: dict, out_dir: Path, p
 @click.command()
 @click.option("--target", required=True, help="HGNC symbol")
 @click.option(
-    "--release-pin", default="26q1-v4", show_default=True, type=click.Choice(list(RELEASE_PIN_TO_PARQUET.keys()))
+    "--release-pin", default="26q3-v4", show_default=True, type=click.Choice(list(RELEASE_PIN_TO_PARQUET.keys()))
 )
 @click.option("--parquet-uri", default=None, help="Override the parquet URI (testing / local fixture).")
 @click.option("--out", required=True, type=click.Path(file_okay=False, writable=True, path_type=Path))

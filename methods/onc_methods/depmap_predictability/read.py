@@ -1,7 +1,7 @@
 """depmap_predictability.read — v2 library entry for live-mode reads.
 
-Reads one row out of the frozen derived parquet (default pin 26q1-v4; 26q3-v4 selectable)
-`s3://onc-compbio/data-catalog/derived/depmap-predictability-26q1-v4/predictability_per_gene.parquet`
+Reads one row out of the frozen derived parquet (default pin 26q3-v4; 26q1-v* selectable)
+`s3://onc-compbio/data-catalog/derived/depmap-predictability-26q3-v4/predictability_per_gene.parquet`
 via pyarrow predicate pushdown. No sklearn / XGBoost at framework runtime.
 
 On unreachable parquet or missing target, returns a dict with
@@ -22,10 +22,11 @@ from typing import Optional
 from . import cli as _cli
 
 DEFAULT_AWS_PROFILE = "cbg"
-# Default stays 26q1-v4 until the 26q3-v4 artifact is materialized + its manifest minted (#814).
-# 26q3-v4 remains selectable via `release_pin=`; making it the default now would point every read
-# at a not-yet-existing S3 artifact. Flip tracked in #814.
-DEFAULT_RELEASE_PIN = "26q1-v4"
+# Default is 26q3-v4 (#814): the 26Q3 genome-scope recompute (18,432 genes, true SHAP) is
+# materialized at s3://…/derived/depmap-predictability-26q3-v4/ and its manifest is minted
+# (data-catalog depmap-predictability-26q3-v4). The 26q1-v* pins remain selectable via
+# `release_pin=` for reproducibility of historical runs.
+DEFAULT_RELEASE_PIN = "26q3-v4"
 
 
 from onc_methods.target_id_sidecar import ensure_aws_profile

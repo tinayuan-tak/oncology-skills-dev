@@ -6,14 +6,14 @@ _doc: 'I.4 wiring ledger: every data-catalog manifest id by wiring status -- rea
   reads, declares, OR names it; the wiring worklist). `dark` is the number I.4 moves, a sound lower bound
   on the truly-unwired set. Regenerate with validators/build_wiring_ledger.py; --self-check gates drift.'
 sibling_shas:
-  analysis-methods: 7a7f50b2
-  skills: 17ebb5d3
-  data-catalog: a134675
-n_catalog_datasets: 555
+  analysis-methods: 0ec0b3a2
+  skills: 6437b2fd
+  data-catalog: c8fc6f0
+n_catalog_datasets: 556
 counts:
   read: 153
   declared_only: 251
-  referenced_only: 29
+  referenced_only: 30
   dark: 122
 n_literal_reads: 72
 dark_by_source_family:
@@ -492,6 +492,7 @@ referenced_only:
 - depmap-predictability-26q1-v2
 - depmap-predictability-26q1-v3
 - depmap-predictability-26q1-v4
+- depmap-predictability-26q3-v4
 - depmap-subgroup-assignments-coadread-cms-v1
 - dge-deseq2-qc-index-v1
 - gdc-pancohort-somatic-dr45-0
