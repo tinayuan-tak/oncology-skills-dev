@@ -1,9 +1,14 @@
 #!/usr/bin/env python
-"""Regenerate the component scorecard — THE single aggregate entrypoint (#1987, A0a).
+"""Regenerate the COMPONENT scorecard — THE single aggregate entrypoint for it (#1987, A0a).
 
 Aggregates the per-skill shards (``scorecard/<skill>.json``) and renders the shared
 ``scorecard/SCORECARD.md`` deterministically. Adapters write their own shard and nothing else; this
 script is the only writer of the shared render.
+
+Distinct from `eval/run_scorecard.py` (the EVAL scorecard — rolls the calibration/discrimination/
+known-target eval harnesses into ``eval/scorecard.json``): this scorecard is about per-skill WIRING
+coverage, that one is about predictive-validity EVAL results. Different purpose, different output
+tree — not two writers of the same artifact.
 
 Usage (from the repo root, home checkout):
 

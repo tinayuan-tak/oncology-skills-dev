@@ -78,42 +78,63 @@ def _load_sub_skill_verdict_fn(skill_dir_name: str) -> Any:
     return fn
 
 
+def _load_sub_skill_module(skill_dir_name: str) -> Any:
+    """Return the sub-skill's already-exec'd run.py module, or None if it failed to load.
+
+    Shared cache lookup behind every `_load_sub_skill_*` hook below (and the subgroup-reader
+    convention scan): reads the module cached by `_load_sub_skill_verdict_fn` (prewarmed
+    single-threaded before the concurrent pool), triggering that load on first miss so a sub-skill
+    without ANY hook still populates the cache exactly once. No two threads race the
+    sys.path.insert / importlib.exec_module in `_load_sub_skill_verdict_fn`."""
+    module = _SUBSKILL_MODULE_CACHE.get(skill_dir_name)
+    if module is None:
+        _load_sub_skill_verdict_fn(skill_dir_name)  # populate the module cache
+        module = _SUBSKILL_MODULE_CACHE.get(skill_dir_name)
+    return module
+
+
+def _load_sub_skill_attr(skill_dir_name: str, *attr_names: str) -> Any:
+    """Return the first of `attr_names` defined on the sub-skill's run.py module, or None.
+
+    The single uniform opt-in pattern behind every optional per-sub-skill hook (facet / headline /
+    certainty / claim-record / synthesis): a sub-skill hands the composed fan-out one of these
+    module-level functions by NAME convention, so target-profile never hard-codes each sub-skill's
+    import path. Reads `_load_sub_skill_module` (prewarmed module cache), so a sub-skill that defines
+    none of `attr_names` pays no extra cost and the concurrent pool never re-execs a module.
+    Multiple names let a caller try an alt hook spelling — e.g. `_load_sub_skill_headline_fn` passes
+    both `_headline` and `_headline_fn`, because genomic-alteration-profile names its headline hook
+    `_headline_fn` (passed explicitly to the standalone dispatcher via `headline_fn=`); a bare
+    `getattr(module, "_headline")` missed it, leaving the composed reconstruction an EMPTY headline.
+    VERDICT-INERT: every hook loaded through here feeds display/confidence surfaces only, never
+    `fired` or the resolver."""
+    module = _load_sub_skill_module(skill_dir_name)
+    if module is None:
+        return None
+    for name in attr_names:
+        val = getattr(module, name, None)
+        if val is not None:
+            return val
+    return None
+
+
 def _load_sub_skill_facet_fn(skill_dir_name: str) -> Any:
     """Return a sub-skill's OPTIONAL `_synthesis_facet(cards, fired, verdict_pair) -> dict`, or None.
 
     This is the uniform opt-in a sub-skill uses to hand the composed synthesis its own DETERMINISTIC
     cross-modal reconciliation (e.g. tumor-presence's per-modality presence matrix + proxy-quality +
     normal comparators) — so the LLM reasons over the skill's computed reconciliation instead of
-    re-deriving it from raw card numbers. Reads the module cached by _load_sub_skill_verdict_fn
-    (prewarmed single-threaded), so no sub-skill without the hook pays any cost and the concurrent
-    pool never re-execs a module. VERDICT-INERT: the facet never enters `fired` or the resolver."""
-    module = _SUBSKILL_MODULE_CACHE.get(skill_dir_name)
-    if module is None:
-        _load_sub_skill_verdict_fn(skill_dir_name)  # populate the module cache
-        module = _SUBSKILL_MODULE_CACHE.get(skill_dir_name)
-    return getattr(module, "_synthesis_facet", None) if module is not None else None
+    re-deriving it from raw card numbers. VERDICT-INERT: the facet never enters `fired` or the resolver."""
+    return _load_sub_skill_attr(skill_dir_name, "_synthesis_facet")
 
 
 def _load_sub_skill_headline_fn(skill_dir_name: str) -> Any:
     """Return a sub-skill's OPTIONAL `_headline(cards, fired, verdict_pair[, target, indication]) -> dict`,
-    or None. Same uniform module hook as `_load_sub_skill_facet_fn`. Used ONLY to reconstruct a headline
-    (with `evidence_capsules` + `subgroup_signals`) so `build_evidence_graph` can be called in composition
-    exactly as the standalone dispatcher calls it — the composed fan-out otherwise never builds a headline.
-    VERDICT-INERT + DISPLAY-ONLY: the headline is recomputed purely to project the evidence_graph and never
-    re-enters `fired`/`verdict`/`cards` or the resolver."""
-    module = _SUBSKILL_MODULE_CACHE.get(skill_dir_name)
-    if module is None:
-        _load_sub_skill_verdict_fn(skill_dir_name)  # populate the module cache
-        module = _SUBSKILL_MODULE_CACHE.get(skill_dir_name)
-    # Accept the alt hook name _headline_fn too: genomic-alteration-profile names its headline hook
-    # _headline_fn (passed explicitly to the standalone dispatcher via headline_fn=), so a bare
-    # getattr("_headline") missed it — the composed reconstruction got an EMPTY headline → no claim_vector
-    # → the literature synthesis mis-tagged every genomic axis omics_unavailable → overall insufficient
-    # (genomic literature discordance was UNMEASURABLE composed, though it works standalone). Fall back to
-    # _headline_fn so the composed evidence-graph + per-subskill lit lane get genomic's claim_vector.
-    if module is None:
-        return None
-    return getattr(module, "_headline", None) or getattr(module, "_headline_fn", None)
+    or None (falling back to the alt name `_headline_fn` — see `_load_sub_skill_attr`). Used ONLY to
+    reconstruct a headline (with `evidence_capsules` + `subgroup_signals`) so `build_evidence_graph` can
+    be called in composition exactly as the standalone dispatcher calls it — the composed fan-out
+    otherwise never builds a headline. VERDICT-INERT + DISPLAY-ONLY: the headline is recomputed purely
+    to project the evidence_graph and never re-enters `fired`/`verdict`/`cards` or the resolver."""
+    return _load_sub_skill_attr(skill_dir_name, "_headline", "_headline_fn")
 
 
 def _reconstruct_decision(skill_dir_name, cards, fired, verdict_pair, target, indication) -> dict:
@@ -170,11 +191,7 @@ def _load_sub_skill_certainty_fn(skill_dir_name: str) -> Any:
     `_load_sub_skill_facet_fn`: reads the prewarmed module cache, so a sub-skill without the hook pays
     no cost. Only functional-requirement (the reference axis) supplies it today. VERDICT-INERT: the
     certainty object never enters `fired`, the resolver, or the nomination sub_verdicts."""
-    module = _SUBSKILL_MODULE_CACHE.get(skill_dir_name)
-    if module is None:
-        _load_sub_skill_verdict_fn(skill_dir_name)  # populate the module cache
-        module = _SUBSKILL_MODULE_CACHE.get(skill_dir_name)
-    return getattr(module, "_strength_certainty", None) if module is not None else None
+    return _load_sub_skill_attr(skill_dir_name, "_strength_certainty")
 
 
 def _load_sub_skill_claim_record_fn(skill_dir_name: str) -> Any:
@@ -186,11 +203,7 @@ def _load_sub_skill_claim_record_fn(skill_dir_name: str) -> Any:
     Mirrors `_load_sub_skill_certainty_fn` exactly; a sub-skill without the hook pays no cost.
     CONSUMED BY NOTHING at M1 — the record never enters `fired`, the resolver, or the nomination
     sub_verdicts; it is surfaced beside the verdict spine for the M2 render-equivalence proof."""
-    module = _SUBSKILL_MODULE_CACHE.get(skill_dir_name)
-    if module is None:
-        _load_sub_skill_verdict_fn(skill_dir_name)  # populate the module cache
-        module = _SUBSKILL_MODULE_CACHE.get(skill_dir_name)
-    return getattr(module, "_claim_record", None) if module is not None else None
+    return _load_sub_skill_attr(skill_dir_name, "_claim_record")
 
 
 # Module-level literal NAMES a sub-skill declares to tune its own sub-group panel, discovered by
@@ -223,10 +236,7 @@ def _load_sub_skill_subgroup_reader(skill_dir_name: str) -> tuple[Optional[dict]
     Reads the prewarmed module cache like the sibling `_load_sub_skill_*` hooks; a skill that tunes
     nothing pays no cost and gets `(None, None)` (the framework default). VERDICT-INERT: the panel is a
     display projection — it never enters `fired`, the resolver, or the nomination sub_verdicts."""
-    module = _SUBSKILL_MODULE_CACHE.get(skill_dir_name)
-    if module is None:
-        _load_sub_skill_verdict_fn(skill_dir_name)  # populate the module cache
-        module = _SUBSKILL_MODULE_CACHE.get(skill_dir_name)
+    module = _load_sub_skill_module(skill_dir_name)
     if module is None:
         return None, None
     reader_spec = classify = None
@@ -341,11 +351,7 @@ def _load_sub_skill_synthesis_fn(skill_dir_name: str) -> Any:
     surface-modality-fit) supply it. VERDICT-INERT + best-effort: the narration is a Bedrock call
     attached AFTER the deterministic verdict, structurally unable to touch fired / the resolver /
     the nomination spine; it runs ONLY when the composed run is invoked with --synthesize-subskills."""
-    module = _SUBSKILL_MODULE_CACHE.get(skill_dir_name)
-    if module is None:
-        _load_sub_skill_verdict_fn(skill_dir_name)  # populate the module cache
-        module = _SUBSKILL_MODULE_CACHE.get(skill_dir_name)
-    return getattr(module, "_llm_synthesis", None) if module is not None else None
+    return _load_sub_skill_attr(skill_dir_name, "_llm_synthesis")
 
 
 def _prewarm_sub_skill_imports() -> None:
@@ -441,9 +447,9 @@ SUB_SKILLS = [
     # from _SHORT_TO_GATE → contributes ONLY to sub_verdicts + the LLM
     # synthesis, NEVER the nomination spine (recommendation byte-stable;
     # verdict=None + gate=None satisfies must-not-gate STRUCTURALLY). The
-    # three standalone source skills stay wired in this stage (their cards
-    # are composed under both entries — like copy-number-distribution);
-    # retiring them is the spine-gated follow-on.
+    # former standalone source skills (synthetic-lethal-partners,
+    # combinatorial-dependency, combo-crispr-screen) were RETIRED (#1254,
+    # 2026-08-20) and deleted from git; their 6 cards are composed ONLY here now.
     ("translational-readiness", "translational_readiness"),  # GATELESS descriptive PEER (wired 2026-08-31),
     # EXACT target-intrinsic precedent. translational-readiness/run.py
     # passes verdict_fn=None (DESCRIPTIVE — model availability / PDX /
@@ -709,11 +715,12 @@ SUB_SKILL_CARDS = {
         "combo-crispr-screen",  # combination co-targets under inhibition (COMBO axis)
         "combo-chemical-synergy",  # chemical drug×drug synergy (SYNERGY axis; Sanger 2022 Bliss)
         "resistance-emergence-signature",  # resistance mediators that rescue (RESISTANCE liability axis)
-        # These FIVE source cards are composed ONLY here (each appears exactly
+        # These SIX source cards are composed ONLY here (each appears exactly
         # once in the composer — NOT multi-homed; unlike copy-number-distribution
-        # which genuinely composes under >1 lens). The standalone SL /
-        # combinatorial-dependency / combo-crispr source SKILLS are separate skill
-        # dirs, NOT fan-out members — there are no "standalone entries above".
+        # which genuinely composes under >1 lens). The former standalone SL /
+        # combinatorial-dependency / combo-crispr source skills were RETIRED
+        # (#1254, 2026-08-20) and deleted from git — this consolidated entry is
+        # their only home; there is no "standalone entries above" to cross-check.
         # Matches the skill's SKILL.md cards_used. GATELESS → the relational
         # claim_vector axes read these; byte-stable on the spine.
     ],

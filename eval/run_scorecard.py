@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
-"""eval/run_scorecard.py — the one-command framework scorecard.
+"""eval/run_scorecard.py — the one-command framework EVAL scorecard.
 
 Rolls the framework's EXISTING durable eval harnesses into a single pass + a
 consolidated `eval/scorecard.json`. This is an ORCHESTRATOR: it reuses the
 committed instruments, it does not reimplement any of them.
+
+Distinct from `scripts/regenerate_scorecard.py` (the COMPONENT scorecard — per-skill
+coverage/wiring shards aggregated into `scorecard/SCORECARD.md`): this scorecard is about
+predictive-validity / calibration EVAL results, that one is about skill WIRING coverage. Different
+purpose, different output tree — not two writers of the same artifact.
 
 Steps (each best-effort, its own subprocess, all rolled into one report):
 

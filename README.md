@@ -216,7 +216,7 @@ envelope via `run_wired_skill --emit-envelope` + `_skills_common/envelope.py`
 
 | Skill | Ver | Role |
 |---|---|---|
-| [`target-archetype`](skills/target-archetype/) | 0.6.0 | Verdict-inert META / reduction-stage companion — consumes the other sub-skills' composed `claim_vector`s from a full profile and positions the (target, indication) pair as a soft phenotype mixture in a frozen low-dimensional target-signature embedding. |
+| [`target-archetype`](skills/target-archetype/) | 0.6.0 | **DEFERRED out of the gate (#1399)** — Verdict-inert META / reduction-stage companion that would consume the other sub-skills' composed `claim_vector`s from a full profile and position the (target, indication) pair as a soft phenotype mixture in a frozen low-dimensional target-signature embedding. On disk its SKILL.md + all 12 tests are `.deferred` and it is absent from the scorecard roster; verdict-inert so deferral is byte-stable. |
 | [`cross-evidence-hypothesis`](skills/cross-evidence-hypothesis/) | 0.5.0 | Decision-facing synthesis layer that sits **above** `target-profile` — integrates a target-profile `evidence_package` with the indication-independent dossier to surface cross-evidence hypotheses. |
 | [`literature-risk-assessment`](skills/literature-risk-assessment/) | 0.1.0 | Retrieval-grounded 6-dimension literature RISK assessment (Biological / Druggability / Translational / Clinical / Safety / Commercial), each rated LOW/MEDIUM/HIGH/not_assessed with a cited justification. |
 
