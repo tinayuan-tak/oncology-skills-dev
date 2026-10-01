@@ -229,7 +229,7 @@ def emit_feature_importance_bar(
         return out_path
 
     # Top 10 importance-ranked by the pin's attribution basis (mean(|SHAP|) under the
-    # default 26q1-v4 pin; RF impurity / XGB gain for legacy v1-v3 — see module docstring).
+    # default 26q3-v4 pin; RF impurity / XGB gain for legacy v1-v3 — see module docstring).
     # Prefer the producer-stamped humanized label (#1942); fall back to the raw token for older pins.
     names = [t.get("feature_label") or t["feature"] for t in top]
     imps = [t["importance"] for t in top]
