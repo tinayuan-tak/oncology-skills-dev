@@ -1,0 +1,36 @@
+# eval/loop/frozen_symbols.yaml — the FROZEN-SYMBOL DENYLIST (SK#2303 WI-E, #2358).
+#
+# Any finding whose `target` / `finding` / `why` prose or `datum_refs` names one of these symbols is
+# forced to T3 (adjudication) by tiers.py, regardless of how additive or mechanical it otherwise looks.
+# A threshold, an enum value, or an identity key is a FROZEN cut the loop never moves on its own
+# (plan STOP-A / SK#2091) — only a human adjudication packet may touch one.
+#
+# This file is itself frozen config: the loop PROPOSES findings about these symbols (routed to T3), it
+# never EDITS this file. A human edits it out-of-band when a symbol's frozen status genuinely changes.
+#
+# Matched as whole lower-cased tokens (word-boundary) by tiers.touches_frozen_symbol — never a bare
+# substring, so e.g. "token" never accidentally matches "token_key".
+
+thresholds:
+  - subset_high_threshold
+  - broadly_high_threshold
+  - corroboration_high_cut
+  - pan_essential_threshold
+  - staining_score_cutoff
+  - q_value_threshold
+
+enum_values:
+  - concordance_class
+  - qualifier_class
+  - corroboration
+  - presence_class
+  - protein_presence_class
+  - stratification_class
+
+identity_keys:
+  - card_id
+  - rule_id
+  - driving_rule_id
+  - family
+  - token_key
+  - skill_id
