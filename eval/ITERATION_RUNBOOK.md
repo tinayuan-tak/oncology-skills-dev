@@ -17,6 +17,28 @@ pixi py3.14 silently returns false-`insufficient`). Work in a worktree; land via
 
 ---
 
+## Batch runner (SK#2303 Phase 0, WI-A)
+
+`eval/loop/run_batch.py` is the per-subskill batch runner for the iteration loop (distinct from
+`eval/run_known_target_panel.py`, which backtests the FULL composed `target-profile`). It invokes
+one skill's `scripts/run.py --emit-envelope` per `target × indication` triple in a roster, under
+pixi + `AWS_PROFILE=cbg`, JOBS-wide (default 3, ceiling 4 — 6-wide reboots the host, no swap), with
+`--resume` and a run manifest:
+
+```
+pixi run python eval/loop/run_batch.py --skill tumor-presence --roster roster.json --jobs 3 --resume
+```
+
+Each emitted package is scored by a 4-clause preflight sentinel (`run_batch.preflight_sentinel`) —
+a LIVENESS check (dead / partial / alive), never a verdict judgement: `n_cards_resolved > 0`;
+`verdict != "insufficient"` AND `fired_rules > 0`; all four named envelope sections present
+(`source_properties`/`integrated_properties`/`local_composites`/`l3d`); no card carries a
+`read_error`. Output layout: `eval/loop/runs/iter-NNN-<sha>/<target>_<indication>.json` +
+sibling `manifest.json`. See `eval/loop/tests/test_run_batch.py` for the synthetic dead/partial/
+read-error/missing-section fixtures.
+
+---
+
 ## The loop, one turn at a time
 
 ### 1. Discover a candidate gap (pick ONE source)
