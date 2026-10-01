@@ -434,15 +434,15 @@ def emit_by_tissue_distribution(
         studies_str = ",".join(g["tumor_studies"][:2]) + ("..." if len(g["tumor_studies"]) > 2 else "")
         ylabels.append(f"{g['lineage']}\n({studies_str}, T={g['n_tumor']} N={g['n_normal']})")
 
-        # Highlight elevated indications with light yellow, down-regulated with light green
-        delta = g["delta"]
-        if delta is not None and delta > 0.5:
-            ax.axhspan(i - 0.45, i + 0.45, color="#fffacd", alpha=0.4, zorder=0)
-        elif delta is not None and delta < -0.5:
-            ax.axhspan(i - 0.45, i + 0.45, color="#d4edda", alpha=0.4, zorder=0)
-
         # Delta annotation on the right
+        delta = g["delta"]
         sig = _delta_significance_indicator(delta, g["n_tumor"], g["n_normal"])
+
+        # Highlight elevated/down-regulated indications only if significant
+        if sig and delta is not None and delta > 0:
+            ax.axhspan(i - 0.45, i + 0.45, color="#fffacd", alpha=0.4, zorder=0)
+        elif sig and delta is not None and delta < 0:
+            ax.axhspan(i - 0.45, i + 0.45, color="#d4edda", alpha=0.4, zorder=0)
         delta_str = f"Δ{delta:+.2f} {sig}" if delta is not None else f"— {sig}"
         ax.text(ann_x, i, delta_str, va="center", fontsize=7, color="#555")
 
