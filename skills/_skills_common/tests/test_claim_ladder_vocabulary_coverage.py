@@ -491,6 +491,14 @@ _CORROBORATION_READERS = {
         "very set as the reason `low < single_arm`. NOT a projection: no map, no key coverage to keep."
     ),
     "eval/run_known_target_panel.py": "PASS-THROUGH (copied verbatim into the panel row)",
+    "eval/loop/substrate.py": (
+        "PASS-THROUGH — the judge-input substrate assembler (SK#2347) copies each RAW L2b island's "
+        "`corroboration` token VERBATIM into the island row it hands the judge "
+        "(`island.get('corroboration')`), so an unrecognised rung reaches the judge as itself. No map, "
+        "no key coverage to keep in step. Its CORROBORATION_CONTRACT is PROSE shipped in "
+        "`field_contracts` so the judge cannot misread the token as strength/abundance — documentation "
+        "of the independence-agreement semantics, NOT a projection of the vocabulary."
+    ),
     "contracts/validators/validate_claim_record.py": (
         "CONSUMER, not a projection (SK#2063 consolidation — a target-contracts schema validator now "
         "in-tree). Reads certainty.corroboration only to enforce the downgrade-only invariant "
