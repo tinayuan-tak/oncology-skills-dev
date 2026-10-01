@@ -1,0 +1,10 @@
+# dependency (functional-requirement) first-iteration candidate universe — SK#2303 WI-I / #2360.
+# target<TAB>indication<TAB>stratum. A compact strata-spanning roster (NOT a 120-scan — the pilot
+# retired that; see batch_constructor.py). Coverage over the governed crispr_rnai_essentiality_
+# concordance L2b surface is DERIVED from the emitted packages (coverage.v1.json), not scanned.
+KRAS	COADREAD	oncogene_addiction_dependency
+EGFR	LUAD	oncogene_addiction_dependency
+BRAF	SKCM	oncogene_addiction_dependency
+WRN	COADREAD	synthetic_lethal_partner_conditional
+SMARCA2	LUAD	paralog_buffered_dependency
+MET	LUAD	oncogene_addiction_dependency

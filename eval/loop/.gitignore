@@ -1,0 +1,4 @@
+# Emitted per-triple evidence packages (run_batch output) — large, live-derived, re-emittable from
+# the committed batch roster; same treatment as eval/known-target-packages/. The DURABLE records of an
+# iteration (the batch spec under batches/, the findings ledger + report under iterations/) ARE committed.
+runs/

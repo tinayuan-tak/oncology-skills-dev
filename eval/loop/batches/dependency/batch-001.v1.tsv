@@ -1,0 +1,6 @@
+KRAS	COADREAD		oncogene_addiction_dependency	dev
+EGFR	LUAD		oncogene_addiction_dependency	dev
+BRAF	SKCM		oncogene_addiction_dependency	held_out
+WRN	COADREAD		synthetic_lethal_partner_conditional	held_out
+SMARCA2	LUAD		paralog_buffered_dependency	held_out
+MET	LUAD		oncogene_addiction_dependency	dev

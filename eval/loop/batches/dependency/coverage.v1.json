@@ -1,0 +1,38 @@
+{
+ "BRAF|SKCM|": [
+  [
+   "crispr_rnai_essentiality_concordance",
+   "essentiality_single_assay_only"
+  ]
+ ],
+ "EGFR|LUAD|": [
+  [
+   "crispr_rnai_essentiality_concordance",
+   "essentiality_concordant_dependent"
+  ]
+ ],
+ "KRAS|COADREAD|": [
+  [
+   "crispr_rnai_essentiality_concordance",
+   "essentiality_concordant_dependent"
+  ]
+ ],
+ "MET|LUAD|": [
+  [
+   "crispr_rnai_essentiality_concordance",
+   "essentiality_concordant_nondependent"
+  ]
+ ],
+ "SMARCA2|LUAD|": [
+  [
+   "crispr_rnai_essentiality_concordance",
+   "essentiality_concordant_nondependent"
+  ]
+ ],
+ "WRN|COADREAD|": [
+  [
+   "crispr_rnai_essentiality_concordance",
+   "essentiality_concordant_nondependent"
+  ]
+ ]
+}

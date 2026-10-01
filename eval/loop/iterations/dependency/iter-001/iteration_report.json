@@ -1,0 +1,513 @@
+{
+ "schema_version": "1.0",
+ "iteration_id": "iter-001",
+ "skill": "functional-requirement",
+ "generated_at": "2026-10-01T12:12:36Z",
+ "run_dir": "/tmp/loop_run_dep/iter-001-6b6d83b9",
+ "teeth_green": false,
+ "report_only": true,
+ "applicable_probes": [
+  "c1"
+ ],
+ "roster": {
+  "n_total": 6,
+  "n_dev": 3,
+  "n_held_out": 3
+ },
+ "dev": {
+  "packages": [
+   {
+    "candidate_key": "KRAS|COADREAD|",
+    "target": "KRAS",
+    "indication": "COADREAD",
+    "stratum": "oncogene_addiction_dependency",
+    "split": "dev",
+    "assembled": true,
+    "null_reason": null,
+    "judge_skipped": null,
+    "n_judge_findings": 3,
+    "containment": {
+     "n_in": 3,
+     "n_contained": 3,
+     "n_dropped": 0,
+     "n_demoted": 0,
+     "skipped": null
+    },
+    "probes": []
+   },
+   {
+    "candidate_key": "EGFR|LUAD|",
+    "target": "EGFR",
+    "indication": "LUAD",
+    "stratum": "oncogene_addiction_dependency",
+    "split": "dev",
+    "assembled": true,
+    "null_reason": null,
+    "judge_skipped": null,
+    "n_judge_findings": 3,
+    "containment": {
+     "n_in": 3,
+     "n_contained": 3,
+     "n_dropped": 0,
+     "n_demoted": 0,
+     "skipped": null
+    },
+    "probes": []
+   },
+   {
+    "candidate_key": "MET|LUAD|",
+    "target": "MET",
+    "indication": "LUAD",
+    "stratum": "oncogene_addiction_dependency",
+    "split": "dev",
+    "assembled": true,
+    "null_reason": null,
+    "judge_skipped": null,
+    "n_judge_findings": 3,
+    "containment": {
+     "n_in": 3,
+     "n_contained": 3,
+     "n_dropped": 0,
+     "n_demoted": 0,
+     "skipped": null
+    },
+    "probes": []
+   }
+  ],
+  "n_contained_findings": 9,
+  "tiers": {
+   "T1_land": 0,
+   "T2_propose": 3,
+   "T3_adjudicate": 6
+  },
+  "tier_report": {
+   "schema_version": "1.0",
+   "teeth_green": false,
+   "T1_land": [],
+   "T2_propose": [
+    {
+     "kind": "class_not_supported_by_datum",
+     "target": "L2a.crispr_essentiality.property",
+     "finding": "The 'strongly_selective' class on crispr_essentiality rests on anchors that only weakly meet a 'strong' threshold: fraction_strongly_dependent=0.0636 (only ~6% of 1589 lines are strongly dependent), median_chronos=-0.14 (near zero / non-dependent center), and p5=-1.145. Propose a human adjudicate whether 'strongly_selective' is warranted when the median line is essentially non-dependent and only a small tail crosses a dependency floor \u2014 i.e. whether the label should read as a narrow-tail/weakly-selective dependency rather than 'strongly_selective'.",
+     "why": "Per the raw datum, median_chronos_panel=-0.14159 and fraction_strongly_dependent=0.0636 indicate the central tendency is near non-dependent and the dependent population is a small minority; the 'strongly' qualifier may overstate the breadth/strength of selectivity even though selectivity_index=0.934 is high. reliability.powered=true, so this is not explained away by a power facet.",
+     "datum_refs": [
+      "l2a.crispr_essentiality.anchors.median_chronos_panel",
+      "l2a.crispr_essentiality.anchors.fraction_strongly_dependent",
+      "l2a.crispr_essentiality.anchors.p5_chronos_panel",
+      "l2a.crispr_essentiality.anchors.selectivity_index",
+      "l2a.crispr_essentiality.property"
+     ],
+     "_containment": {
+      "status": "contained",
+      "reason": null,
+      "resolved_refs": [
+       "l2a.crispr_essentiality.anchors.median_chronos_panel",
+       "l2a.crispr_essentiality.anchors.fraction_strongly_dependent",
+       "l2a.crispr_essentiality.anchors.p5_chronos_panel",
+       "l2a.crispr_essentiality.anchors.selectivity_index",
+       "l2a.crispr_essentiality.property"
+      ],
+      "unresolved_refs": []
+     },
+     "_tier": {
+      "tier": "T2_propose",
+      "reason": "kind 'class_not_supported_by_datum' is not additive-only/mechanical \u2014 propose for human adjudication",
+      "frozen_symbol": null,
+      "kind": "class_not_supported_by_datum"
+     }
+    },
+    {
+     "kind": "missing_relationship",
+     "target": "L2b concordance families (chemical_genetic vs essentiality)",
+     "finding": "l2a.chemical_genetic_engagement reports class 'mixed_engagement' resting on best_spearman_r_crispr=0.123 and best_spearman_r_rnai=0.107 \u2014 i.e. essentially NO genetic-chemical concordance, which independently corroborates the non-dependent essentiality story. Consider a concordance relationship (or an explicit note in the existing essentiality island) linking the near-zero chemical-genetic correlation to the concordant non-dependence, so the three loss-of-function/engagement reads reinforce one headline rather than sitting as isolated l2a entries.",
+     "why": "A 'mixed_engagement' label on best Spearman r ~0.11-0.12 is directionally consistent with non-dependence (no compound tracks CRISPR/RNAi loss), yet no L2b island connects chemical_genetic_engagement to crispr_rnai_essentiality_concordance. Capturing this would surface a computed-but-unlinked corroborating signal.",
+     "datum_refs": [
+      "l2a.chemical_genetic_engagement.anchors.best_spearman_r_crispr",
+      "l2a.chemical_genetic_engagement.anchors.best_spearman_r_rnai",
+      "l2b.crispr_rnai_essentiality_concordance"
+     ],
+     "_containment": {
+      "status": "contained",
+      "reason": null,
+      "resolved_refs": [
+       "l2a.chemical_genetic_engagement.anchors.best_spearman_r_crispr",
+       "l2a.chemical_genetic_engagement.anchors.best_spearman_r_rnai",
+       "l2b.crispr_rnai_essentiality_concordance"
+      ],
+      "unresolved_refs": []
+     },
+     "_tier": {
+      "tier": "T2_propose",
+      "reason": "kind 'missing_relationship' is not additive-only/mechanical \u2014 propose for human adjudication",
+      "frozen_symbol": null,
+      "kind": "missing_relationship"
+     }
+    },
+    {
+     "kind": "class_not_supported_by_datum",
+     "target": "L2a chemical_genetic_engagement.property",
+     "finding": "The property 'mixed_engagement' rests on best_spearman_r_crispr=0.123 and best_spearman_r_rnai=0.107 across only n_compounds_evaluated=7 (reliability.n_effective=7, powered='unmeasured'). 'Mixed' implies some genuine engagement signal is present; the datum shows uniformly near-zero correlation at both best cases. Flag whether 'mixed_engagement' overstates versus a 'no_concordant_engagement'-type label on its own terms \u2014 this is proposed for human adjudication, not asserted.",
+     "why": "On the label's own terms 'mixed' suggests a split of engaged/non-engaged responses, but both best correlations (0.12, 0.11) sit near zero with n=7 compounds, so the datum does not evidence any engaged arm. reliability.powered='unmeasured' and n_effective=7 explain the fragility but do not supply the positive engagement 'mixed' claims.",
+     "datum_refs": [
+      "l2a.chemical_genetic_engagement.property",
+      "l2a.chemical_genetic_engagement.anchors.best_spearman_r_crispr",
+      "l2a.chemical_genetic_engagement.anchors.best_spearman_r_rnai",
+      "l2a.chemical_genetic_engagement.anchors.n_compounds_evaluated",
+      "l2a.chemical_genetic_engagement.reliability.n_effective"
+     ],
+     "_containment": {
+      "status": "contained",
+      "reason": null,
+      "resolved_refs": [
+       "l2a.chemical_genetic_engagement.property",
+       "l2a.chemical_genetic_engagement.anchors.best_spearman_r_crispr",
+       "l2a.chemical_genetic_engagement.anchors.best_spearman_r_rnai",
+       "l2a.chemical_genetic_engagement.anchors.n_compounds_evaluated",
+       "l2a.chemical_genetic_engagement.reliability.n_effective"
+      ],
+      "unresolved_refs": []
+     },
+     "_tier": {
+      "tier": "T2_propose",
+      "reason": "kind 'class_not_supported_by_datum' is not additive-only/mechanical \u2014 propose for human adjudication",
+      "frozen_symbol": null,
+      "kind": "class_not_supported_by_datum"
+     }
+    }
+   ],
+   "T3_adjudicate": [
+    {
+     "kind": "surface_unused_signal",
+     "target": "L2b essentiality_concordance / L3 headline",
+     "finding": "The pipeline resolves a strong, powered cross-source essentiality concordance (CRISPR Chronos n=1589 strongly_selective \u00d7 RNAi DEMETER2 n=701 strongly_selective, corroboration=high) yet L3 is null \u2014 no story surfaces the core actionability signal the island itself flags as 'the core actionability signal'. Propose materializing an L3 headline grounded in this concordance island.",
+     "why": "l2b.crispr_rnai_essentiality_concordance.raw_island carries concordance_class=essentiality_concordant_dependent with corroboration=high across two genuinely independent loss-of-function assays, and both l2a arms are powered=true with no confound/artifact flags. The 'informs' field explicitly calls this 'the core actionability signal', but l3 is null, so the strongest corroborated relationship in the substrate is never narrated.",
+     "datum_refs": [
+      "l2b.crispr_rnai_essentiality_concordance.raw_island.concordance_class",
+      "l2b.crispr_rnai_essentiality_concordance.corroboration",
+      "l2a.crispr_essentiality.anchors.fraction_strongly_dependent",
+      "l2a.rnai_essentiality.anchors.rnai_fraction_strongly_dependent",
+      "l2a.crispr_essentiality.reliability.powered",
+      "l2a.rnai_essentiality.reliability.powered",
+      "l3"
+     ],
+     "_containment": {
+      "status": "contained",
+      "reason": null,
+      "resolved_refs": [
+       "l2b.crispr_rnai_essentiality_concordance.corroboration",
+       "l2a.crispr_essentiality.anchors.fraction_strongly_dependent",
+       "l2a.rnai_essentiality.anchors.rnai_fraction_strongly_dependent",
+       "l2a.crispr_essentiality.reliability.powered",
+       "l2a.rnai_essentiality.reliability.powered"
+      ],
+      "unresolved_refs": [
+       "l2b.crispr_rnai_essentiality_concordance.raw_island.concordance_class",
+       "l3"
+      ]
+     },
+     "_tier": {
+      "tier": "T3_adjudicate",
+      "reason": "touches frozen symbol 'concordance_class' \u2014 forced to adjudication, never T1",
+      "frozen_symbol": "concordance_class",
+      "kind": "surface_unused_signal"
+     }
+    },
+    {
+     "kind": "missing_relationship",
+     "target": "L2b concordance families \u2014 paralog_buffering vs essentiality",
+     "finding": "The 'strong' paralog_buffering signal (6/12 paralogs functionally buffering, strongest_paralog_delta=0.72) is never related to the essentiality concordance island. Propose a cross-property relationship/annotation linking paralog buffering to the dependency call, since strong buffering can attenuate the realized dependency and bears directly on the actionability narrative.",
+     "why": "l2a.paralog_buffering.property='strong' with n_paralogs_functionally_buffering=6 and strongest_paralog_delta=0.7205 is a substantive signal that modulates whether the concordant essentiality (fraction_strongly_dependent\u22480.18) is clean or buffered, yet no island or relationship connects the two. The only l2b family covers CRISPR\u00d7RNAi essentiality alone.",
+     "datum_refs": [
+      "l2a.paralog_buffering.property",
+      "l2a.paralog_buffering.anchors.n_paralogs_functionally_buffering",
+      "l2a.paralog_buffering.anchors.strongest_paralog_delta",
+      "l2a.crispr_essentiality.anchors.fraction_strongly_dependent",
+      "l2b.crispr_rnai_essentiality_concordance.raw_island"
+     ],
+     "_containment": {
+      "status": "contained",
+      "reason": null,
+      "resolved_refs": [
+       "l2a.paralog_buffering.property",
+       "l2a.paralog_buffering.anchors.n_paralogs_functionally_buffering",
+       "l2a.paralog_buffering.anchors.strongest_paralog_delta",
+       "l2a.crispr_essentiality.anchors.fraction_strongly_dependent"
+      ],
+      "unresolved_refs": [
+       "l2b.crispr_rnai_essentiality_concordance.raw_island"
+      ]
+     },
+     "_tier": {
+      "tier": "T3_adjudicate",
+      "reason": "touches frozen symbol 'family' \u2014 forced to adjudication, never T1",
+      "frozen_symbol": "family",
+      "kind": "missing_relationship"
+     }
+    },
+    {
+     "kind": "surface_unused_signal",
+     "target": "L2b / L3 \u2014 chemical_genetic_engagement triangulation",
+     "finding": "chemical_genetic_engagement is classed triangulated_target_engaged (20/21 dual responders, best_spearman_r_crispr=0.37, best_spearman_r_rnai=0.44) but is not grouped into any concordance family nor surfaced alongside the essentiality island. Propose surfacing it as a corroborating arm/relationship, since PRISM-CRISPR concordance is independent orthogonal support for the same dependency.",
+     "why": "l2a.chemical_genetic_engagement.property='triangulated_target_engaged' with n_dual_responders=20 of 21 compounds provides pharmacological corroboration of the genetic dependency, but the only l2b island is CRISPR\u00d7RNAi; this third orthogonal line of evidence is computed yet never related to the core signal.",
+     "datum_refs": [
+      "l2a.chemical_genetic_engagement.property",
+      "l2a.chemical_genetic_engagement.anchors.n_dual_responders",
+      "l2a.chemical_genetic_engagement.anchors.best_spearman_r_crispr",
+      "l2a.chemical_genetic_engagement.anchors.best_spearman_r_rnai",
+      "l2b.crispr_rnai_essentiality_concordance.raw_island"
+     ],
+     "_containment": {
+      "status": "contained",
+      "reason": null,
+      "resolved_refs": [
+       "l2a.chemical_genetic_engagement.property",
+       "l2a.chemical_genetic_engagement.anchors.n_dual_responders",
+       "l2a.chemical_genetic_engagement.anchors.best_spearman_r_crispr",
+       "l2a.chemical_genetic_engagement.anchors.best_spearman_r_rnai"
+      ],
+      "unresolved_refs": [
+       "l2b.crispr_rnai_essentiality_concordance.raw_island"
+      ]
+     },
+     "_tier": {
+      "tier": "T3_adjudicate",
+      "reason": "touches frozen symbol 'corroboration' \u2014 forced to adjudication, never T1",
+      "frozen_symbol": "corroboration",
+      "kind": "surface_unused_signal"
+     }
+    },
+    {
+     "kind": "surface_unused_signal",
+     "target": "L2b new family: dependency_lineage_selectivity concordance / L3 headline",
+     "finding": "dependency_lineage_selectivity carries a strong computed signal (lineage_omnibus_kruskal_h=332.8, lineage_variance_explained=0.198, n_enriched_lineages=2 of 26 evaluated) that is never surfaced in any L2b family or L3 story. The only concordance island is the pan-cancer CRISPR\u00d7RNAi essentiality agreement, which is lineage-agnostic. Propose surfacing the lineage-selectivity datum \u2014 the 'strongly_selective' pan-cancer call and the fact that dependency concentrates in just 2 of 26 lineages are the SAME underlying biology and should be related, not left orphaned.",
+     "why": "n_enriched_lineages=2 out of n_lineages_evaluated=26 with a very large Kruskal H (332.8) and ~20% variance explained is a material determinant of WHERE the dependency lives; leaving it unlinked to the essentiality concordance understates the actionable context. The lineage entry has reliability.powered='unmeasured' (no calibrated floor), which is honest skeleton, not a reason to suppress the computed anchors.",
+     "datum_refs": [
+      "l2a.dependency_lineage_selectivity.anchors.lineage_omnibus_kruskal_h",
+      "l2a.dependency_lineage_selectivity.anchors.lineage_variance_explained",
+      "l2a.dependency_lineage_selectivity.anchors.n_enriched_lineages",
+      "l2a.dependency_lineage_selectivity.anchors.n_lineages_evaluated"
+     ],
+     "_containment": {
+      "status": "contained",
+      "reason": null,
+      "resolved_refs": [
+       "l2a.dependency_lineage_selectivity.anchors.lineage_omnibus_kruskal_h",
+       "l2a.dependency_lineage_selectivity.anchors.lineage_variance_explained",
+       "l2a.dependency_lineage_selectivity.anchors.n_enriched_lineages",
+       "l2a.dependency_lineage_selectivity.anchors.n_lineages_evaluated"
+      ],
+      "unresolved_refs": []
+     },
+     "_tier": {
+      "tier": "T3_adjudicate",
+      "reason": "touches frozen symbol 'family' \u2014 forced to adjudication, never T1",
+      "frozen_symbol": "family",
+      "kind": "surface_unused_signal"
+     }
+    },
+    {
+     "kind": "surface_unused_signal",
+     "target": "L2b: chemical_genetic_engagement + paralog_buffering relationship to essentiality concordance",
+     "finding": "Two computed signals that qualify the actionability of the dependency are never related to the essentiality concordance island: (1) chemical_genetic_engagement shows only modest CRISPR/RNAi\u2013compound correlations (best_spearman_r_crispr=0.339, best_spearman_r_rnai=0.345 over n_compounds_evaluated=18) yet is labelled 'triangulated_target_engaged'; (2) paralog_buffering reports 6 of 9 paralogs functionally buffering with strongest_paralog_delta=0.430. Propose surfacing paralog buffering as a caveat/relationship on the 'essentiality_concordant_dependent' island \u2014 substantial paralog buffering can attenuate the observed loss-of-function dependency that both assays agree on.",
+     "why": "n_paralogs_functionally_buffering=6/9 with strongest_paralog_delta=0.43 is a mechanistically relevant modifier of a loss-of-function dependency; the essentiality concordance family (crispr_chronos \u00d7 rnai_demeter) treats dependency as unconditioned. The best Spearman r\u22480.34 is a modest engagement signal that the 'triangulated_target_engaged' token presents more confidently than the correlation supports (reliability.powered='unmeasured', n_effective=18). A human should adjudicate whether these belong as linked caveats.",
+     "datum_refs": [
+      "l2a.chemical_genetic_engagement.anchors.best_spearman_r_crispr",
+      "l2a.chemical_genetic_engagement.anchors.best_spearman_r_rnai",
+      "l2a.chemical_genetic_engagement.anchors.n_compounds_evaluated",
+      "l2a.chemical_genetic_engagement.property",
+      "l2a.paralog_buffering.anchors.n_paralogs_functionally_buffering",
+      "l2a.paralog_buffering.anchors.n_paralogs_annotated",
+      "l2a.paralog_buffering.anchors.strongest_paralog_delta"
+     ],
+     "_containment": {
+      "status": "contained",
+      "reason": null,
+      "resolved_refs": [
+       "l2a.chemical_genetic_engagement.anchors.best_spearman_r_crispr",
+       "l2a.chemical_genetic_engagement.anchors.best_spearman_r_rnai",
+       "l2a.chemical_genetic_engagement.anchors.n_compounds_evaluated",
+       "l2a.chemical_genetic_engagement.property",
+       "l2a.paralog_buffering.anchors.n_paralogs_functionally_buffering",
+       "l2a.paralog_buffering.anchors.n_paralogs_annotated",
+       "l2a.paralog_buffering.anchors.strongest_paralog_delta"
+      ],
+      "unresolved_refs": []
+     },
+     "_tier": {
+      "tier": "T3_adjudicate",
+      "reason": "touches frozen symbol 'family' \u2014 forced to adjudication, never T1",
+      "frozen_symbol": "family",
+      "kind": "surface_unused_signal"
+     }
+    },
+    {
+     "kind": "surface_unused_signal",
+     "target": "L2b crispr_rnai_essentiality_concordance.arms",
+     "finding": "The concordance family declares corroboration:high with an EMPTY arms[] array, while the raw_island.provenance.sources carries two fully-resolved independent arms (crispr_chronos non_dependent, rnai_demeter non_dependent) each with quantitative anchors. Populate arms[] from provenance.sources so the two independent perturbation assays and their raw datum (median_chronos_panel, fraction_strongly_dependent / rnai_median_dep_score, rnai_fraction_strongly_dependent) are surfaced as the arms backing the high-corroboration call, rather than living only in the human-readable raw_island.",
+     "why": "The field_contract defines corroboration:high as '>=2 independent arms agree'; the island asserts high on two sources but arms[] is empty, so the structure does not expose the arms the contract rests on. The underlying datum (l2a.crispr_essentiality.anchors.fraction_strongly_dependent=0.0101, l2a.rnai_essentiality.anchors.rnai_fraction_strongly_dependent=0.0057, both selectivity_index ~0.96-0.98) genuinely supports concordant non-dependence; the gap is purely structural surfacing.",
+     "datum_refs": [
+      "l2b.crispr_rnai_essentiality_concordance.arms",
+      "l2b.crispr_rnai_essentiality_concordance.raw_island.provenance.sources",
+      "l2a.crispr_essentiality.anchors.fraction_strongly_dependent",
+      "l2a.rnai_essentiality.anchors.rnai_fraction_strongly_dependent"
+     ],
+     "_containment": {
+      "status": "contained",
+      "reason": null,
+      "resolved_refs": [
+       "l2a.crispr_essentiality.anchors.fraction_strongly_dependent",
+       "l2a.rnai_essentiality.anchors.rnai_fraction_strongly_dependent"
+      ],
+      "unresolved_refs": [
+       "l2b.crispr_rnai_essentiality_concordance.arms",
+       "l2b.crispr_rnai_essentiality_concordance.raw_island.provenance.sources"
+      ]
+     },
+     "_tier": {
+      "tier": "T3_adjudicate",
+      "reason": "touches frozen symbol 'corroboration' \u2014 forced to adjudication, never T1",
+      "frozen_symbol": "corroboration",
+      "kind": "surface_unused_signal"
+     }
+    }
+   ]
+  }
+ },
+ "held_out": {
+  "packages": [
+   {
+    "candidate_key": "BRAF|SKCM|",
+    "target": "BRAF",
+    "indication": "SKCM",
+    "stratum": "oncogene_addiction_dependency",
+    "split": "held_out",
+    "assembled": true,
+    "null_reason": null,
+    "judge_skipped": null,
+    "n_judge_findings": 4,
+    "containment": {
+     "n_in": 4,
+     "n_contained": 4,
+     "n_dropped": 0,
+     "n_demoted": 0,
+     "skipped": null
+    },
+    "probes": []
+   },
+   {
+    "candidate_key": "WRN|COADREAD|",
+    "target": "WRN",
+    "indication": "COADREAD",
+    "stratum": "synthetic_lethal_partner_conditional",
+    "split": "held_out",
+    "assembled": true,
+    "null_reason": null,
+    "judge_skipped": null,
+    "n_judge_findings": 2,
+    "containment": {
+     "n_in": 2,
+     "n_contained": 2,
+     "n_dropped": 0,
+     "n_demoted": 0,
+     "skipped": null
+    },
+    "probes": []
+   },
+   {
+    "candidate_key": "SMARCA2|LUAD|",
+    "target": "SMARCA2",
+    "indication": "LUAD",
+    "stratum": "paralog_buffered_dependency",
+    "split": "held_out",
+    "assembled": true,
+    "null_reason": null,
+    "judge_skipped": null,
+    "n_judge_findings": 2,
+    "containment": {
+     "n_in": 2,
+     "n_contained": 2,
+     "n_dropped": 0,
+     "n_demoted": 0,
+     "skipped": null
+    },
+    "probes": []
+   }
+  ],
+  "convergence": {
+   "schema_version": "1.0",
+   "stopping_rule": "judge+probe finding-emptiness on the hash-fixed held-out roster (SK#2303 WI-H)",
+   "converged": false,
+   "hysteresis_n": 2,
+   "consecutive_clean": 0,
+   "expected_pin": "36deab2553b28f327a9d2757d830e3b220a2231fe1934f308cc915b1273e2a8b",
+   "n_runs": 1,
+   "latest_block_reasons": [
+    "8 surviving finding(s): BRAF|SKCM|(4), WRN|COADREAD|(2), SMARCA2|LUAD|(2)"
+   ],
+   "property_coverage": {
+    "coverage_fraction": 0.75,
+    "covered_pairs_total": 3,
+    "covering_candidate_by_pair": {
+     "crispr_rnai_essentiality_concordance::essentiality_assay_discordant": [],
+     "crispr_rnai_essentiality_concordance::essentiality_concordant_dependent": [
+      "KRAS|COADREAD|"
+     ],
+     "crispr_rnai_essentiality_concordance::essentiality_concordant_nondependent": [
+      "WRN|COADREAD|"
+     ],
+     "crispr_rnai_essentiality_concordance::essentiality_single_assay_only": [
+      "BRAF|SKCM|"
+     ]
+    },
+    "required_pairs_total": 4,
+    "roster_size": 6,
+    "uncovered_pairs": [
+     "crispr_rnai_essentiality_concordance::essentiality_assay_discordant"
+    ]
+   },
+   "runs": [
+    {
+     "run_id": "iter-001",
+     "observed_pin": "36deab2553b28f327a9d2757d830e3b220a2231fe1934f308cc915b1273e2a8b",
+     "expected_pin": "36deab2553b28f327a9d2757d830e3b220a2231fe1934f308cc915b1273e2a8b",
+     "roster_matches": true,
+     "all_alive": true,
+     "finding_empty": false,
+     "converged": false,
+     "block_reasons": [
+      "8 surviving finding(s): BRAF|SKCM|(4), WRN|COADREAD|(2), SMARCA2|LUAD|(2)"
+     ],
+     "n_packages": 3,
+     "assessments": [
+      {
+       "key": "BRAF|SKCM|",
+       "alive": true,
+       "surviving_findings": 4,
+       "clean": false,
+       "null_reasons": []
+      },
+      {
+       "key": "WRN|COADREAD|",
+       "alive": true,
+       "surviving_findings": 2,
+       "clean": false,
+       "null_reasons": []
+      },
+      {
+       "key": "SMARCA2|LUAD|",
+       "alive": true,
+       "surviving_findings": 2,
+       "clean": false,
+       "null_reasons": []
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "ledger": {
+  "n_entries": 9,
+  "chain_ok": true,
+  "head_hash": "6ded9adfb7c3db737f7d74d0eccae34befd09918bdca03cd08354415b361c1c0"
+ }
+}

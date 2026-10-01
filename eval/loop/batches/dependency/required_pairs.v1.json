@@ -1,0 +1,18 @@
+[
+ [
+  "crispr_rnai_essentiality_concordance",
+  "essentiality_single_assay_only"
+ ],
+ [
+  "crispr_rnai_essentiality_concordance",
+  "essentiality_concordant_dependent"
+ ],
+ [
+  "crispr_rnai_essentiality_concordance",
+  "essentiality_concordant_nondependent"
+ ],
+ [
+  "crispr_rnai_essentiality_concordance",
+  "essentiality_assay_discordant"
+ ]
+]

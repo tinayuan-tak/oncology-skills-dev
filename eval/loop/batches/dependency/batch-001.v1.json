@@ -1,0 +1,114 @@
+{
+  "batch_id": "dependency-001",
+  "coverage": {
+    "coverage_fraction": 0.75,
+    "covered_pairs_total": 3,
+    "covering_candidate_by_pair": {
+      "crispr_rnai_essentiality_concordance::essentiality_assay_discordant": [],
+      "crispr_rnai_essentiality_concordance::essentiality_concordant_dependent": [
+        "KRAS|COADREAD|"
+      ],
+      "crispr_rnai_essentiality_concordance::essentiality_concordant_nondependent": [
+        "WRN|COADREAD|"
+      ],
+      "crispr_rnai_essentiality_concordance::essentiality_single_assay_only": [
+        "BRAF|SKCM|"
+      ]
+    },
+    "required_pairs_total": 4,
+    "roster_size": 6,
+    "uncovered_pairs": [
+      "crispr_rnai_essentiality_concordance::essentiality_assay_discordant"
+    ]
+  },
+  "roster": [
+    {
+      "indication": "COADREAD",
+      "key": "KRAS|COADREAD|",
+      "newly_covered_pairs": [
+        [
+          "crispr_rnai_essentiality_concordance",
+          "essentiality_concordant_dependent"
+        ]
+      ],
+      "reason": "seed",
+      "source": "roster.v1.tsv",
+      "split": "dev",
+      "stratum": "oncogene_addiction_dependency",
+      "subtype": "",
+      "target": "KRAS"
+    },
+    {
+      "indication": "LUAD",
+      "key": "EGFR|LUAD|",
+      "newly_covered_pairs": [],
+      "reason": "seed",
+      "source": "roster.v1.tsv",
+      "split": "dev",
+      "stratum": "oncogene_addiction_dependency",
+      "subtype": "",
+      "target": "EGFR"
+    },
+    {
+      "indication": "SKCM",
+      "key": "BRAF|SKCM|",
+      "newly_covered_pairs": [
+        [
+          "crispr_rnai_essentiality_concordance",
+          "essentiality_single_assay_only"
+        ]
+      ],
+      "reason": "seed",
+      "source": "roster.v1.tsv",
+      "split": "held_out",
+      "stratum": "oncogene_addiction_dependency",
+      "subtype": "",
+      "target": "BRAF"
+    },
+    {
+      "indication": "COADREAD",
+      "key": "WRN|COADREAD|",
+      "newly_covered_pairs": [
+        [
+          "crispr_rnai_essentiality_concordance",
+          "essentiality_concordant_nondependent"
+        ]
+      ],
+      "reason": "seed",
+      "source": "roster.v1.tsv",
+      "split": "held_out",
+      "stratum": "synthetic_lethal_partner_conditional",
+      "subtype": "",
+      "target": "WRN"
+    },
+    {
+      "indication": "LUAD",
+      "key": "SMARCA2|LUAD|",
+      "newly_covered_pairs": [],
+      "reason": "seed",
+      "source": "roster.v1.tsv",
+      "split": "held_out",
+      "stratum": "paralog_buffered_dependency",
+      "subtype": "",
+      "target": "SMARCA2"
+    },
+    {
+      "indication": "LUAD",
+      "key": "MET|LUAD|",
+      "newly_covered_pairs": [],
+      "reason": "seed",
+      "source": "roster.v1.tsv",
+      "split": "dev",
+      "stratum": "oncogene_addiction_dependency",
+      "subtype": "",
+      "target": "MET"
+    }
+  ],
+  "skill": "functional-requirement",
+  "split_counts": {
+    "dev": 3,
+    "held_out": 3,
+    "total": 6
+  },
+  "split_rule": "sha256(salt|target|indication|subtype) % 100 < 34 -> held_out (salt='dependency-2360', min_per_stratum=1)"
+}
