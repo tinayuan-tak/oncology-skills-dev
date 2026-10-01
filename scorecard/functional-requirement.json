@@ -27,7 +27,7 @@
       "criteria": {
         "accuracy": {
           "evidence": {
-            "null_reason": "PR-1b (epic SK#2210 / #1507) BUILT this layer for functional-requirement but did not build a measurement for it. The exemplar's machinery (skills/tumor-presence/scripts/scorecard_adapter.py envelope_rows/envelope_checks: --emit-envelope across the panel roster, then per-criterion checks over the emitted section bytes) has no dependency counterpart, so there is nothing to report here that would not be a claim about un-run checks. Left NULL rather than promoted on the strength of the layer existing. The structural pins that DO exist are cited in `structural_pins` below; they are correctness guards on the export, not a measurement of this criterion.",
+            "null_reason": "The evidence-property seed (epic SK#2210 / #1507) BUILT this layer for functional-requirement but did not build a measurement for it. The exemplar's machinery (skills/tumor-presence/scripts/scorecard_adapter.py envelope_rows/envelope_checks: --emit-envelope across the panel roster, then per-criterion checks over the emitted section bytes) has no functional-requirement counterpart, so there is nothing to report here that would not be a claim about un-run checks. Left NULL rather than promoted on the strength of the layer existing. The structural pins that DO exist are cited in `structural_pins` below; they are correctness guards on the export, not a measurement of this criterion.",
             "structural_pins": [
               "skills/functional-requirement/tests/test_evidence_package_sections.py",
               "contracts/tests/validators/test_property_catalog.py (sweeps dependency.yaml)",
@@ -38,7 +38,7 @@
         },
         "fail_open": {
           "evidence": {
-            "null_reason": "PR-1b (epic SK#2210 / #1507) BUILT this layer for functional-requirement but did not build a measurement for it. The exemplar's machinery (skills/tumor-presence/scripts/scorecard_adapter.py envelope_rows/envelope_checks: --emit-envelope across the panel roster, then per-criterion checks over the emitted section bytes) has no dependency counterpart, so there is nothing to report here that would not be a claim about un-run checks. Left NULL rather than promoted on the strength of the layer existing. The structural pins that DO exist are cited in `structural_pins` below; they are correctness guards on the export, not a measurement of this criterion.",
+            "null_reason": "The evidence-property seed (epic SK#2210 / #1507) BUILT this layer for functional-requirement but did not build a measurement for it. The exemplar's machinery (skills/tumor-presence/scripts/scorecard_adapter.py envelope_rows/envelope_checks: --emit-envelope across the panel roster, then per-criterion checks over the emitted section bytes) has no functional-requirement counterpart, so there is nothing to report here that would not be a claim about un-run checks. Left NULL rather than promoted on the strength of the layer existing. The structural pins that DO exist are cited in `structural_pins` below; they are correctness guards on the export, not a measurement of this criterion.",
             "structural_pins": [
               "skills/functional-requirement/tests/test_evidence_package_sections.py",
               "contracts/tests/validators/test_property_catalog.py (sweeps dependency.yaml)",
@@ -49,7 +49,7 @@
         },
         "panel_consistency": {
           "evidence": {
-            "null_reason": "PR-1b (epic SK#2210 / #1507) BUILT this layer for functional-requirement but did not build a measurement for it. The exemplar's machinery (skills/tumor-presence/scripts/scorecard_adapter.py envelope_rows/envelope_checks: --emit-envelope across the panel roster, then per-criterion checks over the emitted section bytes) has no dependency counterpart, so there is nothing to report here that would not be a claim about un-run checks. Left NULL rather than promoted on the strength of the layer existing. The structural pins that DO exist are cited in `structural_pins` below; they are correctness guards on the export, not a measurement of this criterion.",
+            "null_reason": "The evidence-property seed (epic SK#2210 / #1507) BUILT this layer for functional-requirement but did not build a measurement for it. The exemplar's machinery (skills/tumor-presence/scripts/scorecard_adapter.py envelope_rows/envelope_checks: --emit-envelope across the panel roster, then per-criterion checks over the emitted section bytes) has no functional-requirement counterpart, so there is nothing to report here that would not be a claim about un-run checks. Left NULL rather than promoted on the strength of the layer existing. The structural pins that DO exist are cited in `structural_pins` below; they are correctness guards on the export, not a measurement of this criterion.",
             "structural_pins": [
               "skills/functional-requirement/tests/test_evidence_package_sections.py",
               "contracts/tests/validators/test_property_catalog.py (sweeps dependency.yaml)",
@@ -60,7 +60,7 @@
         },
         "utilization": {
           "evidence": {
-            "null_reason": "PR-1b (epic SK#2210 / #1507) BUILT this layer for functional-requirement but did not build a measurement for it. The exemplar's machinery (skills/tumor-presence/scripts/scorecard_adapter.py envelope_rows/envelope_checks: --emit-envelope across the panel roster, then per-criterion checks over the emitted section bytes) has no dependency counterpart, so there is nothing to report here that would not be a claim about un-run checks. Left NULL rather than promoted on the strength of the layer existing. The structural pins that DO exist are cited in `structural_pins` below; they are correctness guards on the export, not a measurement of this criterion.",
+            "null_reason": "The evidence-property seed (epic SK#2210 / #1507) BUILT this layer for functional-requirement but did not build a measurement for it. The exemplar's machinery (skills/tumor-presence/scripts/scorecard_adapter.py envelope_rows/envelope_checks: --emit-envelope across the panel roster, then per-criterion checks over the emitted section bytes) has no functional-requirement counterpart, so there is nothing to report here that would not be a claim about un-run checks. Left NULL rather than promoted on the strength of the layer existing. The structural pins that DO exist are cited in `structural_pins` below; they are correctness guards on the export, not a measurement of this criterion.",
             "structural_pins": [
               "skills/functional-requirement/tests/test_evidence_package_sections.py",
               "contracts/tests/validators/test_property_catalog.py (sweeps dependency.yaml)",
@@ -70,14 +70,14 @@
           "status": "NULL"
         }
       },
-      "notes": "L2a = source_properties (SK#1941-shape EXPORTED section, --emit-envelope), built by PR-1b of epic SK#2210 / #1507: 6 per-source observational properties (dependency_claims.py::_SOURCE_PROPERTY_RECIPES_DEPENDENCY), governed by contracts/vocabularies/property_catalog/dependency.yaml. BUILT, NOT MEASURED \u2014 every criterion NULL with its reason; see _L2_UNMEASURED_NULL_REASON."
+      "notes": "L2a = source_properties (SK#1941-shape EXPORTED section, --emit-envelope), built by PR-1b of epic SK#2210 / #1507: 6 per-source observational properties (dependency_claims.py::_SOURCE_PROPERTY_RECIPES_DEPENDENCY), governed by contracts/vocabularies/property_catalog/dependency.yaml. BUILT, NOT MEASURED \u2014 every criterion NULL with its reason (see cs.l2_seed_null_reason)."
     },
     "L2b": {
       "built": true,
       "criteria": {
         "accuracy": {
           "evidence": {
-            "null_reason": "PR-1b (epic SK#2210 / #1507) BUILT this layer for functional-requirement but did not build a measurement for it. The exemplar's machinery (skills/tumor-presence/scripts/scorecard_adapter.py envelope_rows/envelope_checks: --emit-envelope across the panel roster, then per-criterion checks over the emitted section bytes) has no dependency counterpart, so there is nothing to report here that would not be a claim about un-run checks. Left NULL rather than promoted on the strength of the layer existing. The structural pins that DO exist are cited in `structural_pins` below; they are correctness guards on the export, not a measurement of this criterion.",
+            "null_reason": "The evidence-property seed (epic SK#2210 / #1507) BUILT this layer for functional-requirement but did not build a measurement for it. The exemplar's machinery (skills/tumor-presence/scripts/scorecard_adapter.py envelope_rows/envelope_checks: --emit-envelope across the panel roster, then per-criterion checks over the emitted section bytes) has no functional-requirement counterpart, so there is nothing to report here that would not be a claim about un-run checks. Left NULL rather than promoted on the strength of the layer existing. The structural pins that DO exist are cited in `structural_pins` below; they are correctness guards on the export, not a measurement of this criterion.",
             "structural_pins": [
               "skills/functional-requirement/tests/test_evidence_package_sections.py"
             ]
@@ -86,7 +86,7 @@
         },
         "fail_open": {
           "evidence": {
-            "null_reason": "PR-1b (epic SK#2210 / #1507) BUILT this layer for functional-requirement but did not build a measurement for it. The exemplar's machinery (skills/tumor-presence/scripts/scorecard_adapter.py envelope_rows/envelope_checks: --emit-envelope across the panel roster, then per-criterion checks over the emitted section bytes) has no dependency counterpart, so there is nothing to report here that would not be a claim about un-run checks. Left NULL rather than promoted on the strength of the layer existing. The structural pins that DO exist are cited in `structural_pins` below; they are correctness guards on the export, not a measurement of this criterion.",
+            "null_reason": "The evidence-property seed (epic SK#2210 / #1507) BUILT this layer for functional-requirement but did not build a measurement for it. The exemplar's machinery (skills/tumor-presence/scripts/scorecard_adapter.py envelope_rows/envelope_checks: --emit-envelope across the panel roster, then per-criterion checks over the emitted section bytes) has no functional-requirement counterpart, so there is nothing to report here that would not be a claim about un-run checks. Left NULL rather than promoted on the strength of the layer existing. The structural pins that DO exist are cited in `structural_pins` below; they are correctness guards on the export, not a measurement of this criterion.",
             "structural_pins": [
               "skills/functional-requirement/tests/test_evidence_package_sections.py"
             ]
@@ -95,7 +95,7 @@
         },
         "panel_consistency": {
           "evidence": {
-            "null_reason": "PR-1b (epic SK#2210 / #1507) BUILT this layer for functional-requirement but did not build a measurement for it. The exemplar's machinery (skills/tumor-presence/scripts/scorecard_adapter.py envelope_rows/envelope_checks: --emit-envelope across the panel roster, then per-criterion checks over the emitted section bytes) has no dependency counterpart, so there is nothing to report here that would not be a claim about un-run checks. Left NULL rather than promoted on the strength of the layer existing. The structural pins that DO exist are cited in `structural_pins` below; they are correctness guards on the export, not a measurement of this criterion.",
+            "null_reason": "The evidence-property seed (epic SK#2210 / #1507) BUILT this layer for functional-requirement but did not build a measurement for it. The exemplar's machinery (skills/tumor-presence/scripts/scorecard_adapter.py envelope_rows/envelope_checks: --emit-envelope across the panel roster, then per-criterion checks over the emitted section bytes) has no functional-requirement counterpart, so there is nothing to report here that would not be a claim about un-run checks. Left NULL rather than promoted on the strength of the layer existing. The structural pins that DO exist are cited in `structural_pins` below; they are correctness guards on the export, not a measurement of this criterion.",
             "structural_pins": [
               "skills/functional-requirement/tests/test_evidence_package_sections.py"
             ]
@@ -104,7 +104,7 @@
         },
         "utilization": {
           "evidence": {
-            "null_reason": "PR-1b (epic SK#2210 / #1507) BUILT this layer for functional-requirement but did not build a measurement for it. The exemplar's machinery (skills/tumor-presence/scripts/scorecard_adapter.py envelope_rows/envelope_checks: --emit-envelope across the panel roster, then per-criterion checks over the emitted section bytes) has no dependency counterpart, so there is nothing to report here that would not be a claim about un-run checks. Left NULL rather than promoted on the strength of the layer existing. The structural pins that DO exist are cited in `structural_pins` below; they are correctness guards on the export, not a measurement of this criterion.",
+            "null_reason": "The evidence-property seed (epic SK#2210 / #1507) BUILT this layer for functional-requirement but did not build a measurement for it. The exemplar's machinery (skills/tumor-presence/scripts/scorecard_adapter.py envelope_rows/envelope_checks: --emit-envelope across the panel roster, then per-criterion checks over the emitted section bytes) has no functional-requirement counterpart, so there is nothing to report here that would not be a claim about un-run checks. Left NULL rather than promoted on the strength of the layer existing. The structural pins that DO exist are cited in `structural_pins` below; they are correctness guards on the export, not a measurement of this criterion.",
             "structural_pins": [
               "skills/functional-requirement/tests/test_evidence_package_sections.py"
             ]

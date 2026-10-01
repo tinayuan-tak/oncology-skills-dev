@@ -136,6 +136,71 @@ def baseline_shard(skill: str) -> SkillShard:
 
 
 # ---------------------------------------------------------------------------------------------
+# L2-seed factory — the shared shape of the evidence-property seed adapters (epic SK#2210 / #1507).
+# A skill whose seed EXPORTED the L2a source_properties + L2b integrated_properties sections but has
+# not yet built the exemplar's per-criterion measurement machinery (tumor-presence's envelope_rows /
+# envelope_checks) sits in exactly one state: L2a/L2b BUILT (built=True) but every criterion NULL —
+# present, not yet measured — while L1/L3/L4 stay at the all-NULL baseline. The near-identical
+# per-skill adapters (functional-requirement, genomic-alteration-profile, ...) differ only in the
+# skill name, the two cell descriptions, and the per-layer structural pins, so they reduce to a data
+# literal + a call to this factory. (Adapters that additionally build an L1 panel or mark L3/L4
+# NOT_BUILT own those layers themselves; they are not pure L2 seeds.)
+# ---------------------------------------------------------------------------------------------
+
+
+def l2_seed_null_reason(skill: str) -> str:
+    """The shared evidence text for an L2 criterion a seed BUILT but did not MEASURE.
+
+    Names the skill, points at the exemplar's measurement machinery it has no counterpart for, and
+    is explicit that the structural pins recorded alongside are correctness guards on the EXPORT, not
+    a measurement of the criterion — so a NULL here is honest, never a promotion on the strength of
+    the layer merely existing.
+    """
+    return (
+        f"The evidence-property seed (epic SK#2210 / #1507) BUILT this layer for {skill} but did not "
+        "build a measurement for it. The exemplar's machinery "
+        "(skills/tumor-presence/scripts/scorecard_adapter.py envelope_rows/envelope_checks: "
+        "--emit-envelope across the panel roster, then per-criterion checks over the emitted section "
+        f"bytes) has no {skill} counterpart, so there is nothing to report here that would not be a "
+        "claim about un-run checks. Left NULL rather than promoted on the strength of the layer "
+        "existing. The structural pins that DO exist are cited in `structural_pins` below; they are "
+        "correctness guards on the export, not a measurement of this criterion."
+    )
+
+
+def l2_seed_criteria(skill: str, structural_pins: list[str]) -> dict[str, Criterion]:
+    """The four criteria for an L2 layer a seed BUILT but did not MEASURE: every criterion NULL,
+    each carrying the shared :func:`l2_seed_null_reason` plus the layer's structural pins."""
+    null_reason = l2_seed_null_reason(skill)
+    return {
+        name: Criterion(
+            status=NULL,
+            evidence={"null_reason": null_reason, "structural_pins": list(structural_pins)},
+        )
+        for name in CRITERIA
+    }
+
+
+def build_l2_seed_shard(
+    skill: str,
+    l2a_desc: str,
+    l2b_desc: str,
+    structural_pins: dict[str, list[str]],
+) -> SkillShard:
+    """Build the scorecard shard for a pure L2-seed skill — DETERMINISTIC, no live reads.
+
+    L2a and L2b are ``built=True`` with every criterion NULL (each cell rolls up NULL — building a
+    layer is not measuring it, and any NULL blocks GREEN); L1/L3/L4 stay at the all-NULL baseline
+    (``built=None``). ``l2a_desc`` / ``l2b_desc`` are the per-skill cell ``notes``; ``structural_pins``
+    maps ``"L2a"`` / ``"L2b"`` to that layer's list of correctness-guard pins.
+    """
+    shard = baseline_shard(skill)
+    shard.cells["L2a"] = Cell(built=True, criteria=l2_seed_criteria(skill, structural_pins["L2a"]), notes=l2a_desc)
+    shard.cells["L2b"] = Cell(built=True, criteria=l2_seed_criteria(skill, structural_pins["L2b"]), notes=l2b_desc)
+    return shard
+
+
+# ---------------------------------------------------------------------------------------------
 # Validation — the committed JSON is the contract; validate at the dict level so a hand-edited or
 # adapter-written shard is held to the same rules as one built through the dataclasses.
 # ---------------------------------------------------------------------------------------------

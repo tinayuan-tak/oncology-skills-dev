@@ -18,7 +18,12 @@ built=True + any NULL still rolls up NULL).
 L1, L3 and L4 are deliberately LEFT at the all-NULL baseline (``built=None``): PR-1c is the L2a/L2b
 substrate item and does not build an L1 disposition/panel assessment, an L3d story object, or an L4
 synthesis layer for this skill. Claiming any of them here would be a measurement this issue did not
-make. The committed shard is reconciled byte-for-byte against ``build_shard()`` by
+make.
+
+This is a pure L2-seed adapter — the whole BUILT-but-UNMEASURED shape (L2a/L2b built + all-NULL,
+L1/L3/L4 at baseline) is the shared ``component_scorecard.build_l2_seed_shard`` factory; this file is
+just the per-skill data literal (the two cell descriptions + the layers' structural pins) + the call.
+The committed shard is reconciled byte-for-byte against ``build_shard()`` by
 ``tests/test_scorecard_shard.py``, so a hand-edit that drifts from this adapter reds — the shard is a
 live function of this code, not a fixture.
 """
@@ -38,69 +43,39 @@ from _skills_common import component_scorecard as cs  # noqa: E402
 
 SKILL = "genomic-alteration-profile"
 
-# ── L2a / L2b: BUILT by PR-1c (epic SK#2210 / #1507), UNMEASURED ────────────────────────────────────
-# The layers now exist, so built=None ("not assessed") would understate the artifact and built=False
-# ("architecture gap") would be a false statement about it. Every criterion stays NULL: the exemplar's
-# L2a/L2b measurement machinery (tumor-presence's envelope_rows / envelope_checks — --emit-envelope
-# across the panel roster, criteria computed from the emitted section bytes) has no genomic counterpart
-# yet, and a criterion that reads GREEN because a layer merely exists is exactly the fail-open promotion
-# the rollup (any NULL blocks GREEN) is built to refuse. built=True + all-NULL rolls up to NULL, the
-# honest cell state: present, not yet measured.
-_L2_UNMEASURED_NULL_REASON = (
-    "PR-1c (epic SK#2210 / #1507) BUILT this layer for genomic-alteration-profile but did not build a "
-    "measurement for it. The exemplar's machinery (skills/tumor-presence/scripts/scorecard_adapter.py "
-    "envelope_rows/envelope_checks: --emit-envelope across the panel roster, then per-criterion checks "
-    "over the emitted section bytes) has no genomic counterpart, so there is nothing to report here that "
-    "would not be a claim about un-run checks. Left NULL rather than promoted on the strength of the "
-    "layer existing. The structural pins that DO exist are cited in `structural_pins` below; they are "
-    "correctness guards on the export, not a measurement of this criterion."
+# ── Per-skill data literal: the two L2 cell descriptions + each layer's structural pins ─────────────
+# L2a/L2b are BUILT by PR-1c (epic SK#2210 / #1507) but UNMEASURED — the exemplar's L2a/L2b measurement
+# machinery (tumor-presence's envelope_rows / envelope_checks) has no genomic counterpart yet, so every
+# criterion stays NULL with the shared null_reason (see cs.l2_seed_null_reason). The structural pins
+# that DO exist are correctness guards on the export, not a measurement.
+_L2A_DESC = (
+    "L2a = source_properties (SK#1941-shape EXPORTED section, --emit-envelope), built by PR-1c "
+    "of epic SK#2210 / #1507: 7 per-source observational properties "
+    "(genomic_claims.py::_SOURCE_PROPERTY_RECIPES_GENOMIC), governed by "
+    "contracts/vocabularies/property_catalog/genomic.yaml. BUILT, NOT MEASURED — every criterion "
+    "NULL with its reason (see cs.l2_seed_null_reason)."
 )
-_L2A_STRUCTURAL_PINS = [
-    "skills/genomic-alteration-profile/tests/test_evidence_package_sections.py",
-    "contracts/tests/validators/test_property_catalog.py (sweeps genomic.yaml)",
-    "contracts/tests/validators/test_claim_axis_enum.py (genomic.* resolves reconciliation)",
-]
-_L2B_STRUCTURAL_PINS = [
-    "skills/genomic-alteration-profile/tests/test_evidence_package_sections.py",
-]
-
-
-def _l2_unmeasured_criteria(structural_pins: list[str]) -> dict:
-    """The four criteria for a layer PR-1c built but did not measure — NULL with the reason named."""
-    return {
-        name: cs.Criterion(
-            status=cs.NULL,
-            evidence={"null_reason": _L2_UNMEASURED_NULL_REASON, "structural_pins": list(structural_pins)},
-        )
-        for name in cs.CRITERIA
-    }
+_L2B_DESC = (
+    "L2b = integrated_properties (SK#1941-shape EXPORTED section), built by PR-1c of epic "
+    "SK#2210 / #1507: the recurrence_concordance island (SK#1629, MC3 exome x GENIE panel). "
+    "BUILT, NOT MEASURED — every criterion NULL with its reason."
+)
+_STRUCTURAL_PINS = {
+    "L2a": [
+        "skills/genomic-alteration-profile/tests/test_evidence_package_sections.py",
+        "contracts/tests/validators/test_property_catalog.py (sweeps genomic.yaml)",
+        "contracts/tests/validators/test_claim_axis_enum.py (genomic.* resolves reconciliation)",
+    ],
+    "L2b": [
+        "skills/genomic-alteration-profile/tests/test_evidence_package_sections.py",
+    ],
+}
 
 
 def build_shard() -> cs.SkillShard:
     """Build the genomic-alteration-profile scorecard shard in memory. DETERMINISTIC — no live reads:
     only L2a/L2b move off the baseline, and they move to a fixed BUILT-but-UNMEASURED state."""
-    shard = cs.baseline_shard(SKILL)  # all layers built=None, every criterion NULL/None
-    shard.cells["L2a"] = cs.Cell(
-        built=True,
-        criteria=_l2_unmeasured_criteria(_L2A_STRUCTURAL_PINS),
-        notes=(
-            "L2a = source_properties (SK#1941-shape EXPORTED section, --emit-envelope), built by PR-1c "
-            "of epic SK#2210 / #1507: 7 per-source observational properties "
-            "(genomic_claims.py::_SOURCE_PROPERTY_RECIPES_GENOMIC), governed by "
-            "contracts/vocabularies/property_catalog/genomic.yaml. BUILT, NOT MEASURED — every criterion "
-            "NULL with its reason; see _L2_UNMEASURED_NULL_REASON."
-        ),
-    )
-    shard.cells["L2b"] = cs.Cell(
-        built=True,
-        criteria=_l2_unmeasured_criteria(_L2B_STRUCTURAL_PINS),
-        notes=(
-            "L2b = integrated_properties (SK#1941-shape EXPORTED section), built by PR-1c of epic "
-            "SK#2210 / #1507: the recurrence_concordance island (SK#1629, MC3 exome x GENIE panel). "
-            "BUILT, NOT MEASURED — every criterion NULL with its reason."
-        ),
-    )
-    return shard
+    return cs.build_l2_seed_shard(SKILL, _L2A_DESC, _L2B_DESC, _STRUCTURAL_PINS)
 
 
 def main() -> int:
