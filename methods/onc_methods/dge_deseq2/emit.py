@@ -332,23 +332,14 @@ def emit_tumor_vs_normal_selectivity_4panel(
     out_dir: Path,
     target_contracts_dir: Path,
 ) -> Path:
-    """v3 sensitivity-panel figure for the tumor-vs-normal-selectivity card.
-    (Function name retains the historical `_4panel` suffix for API stability; the
-    middle forest now draws 2 live cells A/C — cell B was removed in #727, cell D
-    was retired earlier.)
+    """Tumor-vs-normal selectivity figure with expression strip plot and DEG table.
 
-    Layout (single SVG, 3-panel row like v2; the middle forest is 2 rows A/C):
-      Left:   horizontal box + strip of log2(CPM+1) for Primary Tumor, TCGA
-              Adjacent Normal, and GTEx (unchanged from v2).
-      Middle: forest of the live cell log2FC estimates (A/C; cell B removed, cell D
-              retired) with q-value stars, colored by up/down. Cells that disagree on
-              sign vs the dominant direction are drawn hollow (discordance flag).
-      Right:  sensitivity callout — cells_supporting badge (n/cells_ran),
-              dominant_direction, sig_all_cells check, discordant flag, class.
+    Layout (single SVG, vertical stack):
+      Top:    horizontal box + strip of log2(TPM+1) for Primary Tumor, TCGA
+              Adjacent Normal, and GTEx normal tissue.
+      Bottom: concise DEG table (test name, LFC, q-value) + caption with class and max LFC.
 
-    `sensitivity_summary` is the dict produced by
-    `read_tumor_vs_normal_selectivity` (v3 schema); backwards-compatible with
-    the v2_two_product_fallback schema (extra cells simply show as missing).
+    `sensitivity_summary` is the dict produced by `read_tumor_vs_normal_selectivity`.
     """
     import matplotlib
 
@@ -382,22 +373,30 @@ def emit_tumor_vs_normal_selectivity_4panel(
             pal,
         )
 
-    fig = plt.figure(figsize=(pal.FIGSIZE_DOUBLE_COLUMN[0] * 1.2, pal.FIGSIZE_DOUBLE_COLUMN[1] * 1.15))
-    gs = fig.add_gridspec(1, 3, width_ratios=[2.8, 2.0, 1.6], wspace=0.45)
-    ax_box = fig.add_subplot(gs[0, 0])
-    ax_forest = fig.add_subplot(gs[0, 1])
-    ax_txt = fig.add_subplot(gs[0, 2])
+    # Build DEG cell data for the table
+    cells = [
+        ("A", "TCGA tumor vs TCGA adjacent-normal", "log2fc_cell_a", "q_value_cell_a"),
+        ("B", "TCGA tumor vs TCGA adjacent-normal (ComBat-seq)", "log2fc_cell_b", "q_value_cell_b"),
+        ("C", "TCGA tumor vs GTEx normal", "log2fc_cell_c", "q_value_cell_c"),
+    ]
+    deg_rows = []
+    for tag, label, lfc_k, q_k in cells:
+        lfc = sensitivity_summary.get(lfc_k)
+        q = sensitivity_summary.get(q_k)
+        if lfc is None or lfc != lfc:
+            continue
+        deg_rows.append({"tag": tag, "label": label, "log2_fc": float(lfc), "q_value": q})
 
-    # -------- Panel A: box + strip across 3 groups --------
-    # UNIT SELECTION (chain-review #4 fix): tumor/adjacent samples carry BOTH log2_cpm and log2_tpm
-    # (computed on-demand from recount3 counts), but the GTEx arm now comes from the long TPM product
-    # and carries ONLY log2_tpm (log2_cpm is None). The prior code keyed exclusively on log2_cpm, so
-    # EVERY GTEx sample was silently dropped from this box panel (and the 3-group figure showed only
-    # 2 groups). Plot log2_tpm when it is available for the groups that have data — it is the
-    # cross-group-comparable unit anyway (the reason the long products use TPM) — so all three land
-    # on ONE genuine TPM axis. Fall back to log2_cpm only when TPM is entirely absent (e.g. a gene
-    # with no Gencode-v26 length, where tumor/adj have CPM but GTEx cannot be co-plotted); in that
-    # fallback GTEx is legitimately absent (no CPM in the long product) and the axis is labeled CPM.
+    # Determine figure height based on number of DEG rows
+    n_deg_rows = len(deg_rows)
+    table_height_ratio = 1.0 + 0.2 * n_deg_rows if n_deg_rows else 0.5
+
+    fig = plt.figure(figsize=(pal.FIGSIZE_DOUBLE_COLUMN[0] * 1.1, pal.FIGSIZE_DOUBLE_COLUMN[1] * 1.0))
+    gs = fig.add_gridspec(2, 1, height_ratios=[2.5, table_height_ratio], hspace=0.35)
+    ax_box = fig.add_subplot(gs[0, 0])
+    ax_table = fig.add_subplot(gs[1, 0])
+
+    # -------- Top panel: box + strip across 3 groups --------
     def _vals(samples, unit):
         return [s[unit] for s in samples if s.get(unit) is not None]
 
@@ -453,184 +452,114 @@ def emit_tumor_vs_normal_selectivity_4panel(
         med = float(np.median(vals))
         ax_box.text(med, i + 1 - 0.32, f"{med:.2f}", ha="center", va="top", fontsize=7, color="#222", weight="bold")
 
-    # -------- Panel B: multi-cell forest (A/B/C live; cell D retired) --------
-    def _sig_stars(q):
-        if q is None or q != q:
-            return ""
-        if q < 1e-10:
-            return "***"
-        if q < 1e-4:
-            return "**"
-        if q < 0.05:
-            return "*"
-        return "ns"
+    # Add padding around strips
+    ax_box.set_ylim(0.3, len(groups) + 0.7)
 
-    # Cell B (ComBat re-run of A) was REMOVED in #727 and cell D (GTEx, ComBat(source)) was RETIRED
-    # earlier — this plot draws only the two live cells A/C. The reader STILL emits log2fc_cell_d /
-    # q_value_cell_d (read.py, kept declared for forward-compat per
-    # DESIGN_v2_four_cell_consolidation.md:81); they are simply not drawn here. See card +
-    # 06_four_cell_driver.R.
-    cells = [
-        ("A", "TCGA adj-normal\n(raw)", "log2fc_cell_a", "q_value_cell_a"),
-        ("C", "GTEx normal\n(raw joint)", "log2fc_cell_c", "q_value_cell_c"),
-    ]
-    rows = []
-    for tag, label, lfc_k, q_k in cells:
-        lfc = sensitivity_summary.get(lfc_k)
-        q = sensitivity_summary.get(q_k)
-        if lfc is None or lfc != lfc:
-            continue
-        rows.append({"tag": tag, "label": label, "log2_fc": float(lfc), "q_value": q})
+    # -------- Bottom panel: DEG table + caption --------
+    ax_table.set_axis_off()
 
-    dom = sensitivity_summary.get("dominant_direction")
-
-    if rows:
-        y_pos = list(range(len(rows)))[::-1]
-        for y, r in zip(y_pos, rows):
-            is_up = r["log2_fc"] > 0
-            color = "#0a2540" if is_up else "#cf2828"
-            # discordant marker: filled if aligned with dominant direction, hollow otherwise
-            aligned = (dom == "up" and is_up) or (dom == "down" and not is_up)
-            face = color if aligned or not dom else "white"
-            ax_forest.plot([0, r["log2_fc"]], [y, y], color=color, linewidth=2, alpha=0.6)
-            ax_forest.scatter([r["log2_fc"]], [y], s=70, zorder=3, facecolor=face, edgecolor=color, linewidth=1.5)
-            stars = _sig_stars(r["q_value"])
-            off = 0.20 if is_up else -0.20
-            ax_forest.text(
-                r["log2_fc"] + off,
-                y,
-                f"{r['log2_fc']:+.2f} {stars}",
-                ha="left" if is_up else "right",
-                va="center",
-                fontsize=7,
-                color=color,
-            )
-        ax_forest.axvline(0, color="#333", linewidth=0.7)
-        for x in (-1.5, -0.5, 0.5, 1.5):
-            ax_forest.axvline(x, color="#888", linestyle=":", linewidth=0.5)
-        ax_forest.set_yticks(y_pos)
-        ax_forest.set_yticklabels([f"cell {r['tag']}\n{r['label']}" for r in rows], fontsize=7)
-        max_abs = max(2.0, max(abs(r["log2_fc"]) for r in rows) * 1.4)
-        ax_forest.set_xlim(-max_abs, max_abs)
-        ax_forest.set_xlabel("log2 FoldChange (tumor vs normal)", fontsize=8)
-        ax_forest.set_title("Four-cell sensitivity", fontsize=9)
-        ax_forest.grid(axis="x", alpha=0.2)
-    else:
-        ax_forest.text(
-            0.5, 0.5, "No cells ran", transform=ax_forest.transAxes, ha="center", va="center", fontsize=9, color="#888"
-        )
-        ax_forest.set_axis_off()
-
-    # -------- Panel C: sensitivity callout --------
-    ax_txt.set_axis_off()
     cls = sensitivity_summary.get("selectivity_class") or "data_unavailable"
-    supporting = sensitivity_summary.get("cells_supporting")
-    ran = sensitivity_summary.get("cells_ran")
-    discordant = sensitivity_summary.get("discordant")
-    sig_all = sensitivity_summary.get("sig_all_cells")
     max_lfc = sensitivity_summary.get("max_abs_log2fc")
+    allgene_pct = sensitivity_summary.get("selectivity_allgene_percentile")
+    takeda_red = "#B22222"
 
-    class_color = {
-        "strong_tumor_selective": "#0a2540",
-        "modest_tumor_selective": "#7fa7c0",
-        "discordant_across_comparators": "#c07a20",
-        "not_selective": "#cf2828",
-        "not_informative": "#888888",
-        "data_unavailable": "#bbbbbb",
-    }.get(cls, "#444")
+    def _fmt_q(q):
+        if q is None or q != q:
+            return "—"
+        if q < 1e-10:
+            return f"{q:.1e}"
+        if q < 0.001:
+            return f"{q:.2e}"
+        return f"{q:.3f}"
 
-    def _fmt(v, spec=".2f"):
-        try:
-            return format(float(v), spec)
-        except (TypeError, ValueError):
-            return "NA"
+    def _fmt_lfc(lfc):
+        if lfc is None or lfc != lfc:
+            return "—"
+        return f"{lfc:+.2f}"
 
-    def _row(y, label, value, weight="normal", color="#222"):
-        ax_txt.text(
-            0.02,
-            y,
-            label,
-            transform=ax_txt.transAxes,
-            ha="left",
-            va="top",
-            fontsize=8,
-            color="#666",
-            family="monospace",
-        )
-        ax_txt.text(
-            0.55,
-            y,
-            value,
-            transform=ax_txt.transAxes,
-            ha="left",
-            va="top",
-            fontsize=9,
-            color=color,
-            weight=weight,
-            family="monospace",
-        )
+    if deg_rows:
+        # Table layout with borders
+        col_x = [0.02, 0.62, 0.82, 0.98]
+        row_height = 0.20
+        header_y = 0.82
+        n_rows = len(deg_rows) + 1
 
-    y = 0.96
-    ax_txt.text(
-        0.02,
-        y,
-        "Sensitivity",
-        transform=ax_txt.transAxes,
-        ha="left",
-        va="top",
-        fontsize=10,
-        weight="bold",
-        color="#222",
-    )
-    y -= 0.08
-    ax_txt.text(
-        0.02,
-        y,
-        "(3-cell DESeq2)",
-        transform=ax_txt.transAxes,
-        ha="left",
-        va="top",
-        fontsize=7,
-        style="italic",
-        color="#666",
-    )
-    y -= 0.09
+        # Draw table cell borders
+        from matplotlib.patches import Rectangle
+        table_top = header_y + 0.04
+        table_left = col_x[0] - 0.01
+        table_width = col_x[3] - table_left + 0.01
 
-    if supporting is not None and ran:
-        badge = f"{int(supporting)}/{int(ran)}"
-        badge_color = "#0a2540" if supporting == ran else "#7fa7c0" if supporting >= 3 else "#888"
-        _row(y, "supporting", badge, weight="bold", color=badge_color)
-        y -= 0.08
-    _row(y, "dominant", (dom or "—"))
-    y -= 0.08
-    _row(y, "sig(all)", "yes" if sig_all else "no", color="#0a2540" if sig_all else "#666")
-    y -= 0.08
-    _row(
-        y,
-        "discordant",
-        "yes" if discordant else "no",
-        weight="bold" if discordant else "normal",
-        color="#c07a20" if discordant else "#666",
-    )
-    y -= 0.08
-    _row(y, "max|lfc|", _fmt(max_lfc))
-    y -= 0.10
-    ax_txt.text(
-        0.02, y, "class", transform=ax_txt.transAxes, ha="left", va="top", fontsize=7, style="italic", color="#666"
-    )
-    y -= 0.06
-    ax_txt.text(
-        0.02,
-        y,
-        cls.replace("_", " "),
-        transform=ax_txt.transAxes,
-        ha="left",
-        va="top",
-        fontsize=9,
-        weight="bold",
-        color=class_color,
-        family="monospace",
-    )
+        # Header row background
+        header_row_top = header_y
+        header_rect = Rectangle((table_left, header_row_top - row_height), table_width, row_height,
+                                  transform=ax_table.transAxes, facecolor="#f5f5f5", edgecolor="#cccccc",
+                                  linewidth=0.8, clip_on=False)
+        ax_table.add_patch(header_rect)
+
+        # Data row borders
+        for i in range(len(deg_rows)):
+            row_top = header_y - row_height * (i + 1)
+            row_rect = Rectangle((table_left, row_top - row_height), table_width, row_height,
+                                   transform=ax_table.transAxes, facecolor="white", edgecolor="#cccccc",
+                                   linewidth=0.8, clip_on=False)
+            ax_table.add_patch(row_rect)
+
+        # Vertical column dividers
+        table_bottom = header_y - row_height * n_rows
+        for cx in col_x[1:3]:
+            ax_table.plot([cx - 0.02, cx - 0.02], [header_row_top, table_bottom],
+                          color="#cccccc", linewidth=0.8, transform=ax_table.transAxes, clip_on=False)
+
+        # Table header text (vertically centered in header row)
+        header_center_y = header_row_top - row_height / 2
+        ax_table.text(col_x[0], header_center_y, "DEG test", fontsize=8, weight="bold", color="#444",
+                      transform=ax_table.transAxes, ha="left", va="center")
+        ax_table.text((col_x[1] + col_x[2]) / 2 - 0.02, header_center_y, "LFC", fontsize=8, weight="bold", color="#444",
+                      transform=ax_table.transAxes, ha="center", va="center")
+        ax_table.text((col_x[2] + col_x[3]) / 2 - 0.01, header_center_y, "q-value", fontsize=8, weight="bold", color="#444",
+                      transform=ax_table.transAxes, ha="center", va="center")
+
+        # Table data rows (vertically centered in each row)
+        for i, r in enumerate(deg_rows):
+            row_top = header_y - row_height * (i + 1)
+            row_center_y = row_top - row_height / 2
+            lfc_color = "#0a2540" if r["log2_fc"] > 0 else "#cf2828"
+            ax_table.text(col_x[0], row_center_y, r["label"], fontsize=7.5, color="#333",
+                          transform=ax_table.transAxes, ha="left", va="center")
+            ax_table.text((col_x[1] + col_x[2]) / 2 - 0.02, row_center_y, _fmt_lfc(r["log2_fc"]), fontsize=7.5,
+                          color=lfc_color, weight="bold", transform=ax_table.transAxes, ha="center",
+                          va="center", family="monospace")
+            ax_table.text((col_x[2] + col_x[3]) / 2 - 0.01, row_center_y, _fmt_q(r["q_value"]), fontsize=7.5, color="#555",
+                          transform=ax_table.transAxes, ha="center", va="center", family="monospace")
+
+        # Caption: class, max significant LFC, and percentile rank in Takeda red
+        caption_y = table_bottom - 0.08
+        cls_display = cls.replace("_", " ")
+        caption_parts = [f"Class: {cls_display}"]
+
+        # Calculate max LFC only from significant tests (q < 0.05)
+        sig_lfcs = [r["log2_fc"] for r in deg_rows
+                    if r.get("q_value") is not None and r["q_value"] == r["q_value"] and r["q_value"] < 0.05]
+        if sig_lfcs:
+            max_sig_lfc = max(sig_lfcs, key=abs)
+            caption_parts.append(f"Max sig. LFC: {max_sig_lfc:+.2f}")
+        elif max_lfc is not None:
+            caption_parts.append("Max sig. LFC: —")
+
+        # Add ranking with approximate gene count
+        if allgene_pct is not None:
+            rank_pct = 100 - allgene_pct
+            n_genes_approx = 30000
+            rank_approx = int(round(rank_pct / 100 * n_genes_approx))
+            caption_parts.append(f"Rank: top {rank_pct:.1f}% (#{rank_approx:,} of ~{n_genes_approx // 1000}K)")
+
+        ax_table.text(0.02, caption_y, "  ·  ".join(caption_parts),
+                      fontsize=8, color=takeda_red, weight="bold",
+                      transform=ax_table.transAxes, ha="left", va="top")
+    else:
+        ax_table.text(0.5, 0.5, "No DEG tests available", fontsize=9, color="#888",
+                      transform=ax_table.transAxes, ha="center", va="center")
 
     fig.savefig(out_path, bbox_inches="tight")
     plt.close(fig)
