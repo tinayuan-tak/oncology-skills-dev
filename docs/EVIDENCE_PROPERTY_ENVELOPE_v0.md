@@ -361,6 +361,36 @@ moment a second token exists, prose stops being sufficient and the field needs t
 `concordance_class` (0b) and `claim_axis` (0d) got — an enum with a validator, because an ungoverned
 second token is exactly the drift those two waves closed.
 
+## Envelope v1.2 — `reliability`, a typed quality/power facet (SK#2210/#2306)
+
+```yaml
+reliability:                              # optional, on an L2a source_properties[*] entry (and an
+  n_effective: <int>                      # L2b source_support[*] arm, where the arm has per-arm anchors)
+  powered: true | false | "unmeasured"
+  confound_flags: [microenvironment_weighted, ...]   # governed vocab (reliability.enum.yaml)
+  artifact_flags: [floor_tie_percentile, ...]         # governed vocab
+  detection_strength: weak | moderate | strong        # OPTIONAL — detection/abundance-kind properties only
+```
+
+Byte-stable-omitted and verdict-INERT (SK#2091) — a PURE projection over anchors the pipeline already
+computes (`_skills_common/reliability.py::_derive_reliability`), never a re-store. `powered` degrades to
+`"unmeasured"` (not a fabricated `true`) where no per-property-kind floor is calibrated yet; empty flag
+lists and an omitted `detection_strength` are the honest skeleton on a signal-poor domain, not a gap.
+
+**STATUS — rollout complete, consumers rewired (#2331).** Governance (`reliability.enum.yaml` +
+`validate_reliability_enum.py`, PR#2311) → shared deriver + safety/dependency EMIT (PR#2326) →
+floor-tie/powered-floor/detection_strength calibration (PR#2337/#2339/#2361) → catalog declaration shape
+(PR#2362) → genomic/selectivity/surface EMIT (#2212/#2213/#2214) all landed on `main`. The two LLM
+consumers this doc's `interpretation`/`valence` sections anticipated now READ the typed object instead of
+re-deriving quality from raw counts or substring-matched field names: the `--synthesize` single-lens
+narrator (`narrator_engine.py` + `evidence_capsule.py::_reliability_for_card`, threaded through
+`dispatcher.py`'s central capsule wiring) renders a `RELIABILITY[...]` line per card when the facet is
+informative; the SK#2303 triangulation judge (`eval/loop/substrate.py::_l2a_anchors` +
+`critic/judge.py`) is fed the same object alongside the raw anchors it is derived from, with a
+`field_contracts["_reliability"]` entry defining its semantics the way `_corroboration` already does.
+Neither consumer fabricates a flag the facet does not carry; both degrade identically to pre-#2331 output
+on a domain whose facet is still the honest skeleton.
+
 ### Ladder status, measured (the table above is stale)
 
 Rung 5 says *"future — DO NOT file until rung 4"*. Both have since been reached:

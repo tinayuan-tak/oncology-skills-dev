@@ -417,3 +417,75 @@ def test_build_capsule_prompt_weaves_literature_and_citation_when_decision_carri
     assert "strongly_supports" in p  # the per-axis literature read reaches the prompt
     # and the prompt still instructs the narrator to weave/cite (anchor with citation_id)
     assert "citation_id" in p
+
+
+# ── reliability facet (#2306/#2331) reaches the narrator PROMPT, READ not re-derived ────────────────
+def _decision_with_reliability(detection_strength="weak", powered=True, confound_flags=None):
+    dec = _decision()
+    dec["headline"]["claim_vector"] = {
+        "source_properties": {
+            "crispr_essentiality": {
+                "card_id": "pan-cancer-crispr-dependency-distribution",
+                "property": "strongly_selective",
+                "reliability": {
+                    "n_effective": 1538,
+                    "powered": powered,
+                    "confound_flags": confound_flags or [],
+                    "artifact_flags": [],
+                    "detection_strength": detection_strength,
+                },
+            }
+        }
+    }
+    return dec
+
+
+def test_prompt_carries_reliability_line_when_facet_is_informative():
+    p = NE.build_capsule_prompt(_decision_with_reliability(), FUNCTIONAL_REQUIREMENT)
+    assert "RELIABILITY[crispr_essentiality]" in p
+    assert "detection_strength=weak" in p
+
+
+def test_prompt_reliability_mutation_weak_to_strong_changes_the_rendered_text():
+    # MUTATION TOOTH: same decision shape, only the facet VALUE flipped — the rendered prompt text must
+    # change accordingly, proving the narrator reads the typed object rather than a fixed string.
+    p_weak = NE.build_capsule_prompt(_decision_with_reliability(detection_strength="weak"), FUNCTIONAL_REQUIREMENT)
+    p_strong = NE.build_capsule_prompt(_decision_with_reliability(detection_strength="strong"), FUNCTIONAL_REQUIREMENT)
+    assert "detection_strength=weak" in p_weak and "detection_strength=weak" not in p_strong
+    assert "detection_strength=strong" in p_strong and "detection_strength=strong" not in p_weak
+
+
+def test_prompt_reliability_confound_flag_reaches_the_prompt():
+    p = NE.build_capsule_prompt(
+        _decision_with_reliability(confound_flags=["microenvironment_weighted"]), FUNCTIONAL_REQUIREMENT
+    )
+    assert "microenvironment_weighted" in p
+
+
+def test_prompt_has_no_reliability_line_when_facet_is_the_honest_skeleton():
+    # powered='unmeasured', no flags, no detection_strength — must degrade EXACTLY as before #2331:
+    # no fabricated RELIABILITY line. The EVIDENCE CAPSULES block itself (where RELIABILITY would render)
+    # must be byte-identical to the no-claim_vector baseline; a bare empty claim_vector is orthogonal
+    # (it also changes the unrelated sub-group-signal preamble, which this test does not claim about).
+    dec = _decision_with_reliability(detection_strength=None, powered="unmeasured")
+    dec["headline"]["claim_vector"]["source_properties"]["crispr_essentiality"]["reliability"] = {
+        "n_effective": 1538,
+        "powered": "unmeasured",
+        "confound_flags": [],
+        "artifact_flags": [],
+    }
+    p_skeleton = NE.build_capsule_prompt(dec, FUNCTIONAL_REQUIREMENT)
+    p_base = NE.build_capsule_prompt(_decision(), FUNCTIONAL_REQUIREMENT)
+    assert "RELIABILITY[" not in p_skeleton
+
+    def _capsule_block(p: str) -> str:
+        start = p.index("EVIDENCE CAPSULES")
+        end = p.index("COLLAPSED VERDICT")
+        return p[start:end]
+
+    assert _capsule_block(p_skeleton) == _capsule_block(p_base)
+
+
+def test_system_prompt_explains_reliability_is_grounding_not_a_bug():
+    s = NE._system(FUNCTIONAL_REQUIREMENT).lower()
+    assert "reliability" in s and "n_effective" in s

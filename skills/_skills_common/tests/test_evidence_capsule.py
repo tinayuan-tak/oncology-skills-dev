@@ -321,3 +321,71 @@ def test_source_concept_is_verdict_inert_and_hash_stable():
     # concept carries NO signal/tier/corroboration key — pure presentation-support
     con = EC.emit_capsules(_presence_cards(), "COADREAD")["capsules"]["tumor-rna-distribution"]["concept"]
     assert not ({"signal", "tier", "corroboration", "verdict"} & set(con))
+
+
+# ── reliability facet (#2306/#2331) — READ off claim_vector.source_properties, never re-derived ────────
+def _sp(reliability, card_id="b-dist", prop_name="crispr_essentiality"):
+    return {prop_name: {"card_id": card_id, "property": "strongly_selective", "reliability": reliability}}
+
+
+def test_reliability_absent_when_no_source_properties_arg():
+    # every pre-#2331 call site passes no source_properties: capsules stay byte-identical.
+    cap = EC.emit_capsules(_cards(), "COADREAD")["capsules"]["b-dist"]
+    assert "reliability" not in cap
+
+
+def test_reliability_omitted_for_the_honest_skeleton():
+    # powered='unmeasured', empty flags, no detection_strength — exactly what safety/dependency/genomic
+    # emit today on most properties. Must NOT fabricate a RELIABILITY row from nothing.
+    skeleton = {"n_effective": 12, "powered": "unmeasured", "confound_flags": [], "artifact_flags": []}
+    cap = EC.emit_capsules(_cards(), "COADREAD", source_properties=_sp(skeleton))["capsules"]["b-dist"]
+    assert "reliability" not in cap
+
+
+def test_reliability_informative_row_is_read_not_derived():
+    rel = {
+        "n_effective": 2,
+        "powered": False,
+        "confound_flags": [],
+        "artifact_flags": [],
+        "detection_strength": "weak",
+    }
+    cap = EC.emit_capsules(_cards(), "COADREAD", source_properties=_sp(rel))["capsules"]["b-dist"]
+    assert cap["reliability"] == [
+        {"property": "crispr_essentiality", "n_effective": 2, "powered": False, "detection_strength": "weak"}
+    ]
+
+
+def test_reliability_mutation_weak_to_strong_changes_the_row():
+    # MUTATION TOOTH: the SAME card, only detection_strength flipped — proves the reader is driven by the
+    # facet's value, not a hardcoded "weak".
+    weak = _sp({"detection_strength": "weak", "powered": True})
+    strong = _sp({"detection_strength": "strong", "powered": True})
+    cap_weak = EC.emit_capsules(_cards(), "COADREAD", source_properties=weak)["capsules"]["b-dist"]
+    cap_strong = EC.emit_capsules(_cards(), "COADREAD", source_properties=strong)["capsules"]["b-dist"]
+    assert cap_weak["reliability"][0]["detection_strength"] == "weak"
+    assert cap_strong["reliability"][0]["detection_strength"] == "strong"
+    assert cap_weak != cap_strong
+
+
+def test_reliability_confound_flag_present_is_informative():
+    rel = {"confound_flags": ["microenvironment_weighted"], "powered": "unmeasured", "artifact_flags": []}
+    cap = EC.emit_capsules(_cards(), "COADREAD", source_properties=_sp(rel))["capsules"]["b-dist"]
+    assert cap["reliability"][0]["confound_flags"] == ["microenvironment_weighted"]
+
+
+def test_reliability_only_attaches_to_its_own_card_id():
+    # a reliability entry on a DIFFERENT card_id must never leak onto this one.
+    rel = {"detection_strength": "strong", "powered": True}
+    cap = EC.emit_capsules(_cards(), "COADREAD", source_properties=_sp(rel, card_id="a-paralog"))["capsules"]["b-dist"]
+    assert "reliability" not in cap
+
+
+def test_reliability_multiple_properties_on_one_card_both_rows():
+    sp = {
+        "crispr_essentiality": {"card_id": "b-dist", "property": "x", "reliability": {"powered": True}},
+        "rnai_essentiality": {"card_id": "b-dist", "property": "y", "reliability": {"powered": False}},
+    }
+    cap = EC.emit_capsules(_cards(), "COADREAD", source_properties=sp)["capsules"]["b-dist"]
+    props = {row["property"] for row in cap["reliability"]}
+    assert props == {"crispr_essentiality", "rnai_essentiality"}

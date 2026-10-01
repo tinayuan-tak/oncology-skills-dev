@@ -70,6 +70,27 @@ CORROBORATION_CONTRACT = (
     "the within-arm strength lives in the arm's datum / class, not in `corroboration`."
 )
 
+# #2331 — the typed `reliability` facet (#2306) now riding on each L2a entry (`l2a.<family>.reliability`).
+# Fed alongside the anchors it is derived FROM so the judge is not hand-fed raw counts without the
+# pipeline's own quality/power read of them: n_effective/powered are a per-property-kind calibration
+# (powered='unmeasured' is HONEST ABSENCE of a floor, not evidence of good power); confound_flags /
+# artifact_flags / detection_strength are governed vocab (contracts/vocabularies/reliability.enum.yaml).
+# A property with NO reliability key (safety/dependency/genomic today mostly skeleton) is not a defect —
+# it means the facet has nothing beyond the honest skeleton to report, not that the judge should flag
+# its absence as a gap.
+RELIABILITY_CONTRACT = (
+    "`reliability` (when present on an l2a entry) is the pipeline's OWN typed quality/power read of that "
+    "property's anchors — n_effective (effective N behind it), powered (true/false/'unmeasured' — "
+    "'unmeasured' means no calibrated floor exists yet for that property kind, NOT that it is well- or "
+    "under-powered), confound_flags / artifact_flags (governed vocab, e.g. microenvironment_weighted / "
+    "floor_tie_percentile), and detection_strength (weak/moderate/strong, detection-kind properties only). "
+    "Use it as GROUNDING CONTEXT for judging the property's class/token against its datum — a weak "
+    "detection_strength or a confound_flag already EXPLAINS a borderline class and is not itself a new "
+    "defect to report; but a confound/artifact flag present on an entry whose class/story does NOT "
+    "surface it IS a legitimate `surface_unused_signal` finding. Absence of the key is the honest "
+    "skeleton (no flags, no calibrated floor) on a signal-poor domain, not a gap."
+)
+
 
 def _repo_root() -> Path:
     """Repo root resolved from this file's location (eval/loop/substrate.py → repo root)."""
@@ -202,9 +223,11 @@ def _family_contract(family: str, token_key: "str | None", token: Any, island: d
 
 
 def _l2a_anchors(source_properties: dict) -> dict:
-    """L2a per-source bundle: ``{family: {card_id, property, anchors: {field: value}}}`` — the anchor
-    NUMBERS the labels abstract over (plan §0: the labels are abstractions to be audited AGAINST the
-    datum). L2a is uniform across families (plan §5A.7 finding 2), so no shape branching is needed."""
+    """L2a per-source bundle: ``{family: {card_id, property, anchors: {field: value}, reliability}}`` —
+    the anchor NUMBERS the labels abstract over (plan §0: the labels are abstractions to be audited
+    AGAINST the datum), PLUS (#2306/#2331) the pipeline's own typed `reliability` read of those same
+    anchors — passed through VERBATIM, never re-derived here (this module does no hand-normalisation).
+    L2a is uniform across families (plan §5A.7 finding 2), so no shape branching is needed."""
     out: dict = {}
     for family, prop in (source_properties or {}).items():
         if not isinstance(prop, dict):
@@ -215,6 +238,10 @@ def _l2a_anchors(source_properties: dict) -> dict:
             "property": prop.get("property"),
             "anchors": anchors,
             "comparability": prop.get("comparability"),
+            # #2306/#2331: the typed quality/power facet — see RELIABILITY_CONTRACT. VERBATIM passthrough;
+            # None when the property carries none (an un-rolled-out domain, or a resolve.py read older
+            # than #2306).
+            "reliability": prop.get("reliability"),
         }
     return out
 
@@ -296,7 +323,7 @@ def assemble_from_objects(
             "l2a": {},
             "l2b": {},
             "l3": None,
-            "field_contracts": {"_corroboration": CORROBORATION_CONTRACT},
+            "field_contracts": {"_corroboration": CORROBORATION_CONTRACT, "_reliability": RELIABILITY_CONTRACT},
             "families_missing_token": [],
         }
 
@@ -304,7 +331,7 @@ def assemble_from_objects(
     integrated = evidence_package.get("integrated_properties") or {}
 
     l2b: dict = {}
-    field_contracts: dict = {"_corroboration": CORROBORATION_CONTRACT}
+    field_contracts: dict = {"_corroboration": CORROBORATION_CONTRACT, "_reliability": RELIABILITY_CONTRACT}
     missing_token: list[str] = []
     for family, island in integrated.items():
         if not isinstance(island, dict):

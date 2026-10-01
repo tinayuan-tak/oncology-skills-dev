@@ -21,7 +21,12 @@ The 6 selector shapes:
   4 conflict_pairs     — two cards on one measurement_type disagreeing in tier (with precedence)
   5 sibling_caveats    — caveat fields that qualify a favorable headline (escape/variability/…)
   6 provenance_keys    — distinct contributing sources + distinct_provenance_count
-plus data_quality_flags — generic mis-bind / direction-inversion contradictions surfaced, not hidden.
+plus data_quality_flags — generic mis-bind / direction-inversion contradictions surfaced, not hidden,
+plus reliability        — (#2306/#2331, optional `source_properties` arg) the typed quality/power facet
+                         (n_effective/powered/confound_flags/artifact_flags/detection_strength) READ off
+                         claim_vector.source_properties per matching card, never re-derived from the
+                         summary. Complements, does not replace, sibling_caveats/data_quality_flags —
+                         those stay substring-heuristic for whatever the facet does not yet model.
 """
 
 from __future__ import annotations
@@ -524,6 +529,46 @@ def _data_quality_flags(cid, summary, cfg):
     return flags
 
 
+_RELIABILITY_FIELDS = ("n_effective", "powered", "confound_flags", "artifact_flags", "detection_strength")
+
+
+def _reliability_for_card(cid, source_properties):
+    """Typed `reliability` facet row(s) (#2306) for THIS card, READ off `claim_vector.source_properties`
+    — never re-derived. One row per L2a property keyed to `cid` (a card can back >1 property, e.g.
+    safety's eight-recipe map). Deliberately degrades to `None` (byte-stable omission, same idiom as
+    `comparability`/`interpretation`) when `source_properties` is absent OR every candidate row is the
+    honest SKELETON the locked spec documents (`powered: 'unmeasured'`, empty flag lists, no
+    `detection_strength`) — a signal-poor domain (safety/dependency/genomic today) must render identically
+    to before #2306 rather than printing an empty-handed RELIABILITY line. This is the ONE typed read this
+    module performs over the facet; `_sibling_caveats`/`_data_quality_flags` above stay substring-heuristic
+    for everything the facet does not yet model (escape/heterogeneity/mis-bind etc.) — the two are
+    complementary, not a full replacement (#2331)."""
+    if not isinstance(source_properties, dict):
+        return None
+    out = []
+    for prop_name, entry in source_properties.items():
+        if not isinstance(entry, dict) or entry.get("card_id") != cid:
+            continue
+        rel = entry.get("reliability")
+        if not isinstance(rel, dict):
+            continue
+        informative = (
+            rel.get("powered") in (True, False)
+            or rel.get("confound_flags")
+            or rel.get("artifact_flags")
+            or rel.get("detection_strength") is not None
+        )
+        if not informative:
+            continue
+        row = {"property": prop_name}
+        for k in _RELIABILITY_FIELDS:
+            v = rel.get(k)
+            if v not in (None, []):
+                row[k] = v
+        out.append(row)
+    return out or None
+
+
 def _conflict_pairs(cards, classify):
     """Cross-card: same measurement_type, tier disagreement >=2 levels. Returns list keyed for each mt."""
     by_mt = {}
@@ -690,7 +735,15 @@ def _source_concept(card_id, summary, measurement_type=None):
     }
 
 
-def emit_capsules(cards, indication=None, verdict_card_ids=None, config=None, classify=default_classify, skill=None):
+def emit_capsules(
+    cards,
+    indication=None,
+    verdict_card_ids=None,
+    config=None,
+    classify=default_classify,
+    skill=None,
+    source_properties=None,
+):
     """Return {'capsules': {card_id: capsule}, 'manifest': [...]}. Field selection is CONTRACTS-FIRST: a
     card's optional `capsule:` block (primary_class + categorical_fields + numeric_anchors, read via
     _card_capsule_contract) drives the class-pick, the categorical_anchors AND the numeric_anchors; the hint
@@ -698,7 +751,10 @@ def emit_capsules(cards, indication=None, verdict_card_ids=None, config=None, cl
     anchor_fields, caveat_fields, categorical_fields, dq_checks). `verdict_card_ids` (set) get FULL capsules;
     others get THIN (signal + one anchor). Deterministic + hash-stable. `skill` (the emitting skill's
     dir name) sources the per-anchor `field_disposition` role from that skill's ledger (#1870); None ->
-    no role tags (byte-stable)."""
+    no role tags (byte-stable). `source_properties` (#2306/#2331, optional) is the skill's own
+    `claim_vector.source_properties` L2a map; when given, a FULL capsule gains a typed `reliability` row
+    per matching property (see `_reliability_for_card`) — READ, never re-derived from the summary. `None`
+    (the default, and every pre-#2331 call site) keeps capsules byte-identical to before this facet."""
     config = config or {}
     _aliases = indication_stratum_aliases(indication)  # crosswalk-resolved indication stratum labels (F2)
     cards_sorted = sorted((c for c in cards if isinstance(c, dict)), key=lambda c: c.get("card_id") or "")
@@ -774,6 +830,13 @@ def emit_capsules(cards, indication=None, verdict_card_ids=None, config=None, cl
             _concept = _source_concept(cid, summ, mt)
             if _concept is not None:
                 cap["concept"] = _concept
+            # Typed `reliability` facet row(s) for this card (#2306/#2331) — READ off the skill's own
+            # claim_vector.source_properties, never re-derived. Key OMITTED (byte-stable) when
+            # `source_properties` is absent (every call site predating #2331, and this one when a skill
+            # has not finished the #2210 L2a rollout) or every candidate row is the honest skeleton.
+            _reliability = _reliability_for_card(cid, source_properties)
+            if _reliability is not None:
+                cap["reliability"] = _reliability
         manifest.append({"card_id": cid, "status": "full" if full else "thin"})
         capsules[cid] = cap
     return {"capsules": capsules, "manifest": sorted(manifest, key=lambda m: m["card_id"])}

@@ -141,6 +141,10 @@ def _system(lens: LensConfig) -> str:
         "mask a disagreeing signal. Use the RAW CAPSULE DATA to sharpen the read (cite specific strata, "
         "magnitudes, conflicts) but the class labels remain authoritative; obey each capsule row's SCOPE note "
         "and treat data_quality_flags as bugs to flag, not facts to narrate.",
+        "A card's RELIABILITY line (when present) is a TYPED, pipeline-computed quality/power read — "
+        "n_effective, powered, confound_flags, artifact_flags, detection_strength — NOT a bug like "
+        "data_quality_flags: narrate it as a caveat/qualifier on that card's class (e.g. a weak "
+        "detection_strength or a confound_flag earns 'weakly supported' / a named caveat, not silence).",
     ]
     if lens.polarity_note:
         s.append(f"POLARITY: {lens.polarity_note}")
@@ -197,6 +201,13 @@ def _render_capsules(pkg: dict) -> str:
         lines.append(f"  · {cid}: " + "  ".join(parts))
         for dq in c.get("data_quality_flags") or []:
             lines.append(f"      ⚠ DATA-QUALITY: {dq['flag']} [{dq.get('field')}={dq.get('value')}]")
+        # Typed `reliability` facet (#2306/#2331) — READ off claim_vector.source_properties, never
+        # re-derived from the summary; see evidence_capsule._reliability_for_card. Rendered only when
+        # informative (the helper itself omits the honest skeleton), so a signal-poor domain emits no
+        # new line here and the prompt degrades exactly as before #2331.
+        for rel in c.get("reliability") or []:
+            bits = [f"{k}={v}" for k, v in rel.items() if k != "property"]
+            lines.append(f"      ◆ RELIABILITY[{rel.get('property')}]: " + ", ".join(bits))
         # RAW cited statements (citation cards only — the pmid/year/sentence SUBSTANCE): the narrator LEADS
         # with + attributes to these, rather than reporting the statements DATA_UNAVAILABLE.
         for st in c.get("cited_statements") or []:
@@ -339,11 +350,18 @@ def _render_literature(decision: dict) -> str:
 def build_capsule_prompt(decision: dict, lens: LensConfig) -> str:
     h = decision.get("headline", {}) or {}
     target, indication = decision.get("target"), decision.get("indication")
+    _cv = h.get("claim_vector")
     pkg = (
         h.get("evidence_capsules")
         or decision.get("evidence_capsules")
         or emit_capsules(
-            decision.get("cards", []), indication, verdict_card_ids=lens.verdict_card_ids, config=lens.capsule_config
+            decision.get("cards", []),
+            indication,
+            verdict_card_ids=lens.verdict_card_ids,
+            config=lens.capsule_config,
+            # #2331: same source_properties threading as the dispatcher's central wiring (this branch
+            # fires only when a caller built `decision` without going through the dispatcher, e.g. tests).
+            source_properties=(_cv.get("source_properties") if isinstance(_cv, dict) else None),
         )
     )
     # collapsed verdict token: the lens's declared verdict_key wins (fixes presence, whose key is

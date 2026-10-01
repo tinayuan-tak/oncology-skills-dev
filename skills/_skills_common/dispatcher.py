@@ -1087,7 +1087,17 @@ def run_wired_skill(
         try:
             from _skills_common.evidence_capsule import emit_capsules
 
-            headline["evidence_capsules"] = emit_capsules(card_outputs, _indication, skill=skill_name)
+            # #2331: thread the skill's own claim_vector.source_properties (if the L2a #2210 rollout has
+            # reached this domain) so a full capsule can carry the typed `reliability` facet (#2306)
+            # instead of the narrator having to re-derive quality from raw counts. `.get` chain degrades
+            # to None (byte-stable, unchanged capsules) for any skill without a claim_vector yet.
+            _cv = headline.get("claim_vector")
+            headline["evidence_capsules"] = emit_capsules(
+                card_outputs,
+                _indication,
+                skill=skill_name,
+                source_properties=(_cv.get("source_properties") if isinstance(_cv, dict) else None),
+            )
         except Exception:  # noqa: BLE001 — verdict-inert projection; never break the spine
             pass
 

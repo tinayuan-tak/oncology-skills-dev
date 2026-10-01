@@ -219,3 +219,62 @@ def test_card_read_error_surfaced():
     out = S.assemble_from_objects(ep, bundle["decision"])
     assert any(e["card_id"] == "tumor-rna-distribution" for e in out["card_read_errors"])
     assert out["card_read_errors"][0]["availability_state"] == "read_error"
+
+
+# ── reliability facet (#2306/#2331) — passed through VERBATIM, never re-derived here ────────────────
+def _ep_with_reliability(reliability):
+    """A minimal synthetic evidence_package: one l2a property carrying `reliability`, no l2b/l3d. Real
+    tumor-presence fixtures above predate #2306 (presence never emits the facet), so this is synthetic —
+    it exercises exactly what a #2212-#2214 (genomic/selectivity/surface) package looks like."""
+    return {
+        "source_properties": {
+            "crispr_essentiality": {
+                "card_id": "pan-cancer-crispr-dependency-distribution",
+                "property": "strongly_selective",
+                "anchors": [{"field": "n_cell_lines_evaluated", "value": 1538}],
+                "reliability": reliability,
+            }
+        },
+        "integrated_properties": {},
+        "cards": [],
+    }
+
+
+def _decision_health():
+    return {"run_health": {"status": "ok", "n_cards_resolved": 1}}
+
+
+def test_l2a_reliability_is_passed_through_verbatim():
+    rel = {
+        "n_effective": 1538,
+        "powered": True,
+        "confound_flags": [],
+        "artifact_flags": [],
+        "detection_strength": "strong",
+    }
+    out = S.assemble_from_objects(_ep_with_reliability(rel), _decision_health())
+    assert out["l2a"]["crispr_essentiality"]["reliability"] == rel
+
+
+def test_l2a_reliability_mutation_strong_to_weak_is_visible():
+    # MUTATION TOOTH: flip ONE value, the substrate's own output must flip with it — proves passthrough,
+    # not a cached/hardcoded copy.
+    strong = _ep_with_reliability({"powered": True, "detection_strength": "strong"})
+    weak = _ep_with_reliability({"powered": True, "detection_strength": "weak"})
+    out_strong = S.assemble_from_objects(strong, _decision_health())
+    out_weak = S.assemble_from_objects(weak, _decision_health())
+    assert out_strong["l2a"]["crispr_essentiality"]["reliability"]["detection_strength"] == "strong"
+    assert out_weak["l2a"]["crispr_essentiality"]["reliability"]["detection_strength"] == "weak"
+
+
+def test_l2a_reliability_none_when_property_carries_none():
+    # a domain / property with no facet yet (e.g. the tumor-presence fixtures above) — key present,
+    # value None, never fabricated.
+    ep = _ep_with_reliability(None)
+    out = S.assemble_from_objects(ep, _decision_health())
+    assert out["l2a"]["crispr_essentiality"]["reliability"] is None
+
+
+def test_field_contracts_carries_the_reliability_contract(real_name):
+    out = _assemble(real_name)
+    assert out["field_contracts"]["_reliability"] == S.RELIABILITY_CONTRACT
