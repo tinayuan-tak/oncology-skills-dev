@@ -139,8 +139,7 @@ Advisory / verdict-inert. Read via `_llm_val` (unwraps `{value}`). Producer = up
 | `.executive_summary(.value)` | `_synthesis_block`, `_synthesis_banner_block`, `build_ir` hero | ★ | 825/1307/2166 |
 | `.tension_analysis(.value)` | `_synthesis_block`, `_route_synthesis_to_lenses` | ○ | 826/1361 |
 | `.exec_bullets[].{text,polarity,cites}` | `_synthesis_block` | ○ | 830-835 (`cites` passed whole; `card_ids`/`citation_ids` not destructured in IR) |
-| `.top_arguments`/`.arguments[].{claim,text,argument}` | `_synthesis_block` | ○ | 827/847 |
-| `.top_arguments_for`/`.top_arguments_against[]` | `_route_synthesis_to_lenses` | ○ | 1355-1359 |
+| `.top_arguments_for`/`.top_arguments_against[]` (target-profile schema) | `_synthesis_block`, `_route_synthesis_to_lenses` | ○ | `_synthesis_block` reads these first (#2393 fix — the real target-profile keys), falling back to the legacy `.top_arguments`/`.arguments[].{claim,text,argument}` shape only when both are absent; `_route_synthesis_to_lenses` 1355-1359 |
 | `.rationale(.value)`/`.context_read(.value)` | `_synthesis_block`, `build_ir` | ○ | 836 |
 | `.overall_statement`/`.headline` | `build_ir` hero | ○ | 2163 |
 | `.overall_recommendation`/`.recommendation` | `_synthesis_banner_block` | ★ | 1311 — compared to `target_call.recommendation` (mismatch banner) |

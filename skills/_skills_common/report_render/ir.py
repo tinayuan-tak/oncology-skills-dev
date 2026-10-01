@@ -999,7 +999,17 @@ def _synthesis_block(nomination: dict, literature: Optional[dict] = None) -> Opt
         return None
     exec_summary = _llm_val(llm, "executive_summary")
     tension = _llm_val(llm, "tension_analysis")
-    args = _llm_val(llm, "top_arguments") or _llm_val(llm, "arguments")
+    # target-profile's Tier-3 tool schema emits top_arguments_for/top_arguments_against (citation-anchored
+    # strings); "top_arguments"/"arguments" belong to a legacy/fixture shape target-profile never emits
+    # (#2393 — reading only the legacy keys left this field permanently empty for target-profile).
+    args_for = _llm_val(llm, "top_arguments_for") or []
+    args_against = _llm_val(llm, "top_arguments_against") or []
+    if args_for or args_against:
+        args = [{"stance": "for", "claim": a} for a in args_for if isinstance(a, str)] + [
+            {"stance": "against", "claim": a} for a in args_against if isinstance(a, str)
+        ]
+    else:
+        args = _llm_val(llm, "top_arguments") or _llm_val(llm, "arguments")
     # Stage-2 PRIMARY: the crisp grounded executive bullets (single-lens narrator + composed). Lead with
     # them; the verbose prose (executive_summary / rationale / context_read) is demoted to a secondary read.
     raw_bullets = _llm_val(llm, "exec_bullets") or []
@@ -1503,7 +1513,15 @@ def _synthesis_banner_block(nomination: dict, target_call: dict) -> Optional[Blo
     if not exec_summary:
         return None
     exec_clean, cites = _strip_rule_citations(exec_summary)
-    llm_rec = _llm_val(llm, "overall_recommendation") or _llm_val(llm, "recommendation")
+    # Prefer the PRE-override LLM value (target_call.gate.llm_recommendation, recommendation_gate.v1):
+    # run.py mutates the LLM dict in place on every override (gate fire / lower-bound clamp), so
+    # llm_synthesis.overall_recommendation is already post-override whenever an override actually fired
+    # — the only case this banner exists for. Falls back to the (possibly post-override) LLM dict value
+    # for the no-override path, where no pre-override record is recorded.
+    gate = (target_call or {}).get("gate") or {}
+    llm_rec = (
+        gate.get("llm_recommendation") or _llm_val(llm, "overall_recommendation") or _llm_val(llm, "recommendation")
+    )
     det_rec = _unwrap((target_call or {}).get("recommendation"))
     mismatch = None
     if _rec_norm(llm_rec) and _rec_norm(det_rec) and _rec_norm(llm_rec) != _rec_norm(det_rec):
@@ -1685,7 +1703,14 @@ def _composed_fingerprint_block(
     verdict = eg.get("verdict") if isinstance(eg.get("verdict"), dict) else {}
     conf = verdict.get("confidence") if isinstance(verdict.get("confidence"), dict) else {}
     dissent = [
-        {"source": e.get("from"), "note": e.get("note"), "resolved_to": e.get("resolved_to")}
+        # tp_facets.build_composed_evidence_graph maps build_target_call's "detail" into this edge's
+        # "note" field; carry "detail" through too (#2392) so a caller feeding this block a dissent
+        # edge in the build_target_call shape directly isn't silently dropped by the backends' renderers.
+        {
+            "source": e.get("from"),
+            "note": e.get("note") or e.get("detail"),
+            "resolved_to": e.get("resolved_to"),
+        }
         for e in (eg.get("edges") or [])
         if isinstance(e, dict) and e.get("type") == "dissent"
     ]

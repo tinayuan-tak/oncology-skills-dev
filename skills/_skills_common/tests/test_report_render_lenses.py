@@ -63,6 +63,26 @@ def test_banner_absent_when_no_synthesis():
     assert build_ir(nom, resolve_spec("full")).banner is None
 
 
+def test_banner_flags_mismatch_when_gate_actually_overrode():
+    # #2392: run.py mutates llm_synthesis.overall_recommendation IN PLACE on every override (gate fire /
+    # lower-bound clamp), so comparing it against target_call.recommendation is definitionally equal
+    # whenever an override actually fired — the only case this banner exists for. The pre-override value
+    # survives only in target_call.gate.llm_recommendation (recommendation_gate.v1); the banner must read
+    # THAT, not the (now-overridden) llm_synthesis dict.
+    nom = make_nomination()
+    nom["llm_synthesis"]["overall_recommendation"] = "veto"  # post-override: run.py already overwrote this
+    nom["target_report"]["target_call"]["recommendation"] = "veto"
+    nom["target_report"]["target_call"]["gate"] = {
+        "fired": True,
+        "forced_recommendation": "veto",
+        "llm_recommendation": "nominate",  # the pre-override LLM lean — the only place it still lives
+        "overridden": True,
+        "triggered_by": [{"short": "safety", "verdict": "killer"}],
+    }
+    p = build_ir(nom, resolve_spec("full")).banner.payload
+    assert p["mismatch"] and p["mismatch"]["llm"] == "nominate" and p["mismatch"]["deterministic"] == "veto"
+
+
 # -- anchor-routed synthesis notes --------------------------------------------------------------
 def test_synthesis_notes_route_to_topical_lens_by_anchor():
     ir = build_ir(make_nomination(), resolve_spec("full"))

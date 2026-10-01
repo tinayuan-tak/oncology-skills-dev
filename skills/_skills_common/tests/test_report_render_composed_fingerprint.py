@@ -192,6 +192,24 @@ def test_html_renders_grid_deciding_and_dissent():
     assert "cfp-chip deciding" in html  # the deciding axis is outlined
     assert "cfp-dissent" in html and "Dissent" in html
     assert "Functional dependency" in html  # skill title, not the raw short
+    # this fixture's dissent edge (composed_evidence_graph.v1) carries its message under "note";
+    # the real build_target_call dissent (#2392) carries it under "detail" instead — covered below.
+    assert "surface non-viability overruled by the intracellular dependency" in html
+    assert "dissents from the call" not in html
+
+
+def test_html_dissent_reads_detail_key_from_build_target_call_shape():
+    # #2392: build_target_call (tp_facets.py) emits the dissent message under "detail", not "note" —
+    # the HTML renderer used to read only "note" and silently fall back to the generic placeholder.
+    from _skills_common.report_render.backends.html import HtmlBackend
+
+    nom = _nom_with_index()
+    nom["target_report"]["evidence_graph"]["edges"][1]["note"] = None
+    nom["target_report"]["evidence_graph"]["edges"][1]["detail"] = "LLM recommended 'nominate'; gate forced 'veto'"
+    blk = _fingerprint(build_ir(nom, resolve_spec("full")))
+    html = "".join(HtmlBackend()._emit(blk))
+    assert "LLM recommended" in html and "gate forced" in html and "veto" in html
+    assert "dissents from the call" not in html
 
 
 def test_text_renders_table_and_dissent():

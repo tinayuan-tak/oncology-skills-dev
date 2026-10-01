@@ -26,8 +26,36 @@ def test_synthesis_block_prose_is_clean_and_citations_collected():
     cites = syn.payload["citations"]
     assert "dependency-mutant-strongly-dependent-supportive" in cites
     assert "SAF-LOF-01" in cites and "SAF-DOSAGE-02" in cites
-    assert "lineage-selective-supportive" in cites  # lifted from an argument claim too
+    # #2393: target-profile's real schema is top_arguments_for/top_arguments_against; _synthesis_block
+    # reads those first (falling back to the legacy top_arguments/arguments shape only when both are
+    # absent), so the citations lifted from the fixture's for/against arguments are these two, not the
+    # legacy top_arguments claim's "lineage-selective-supportive".
+    assert "strongly-selective-supportive" in cites and "gnomad-lof-constrained-veto" in cites
     assert len(cites) == len(set(cites))  # deduped
+
+
+def test_synthesis_block_reads_top_arguments_for_against_not_legacy_keys():
+    # #2393: top_arguments_for/top_arguments_against is the real target-profile Tier-3 schema key; the
+    # legacy top_arguments/arguments shape is a fixture-only convenience the real pipeline never emits.
+    ir = build_ir(make_nomination(), resolve_spec("full"))
+    syn = next(b for b in ir.overview if b.kind == vocab.SYNTHESIS)
+    claims = [a["claim"] for a in syn.payload["arguments"]]
+    assert "Selective MSI-high dependency" in claims
+    assert "Full-KO safety risk from LoF constraint" in claims
+    stances = {a["stance"] for a in syn.payload["arguments"]}
+    assert stances == {"for", "against"}
+
+
+def test_synthesis_block_renders_argument_with_unresolved_anchor():
+    # #2393: an argument whose inline anchor doesn't resolve to any skill's fired rule/card used to be
+    # DROPPED by _route_synthesis_to_lenses (routed to Decision, then `continue`d) with nothing else
+    # rendering it. The consolidated SYNTHESIS block now reads top_arguments_for/_against directly, so an
+    # uncited/unresolved-anchor argument still appears there.
+    nom = make_nomination()
+    nom["llm_synthesis"]["top_arguments_for"] = ["No measured dependency signal in this lineage"]
+    nom["llm_synthesis"]["top_arguments_against"] = []
+    h = render_report(nom, preset="full", backend="html")
+    assert "No measured dependency signal in this lineage" in h
 
 
 def test_html_synthesis_shows_collapsed_citation_provenance():

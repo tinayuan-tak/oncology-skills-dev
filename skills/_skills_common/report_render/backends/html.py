@@ -1762,8 +1762,31 @@ class HtmlBackend:
             tension_html = (
                 f"<div class='tension'><div class='tl'>Central tension</div><p>{_esc(p['tension_analysis'])}</p></div>"
             )
-        if exec_html or tension_html:
-            conv.append(f"<div class='synth'>{exec_html}{tension_html}</div>")
+        # ARGUMENTS for/against: #2393 — the v6 convergence layout never rendered top_arguments_for/
+        # top_arguments_against at all (only the standalone `_synthesis_bullets` path did), so a bare
+        # sentence or an uncited/unresolved-anchor argument (which `_route_synthesis_to_lenses` drops
+        # rather than routing to a topical lens) had nowhere left to render.
+        args = p.get("arguments") or []
+        args_html = ""
+        if args:
+            for_items = "".join(f"<li>{_esc(_arg_summary(a))}</li>" for a in args if a.get("stance") == "for")
+            against_items = "".join(f"<li>{_esc(_arg_summary(a))}</li>" for a in args if a.get("stance") == "against")
+            other_items = "".join(
+                f"<li>{_esc(_arg_summary(a))}</li>" for a in args if a.get("stance") not in ("for", "against")
+            )
+            cols = []
+            if for_items:
+                cols.append(f"<div class='argcol argfor'><div class='tl'>For</div><ul>{for_items}</ul></div>")
+            if against_items:
+                cols.append(
+                    f"<div class='argcol argagainst'><div class='tl'>Against</div><ul>{against_items}</ul></div>"
+                )
+            if other_items:
+                cols.append(f"<div class='argcol'><ul>{other_items}</ul></div>")
+            if cols:
+                args_html = f"<div class='args'>{''.join(cols)}</div>"
+        if exec_html or tension_html or args_html:
+            conv.append(f"<div class='synth'>{exec_html}{tension_html}{args_html}</div>")
         # LITCTX: cited co-mention literature (verdict-inert context).
         lit = p.get("literature") if isinstance(p.get("literature"), dict) else None
         if lit and (lit.get("total_comentions") or lit.get("cited_pmids")):
@@ -2379,7 +2402,11 @@ class HtmlBackend:
             rows = []
             for d in dissent:
                 src = vocab.skill_title(d["source"]) if d.get("source") else "a signal"
-                note = _esc(d.get("note")) if d.get("note") else "dissents from the call"
+                note = (
+                    _esc(d.get("detail") or d.get("note"))
+                    if (d.get("detail") or d.get("note"))
+                    else "dissents from the call"
+                )
                 rt = f" → resolved to <b>{_esc(_humanize(d.get('resolved_to')))}</b>" if d.get("resolved_to") else ""
                 rows.append(f"<div><b>{_esc(src)}</b>: {note}{rt}</div>")
             dhtml = f"<div class='cfp-dissent'><span class='dhead'>⚠ Dissent</span>{''.join(rows)}</div>"
@@ -2923,6 +2950,7 @@ def _signal_strip_svg(rows, deciding_short) -> str:
 
 # reuse the text backend's shape-tolerant summarizers (single source, no vocab drift).
 from .text import (  # noqa: E402
+    _arg_summary,
     _chip_summary,
     _confidence_summary,
     _humanize,
