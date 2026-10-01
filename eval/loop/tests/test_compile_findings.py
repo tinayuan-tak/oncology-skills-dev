@@ -203,3 +203,37 @@ def test_emit_updates_open_and_skips_closed(tmp_path):
     # the OPEN one got a comment; the CLOSED one did not; nothing was created
     assert any(c[0] == "issue" and c[1] == "comment" and "11" in c for c in gh.calls)
     assert not any(c[0] == "issue" and c[1] == "create" for c in gh.calls)
+
+
+def test_iter_filter_scopes_to_one_run(tmp_path):
+    root = _sweep_dir(tmp_path)  # writes iter-001 and iter-002
+    both = CF.compile_sweep(root)
+    assert both["n_runs"] == 2
+    one = CF.compile_sweep(root, iters=["iter-002"])
+    assert one["n_runs"] == 1
+    assert {r["iteration_id"] for r in one["runs"]} == {"iter-002"}
+    # only iter-002's findings survive (iter-001's recurring/killed ones are gone)
+    kinds = {g["kind"] for g in one["findings"]}
+    assert "class_not_supported_by_datum" not in kinds  # that one was only in iter-001
+
+
+def test_since_filter_drops_older_runs(tmp_path):
+    root = tmp_path / "iterations"
+    r_old = _report(
+        "functional-requirement",
+        "iter-old",
+        "aaaaaaaa",
+        [_finding("surface_unused_signal", "L2b.x", ["l2a.x"], (CF.T2, "S3"), pair=("KRAS", "COADREAD"))],
+    )
+    r_old["generated_at"] = "2026-09-01T00:00:00Z"
+    r_new = _report(
+        "functional-requirement",
+        "iter-new",
+        "bbbbbbbb",
+        [_finding("surface_unused_signal", "L2b.y", ["l2a.y"], (CF.T2, "S3"), pair=("EGFR", "LUAD"))],
+    )
+    r_new["generated_at"] = "2026-10-01T00:00:00Z"
+    _write(root, r_old)
+    _write(root, r_new)
+    kept = CF.compile_sweep(root, since="2026-09-15T00:00:00Z")
+    assert {r["iteration_id"] for r in kept["runs"]} == {"iter-new"}

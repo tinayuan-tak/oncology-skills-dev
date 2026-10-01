@@ -38,7 +38,7 @@ import json
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable, Iterable, Optional
 
 SCHEMA_VERSION = "1.0"
 
@@ -241,16 +241,30 @@ def _rank_key(g: IssueCandidate):
     return (_TIER_RANK.get(g.max_tier, 0), len(g.pairs), worst_sev)
 
 
-def compile_sweep(iterations_root: "Path | str", skill: "str | None" = None) -> dict:
+def compile_sweep(
+    iterations_root: "Path | str",
+    skill: "str | None" = None,
+    iters: "Optional[Iterable[str]]" = None,
+    since: "str | None" = None,
+) -> dict:
     """Read every (filtered) iteration_report under ``iterations_root`` → the sweep digest:
-    ``runs`` (the log of runs) + ``findings`` (ranked, deduplicated issue candidates / log rows)."""
+    ``runs`` (the log of runs) + ``findings`` (ranked, deduplicated issue candidates / log rows).
+
+    ``iters`` restricts to specific ``iteration_id``s (so a real ``--open`` can be scoped to one fresh,
+    pair-attributed run — e.g. not the older un-attributed samples); ``since`` keeps only runs whose
+    ``generated_at`` is lexicographically >= the given ISO timestamp (ISO-8601 UTC sorts as a string)."""
     paths = iter_report_paths(iterations_root, skill=skill)
+    iters_set = set(iters) if iters else None
     runs: list[dict] = []
     instances: list[dict] = []
     for p in paths:
         try:
             report = json.loads(p.read_text())
         except (OSError, ValueError):
+            continue
+        if iters_set is not None and (report.get("iteration_id") or "") not in iters_set:
+            continue
+        if since and (report.get("generated_at") or "") < since:
             continue
         dev = report.get("dev") or {}
         runs.append(
@@ -458,6 +472,14 @@ def _cli(argv: "Optional[list[str]]" = None) -> int:
     ap = argparse.ArgumentParser(description="Compile subskill-loop findings across runs; optionally emit issues.")
     ap.add_argument("--iterations-root", type=Path, default=Path(__file__).resolve().parent / "iterations")
     ap.add_argument("--skill", default=None, help="restrict to one skill's iteration dir")
+    ap.add_argument(
+        "--iter",
+        dest="iters",
+        action="append",
+        default=None,
+        help="restrict to specific iteration_id(s) (repeatable) — scope a real --open to one fresh run",
+    )
+    ap.add_argument("--since", default=None, help="keep only runs with generated_at >= this ISO-8601 UTC timestamp")
     ap.add_argument("--out-dir", type=Path, default=Path(__file__).resolve().parent / "sweeps" / "latest")
     ap.add_argument(
         "--open", dest="open_issues", action="store_true", help="emit/update GitHub issues (else digest-only)"
@@ -466,7 +488,7 @@ def _cli(argv: "Optional[list[str]]" = None) -> int:
     ap.add_argument("--yes", action="store_true", help="actually write issues (default with --open is a dry-run plan)")
     args = ap.parse_args(argv)
 
-    digest = compile_sweep(args.iterations_root, skill=args.skill)
+    digest = compile_sweep(args.iterations_root, skill=args.skill, iters=args.iters, since=args.since)
     jp, mp = write_digest(digest, args.out_dir)
     print(
         f"compiled {digest['n_runs']} run(s), {digest['n_findings_unique']} unique finding(s), "
