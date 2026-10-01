@@ -515,3 +515,73 @@ def test_ground_axis_true_dry_query_has_no_insufficient_relevant_flag(tmp_path, 
     assert grounded["n_on_signal"] == 0
     assert grounded["n_retrieved"] == 0
     assert "insufficient_relevant_evidence" not in grounded
+    # a MOCKED retr dict carries no "lanes" key -> the outage flag must stay silent (we have no evidence
+    # this was an outage rather than a legitimate offline/pure-unit-test double)
+    assert "retrieval_unavailable" not in grounded
+
+
+# =============================== retrieval-outage signal (#2391) ===============================
+def test_ground_axis_flags_retrieval_unavailable_when_all_lanes_errored(tmp_path, monkeypatch):
+    # a total retrieval-infrastructure outage (every instrumented lane errored, nothing retrieved) must
+    # be distinguishable from a genuine null finding — both would otherwise land on findings: [] with no
+    # other signal (the motivating failure mode of #2391).
+    def _outage(target, indication, axis, **k):
+        return {
+            "kept": [],
+            "dropped": [],
+            "n_on_signal": 0,
+            "lanes": {"pubtator": "error", "ot_floor": "error", "europepmc": "error"},
+        }
+
+    monkeypatch.setattr(ga.rl, "retrieve_axis", _outage)
+    monkeypatch.setattr(
+        ga, "synthesize_structured", lambda *a, **k: (_ for _ in ()).throw(AssertionError("no model call"))
+    )
+    rec = ga.ground_axis("GENE", "some-indication", _write_pkg(tmp_path), axis="safety")
+    grounded = rec["grounded"]
+    assert grounded["retrieval_unavailable"] is True
+    assert grounded["corpus_pin"]["lanes"] == {"pubtator": "error", "ot_floor": "error", "europepmc": "error"}
+
+
+def test_ground_axis_does_not_flag_outage_when_any_lane_ok(tmp_path, monkeypatch):
+    # a partial outage (one lane up) must NOT trip the outage flag — the other lanes stand, so a clean
+    # findings: [] here is a legitimate (if thin) null, not an infrastructure failure.
+    def _partial(target, indication, axis, **k):
+        return {
+            "kept": [],
+            "dropped": [],
+            "n_on_signal": 0,
+            "lanes": {"pubtator": "error", "ot_floor": "ok", "europepmc": "error"},
+        }
+
+    monkeypatch.setattr(ga.rl, "retrieve_axis", _partial)
+    monkeypatch.setattr(
+        ga, "synthesize_structured", lambda *a, **k: (_ for _ in ()).throw(AssertionError("no model call"))
+    )
+    rec = ga.ground_axis("GENE", "some-indication", _write_pkg(tmp_path), axis="safety")
+    grounded = rec["grounded"]
+    assert "retrieval_unavailable" not in grounded
+    assert grounded["corpus_pin"]["lanes"]["ot_floor"] == "ok"
+
+
+def test_ground_axis_does_not_flag_outage_when_abstracts_were_retrieved(tmp_path, monkeypatch):
+    # defensive: even if every lane were somehow marked "error" (shouldn't happen alongside real
+    # abstracts, but don't let a corpus_pin audit field override the real retrieved-evidence signal), a
+    # non-empty retrieved set must never be relabeled an outage.
+    def _has_abstracts_but_mislabeled_lanes(target, indication, axis, **k):
+        return {
+            "kept": [_GAb("111")],
+            "dropped": [],
+            "n_on_signal": 1,
+            "lanes": {"pubtator": "error", "ot_floor": "error", "europepmc": "error"},
+        }
+
+    monkeypatch.setattr(ga.rl, "retrieve_axis", _has_abstracts_but_mislabeled_lanes)
+    monkeypatch.setattr(
+        ga,
+        "synthesize_structured",
+        lambda *a, **k: {"findings": [], "corroborations": [], "contradicts_deterministic": False, "notes": ""},
+    )
+    rec = ga.ground_axis("GENE", "some-indication", _write_pkg(tmp_path), axis="safety")
+    grounded = rec["grounded"]
+    assert "retrieval_unavailable" not in grounded

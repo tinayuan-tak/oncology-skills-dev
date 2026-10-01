@@ -526,6 +526,9 @@ def ground_axis(
         )
     else:
         out = {"findings": [], "corroborations": [], "contradicts_deterministic": False, "notes": None}
+    # #2391: per-lane ok/error outcome (pubtator/ot_floor/europepmc), threaded through from
+    # retrieval_lanes.retrieve_axis — carried into corpus_pin as the retrieval-outage audit trail.
+    lanes = retr.get("lanes", {}) or {}
     grounded = build_grounded_block(
         det,
         out,
@@ -535,6 +538,7 @@ def ground_axis(
             "maxdate": maxdate,
             "retrieval": rl.RETRIEVAL_LABEL,
             "relevance_dropped": retr["dropped"],
+            "lanes": lanes,
         },
         n_retrieved=len(abstracts),
     )
@@ -543,6 +547,13 @@ def ground_axis(
     # sees the abstain was an active relevance decision, not an absence of any retrieval at all.
     if not n_on_signal and abstracts:
         grounded["insufficient_relevant_evidence"] = True
+    # #2391: a total retrieval-infrastructure outage (every INSTRUMENTED lane errored, nothing retrieved
+    # at all) is byte-shape-indistinguishable from a genuine null finding (both land here with
+    # findings: []) unless flagged. Only fires when `lanes` is non-empty (i.e. this run actually went
+    # through the live retriever, not an offline-mocked retr dict) and nothing was retrieved — a run with
+    # SOME abstracts in hand (even off-signal) is a real (if thin) result, not an outage.
+    if lanes and all(v == "error" for v in lanes.values()) and not abstracts:
+        grounded["retrieval_unavailable"] = True
     return {"axis": axis, "deterministic": det, "grounded": grounded}
 
 

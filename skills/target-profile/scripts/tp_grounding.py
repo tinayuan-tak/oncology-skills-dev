@@ -124,6 +124,7 @@ def auto_ground(
     ground_fn: Optional[Callable] = None,
     mindate: str = "2015",
     maxdate: str = "2026",
+    failed: Optional[dict] = None,
 ) -> dict:
     """Run ground_axis for each axis over the assembled evidence package, writing grounded_<axis>.json
     into out_dir and returning {axis: record}. `ground_fn` is injectable for offline testing
@@ -131,7 +132,13 @@ def auto_ground(
 
     BEST-EFFORT per axis: a failing axis is logged + skipped; the others still produce records. Records
     are the full {axis, deterministic, grounded} shape both the HTML renderer (grounded_by_axis) and the
-    --substrate consumers (parse_grounded_substrate) accept."""
+    --substrate consumers (parse_grounded_substrate) accept.
+
+    `failed` (optional, #2391): a mutable dict this call fills with {axis: "ExceptionType: message"} for
+    every axis that raised or returned a non-dict — the PRODUCED set alone cannot distinguish "this axis
+    was never requested" from "this axis died mid-flight", so a caller that wants the distinction (run.py
+    provenance) passes a dict and reads it back after the call. Back-compat: `failed=None` (default) is a
+    silent no-op, matching every pre-#2391 caller/test."""
     gf = ground_fn or _default_ground_fn()
     out_dir = Path(out_dir)
     produced: dict = {}
@@ -143,9 +150,13 @@ def auto_ground(
                 f"[target-profile] WARN: grounding axis {ax!r} failed ({type(e).__name__}: {e}); skipping",
                 file=sys.stderr,
             )
+            if failed is not None:
+                failed[ax] = f"{type(e).__name__}: {e}"
             continue
         if not isinstance(rec, dict):
             print(f"[target-profile] WARN: grounding axis {ax!r} returned non-dict; skipping", file=sys.stderr)
+            if failed is not None:
+                failed[ax] = "non-dict return"
             continue
         rec.setdefault("axis", ax)
         (out_dir / f"grounded_{ax}.json").write_text(json.dumps(rec, indent=2, default=str))

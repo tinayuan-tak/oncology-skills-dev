@@ -130,6 +130,39 @@ def test_auto_ground_is_best_effort_one_bad_axis_skipped(tmp_path):
     assert not (tmp_path / "grounded_selectivity.json").exists()
 
 
+def test_auto_ground_stamps_failed_axes_when_requested(tmp_path):
+    # #2391: a `failed` out-dict lets the caller (run.py provenance) tell a REQUESTED-but-DIED axis
+    # apart from a never-requested one — `produced` alone collapses both to "absent".
+    def gf(target, indication, pkg_path, *, axis, mindate, maxdate):
+        if axis == "dependency":
+            raise RuntimeError("Bedrock unavailable")
+        if axis == "selectivity":
+            return "not a dict"
+        return _fake_rec(axis)
+
+    pkg = tmp_path / "evidence_package.json"
+    pkg.write_text("{}")
+    failed: dict = {}
+    produced = tg.auto_ground(
+        "KRAS", "COADREAD", pkg, tmp_path, ["safety", "dependency", "selectivity"], ground_fn=gf, failed=failed
+    )
+    assert set(produced) == {"safety"}
+    assert set(failed) == {"dependency", "selectivity"}
+    assert "RuntimeError" in failed["dependency"]
+    assert failed["selectivity"] == "non-dict return"
+
+
+def test_auto_ground_failed_defaults_to_none_is_a_silent_noop(tmp_path):
+    # back-compat: every pre-#2391 caller never passes `failed` — must not raise, must not require it.
+    def gf(target, indication, pkg_path, *, axis, mindate, maxdate):
+        raise RuntimeError("boom")
+
+    pkg = tmp_path / "evidence_package.json"
+    pkg.write_text("{}")
+    produced = tg.auto_ground("KRAS", "COADREAD", pkg, tmp_path, ["safety"], ground_fn=gf)
+    assert produced == {}
+
+
 def test_produced_record_is_consumable_by_substrate_parser(tmp_path):
     """The produced record must be accepted by the hypothesis's parse_grounded_substrate (the
     --substrate contract) — proving the fanout output feeds [3B] natively without reshaping."""

@@ -632,6 +632,12 @@ def main() -> int:
         except Exception as e:  # noqa: BLE001
             print(f"[target-profile] WARN: could not read --risk-rollup: {e}", file=sys.stderr)
     grounded_by_axis: dict = {}
+    # #2391: requested-vs-produced-vs-failed axes provenance. `grounded_axes` (= sorted(grounded_by_axis))
+    # alone is the PRODUCED set only — indistinguishable between "a deliberately narrow --ground run" and
+    # "3 of 6 axes died mid-flight". Populated by whichever auto_ground call site actually runs below
+    # (pre-synthesis early-grounding XOR the post-gate pass; #1279 guards them to be mutually exclusive).
+    grounded_axes_requested: list = []
+    grounded_axes_failed: dict = {}
     if args.grounded_dir and Path(args.grounded_dir).is_dir():
         for gp in sorted(Path(args.grounded_dir).glob("grounded_*.json")):
             try:
@@ -1003,8 +1009,17 @@ def main() -> int:
                     json.dump(assemble_risk_package(sub_results), _tf, default=str)
                     _lean_pkg = _tf.name
                 try:
+                    _resolved_axes = resolve_axes(ground_spec)
+                    grounded_axes_requested = list(_resolved_axes)
                     grounded_by_axis.update(
-                        auto_ground(args.target, _ground_ind, _lean_pkg, args.out, resolve_axes(ground_spec))
+                        auto_ground(
+                            args.target,
+                            _ground_ind,
+                            _lean_pkg,
+                            args.out,
+                            _resolved_axes,
+                            failed=grounded_axes_failed,
+                        )
                     )
                 finally:
                     os.unlink(_lean_pkg)
@@ -1363,12 +1378,13 @@ def main() -> int:
             from tp_grounding import auto_ground, resolve_axes
 
             axes = resolve_axes(ground_spec)
+            grounded_axes_requested = list(axes)
             print(
                 f"[target-profile] auto-grounding axes {axes} over {ep_path.name} "
                 f"(indication term {ground_ind!r}; verdict-inert)...",
                 file=sys.stderr,
             )
-            produced = auto_ground(args.target, ground_ind, ep_path, args.out, axes)
+            produced = auto_ground(args.target, ground_ind, ep_path, args.out, axes, failed=grounded_axes_failed)
             grounded_by_axis.update(produced)
             print(
                 f"[target-profile] auto-grounded {sorted(produced)} → grounded_<axis>.json in {args.out}",
@@ -1703,6 +1719,12 @@ def main() -> int:
         # files (grounded_axes: [] + artifacts omitted) even though they exist in --out and feed the
         # inline render + risk_rollup/hypothesis. Report what was produced. Verdict-inert.
         "grounded_axes": sorted(grounded_by_axis),
+        # #2391: the REQUESTED set (resolved from --ground / the default engine axes, whichever
+        # auto_ground call site ran) and the explicit FAILED-mid-flight set, so a run where 3 of 6 axes
+        # died is distinguishable from a deliberately narrow --ground run — both previously reported
+        # identically via `grounded_axes` alone (the produced set only).
+        "grounded_axes_requested": sorted(grounded_axes_requested),
+        "grounded_axes_failed": dict(sorted(grounded_axes_failed.items())),
     }
     write_artifact(args.out, "provenance", yaml.safe_dump(provenance, sort_keys=False), _written)
 

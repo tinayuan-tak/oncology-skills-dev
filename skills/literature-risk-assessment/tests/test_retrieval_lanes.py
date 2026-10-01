@@ -48,7 +48,7 @@ def test_retrieve_axis_abstracts_threads_axis_and_efetches(monkeypatch):
 
     seen = {}
 
-    def fake_retrieve(target, disease_terms, axis, *, per_cat, mindate, maxdate, indication=""):
+    def fake_retrieve(target, disease_terms, axis, *, per_cat, mindate, maxdate, indication="", status=None):
         seen.update(dict(target=target, axis=axis, disease_terms=disease_terms, indication=indication))
         return ["111", "222"]
 
@@ -72,6 +72,87 @@ def test_retrieve_axis_abstracts_empty_pmids_no_efetch(monkeypatch):
     monkeypatch.setattr(rl, "_retrieve_pmids", lambda *a, **k: [])
     monkeypatch.setattr(ps, "_efetch_abstracts", lambda *a, **k: (_ for _ in ()).throw(AssertionError("no efetch")))
     assert rl.retrieve_axis_abstracts("KRAS", "COADREAD", "safety") == []
+
+
+# ===================== per-lane outage signal (#2391) =====================
+def test_ot_floor_pmids_marks_ok_on_success_even_when_empty(monkeypatch):
+    import onc_methods.opentargets_literature_floor.read as reader  # noqa: F401
+
+    monkeypatch.setattr(reader, "read_literature_floor", lambda *a, **k: {"pmids": []})
+    status = {}
+    out = rl._ot_floor_pmids("KRAS", "COADREAD", 5, status=status)
+    assert out == []
+    assert status["ot_floor"] == "ok"  # a clean empty result is NOT an error
+
+
+def test_ot_floor_pmids_marks_error_on_exception(monkeypatch):
+    import onc_methods.opentargets_literature_floor.read as reader
+
+    def _boom(*a, **k):
+        raise RuntimeError("floor unavailable")
+
+    monkeypatch.setattr(reader, "read_literature_floor", _boom)
+    status = {}
+    out = rl._ot_floor_pmids("KRAS", "COADREAD", 5, status=status)
+    assert out == []
+    assert status["ot_floor"] == "error"
+
+
+def test_europepmc_pmids_marks_ok_and_error(monkeypatch):
+    import _skills_common.literature_retrieval as litret
+
+    monkeypatch.setattr(litret, "_search", lambda *a, **k: {"resultList": {"result": []}})
+    status = {}
+    assert rl._europepmc_pmids("q", retmax=5, status=status) == []
+    assert status["europepmc"] == "ok"
+
+    def _boom(*a, **k):
+        raise RuntimeError("EPMC outage")
+
+    monkeypatch.setattr(litret, "_search", _boom)
+    status2 = {}
+    assert rl._europepmc_pmids("q", retmax=5, status=status2) == []
+    assert status2["europepmc"] == "error"
+
+
+def test_mark_lane_does_not_downgrade_ok_to_error():
+    # the entity lane calls pubtator_pmids TWICE (tight + broad angle); one success anywhere in the
+    # lane must win over a later/earlier failure, not get silently clobbered back to "error".
+    status = {}
+    rl._mark_lane(status, "pubtator", ok=True)
+    rl._mark_lane(status, "pubtator", ok=False)
+    assert status["pubtator"] == "ok"
+    status2 = {}
+    rl._mark_lane(status2, "pubtator", ok=False)
+    rl._mark_lane(status2, "pubtator", ok=True)
+    assert status2["pubtator"] == "ok"
+
+
+def test_mark_lane_tolerates_no_status_dict():
+    # status=None is the default at every call site that doesn't care — must be a silent no-op
+    assert rl._mark_lane(None, "pubtator", ok=True) is None
+
+
+def test_retrieve_axis_returns_lanes_dict(monkeypatch):
+    import pubmed_search as ps
+
+    def fake_retrieve(target, disease_terms, axis, *, per_cat, mindate, maxdate, indication="", status=None):
+        if status is not None:
+            status["pubtator"] = "ok"
+            status["ot_floor"] = "error"
+            status["europepmc"] = "ok"
+        return ["111"]
+
+    monkeypatch.setattr(rl, "_retrieve_pmids", fake_retrieve)
+    monkeypatch.setattr(
+        ps,
+        "_efetch_abstracts",
+        lambda pmids, *, category, timeout_s: [
+            ps.PubMedAbstract(pmid=p, title="t", abstract="a", journal="j", year=2021, category=category) for p in pmids
+        ],
+    )
+    out = rl.retrieve_axis("KRAS", "COADREAD", "safety", per_cat=5)
+    assert out["lanes"] == {"pubtator": "ok", "ot_floor": "error", "europepmc": "ok"}
 
 
 def test_ground_axis_reexports_are_identical():

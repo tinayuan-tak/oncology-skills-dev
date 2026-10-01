@@ -164,35 +164,60 @@ def _keyword_angles(target: str, disease_terms: str, axis: str, mesh_clause, *, 
     return angles
 
 
+def _mark_lane(status: "dict | None", key: str, *, ok: bool) -> None:
+    """Record this lane's outcome into the caller's shared status dict (#2391: a retrieval-infrastructure
+    outage was byte-shape-indistinguishable from "the literature genuinely has nothing" — all three lanes
+    swallowed every error to an empty list with no signal). `status` is None for every call site that
+    does not care (back-compat, zero overhead)."""
+    if status is None:
+        return
+    if ok:
+        status[key] = "ok"
+    else:
+        status.setdefault(key, "error")
+
+
 # ── live lanes ────────────────────────────────────────────────────────────────────────────────────
-def _ot_floor_pmids(target: str, indication: str, per_cat: int, axis_terms: str = "") -> list:
+def _ot_floor_pmids(
+    target: str, indication: str, per_cat: int, axis_terms: str = "", status: "dict | None" = None
+) -> list:
     """OT reproducible-floor lane (best-effort): the pinned, offline, entity-normalized literature floor
     (analysis-methods opentargets_literature_floor over opentargets-literature-per-target-v2). Never-empty
     and collision-free where the live keyword lane starves/mis-retrieves; if analysis-methods is
-    unavailable it contributes nothing. `axis_terms` re-ranks the floor's rows by axis relevance."""
+    unavailable it contributes nothing. `axis_terms` re-ranks the floor's rows by axis relevance.
+    `status` (optional, #2391) records the ot_floor lane's ok/error outcome — a successful call that
+    legitimately returns zero pmids is still "ok"; only an exception marks "error"."""
     try:
         from onc_methods.opentargets_literature_floor.read import read_literature_floor
 
-        return list(
+        out = list(
             read_literature_floor(target, indication, top_n=per_cat, axis_terms=axis_terms or None).get("pmids", [])
             or []
         )
+        _mark_lane(status, "ot_floor", ok=True)
+        return out
     except TypeError:  # older reader without axis_terms — degrade gracefully
         try:
             from onc_methods.opentargets_literature_floor.read import read_literature_floor
 
-            return list(read_literature_floor(target, indication, top_n=per_cat).get("pmids", []) or [])
+            out = list(read_literature_floor(target, indication, top_n=per_cat).get("pmids", []) or [])
+            _mark_lane(status, "ot_floor", ok=True)
+            return out
         except Exception:  # noqa: BLE001
+            _mark_lane(status, "ot_floor", ok=False)
             return []
     except Exception:  # noqa: BLE001 — best-effort; missing method/product must not break grounding
+        _mark_lane(status, "ot_floor", ok=False)
         return []
 
 
-def _europepmc_pmids(query: str, *, retmax: int) -> list:
+def _europepmc_pmids(query: str, *, retmax: int, status: "dict | None" = None) -> list:
     """Europe PMC lane (best-effort): numeric PMIDs for a query. Reuses Stack A's shared `_search` REST
     wrapper (result_type='lite' → pmid+title). Complements PubMed abstract-only recall with EPMC's
     full-text + preprint index; only MED-sourced records carry a numeric PMID (NCBI-efetch-able), so
-    preprint/PPR ids are dropped. HAS_ABSTRACT:Y keeps the hit graded on real abstract text."""
+    preprint/PPR ids are dropped. HAS_ABSTRACT:Y keeps the hit graded on real abstract text. `status`
+    (optional, #2391) records the europepmc lane's ok/error outcome — a successful call that legitimately
+    returns zero pmids is still "ok"; only an exception marks "error"."""
     try:
         from _skills_common.literature_retrieval import _search
 
@@ -204,13 +229,23 @@ def _europepmc_pmids(query: str, *, retmax: int) -> list:
                 out.append(pmid)
             if len(out) >= retmax:
                 break
+        _mark_lane(status, "europepmc", ok=True)
         return out
     except Exception:  # noqa: BLE001 — best-effort; EPMC outage / import failure contributes nothing
+        _mark_lane(status, "europepmc", ok=False)
         return []
 
 
 def _retrieve_pmids(
-    target: str, disease_terms: str, axis: str, *, per_cat: int, mindate: str, maxdate: str, indication: str = ""
+    target: str,
+    disease_terms: str,
+    axis: str,
+    *,
+    per_cat: int,
+    mindate: str,
+    maxdate: str,
+    indication: str = "",
+    status: "dict | None" = None,
 ) -> list:
     """Round-robin union of FOUR lanes, each submitting engine-aware query ANGLES (union'd).
 
@@ -219,27 +254,32 @@ def _retrieve_pmids(
     - keyword lane (E-utilities): tight + MeSH-anchored disease (else broad). Complementary to the entity lane.
     - Europe PMC lane: tight + broad (NO MeSH — [MeSH Terms] is PubMed syntax, breaks EPMC); full-text +
       preprint index complements PubMed abstract-only recall.
-    All lanes best-effort. Query/dedup/interleave logic is pure and unit-tested."""
+    All lanes best-effort. Query/dedup/interleave logic is pure and unit-tested. `status` (optional,
+    #2391) is a mutable dict this call fills with each INSTRUMENTED lane's ok/error outcome
+    ({"pubtator": ..., "ot_floor": ..., "europepmc": ...}) — the keyword/E-utilities lane is not
+    instrumented (out of this issue's scope); see corpus_pin.lanes for the audit trail."""
     import entity_search as es
     import pubmed_search as ps
 
     terms, disease_scoped = AXIS_PUBMED_TERMS.get(axis, ("", True))
 
     # -- entity lane (PubTator): tight + broad angles, unioned
-    gene_clause = es.resolve_gene_entity(target) or f"({target})"
+    gene_clause = es.resolve_gene_entity(target, status=status) or f"({target})"
     pt = _dedup(
         es.pubtator_pmids(
             es.entity_axis_query(gene_clause, disease_terms, terms, disease_scoped=disease_scoped, broad=False),
             retmax=per_cat,
+            status=status,
         )
         + es.pubtator_pmids(
             es.entity_axis_query(gene_clause, disease_terms, terms, disease_scoped=disease_scoped, broad=True),
             retmax=per_cat,
+            status=status,
         )
     )
 
     # -- OT reproducible-floor lane (offline, entity-normalized, axis-re-ranked; pinned OT release)
-    ot = _ot_floor_pmids(target, indication, per_cat, axis_terms=terms)
+    ot = _ot_floor_pmids(target, indication, per_cat, axis_terms=terms, status=status)
 
     # -- keyword lane (E-utilities): tight + a COMPLEMENTARY 2nd angle (MeSH-anchored, else broad)
     mesh = _mesh_disease_clause(indication) if disease_scoped else None
@@ -250,7 +290,7 @@ def _retrieve_pmids(
     # -- Europe PMC lane: tight + broad angles (no MeSH clause — that is PubMed-only syntax)
     ep = []
     for q in (_axis_query(target, disease_terms, axis), _axis_query(target, disease_terms, axis, broad=True)):
-        ep = _dedup(ep + _europepmc_pmids(q, retmax=per_cat))
+        ep = _dedup(ep + _europepmc_pmids(q, retmax=per_cat, status=status))
 
     return _interleave(list(pt), list(ot), list(kw), list(ep))[:MAX_RETRIEVED]
 
@@ -354,23 +394,34 @@ def retrieve_axis(
 ) -> dict:
     """HIGH-LEVEL seam used by BOTH ground_axis.py and run.py: resolve the disease vocabulary, run the
     3-lane union, efetch, then apply the Stage-2 relevance gate. Returns
-    {"kept": [PubMedAbstract...], "dropped": [{pmid, reason}...], "n_on_signal": int} — `dropped` is the
-    corpus-pin audit trail of off-topic abstracts the gate removed, and `n_on_signal` is the number of
-    abstracts that passed the target ∧ (axis ∨ indication) conjunction BEFORE the starvation floor
-    backfilled off-signal literature. A caller's null-discipline gate must key on `n_on_signal`, not
-    `len(kept)`: with `n_on_signal == 0` the whole kept set is backfilled off-signal (no relevant
-    evidence) and the dimension must abstain (`not_assessed`), not be graded (issue #1613). One function
-    to monkeypatch in offline tests."""
+    {"kept": [PubMedAbstract...], "dropped": [{pmid, reason}...], "n_on_signal": int, "lanes": dict} —
+    `dropped` is the corpus-pin audit trail of off-topic abstracts the gate removed, `n_on_signal` is the
+    number of abstracts that passed the target ∧ (axis ∨ indication) conjunction BEFORE the starvation
+    floor backfilled off-signal literature, and `lanes` (#2391) is the per-lane ok/error outcome
+    ({"pubtator": ..., "ot_floor": ..., "europepmc": ...}) — a caller can tell a retrieval-infrastructure
+    outage (every instrumented lane errored) apart from a genuine null (lanes ran fine, just found
+    nothing). A caller's null-discipline gate must key on `n_on_signal`, not `len(kept)`: with
+    `n_on_signal == 0` the whole kept set is backfilled off-signal (no relevant evidence) and the
+    dimension must abstain (`not_assessed`), not be graded (issue #1613). One function to monkeypatch in
+    offline tests."""
     import pubmed_search as ps
 
     disease_terms = resolve_disease_terms(indication)
+    lanes: dict = {}
     pmids = _retrieve_pmids(
-        target, disease_terms, axis, per_cat=per_cat, mindate=mindate, maxdate=maxdate, indication=indication
+        target,
+        disease_terms,
+        axis,
+        per_cat=per_cat,
+        mindate=mindate,
+        maxdate=maxdate,
+        indication=indication,
+        status=lanes,
     )
     abstracts = ps._efetch_abstracts(pmids, category=axis, timeout_s=30.0) if pmids else []
     on_signal, _off = _partition_on_signal(abstracts, target, axis, disease_terms=disease_terms)
     kept, dropped = relevance_filter(abstracts, target, axis, disease_terms=disease_terms, floor=relevance_floor)
-    return {"kept": kept, "dropped": dropped, "n_on_signal": len(on_signal)}
+    return {"kept": kept, "dropped": dropped, "n_on_signal": len(on_signal), "lanes": lanes}
 
 
 def retrieve_axis_abstracts(

@@ -35,10 +35,28 @@ _DELAY = 0.34  # stay well under NCBI's 3 req/s
 _RETRYABLE_STATUS = frozenset({429, 500, 502, 503, 504})
 
 
-def _get_json(url: str, *, timeout_s: float, max_retries: int = 3):
+def _mark_lane(status: "dict | None", key: str, *, ok: bool) -> None:
+    """Record this lane's outcome into the caller's shared status dict (best-effort retrieval-outage
+    signal, issue #2391). `status` is None for every call site that does not care (back-compat, zero
+    overhead). A lane is "ok" if ANY call into it succeeded (direct assignment wins); it is only left
+    "error" when EVERY call failed (`setdefault` never downgrades a prior "ok")."""
+    if status is None:
+        return
+    if ok:
+        status[key] = "ok"
+    else:
+        status.setdefault(key, "error")
+
+
+def _get_json(
+    url: str, *, timeout_s: float, max_retries: int = 3, status: "dict | None" = None, status_key: str = "pubtator"
+):
     """Best-effort GET → parsed JSON with bounded exponential backoff on transient HTTP 429/5xx and
     connection errors (PubTator3 rate-limits under load). Returns the decoded JSON, or None on a
-    non-transient error or after retries are exhausted — callers already degrade to keyword search."""
+    non-transient error or after retries are exhausted — callers already degrade to keyword search.
+    When `status` is given, records this lane's ok/error outcome under `status_key` (#2391: a retrieval
+    outage was byte-shape-indistinguishable from a genuine empty result; this is the signal that
+    distinguishes them)."""
     delay = 1.0
     for attempt in range(max_retries + 1):
         try:
@@ -46,15 +64,19 @@ def _get_json(url: str, *, timeout_s: float, max_retries: int = 3):
             with urllib.request.urlopen(req, timeout=timeout_s) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
             time.sleep(_DELAY)
+            _mark_lane(status, status_key, ok=True)
             return data
         except urllib.error.HTTPError as e:
             if e.code not in _RETRYABLE_STATUS or attempt >= max_retries:
+                _mark_lane(status, status_key, ok=False)
                 return None
         except Exception:  # noqa: BLE001 — connection/JSON error: retry a bounded number of times
             if attempt >= max_retries:
+                _mark_lane(status, status_key, ok=False)
                 return None
         time.sleep(delay)
         delay *= 2
+    _mark_lane(status, status_key, ok=False)
     return None
 
 
@@ -98,19 +120,23 @@ def entity_axis_query(
 
 
 # --------------------------------------------------------------- network -----
-def resolve_gene_entity(symbol: str, *, timeout_s: float = _TIMEOUT) -> str | None:
-    """symbol -> '@GENE_<entrez>' via PubTator autocomplete; None on miss/error."""
+def resolve_gene_entity(symbol: str, *, timeout_s: float = _TIMEOUT, status: "dict | None" = None) -> str | None:
+    """symbol -> '@GENE_<entrez>' via PubTator autocomplete; None on miss/error. `status` (optional,
+    #2391) records the pubtator lane's ok/error outcome — a transport failure (data is None) is an
+    error; a clean response with no matching entity is a legitimate miss, still "ok"."""
     q = urllib.parse.urlencode({"query": symbol, "concept": "gene", "limit": 10})
-    data = _get_json(f"{PUBTATOR_BASE}/entity/autocomplete/?{q}", timeout_s=timeout_s)
+    data = _get_json(f"{PUBTATOR_BASE}/entity/autocomplete/?{q}", timeout_s=timeout_s, status=status)
     if data is None:
         return None
     return _pick_gene_entity(data if isinstance(data, list) else data.get("results", []), symbol)
 
 
-def pubtator_pmids(query: str, *, retmax: int, timeout_s: float = _TIMEOUT) -> list[str]:
-    """Entity-aware relevance search -> list of PubMed PMIDs (numeric only)."""
+def pubtator_pmids(query: str, *, retmax: int, timeout_s: float = _TIMEOUT, status: "dict | None" = None) -> list[str]:
+    """Entity-aware relevance search -> list of PubMed PMIDs (numeric only). `status` (optional, #2391)
+    records the pubtator lane's ok/error outcome — a transport failure is an error; a clean response with
+    zero hits is a legitimate empty result, still "ok"."""
     q = urllib.parse.urlencode({"text": query})
-    data = _get_json(f"{PUBTATOR_BASE}/search/?{q}", timeout_s=timeout_s)
+    data = _get_json(f"{PUBTATOR_BASE}/search/?{q}", timeout_s=timeout_s, status=status)
     if data is None:
         return []
     return _numeric_pmids(data.get("results") or [], retmax)
