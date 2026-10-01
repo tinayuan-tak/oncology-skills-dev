@@ -11,41 +11,29 @@ this repo are not style — they are one of the four ownership rules in that sec
 
 ## 0. Day-one setup (do this first, it fails confusingly otherwise)
 
-This repo is one of four siblings that must sit **next to each other on disk**:
+This repo is a **monorepo**: `methods/` (the code that computes numbers), `contracts/` (cards,
+rules, resolvers, schemas, vocabularies), and `skills/` all live **in-tree**. Only the dataset
+**data-catalog** is a separate sibling repo that sits next to this checkout:
 
 ```
 <parent>/
-├── rnd-computational-biology-oncology-claude-oncology-skills   ← you are here
-├── rnd-computational-biology-oncology-target-contracts         ← cards, rules, resolvers
-├── rnd-computational-biology-oncology-analysis-methods         ← the code that computes numbers
-└── rnd-computational-biology-oncology-data-catalog             ← dataset manifests + id resolver
+├── rnd-computational-biology-oncology-claude-oncology-skills   ← you are here (methods/ + contracts/ + skills/ in-tree)
+└── rnd-computational-biology-oncology-data-catalog             ← dataset manifests + id resolver (external sibling)
 ```
 
 ```bash
 git clone https://github.com/oneTakeda/rnd-computational-biology-oncology-claude-oncology-skills.git
-git clone https://github.com/oneTakeda/rnd-computational-biology-oncology-target-contracts.git
-git clone https://github.com/oneTakeda/rnd-computational-biology-oncology-analysis-methods.git
-git clone https://github.com/oneTakeda/rnd-computational-biology-oncology-data-catalog.git
-pixi install   # in claude-oncology-skills; ONE env for the whole repo, siblings as editable path deps
+git clone https://github.com/oneTakeda/rnd-computational-biology-oncology-data-catalog.git   # sibling, beside the repo
+pixi install   # in claude-oncology-skills; ONE env for the whole monorepo, data-catalog as an editable path dep
 ```
 
-> ⚠️ **The sibling roots are hard-coded to `/home/sagemaker-user/…`.**
-> [`skills/_skills_common/paths.py`](../skills/_skills_common/paths.py) defines
-> `TARGET_CONTRACTS_ROOT_DEFAULT` and `ANALYSIS_METHODS_ROOT_DEFAULT` as absolute paths under
-> `/home/sagemaker-user`. If your clones live anywhere else, export the overrides **before** running
-> anything, or every verdict lookup fails:
->
-> ```bash
-> export TARGET_CONTRACTS_ROOT=/your/path/rnd-computational-biology-oncology-target-contracts
-> export ANALYSIS_METHODS_ROOT=/your/path/rnd-computational-biology-oncology-analysis-methods
-> ```
->
-> The symptom is `RuntimeError: <gate> resolver spec missing
-> (target-contracts/resolvers/<gate>.resolver.yaml) — the verdict source of truth is absent.` That
-> message names the contracts repo, so it reads like a missing spec. Nine times out of ten on a
-> fresh machine it is an unset env var pointing `load_resolver` at a directory that does not exist.
-> Check `python -c "from _skills_common.paths import target_contracts_root as r; print(r().exists())"`
-> first.
+> **Resolution.** `methods/` and `contracts/` resolve **in-tree** — no env var or symlink needed:
+> `onc_methods.roots`, `oncology_target_contracts.loader`, and `_skills_common.paths` all derive
+> them from the repo root. Set `TARGET_CONTRACTS_ROOT` / `ANALYSIS_METHODS_ROOT` only to point
+> deliberately at a tree outside this checkout. `data-catalog` resolves to the sibling clone one
+> level above the repo root, or `DATA_CATALOG_ROOT` if exported. The analysis-methods /
+> target-contracts geometry symlinks were retired in N3-1 stage 4 (#2144); do not reintroduce a
+> dependency on them or on a hardcoded `/home/...` path.
 
 Also: after a SageMaker restart, `gh` (`~/.local/bin`) and `pixi` (`~/.pixi/bin`) drop off `PATH`.
 Re-export both before running a gate.

@@ -22,27 +22,23 @@ from pathlib import Path
 from typing import Optional
 
 _REGISTRY_ENV_VAR = "MEASUREMENT_TYPES_YAML"
-_REGISTRY_DEFAULT_RELATIVE = "rnd-computational-biology-oncology-target-contracts/vocabularies/measurement_types.yaml"
 
 
 def _resolve_registry_path() -> Optional[Path]:
-    """Find measurement_types.yaml. Priority: env var → cwd/$HOME/relative → walk up from here.
-    Returns None (not raise) if unfound, so the substrate helpers can graceful-skip."""
+    """Find measurement_types.yaml: MEASUREMENT_TYPES_YAML env override, else the target-contracts
+    root (TARGET_CONTRACTS_ROOT env, else the in-tree contracts/). Returns None (never raises) if
+    unfound, so the substrate helpers graceful-skip on a reachable-registry-absent checkout.
+
+    N3-1 #2144 stage 4: was a repo-root walk onto the retired rnd-...-target-contracts geometry
+    symlink + a Path.home() clone — which resolved on a dev box but NOT in a fresh CI checkout.
+    """
     env = os.environ.get(_REGISTRY_ENV_VAR)
     if env:
         return Path(env)
-    here = Path(__file__).resolve()
-    for parent in [here] + list(here.parents):
-        candidate = parent / _REGISTRY_DEFAULT_RELATIVE
-        if candidate.exists():
-            return candidate
-        alt = parent / "vocabularies" / "measurement_types.yaml"
-        if alt.exists():
-            return alt
-    for c in (Path.cwd() / _REGISTRY_DEFAULT_RELATIVE, Path.home() / _REGISTRY_DEFAULT_RELATIVE):
-        if c.exists():
-            return c
-    return None
+    from _skills_common.paths import target_contracts_root
+
+    p = target_contracts_root() / "vocabularies" / "measurement_types.yaml"
+    return p if p.exists() else None
 
 
 @lru_cache(maxsize=1)

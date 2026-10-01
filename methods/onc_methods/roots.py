@@ -6,16 +6,16 @@ blocks across ``methods/onc_methods/*/read.py`` and ``cli.py`` (surveyed 2026-09
 two functions. Behavior is UNCHANGED from every migrated call site: env var first (an empty env
 value falls through too, via ``or`` rather than ``os.environ.get(K, default)`` -- an empty string
 would otherwise resolve ``Path("")`` to the CWD, a plausible-looking wrong root), else the sibling
-checkout derived from THIS file's own location. This module does not change resolution semantics or
-retire the sibling symlinks -- that is the packaging epic's (#2144) stage 4; this only reduces the
-65 copies to one, so that later change becomes a one-file edit.
+in-tree / sibling tree derived from THIS file's own location.
 
-``N`` used to vary by caller depth (``parents[2]`` for a flat ``<module>/read.py``, ``parents[3]``
-for one nested one level deeper, e.g. ``dge_deseq2/read/__init__.py``) -- both walks land on the
-SAME directory in practice (the analysis-methods repo root's parent), because they were counting
-up from different starting depths to the same target. Anchored here, from ``methods/roots.py``
-itself, the walk is fixed at ``parents[1]`` (this package dir's parent, i.e. the analysis-methods
-repo root) ``.parent`` (the sibling-checkouts directory) regardless of any given caller's own depth.
+N3-1 stage 4 (#2144): since the SK#2063 monorepo consolidation ``contracts/`` lives IN-TREE beside
+``methods/``, so ``contracts_root()`` now resolves to ``<repo-root>/contracts`` directly and no
+longer depends on the retired ``rnd-...-target-contracts`` geometry symlink. ``data-catalog`` stays
+a genuinely separate sibling repo, so ``data_catalog_root()`` keeps a sibling-relative default (one
+level above the monorepo root, where the kept ``rnd-...-data-catalog`` symlink points). Both still
+honour their ``*_ROOT`` env override first. Anchored from ``onc_methods/roots.py``, the repo root is
+``parents[1].parent`` regardless of any caller's own depth, so the ~48 call sites that only call
+these functions inherit the in-tree resolution with no change.
 """
 
 from __future__ import annotations
@@ -23,21 +23,25 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-# methods/roots.py -> parents[0] = "methods" (this package dir) -> parents[1] = the
-# analysis-methods repo root -> .parent = the directory holding the sibling checkouts
-# (rnd-computational-biology-oncology-{data-catalog,target-contracts,...}).
-_SIBLING_ROOT = Path(__file__).resolve().parents[1].parent
+# onc_methods/roots.py -> parents[1] = "methods" (this package's parent) ->
+# parents[1].parent = the monorepo root, which holds contracts/ IN-TREE (SK#2063) and sits one
+# level below the data-catalog sibling clone. N3-1 stage 4 (#2144): contracts now resolves to the
+# in-tree tree directly, NOT via the retired rnd-...-target-contracts geometry symlink.
+_REPO_ROOT = Path(__file__).resolve().parents[1].parent
 
 
 def data_catalog_root() -> Path:
-    """``DATA_CATALOG_ROOT`` env override, else the sibling data-catalog checkout."""
+    """``DATA_CATALOG_ROOT`` env override, else the data-catalog sibling clone.
+
+    data-catalog is the one genuinely-separate repo (stable manifest-ID interface), so its default
+    is resolved one level above the monorepo root -- where the kept rnd-...-data-catalog symlink
+    points -- NOT inside this tree.
+    """
     return Path(
-        os.environ.get("DATA_CATALOG_ROOT") or _SIBLING_ROOT / "rnd-computational-biology-oncology-data-catalog"
+        os.environ.get("DATA_CATALOG_ROOT") or _REPO_ROOT.parent / "rnd-computational-biology-oncology-data-catalog"
     )
 
 
 def contracts_root() -> Path:
-    """``TARGET_CONTRACTS_ROOT`` env override, else the sibling target-contracts checkout."""
-    return Path(
-        os.environ.get("TARGET_CONTRACTS_ROOT") or _SIBLING_ROOT / "rnd-computational-biology-oncology-target-contracts"
-    )
+    """``TARGET_CONTRACTS_ROOT`` env override, else the IN-TREE ``contracts/`` (monorepo, SK#2063)."""
+    return Path(os.environ.get("TARGET_CONTRACTS_ROOT") or _REPO_ROOT / "contracts")

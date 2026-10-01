@@ -46,12 +46,9 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
-# Canonical vocabulary location. Overridable via env var for tests + repo-
-# root-relative execution outside the standard layout.
+# Canonical vocabulary location: <target-contracts root>/vocabularies/isoform_selective_targets.yaml.
+# Overridable via the ISOFORM_SELECTIVE_TARGETS_YAML env var (tests + non-standard layouts).
 _VOCAB_ENV_VAR = "ISOFORM_SELECTIVE_TARGETS_YAML"
-_VOCAB_DEFAULT_RELATIVE = (
-    "rnd-computational-biology-oncology-target-contracts/vocabularies/isoform_selective_targets.yaml"
-)
 
 
 @dataclass(frozen=True)
@@ -129,31 +126,23 @@ class IsoformWarning:
 
 
 def _resolve_vocab_path() -> Path:
-    """Find the vocabulary YAML. Priority: env var → repo-root walk."""
+    """Find the vocabulary YAML: ISOFORM_SELECTIVE_TARGETS_YAML env override, else the target-contracts
+    root (TARGET_CONTRACTS_ROOT env, else the in-tree contracts/).
+
+    N3-1 #2144 stage 4: was a repo-root walk onto the retired rnd-...-target-contracts geometry
+    symlink + a Path.home() clone — which resolved on a dev box but NOT in a fresh CI checkout.
+    """
     env = os.environ.get(_VOCAB_ENV_VAR)
     if env:
         return Path(env)
-    # Try common locations: caller's cwd upward + $HOME
-    candidates = [
-        Path.cwd() / _VOCAB_DEFAULT_RELATIVE,
-        Path.home() / _VOCAB_DEFAULT_RELATIVE,
-    ]
-    # Also walk up from this file's location in case we're inside a sibling repo
-    here = Path(__file__).resolve()
-    for parent in [here] + list(here.parents):
-        candidate = parent / _VOCAB_DEFAULT_RELATIVE
-        if candidate.exists():
-            return candidate
-        # Also try treating parent as the target-contracts repo directly
-        alt = parent / "vocabularies" / "isoform_selective_targets.yaml"
-        if alt.exists():
-            return alt
-    for c in candidates:
-        if c.exists():
-            return c
+    from _skills_common.paths import target_contracts_root
+
+    p = target_contracts_root() / "vocabularies" / "isoform_selective_targets.yaml"
+    if p.exists():
+        return p
     raise FileNotFoundError(
-        f"isoform_selective_targets.yaml not found. Set {_VOCAB_ENV_VAR} or "
-        f"ensure the file exists at one of: {candidates}"
+        f"isoform_selective_targets.yaml not found. Set {_VOCAB_ENV_VAR} or ensure it exists at "
+        f"{p} (target-contracts root resolved via TARGET_CONTRACTS_ROOT / in-tree contracts/)."
     )
 
 

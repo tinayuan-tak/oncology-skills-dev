@@ -359,14 +359,14 @@ jobs:
   # as the required name instead, would deadlock merges — keep the required check pointed here.
   # ── METHODS SUITE (ported from analysis-methods' methods-validate.yml at the SK#2063
   # consolidation; analysis-methods now lives in-tree at methods/) ─────────────────────────
-  # Offline suite; live-S3 tests self-skip (methods/conftest.py). Root resolution: methods/
-  # code derives sibling roots from __file__ (parent-of-AM-root), which the committed
-  # repo-root symlinks (rnd-...-target-contracts -> contracts, rnd-...-data-catalog ->
-  # ../rnd-...-data-catalog) satisfy — so the *_ROOT env vars stay deliberately UNSET,
-  # preserving the old AM CI's coverage of the derived fallback (AM#631/#632 rationale:
-  # exporting a value identical to the derivation makes the fallback branch unreachable
-  # on the one machine that gates merges). target-contracts is now the PR's OWN tree —
-  # a card/rule change and the methods change it pairs with are tested atomically.
+  # Offline suite; live-S3 tests self-skip (methods/conftest.py). Root resolution: methods/ code
+  # derives sibling roots from __file__ via onc_methods.roots. Since N3-1 stage 4 (#2144) retired the
+  # repo-root geometry symlinks, that derivation now resolves target-contracts IN-TREE at
+  # <repo-root>/contracts and data-catalog at the sibling checkout below (<workspace>/rnd-...-data-catalog)
+  # with NO dependence on any symlink. The *_ROOT env vars stay deliberately UNSET so this job keeps
+  # covering the derived-fallback branch (AM#631/#632 rationale: exporting a value identical to the
+  # derivation makes the fallback unreachable on the one machine that gates merges). target-contracts is
+  # the PR's OWN in-tree tree — a card/rule change and the methods change it pairs with are tested atomically.
   methods-pytest:
     needs: changes
     # PATH-SCOPING (#2092): run when methods/ or contracts/ changed (methods imports contracts), or

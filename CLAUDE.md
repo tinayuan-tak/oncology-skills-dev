@@ -21,9 +21,12 @@ archived read-only). What this changes:
 - Gating is per-package via one dispatcher, `scripts/preland.sh` — see the
   Testing section below. NEVER run a whole-tree `pytest` from the repo root:
   duplicate test basenames kill collection.
-- The three root symlinks `rnd-computational-biology-oncology-*` are a
-  TEMPORARY geometry shim for parent-dir path resolution; do not add code
-  that depends on them (package imports / `*_ROOT` env vars instead).
+- Only ONE root symlink remains: `rnd-computational-biology-oncology-data-catalog`
+  (the single external sibling repo). The analysis-methods / target-contracts geometry
+  symlinks were RETIRED in N3-1 stage 4 (#2144) — `methods/` and `contracts/` are in-tree.
+  Resolve all roots `*_ROOT`-env-first / package-relative (`onc_methods.roots`,
+  `oncology_target_contracts.loader`, `_skills_common.paths`), never via a sibling symlink
+  or a hardcoded `/home/...` path.
 
 ## Cross-session coordination ritual
 

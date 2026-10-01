@@ -38,19 +38,15 @@ import sys
 import time
 from pathlib import Path
 
-_SIBLINGS = Path.home()
-SKILLS_ROOT = Path(
-    os.environ.get(
-        "CLAUDE_ONCOLOGY_SKILLS_ROOT", _SIBLINGS / "rnd-computational-biology-oncology-claude-oncology-skills"
-    )
-)
-CONTRACTS_ROOT = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT", _SIBLINGS / "rnd-computational-biology-oncology-target-contracts")
-)
+# eval/ -> repo root. Since SK#2063 the skills tree IS this repo root and target-contracts lives
+# in-tree at <repo-root>/contracts; N3-1 stage 4 (#2144) retired the rnd-...-target-contracts
+# geometry symlink, so resolve from THIS checkout, never a $HOME archived sibling clone (#2196).
+EVAL_DIR = Path(__file__).resolve().parent
+_REPO_ROOT = EVAL_DIR.parent
+SKILLS_ROOT = Path(os.environ.get("CLAUDE_ONCOLOGY_SKILLS_ROOT", _REPO_ROOT))
+CONTRACTS_ROOT = Path(os.environ.get("TARGET_CONTRACTS_ROOT", _REPO_ROOT / "contracts"))
 RUN_PY = SKILLS_ROOT / "skills" / "target-profile" / "scripts" / "run.py"
 CAL_SET = CONTRACTS_ROOT / "vocabularies" / "known_target_calibration_set.yaml"
-
-EVAL_DIR = Path(__file__).resolve().parent
 PKG_DIR = EVAL_DIR / "known-target-packages"  # gitignored (generated, large)
 OUT_PATH = EVAL_DIR / "known_target_panel_report.json"
 
