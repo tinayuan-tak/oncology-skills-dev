@@ -91,6 +91,47 @@ RELIABILITY_CONTRACT = (
     "skeleton (no flags, no calibrated floor) on a signal-poor domain, not a gap."
 )
 
+# The L2a CLASS-DEFINITION basis the containment guard MUST be fed (2026-10-01 adversarial-review finding,
+# SK#2303 follow-on to WI-D #2356). The iter-001 judge repeatedly filed `class_not_supported_by_datum`
+# findings attacking a TAIL / MAX class for a near-zero CENTRAL TENDENCY or a fractional member count — a
+# misread of the class's own definition (confirmed against the methods: `paralog_buffering_class` is the
+# STRONGEST paralog's class — a MAX class on the strong cut, `depmap_paralog_aggregator/read.py`;
+# `strongly_selective` is a SELECTIVITY/TAIL class on selectivity_index + the dependent tail, not a
+# median-magnitude class, `property_catalog/dependency.yaml`). Feeding the per-family basis lets the guard
+# DROP these as contract contradictions. family -> {"basis": "tail"|"max", "tail_classes", "contract"}.
+CLASS_SEMANTICS_CONTRACT = {
+    "crispr_essentiality": {
+        "basis": "tail",
+        "tail_classes": {"strongly_selective"},
+        "contract": (
+            "`strongly_selective` is a SELECTIVITY / TAIL class — defined by selectivity_index and the "
+            "depth of the dependent TAIL (p5_chronos_panel), NOT by the central tendency. A near-zero "
+            "median_chronos_panel and a small fraction_strongly_dependent are the BY-DESIGN signature of a "
+            "selective (vs common-essential) dependency, not evidence the class is overstated: 'strongly' "
+            "modifies SELECTIVE (the tail/selectivity), not the median magnitude."
+        ),
+    },
+    "rnai_essentiality": {
+        "basis": "tail",
+        "tail_classes": {"strongly_selective"},
+        "contract": (
+            "`strongly_selective` (RNAi arm) is the same selectivity/tail class as the CRISPR arm — "
+            "defined on rnai_selectivity_index and the dependent tail, not on rnai_median_dep_score. A "
+            "near-zero RNAi median is the expected signature of a selective (not pan-essential) dependency."
+        ),
+    },
+    "paralog_buffering": {
+        "basis": "max",
+        "tail_classes": {"strong", "partial"},
+        "contract": (
+            "`paralog_buffering` property is the class of the STRONGEST buffering paralog (a MAX class on "
+            "dep_delta_paired_vs_max_single), NOT a fraction-of-paralogs characterization. 'only N of M "
+            "annotated paralogs buffer' / 'only half' misreads a max class: one paralog above the strong "
+            "cut is sufficient for the 'strong' label by contract."
+        ),
+    },
+}
+
 
 def _repo_root() -> Path:
     """Repo root resolved from this file's location (eval/loop/substrate.py → repo root)."""
@@ -265,6 +306,27 @@ def _l3_compact(l3d: "dict | None") -> "dict | None":
     }
 
 
+def _l3_claim_card_ids(local_composites: "dict | None") -> dict:
+    """Extract the L3 claim axes + the card_ids each claim CITES from ``local_composites.claims``
+    (``{axis: {evidence_atom: {cite: {card_id, fields}}}}``). The consumption containment check reads this
+    to tell whether an L2a property a finding calls 'unused' / 'uncaptured' is in fact surfaced in an L3
+    claim — a PROPERTY-LAYER check (``local_composites`` is the L3 property layer, NEVER
+    ``synthesis.fired_rule_ids`` / the verdict, per SK#2091). ``local_composites`` is present on skills that
+    emit no within-domain ``l3d`` (dependency/safety today), so this is the usable L3 handle there.
+    Returns ``{"axes": [...], "cited_card_ids": [...]}`` (empty tables when absent)."""
+    axes: list = []
+    cards: set = set()
+    claims = local_composites.get("claims") if isinstance(local_composites, dict) else None
+    if isinstance(claims, dict):
+        for axis, claim in claims.items():
+            axes.append(axis)
+            atom = claim.get("evidence_atom") if isinstance(claim, dict) else None
+            cite = atom.get("cite") if isinstance(atom, dict) else None
+            if isinstance(cite, dict) and cite.get("card_id"):
+                cards.add(cite["card_id"])
+    return {"axes": axes, "cited_card_ids": sorted(cards)}
+
+
 def _card_read_errors(evidence_package: dict) -> list[dict]:
     """Per-card ``read_error`` surfaced on the emitted cards (``availability_state == 'read_error'``) —
     a framework-coverage gap: the reader could not LOOK (timeout / deadlock / exception), distinct from a
@@ -323,7 +385,12 @@ def assemble_from_objects(
             "l2a": {},
             "l2b": {},
             "l3": None,
-            "field_contracts": {"_corroboration": CORROBORATION_CONTRACT, "_reliability": RELIABILITY_CONTRACT},
+            "l3_claims": {"axes": [], "cited_card_ids": []},
+            "field_contracts": {
+                "_corroboration": CORROBORATION_CONTRACT,
+                "_reliability": RELIABILITY_CONTRACT,
+                "_class_semantics": CLASS_SEMANTICS_CONTRACT,
+            },
             "families_missing_token": [],
         }
 
@@ -331,7 +398,11 @@ def assemble_from_objects(
     integrated = evidence_package.get("integrated_properties") or {}
 
     l2b: dict = {}
-    field_contracts: dict = {"_corroboration": CORROBORATION_CONTRACT, "_reliability": RELIABILITY_CONTRACT}
+    field_contracts: dict = {
+        "_corroboration": CORROBORATION_CONTRACT,
+        "_reliability": RELIABILITY_CONTRACT,
+        "_class_semantics": CLASS_SEMANTICS_CONTRACT,
+    }
     missing_token: list[str] = []
     for family, island in integrated.items():
         if not isinstance(island, dict):
@@ -357,6 +428,7 @@ def assemble_from_objects(
         "l2a": _l2a_anchors(evidence_package.get("source_properties") or {}),
         "l2b": l2b,
         "l3": _l3_compact(evidence_package.get("l3d")),
+        "l3_claims": _l3_claim_card_ids(evidence_package.get("local_composites")),
         "field_contracts": field_contracts,
         "families_missing_token": missing_token,
     }

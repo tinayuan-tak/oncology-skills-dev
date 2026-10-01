@@ -208,3 +208,222 @@ def test_check_finding_does_not_mutate_input():
     before = copy.deepcopy(f)
     C.check_finding(f, sub)
     assert f == before  # the input finding is not mutated (the result is a fresh dict)
+
+
+# ── Adversarial-verify extension (SK#2303 follow-on): tail/max class-semantics + consumption + ──────────
+#    provenance.sources arm materialization. Synthetic dependency bundle built through the REAL substrate
+#    assembler so the new l3_claims + _class_semantics wiring is exercised end-to-end.
+def _dep_package() -> dict:
+    """A minimal `--emit-envelope`-shaped dependency package: a strongly_selective (tail) crispr essentiality
+    property, a 'strong' (max) paralog property, a chemical-genetic property, a concordance island that
+    materializes its arms under provenance.sources (NO source_support), and L3 claims citing two of the
+    L2a cards."""
+    return {
+        "source_properties": {
+            "crispr_essentiality": {
+                "card_id": "pan-cancer-crispr-dependency-distribution",
+                "property": "strongly_selective",
+                "anchors": [
+                    {"field": "fraction_strongly_dependent", "value": 0.0636},
+                    {"field": "median_chronos_panel", "value": -0.14},
+                    {"field": "selectivity_index", "value": 0.93},
+                ],
+            },
+            "paralog_buffering": {
+                "card_id": "paralog-buffering",
+                "property": "strong",
+                "anchors": [
+                    {"field": "n_paralogs_annotated", "value": 12},
+                    {"field": "n_paralogs_functionally_buffering", "value": 6},
+                    {"field": "strongest_paralog_delta", "value": 0.72},
+                ],
+            },
+            "chemical_genetic_engagement": {
+                "card_id": "prism-crispr-concordance",
+                "property": "triangulated_target_engaged",
+                "anchors": [{"field": "best_spearman_r_crispr", "value": 0.37}],
+            },
+        },
+        "integrated_properties": {
+            "crispr_rnai_essentiality_concordance": {
+                "concordance_class": "essentiality_concordant_dependent",
+                "corroboration": "high",
+                "provenance": {
+                    "sources": [
+                        {
+                            "property": "crispr_essentiality",
+                            "assay": "crispr_chronos",
+                            "card_id": "pan-cancer-crispr-dependency-distribution",
+                            "fields": {"dependency_class": "strongly_selective"},
+                        },
+                        {
+                            "property": "rnai_essentiality",
+                            "assay": "rnai_demeter",
+                            "card_id": "pan-cancer-rnai-dependency-distribution",
+                            "fields": {"rnai_dependency_class": "strongly_selective"},
+                        },
+                    ],
+                    "independence_note": "two independent assays",
+                },
+            },
+        },
+        "local_composites": {
+            "epistemic_type": "composed",
+            "claims": {
+                "DEP": {"evidence_atom": {"cite": {"card_id": "pan-cancer-crispr-dependency-distribution"}}},
+                "CHEM": {"evidence_atom": {"cite": {"card_id": "prism-crispr-concordance"}}},
+            },
+        },
+    }
+
+
+def _dep_substrate() -> dict:
+    return S.assemble_from_objects(_dep_package(), {"run_health": {"n_cards_resolved": 3}})
+
+
+def _dep_finding(**kw) -> dict:
+    base = {"kind": "", "target": "", "finding": "", "why": "", "datum_refs": []}
+    base.update(kw)
+    return base
+
+
+def test_substrate_surfaces_l3_claims_and_class_semantics():
+    """The substrate wiring the extension depends on: local_composites.claims → l3_claims.cited_card_ids,
+    and the _class_semantics contract rides on field_contracts."""
+    sub = _dep_substrate()
+    assert set(sub["l3_claims"]["cited_card_ids"]) == {
+        "pan-cancer-crispr-dependency-distribution",
+        "prism-crispr-concordance",
+    }
+    assert "crispr_essentiality" in sub["field_contracts"]["_class_semantics"]
+
+
+def test_tail_class_misread_dropped_by_contract():
+    """A class_not_supported_by_datum finding attacking the TAIL class `strongly_selective` on its near-zero
+    MEDIAN (the wrong axis) contradicts the class-semantics contract ⇒ DROPPED."""
+    sub = _dep_substrate()
+    f = _dep_finding(
+        kind="class_not_supported_by_datum",
+        target="L2a.crispr_essentiality.property (strongly_selective)",
+        finding="labels strongly_selective but median_chronos_panel=-0.14 is near zero / non-dependent in the typical line; the strong signal rests on a thin tail.",
+        datum_refs=["l2a.crispr_essentiality.property", "l2a.crispr_essentiality.anchors.median_chronos_panel"],
+    )
+    out = C.check_finding(f, sub)
+    assert out["_containment"]["status"] == C.DROPPED_CONTRACT
+    assert "tail-defined" in out["_containment"]["reason"]
+
+
+def test_max_class_misread_dropped_by_contract():
+    """A class_not_supported_by_datum finding attacking the MAX class `strong` paralog_buffering on a
+    FRACTION of members (6 of 12) contradicts the class-semantics contract ⇒ DROPPED."""
+    sub = _dep_substrate()
+    f = _dep_finding(
+        kind="class_not_supported_by_datum",
+        target="L2a.paralog_buffering.property",
+        finding="property 'strong' but only 6 of 12 annotated paralogs buffer — not clearly licensed when only half buffer.",
+        datum_refs=["l2a.paralog_buffering.property", "l2a.paralog_buffering.anchors.n_paralogs_annotated"],
+    )
+    out = C.check_finding(f, sub)
+    assert out["_containment"]["status"] == C.DROPPED_CONTRACT
+    assert "max-defined" in out["_containment"]["reason"]
+
+
+def test_class_semantics_does_not_fire_on_a_non_tail_class():
+    """Guard against over-firing: if the family's CURRENT class token is not one of the basis's tail/max
+    classes, a central-tendency dispute is a legitimate finding, left to a human (CONTAINED)."""
+    pkg = _dep_package()
+    pkg["source_properties"]["crispr_essentiality"]["property"] = "common_essential"
+    sub = S.assemble_from_objects(pkg, {"run_health": {"n_cards_resolved": 3}})
+    f = _dep_finding(
+        kind="class_not_supported_by_datum",
+        target="L2a.crispr_essentiality.property",
+        finding="median_chronos_panel near zero contradicts the common_essential class.",
+        datum_refs=["l2a.crispr_essentiality.property"],
+    )
+    out = C.check_finding(f, sub)
+    assert out["_containment"]["status"] == C.CONTAINED
+
+
+def test_mutation_tooth_removing_class_check_lets_the_misread_pass(monkeypatch):
+    """The class-semantics check is load-bearing: neuter it and the tail-class misread wrongly routes."""
+    sub = _dep_substrate()
+    f = _dep_finding(
+        kind="class_not_supported_by_datum",
+        target="L2a.crispr_essentiality.property (strongly_selective)",
+        finding="median near zero / non-dependent in the typical line; rests on a thin tail.",
+        datum_refs=["l2a.crispr_essentiality.property"],
+    )
+    assert C.check_finding(f, sub)["_containment"]["status"] == C.DROPPED_CONTRACT
+    monkeypatch.setattr(C, "_class_semantics_contradiction", lambda *_: None)
+    assert C.check_finding(f, sub)["_containment"]["status"] == C.CONTAINED
+
+
+def test_unused_signal_dropped_when_card_cited_by_an_l3_claim():
+    """A 'surface_unused_signal' whose L2a card IS cited by an L3 claim has a false premise ⇒ DROPPED."""
+    sub = _dep_substrate()
+    f = _dep_finding(
+        kind="surface_unused_signal",
+        target="L2a.chemical_genetic_engagement",
+        finding="chemical_genetic_engagement sits isolated in l2a and is never surfaced / uncaptured.",
+        datum_refs=["l2a.chemical_genetic_engagement.anchors.best_spearman_r_crispr"],
+    )
+    out = C.check_finding(f, sub)
+    assert out["_containment"]["status"] == C.DROPPED_CONTRACT
+    assert "uncaptured" in out["_containment"]["reason"]
+
+
+def test_unused_signal_contained_when_card_absent_from_l3_claims():
+    """Conservative: a property genuinely NOT cited by any L3 claim (paralog_buffering) is NOT force-dropped
+    — the 'not surfaced' observation is left for a human / the LLM critic (CONTAINED)."""
+    sub = _dep_substrate()
+    f = _dep_finding(
+        kind="surface_unused_signal",
+        target="L2a.paralog_buffering",
+        finding="paralog_buffering is computed but never surfaced into an L2b family or an L3 claim.",
+        datum_refs=["l2a.paralog_buffering.property"],
+    )
+    assert C.check_finding(f, sub)["_containment"]["status"] == C.CONTAINED
+
+
+def test_mutation_tooth_removing_l3_claims_lets_the_unused_misread_pass():
+    """The consumption check is load-bearing: with no l3_claims the 'uncaptured' misread wrongly routes."""
+    sub = _dep_substrate()
+    f = _dep_finding(
+        kind="surface_unused_signal",
+        target="L2a.chemical_genetic_engagement",
+        finding="chemical_genetic_engagement sits isolated and is uncaptured / never surfaced.",
+        datum_refs=["l2a.chemical_genetic_engagement.anchors.best_spearman_r_crispr"],
+    )
+    assert C.check_finding(f, sub)["_containment"]["status"] == C.DROPPED_CONTRACT
+    sub["l3_claims"] = {"axes": [], "cited_card_ids": []}
+    assert C.check_finding(f, sub)["_containment"]["status"] == C.CONTAINED
+
+
+def test_empty_arms_under_provenance_sources_is_demoted():
+    """An 'empty arms[]' claim against a family that materializes its arms under provenance.sources (NO
+    source_support) is a schema-shape note ⇒ DEMOTED, never a tier finding."""
+    sub = _dep_substrate()
+    f = _dep_finding(
+        kind="regroup_arms",
+        target="L2b.crispr_rnai_essentiality_concordance.arms",
+        finding="declares corroboration:high but the materialized `arms` array is EMPTY; the two arms exist only inside provenance.sources.",
+        datum_refs=["l2b.crispr_rnai_essentiality_concordance.raw_island.provenance.sources"],
+    )
+    out = C.check_finding(f, sub)
+    assert out["_containment"]["status"] == C.DEMOTED_SHAPE
+    assert "provenance.sources" in out["_containment"]["reason"]
+
+
+def test_mutation_tooth_empty_arms_without_provenance_sources_is_not_demoted():
+    """Removing provenance.sources (and leaving no source_support) means the empty-arms refutation finds no
+    arms ⇒ the demotion no longer fires (the provenance.sources extension is load-bearing)."""
+    pkg = _dep_package()
+    pkg["integrated_properties"]["crispr_rnai_essentiality_concordance"]["provenance"]["sources"] = []
+    sub = S.assemble_from_objects(pkg, {"run_health": {"n_cards_resolved": 3}})
+    f = _dep_finding(
+        kind="regroup_arms",
+        target="L2b.crispr_rnai_essentiality_concordance.arms",
+        finding="the materialized `arms` array is EMPTY.",
+        datum_refs=["l2b.crispr_rnai_essentiality_concordance.raw_island.provenance.sources"],
+    )
+    assert C.check_finding(f, sub)["_containment"]["status"] != C.DEMOTED_SHAPE

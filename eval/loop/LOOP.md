@@ -3,8 +3,33 @@
 The per-subskill **iteration loop on real data** (epic SK#2303). It constructs a coverage-aware batch of
 `target × indication` triples, runs ONE focused subskill fresh (`--emit-envelope`), runs a validated
 **triangulation judge** + regression **probes** over the emitted L1→L3 property layers, **containment-
-guards** every finding, routes it by **tier** (propose / adjudicate), appends it to a hash-chained
+guards** every finding (deterministic, fail-closed), runs an **LLM adversarial critic** that tries to KILL
+each surviving finding, routes it by **tier** (propose / adjudicate), appends it to a hash-chained
 **ledger**, and decides **convergence** on a hash-fixed held-out roster.
+
+### Containment + adversarial critic (the two-filter precision stage, 2026-10-01 follow-on to WI-D)
+
+An adversarial review of iter-001 found the judge's structural findings were ~100% false-positive on a
+MATURE skill (dependency): contract-misreads of a by-design tail/max class, cosmetic "empty `arms[]`"
+re-keyings, and "unused signal" claims about properties the L3 layer already carries. Two filters now sit
+between the judge and the ledger:
+
+1. **Deterministic containment** (`critic/containment.py`) — extended with three contract-DRIVEN predicates
+   on top of the original corroboration/empty-arms checks: (a) a **tail/max class-semantics** check
+   (`field_contracts._class_semantics` — `strongly_selective` is a selectivity/tail class, `paralog_buffering`
+   is the strongest-paralog MAX class; a `class_not_supported_by_datum` finding attacking them from the
+   central tendency / a member fraction is DROPPED); (b) a **consumption** check (an "unused/uncaptured"
+   finding whose L2a card IS cited by an L3 claim — `bundle.l3_claims`, the PROPERTY layer, NEVER
+   `synthesis.fired_rule_ids` — is DROPPED; a property genuinely absent from the L3 claims is NOT swept in);
+   (c) the empty-arms refutation now also recognizes arms materialized under `provenance.sources` (DEMOTE).
+   On iter-001's 9 findings these DROP/DEMOTE 7, leaving the 2 genuine-judgment cases.
+2. **LLM adversarial critic** (`critic/adversary.py`) — a second, non-reproducible LLM pass over the
+   CONTAINED survivors that tries to KILL each on the judgment grounds a deterministic rule cannot settle
+   (overstated / causal_overreach / cosmetic / mislabeled_unused / …). **ANNOTATE-NOT-FILTER by default**
+   (STOP-A, like `teeth_green`): it stamps each finding with an `_adversary` verdict but does NOT remove a
+   killed finding unless `iterate.py --adversary-filter` is passed. It FAILS OPEN on its own judgement (a
+   missing/garbled verdict → `survives`), and a dead/NULL substrate or empty finding set is never sent to
+   the LLM. Disable with `--no-adversary`.
 
 This file lets a fresh session run one iteration unaided. Read it top to bottom once; the command block
 in §3 is the whole loop. The parts are documented in their own modules' docstrings and tested in

@@ -68,6 +68,7 @@ for _p in (_LOOP_DIR, _CRITIC_DIR):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 
+import adversary as _adversary  # noqa: E402  (critic/adversary.py — the LLM adversarial critic)
 import containment as _containment  # noqa: E402  (critic/containment.py — _CRITIC_DIR is on sys.path)
 import convergence as _convergence  # noqa: E402
 import findings as _findings  # noqa: E402
@@ -177,9 +178,22 @@ class PackageResult:
     containment: dict  # the contain() report (counts + contained/dropped/demoted)
     probes: list  # 4-tuples
     judge_result: dict = field(default_factory=dict)
+    adversary: dict = field(default_factory=dict)  # the adversarially_verify() report over the CONTAINED findings
+
+    def routable(self, *, filter_killed: bool) -> list:
+        """The CONTAINED findings to route to ledger/tiers — adversary-ANNOTATED when the critic ran, and
+        (only when ``filter_killed``) with the critic's confident kills removed. Default (no filter):
+        every contained finding routes, each carrying its ``_adversary`` verdict (STOP-A — the new LLM
+        stage annotates, it does not silently drop)."""
+        annotated = self.adversary.get("annotated")
+        base = annotated if isinstance(annotated, list) and annotated else (self.containment.get("contained") or [])
+        if filter_killed and isinstance(annotated, list) and annotated:
+            return [f for f in base if (f.get("_adversary") or {}).get("verdict") != "killed"]
+        return list(base)
 
     def to_jsonable(self) -> dict:
         c = self.containment
+        a = self.adversary
         return {
             "candidate_key": self.entry.candidate_key,
             "target": self.entry.target,
@@ -191,6 +205,7 @@ class PackageResult:
             "judge_skipped": self.judge_skipped,
             "n_judge_findings": self.n_findings,
             "containment": {k: c.get(k) for k in ("n_in", "n_contained", "n_dropped", "n_demoted", "skipped")},
+            "adversary": {k: a.get(k) for k in ("n_in", "n_killed", "n_survived", "skipped")},
             "probes": [list(p) for p in self.probes],
         }
 
@@ -201,13 +216,17 @@ def process_package(
     skill: str,
     *,
     llm: "Optional[Callable[..., dict]]" = None,
+    adversary_llm: "Optional[Callable[..., dict]]" = None,
+    run_adversary: bool = True,
     contracts_root: "Path | str | None" = None,
     max_tokens: int = 3000,
 ) -> PackageResult:
-    """Assemble → judge → contain → probe ONE emitted package. A missing/unparseable package is a
-    NULL-everything result (never silently clean): the substrate assembler returns ``null_everything``,
-    the judge is ``skipped``, and the probes report ``not_evaluable`` — exactly the signals the
-    convergence NULL-block keys on."""
+    """Assemble → judge → contain → adversarially-verify → probe ONE emitted package. A missing/unparseable
+    package is a NULL-everything result (never silently clean): the substrate assembler returns
+    ``null_everything``, the judge is ``skipped``, and the probes report ``not_evaluable`` — exactly the
+    signals the convergence NULL-block keys on. The adversarial critic (``run_adversary``) annotates the
+    CONTAINED findings with a kill/survive verdict; its LLM is injectable (``adversary_llm``, falling back
+    to ``llm``) so tests need no live Bedrock."""
     pkg_dir = entry.package_dir(run_dir)
     ep_path = pkg_dir / "evidence_package.json"
     evidence_package = _load_json(ep_path) if ep_path.exists() else None
@@ -229,6 +248,11 @@ def process_package(
 
     judge_result = _judge.judge(bundle, decision, llm=llm, max_tokens=max_tokens)
     containment = _containment.contain(judge_result, bundle)
+    adversary: dict = {"skipped": "disabled", "n_in": 0, "n_killed": 0, "n_survived": 0, "annotated": []}
+    if run_adversary:
+        adversary = _adversary.adversarially_verify(
+            bundle, containment.get("contained") or [], decision, llm=adversary_llm or llm, max_tokens=max_tokens
+        )
     probes = run_probes(evidence_package, entry, skill, contracts_root=contracts_root)
 
     return PackageResult(
@@ -240,6 +264,7 @@ def process_package(
         containment=containment,
         probes=probes,
         judge_result=judge_result,
+        adversary=adversary,
     )
 
 
@@ -250,6 +275,9 @@ def run_iteration(
     run_dir: "Path | str",
     *,
     llm: "Optional[Callable[..., dict]]" = None,
+    adversary_llm: "Optional[Callable[..., dict]]" = None,
+    run_adversary: bool = True,
+    adversary_filter: bool = False,
     teeth_green: bool = False,
     contracts_root: "Path | str | None" = None,
     ledger: "Optional[_findings.Ledger]" = None,
@@ -270,15 +298,32 @@ def run_iteration(
     dev_results: list[PackageResult] = []
     held_results: list[PackageResult] = []
     for entry in entries:
-        pr = process_package(entry, run_dir, skill, llm=llm, contracts_root=contracts_root, max_tokens=max_tokens)
+        pr = process_package(
+            entry,
+            run_dir,
+            skill,
+            llm=llm,
+            adversary_llm=adversary_llm,
+            run_adversary=run_adversary,
+            contracts_root=contracts_root,
+            max_tokens=max_tokens,
+        )
         (held_results if entry.split == "held_out" else dev_results).append(pr)
 
-    # DEV: ledger + tiers over the CONTAINED findings only (dropped/demoted never route — acceptance).
+    # DEV: ledger + tiers over the CONTAINED findings only (dropped/demoted never route — acceptance). Each
+    # routed finding carries its adversarial ``_adversary`` verdict; with ``adversary_filter`` the critic's
+    # confident kills are removed (default OFF — annotate-not-filter, STOP-A).
     dev_contained: list[dict] = []
     for pr in dev_results:
-        dev_contained.extend(pr.containment.get("contained") or [])
+        dev_contained.extend(pr.routable(filter_killed=adversary_filter))
     ledger.extend(dev_contained)
     tier_report = _tiers.route_many(dev_contained, teeth_green=teeth_green)
+    dev_adversary = {
+        "ran": run_adversary,
+        "filter_applied": adversary_filter,
+        "n_killed": sum(int(pr.adversary.get("n_killed") or 0) for pr in dev_results),
+        "n_survived": sum(int(pr.adversary.get("n_survived") or 0) for pr in dev_results),
+    }
 
     # HELD-OUT: convergence over (candidate_key, judge_result, probe_findings) triples.
     held_keys = [pr.entry.candidate_key for pr in held_results]
@@ -307,6 +352,7 @@ def run_iteration(
         "dev": {
             "packages": [pr.to_jsonable() for pr in dev_results],
             "n_contained_findings": len(dev_contained),
+            "adversary": dev_adversary,
             "tiers": {
                 "T1_land": len(tier_report[_tiers.T1]),
                 "T2_propose": len(tier_report[_tiers.T2]),
@@ -341,6 +387,17 @@ def _cli(argv: "Optional[list[str]]" = None) -> int:
         action="store_true",
         help="assert the judge+containment teeth are CI-confirmed green (else report-only — STOP-A)",
     )
+    parser.add_argument(
+        "--no-adversary",
+        action="store_true",
+        help="skip the LLM adversarial critic (default: run it, ANNOTATE each contained finding)",
+    )
+    parser.add_argument(
+        "--adversary-filter",
+        action="store_true",
+        help="REMOVE the critic's confident kills from routing (default OFF — annotate-not-filter, STOP-A; "
+        "enable only once the critic's teeth are confirmed)",
+    )
     parser.add_argument("--max-tokens", type=int, default=3000)
     args = parser.parse_args(argv)
 
@@ -357,6 +414,8 @@ def _cli(argv: "Optional[list[str]]" = None) -> int:
         entries,
         args.run_dir,
         teeth_green=args.teeth_green,
+        run_adversary=not args.no_adversary,
+        adversary_filter=args.adversary_filter,
         ledger=ledger,
         property_coverage=property_coverage,
         iteration_id=args.iteration_id,
@@ -374,6 +433,12 @@ def _cli(argv: "Optional[list[str]]" = None) -> int:
         f"  dev: {report['dev']['n_contained_findings']} contained finding(s) → "
         f"tiers {report['dev']['tiers']} (teeth_green={report['teeth_green']})"
     )
+    adv = report["dev"]["adversary"]
+    if adv["ran"]:
+        print(
+            f"  adversary: killed={adv['n_killed']} survived={adv['n_survived']} "
+            f"(filter_applied={adv['filter_applied']})"
+        )
     print(f"  held-out convergence: converged={conv['converged']} (consecutive_clean={conv['consecutive_clean']})")
     if not conv["converged"]:
         for r in conv["latest_block_reasons"]:

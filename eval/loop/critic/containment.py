@@ -89,15 +89,59 @@ _CORROBORATION_MISREAD = re.compile(
     re.IGNORECASE,
 )
 
-# The claim asserts a family's arms are EMPTY / absent / unevidenced in structure.
+# The claim asserts a family's arms are EMPTY / absent / unevidenced in structure. The arms? token may be
+# followed by backtick/bracket punctuation and an "array"/"is" filler before "empty" (e.g. the judge's
+# "the materialized `arms` array is EMPTY").
 _EMPTY_ARMS = re.compile(
     r"(empty[\s/-]*(and\s+)?(null\s+)?arms?"
-    r"|arms?\s+(are\s+)?empty"
+    r"|arms?[`'\]\s]*(array[`'\s]*)?(is\s+)?empty"
     r"|null\s+arms?"
     r"|no\s+arms?\b"
     r"|zero\s+arms?"
     r"|carries\s+empty"
     r"|unevidenced\s+in\s+structure)",
+    re.IGNORECASE,
+)
+
+# A `class_not_supported_by_datum` claim that argues from the CENTRAL TENDENCY (median near zero / typical
+# line non-dependent / only the sensitive tail) — the wrong axis for a TAIL/SELECTIVITY class, whose
+# near-zero median is by design (field_contracts._class_semantics, basis="tail").
+_CLASS_CENTRAL_TENDENCY_ARG = re.compile(
+    r"(median[^.]{0,60}?(near|~|close|zero|non[-\s]?dependent|center|centre|typical)"
+    r"|central\s+tendency"
+    r"|typical\s+(line|cell)"
+    r"|near[-\s]?zero"
+    r"|non[-\s]?dependent\s+(regime|center|centre|in\s+the\s+typical)"
+    r"|only\s+(the\s+)?(most\s+)?(sensitive\s+)?(tail|p5|top\s+\d)"
+    r"|(thin|narrow)\s+tail"
+    r"|carried\s+(entirely\s+)?by\s+the\s+tail"
+    r"|rests?\s+on\s+a\s+(thin\s+)?tail"
+    r"|only\s+~?\d{1,2}%)",
+    re.IGNORECASE,
+)
+
+# A `class_not_supported_by_datum` claim that argues from a FRACTION of members — the wrong axis for a MAX
+# class (the strongest member's class; field_contracts._class_semantics, basis="max").
+_CLASS_FRACTION_ARG = re.compile(
+    r"(only\s+\d+\s+of\s+\d+"
+    r"|\d+\s+of\s+\d+\s+(annotated|paralogs?)"
+    r"|only\s+half|\bhalf\b"
+    r"|a\s+fraction\s+of"
+    r"|fraction\s+of\s+(annotated\s+)?paralogs"
+    r"|not\s+clearly\s+licensed\s+when\s+only)",
+    re.IGNORECASE,
+)
+
+# The claim asserts an L2a property is UNUSED / isolated / uncaptured — never surfaced into an L2b family
+# or an L3 claim. The consumption check tests it against the L3 claim axes (property layer), not the verdict.
+_UNUSED_SIGNAL = re.compile(
+    r"(unused"
+    r"|never\s+(surfaced|related|joined|used|referenced|folded|modell?ed)"
+    r"|not\s+(surfaced|related|captured|joined|modell?ed)"
+    r"|un(captured|modell?ed|surfaced)"
+    r"|sits?\s+isolated|isolated\s+in\s+l2a"
+    r"|computed\s+but\s+(never|not)\s+(surfaced|used|related)"
+    r"|an?\s+unmodell?ed)",
     re.IGNORECASE,
 )
 
@@ -287,6 +331,79 @@ def _l2b_family_of(finding: dict) -> "str | None":
     return None
 
 
+def _l2a_family_of(finding: dict, bundle: dict) -> "str | None":
+    """Resolve the L2a (source_property) family a finding is about, from an ``l2a.<family>...`` datum_ref
+    (the load-bearing handle), falling back to an L2a family name that appears in the ``target`` string."""
+    for ref in finding.get("datum_refs") or []:
+        if isinstance(ref, str):
+            segs = _split_ref(ref.strip())
+            if len(segs) >= 2 and segs[0].lower() == "l2a":
+                return segs[1]
+    target = str(finding.get("target", ""))
+    for fam in bundle.get("l2a") or {}:
+        if fam in target:
+            return fam
+    return None
+
+
+def _class_semantics_contradiction(finding: dict, bundle: dict) -> "str | None":
+    """DROP reason if a ``class_not_supported_by_datum`` finding attacks a TAIL/SELECTIVITY or MAX class on
+    the WRONG axis — a near-zero central tendency against a tail class, or a fraction-of-members count
+    against a max class. Contract-DRIVEN: fires only where ``field_contracts._class_semantics`` declares the
+    cited L2a family's class basis AND the family's current ``property`` token is one of the basis's
+    tail_classes (so a dispute of a genuinely central-tendency class is never swept in)."""
+    if finding.get("kind") != "class_not_supported_by_datum":
+        return None
+    fam = _l2a_family_of(finding, bundle)
+    if not fam:
+        return None
+    contract = (bundle.get("field_contracts") or {}).get("_class_semantics")
+    spec = contract.get(fam) if isinstance(contract, dict) else None
+    if not isinstance(spec, dict):
+        return None  # no class-semantics contract for this family → cannot assert a contradiction
+    token = (bundle.get("l2a") or {}).get(fam, {}).get("property")
+    if token not in (spec.get("tail_classes") or set()):
+        return None  # the current class is not one of the basis's tail/max classes → leave to a human
+    basis = spec.get("basis")
+    claim = _claim_text(finding)
+    fired = (basis == "tail" and _CLASS_CENTRAL_TENDENCY_ARG.search(claim)) or (
+        basis == "max" and _CLASS_FRACTION_ARG.search(claim)
+    )
+    if not fired:
+        return None
+    return (
+        f"L2a.{fam}.property '{token}' is a {basis}-defined class (field_contracts._class_semantics): "
+        f"{spec.get('contract')} The finding disputes it from the {'central tendency' if basis == 'tail' else 'member fraction'}, "
+        f"which is the wrong axis — correct-by-contract."
+    )
+
+
+def _unused_signal_contradiction(finding: dict, bundle: dict) -> "str | None":
+    """DROP reason if a finding claims an L2a property is UNUSED / isolated / uncaptured, but that
+    property's card IS cited by an L3 claim (``bundle['l3_claims'].cited_card_ids`` — the L3 property
+    layer, NEVER ``synthesis.fired_rule_ids``/the verdict, per SK#2091). The 'uncaptured' premise is then
+    false. A property genuinely absent from the L3 claims is NOT swept in (returns None → CONTAINED): that
+    is a real 'not folded into a headline' observation a human may want."""
+    if finding.get("kind") not in ("surface_unused_signal", "missing_relationship"):
+        return None
+    if not _UNUSED_SIGNAL.search(_claim_text(finding)):
+        return None
+    fam = _l2a_family_of(finding, bundle)
+    if not fam:
+        return None
+    card_id = (bundle.get("l2a") or {}).get(fam, {}).get("card_id")
+    if not card_id:
+        return None
+    cited = set((bundle.get("l3_claims") or {}).get("cited_card_ids") or [])
+    if card_id not in cited:
+        return None  # genuinely absent from the L3 claims → leave for a human (not a contract contradiction)
+    return (
+        f"finding calls L2a.{fam} ('{card_id}') an unused/uncaptured signal, but it IS surfaced in an L3 "
+        f"claim (local_composites.claims cites {card_id}) — the 'uncaptured' premise is false "
+        f"(property-layer check, not synthesis.fired_rule_ids)."
+    )
+
+
 def _empty_arms_shape_artifact(finding: dict, bundle: dict) -> "str | None":
     """DEMOTE reason if the finding asserts a family's arms are EMPTY but a shape-aware raw re-read finds
     arms (the dict-vs-list ``source_support`` artifact — plan §5A.11). The arms-absence claim about the
@@ -306,6 +423,19 @@ def _empty_arms_shape_artifact(finding: dict, bundle: dict) -> "str | None":
                 f"source_support finds {len(arms)} arm(s) — a dict-vs-list substrate-shape artifact, not a "
                 f"pipeline defect (demoted to the outer loop's schema-coherence lane)."
             )
+        # Some families (e.g. the dependency concordance island) carry NO `source_support` and materialize
+        # their arms under `provenance.sources` instead. An "empty arms[]" claim against such a family is a
+        # SCHEMA-SHAPE note (the arm data exists, just under a different key), not a pipeline defect.
+        prov = raw.get("provenance") if isinstance(raw, dict) else None
+        sources = prov.get("sources") if isinstance(prov, dict) else None
+        if isinstance(sources, list) and any(isinstance(s, dict) for s in sources):
+            n = sum(1 for s in sources if isinstance(s, dict))
+            return (
+                f"finding claims empty arms for L2b.{fam}, but the RAW island materializes {n} arm(s) under "
+                f"provenance.sources (each with its own card_id/assay/fields) — the arm data exists and is "
+                f"re-verifiable; populating a field literally named `arms[]` is a schema re-shaping with no "
+                f"evidential change (demoted to the outer loop's schema-coherence lane)."
+            )
     return None
 
 
@@ -313,12 +443,16 @@ def _empty_arms_shape_artifact(finding: dict, bundle: dict) -> "str | None":
 def check_finding(finding: dict, bundle: dict) -> dict:
     """Re-verify ONE finding against the raw island + its contract. Returns the finding augmented with a
     ``_containment`` block (``status`` + ``reason`` + resolved/unresolved refs + contract notes). Order of
-    precedence: contract contradiction (DROP) → substrate-shape artifact (DEMOTE) → no ref resolves (DROP)
-    → CONTAINED."""
+    precedence: contract contradiction (DROP — corroboration / class-semantics / unused-signal) →
+    substrate-shape artifact (DEMOTE) → no ref resolves (DROP) → CONTAINED."""
     refs = finding.get("datum_refs") if isinstance(finding, dict) else None
     resolved, unresolved = _ref_report(refs if isinstance(refs, list) else [], bundle)
 
-    contract_reason = _corroboration_contract_contradiction(finding, bundle)
+    contract_reason = (
+        _corroboration_contract_contradiction(finding, bundle)
+        or _class_semantics_contradiction(finding, bundle)
+        or _unused_signal_contradiction(finding, bundle)
+    )
     shape_reason = _empty_arms_shape_artifact(finding, bundle)
 
     if contract_reason is not None:
