@@ -50,7 +50,7 @@ from _skills_common.archetype_core import (  # noqa: E402
 _archetype_claim_vector = archetype_claim_vector
 
 SKILL_NAME = "target-archetype"
-SKILL_VERSION = "0.6.0"  # 0.6.0 (2026-09-05, literature-and-claims arc, FIRST non-fan-out skill): CREATE
+SKILL_VERSION = "0.6.0"
 # the TARGET_ARCHETYPE narrator lens (LENSES 14→15) + wire a BESPOKE --synthesize
 # + --literature path (this skill uses a bespoke main(), not run_wired_skill) that
 # builds a decision-shaped dict from companion+scorecard; BAKE the phenotype/analog

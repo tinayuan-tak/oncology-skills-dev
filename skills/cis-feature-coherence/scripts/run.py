@@ -89,7 +89,7 @@ _CIS_VALUE_TIERS.update(
 
 
 SKILL_NAME = "cis-feature-coherence"
-SKILL_VERSION = "1.5.0"  # 1.5.0 (2026-09-12): cis-dosage DIRECTION (amplification_coupled vs deletion_coupled + its basis) and the LINEAGE-controlled provenance (within-lineage deltas, lineage_collapse_ratio, deleted arm) surfaced into the headline / synthesis facet / provenance / causal-attribution caveat; new verdict coherent_cis_loss_of_function (resolver v1.3.0) gets its own phrase + its own confidence tier (cis_loss_of_function_not_a_direct_inhibition_target) and the silencing_lineage_confounded third state is narrated as "measured, not interpretable" rather than absent. Still VERDICT-INERT.   # 1.4.0 (2026-09-04): --literature lane (make_literature_fn one-liner) + VERDICT-INERT cis-coherence CONFIDENCE surface (cis_coherence_confidence_caveat 3-tier [statistical_cis_correlation_causally_unconfirmed / amplicon_passenger_or_lineage_confounded / validated_cis_driver_or_silencing false-demote guard] + causal_attribution_caveat + context_generalization_caveat + cis_coherence_provenance) + CIS_FEATURE_COHERENCE thesis/polarity_note. Gates on already-emitted headline fields; cis_coherence_verdict + driving_rule_id + resolver golden + replay byte-stable.   # 1.3.0 (2026-08-28): PROTEIN legs (cis-feature-protein-coherence CN→protein + abundance-dependency protein→dep) + mRNA-vs-protein dosage slope ratio. VERDICT-INERT.   # 1.2.0 (2026-08-28): capsule-driven narrator via generic engine.
+SKILL_VERSION = "1.5.0"
 
 CARDS = [
     "cis-feature-expression-coherence",  # GoF leg-1: CN → own-expression cis-dosage (amplification, mRNA)
@@ -143,7 +143,7 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
 #    reads out whether the locus→expression→dependency chain is coherent. A coherent-chain call
 #    SUPPORTS the thesis (coherence-of-the-chain); the other measured patterns are informational
 #    (neutral). VERDICT-INERT: surfaced by the fan-out into decision.claim_record_shadow.cis_coherence,
-#    consumed by NOTHING. No verdict-disjoint corroborator → minimal coverage-only certainty. Mirrors
+#    consumed only by the composed report layer, verdict-inert. No verdict-disjoint corroborator → minimal coverage-only certainty. Mirrors
 #    the other axes' hook.
 #    All THREE coherent-cis-chain verdicts belong here: coherent_cis_driver (amp→expr→dep),
 #    coherent_epigenetic_silencing (methylation→low expr), and coherent_cis_loss_of_function

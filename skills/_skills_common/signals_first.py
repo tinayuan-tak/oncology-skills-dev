@@ -59,6 +59,81 @@ def certainty_composite(strength: str, certainty_level: str) -> float:
     return round(_COMPOSITE_STRENGTH.get(strength, 0.0) * _COMPOSITE_CERTAINTY.get(certainty_level, 0.5), 3)
 
 
+# ─── (strength, certainty) SIDECAR assembly — the ONE definition of the per-axis certainty object +
+#     ordinal map every lens's `_strength_certainty` hook builds (CERTAINTY_MODEL.md). Previously the
+#     entire assembly (dict shape, weakest-link `min(..., key=_ORD)`, the composite + composite_basis +
+#     provenance + _model_ref envelope) was copy-pasted verbatim across functional-requirement, genomic-
+#     alteration-profile, surface-modality-fit, tumor-presence and tumor-selectivity, each redefining the
+#     same `{"low":0,"medium":1,"high":2}` ordinal map. Verdict-INERT: a render sidecar, never a verdict.
+# The ordinal map for the three-tier certainty bands (low<medium<high). ONE definition.
+STRENGTH_CERTAINTY_ORD = {"low": 0, "medium": 1, "high": 2}
+
+
+def coverage_band(n, *, high_n, med_n) -> str:
+    """Bucket a sample count into a low/medium/high coverage band. A missing / non-numeric / bool count
+    is `low` — the conservative direction (no measured power basis). The bool-guard (`isinstance(n, bool)`)
+    is unified HERE so the per-axis coverage readers can never silently diverge on whether True/False
+    counts as a numeric sample size (it does not)."""
+    if not isinstance(n, (int, float)) or isinstance(n, bool):
+        return "low"
+    return "high" if n >= high_n else ("medium" if n >= med_n else "low")
+
+
+def weakest_link_level(coverage: str, corroboration: str, *, force_low: bool = False) -> str:
+    """Weakest-link certainty `level` over the MEASURED certainty components: coverage always counts,
+    corroboration counts only when it is not `unmeasured` (an absent comparator raises ignorance — carried
+    in unknown_mass — rather than dropping the level to its floor). `force_low` pins the level to `low`
+    (a none / insufficient verdict). The min is taken over STRENGTH_CERTAINTY_ORD."""
+    if force_low:
+        return "low"
+    components = [coverage] + ([corroboration] if corroboration != "unmeasured" else [])
+    return min(components, key=lambda c: STRENGTH_CERTAINTY_ORD[c]) if components else "low"
+
+
+def assemble_strength_certainty(
+    strength: str,
+    coverage: str,
+    corroboration: str,
+    unknown_mass,
+    *,
+    level: str,
+    composite_basis: str,
+    provenance: dict,
+    model_ref: str,
+    composite=None,
+    certainty_extra: Optional[dict] = None,
+    extra_fields: Optional[dict] = None,
+) -> dict:
+    """Assemble the per-axis (strength, certainty) SIDECAR dict in its ONE canonical key order:
+    strength, certainty{level, coverage, corroboration, unknown_mass[, …extras]}, [extra sibling fields],
+    composite, composite_basis, provenance, _model_ref.
+
+      composite        — defaults to certainty_composite(strength, level); pass a value to override
+                         (tumor-presence supplies its own identical _presence_composite projection).
+      certainty_extra  — extra keys appended INSIDE the certainty object (tumor-presence's
+                         corroboration_boundary_fragile / corroboration_note audit annotation).
+      extra_fields     — extra top-level keys inserted BETWEEN certainty and composite
+                         (tumor-selectivity's structured veto_coverage sibling).
+
+    Verdict-INERT: this is a render sidecar emitted beside the verdict, never a verdict input."""
+    certainty = {
+        "level": level,
+        "coverage": coverage,
+        "corroboration": corroboration,
+        "unknown_mass": unknown_mass,
+    }
+    if certainty_extra:
+        certainty.update(certainty_extra)
+    out = {"strength": strength, "certainty": certainty}
+    if extra_fields:
+        out.update(extra_fields)
+    out["composite"] = certainty_composite(strength, level) if composite is None else composite
+    out["composite_basis"] = composite_basis
+    out["provenance"] = provenance
+    out["_model_ref"] = model_ref
+    return out
+
+
 # ─── Narrator-input CONTRACT (v1) ─────────────────────────────────────────────────────────────────
 # The single leading SIGNAL block every lens narrator (synthesis*.py) leads with, composed from a
 # DECLARED slice of the deterministic headline. The point of the contract: a narrator's signal lead is

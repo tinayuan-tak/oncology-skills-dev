@@ -56,7 +56,7 @@ from _skills_common.llm import EVIDENCE_ONLY_DIRECTIVE  # noqa: E402
 from _skills_common.skill_report import ROLE_DESCRIPTIVE, build_skill_report  # noqa: E402
 
 SKILL_NAME = "cross-evidence-hypothesis"
-SKILL_VERSION = "0.6.0"  # 0.5.0→0.6.0: UNIFIED_OUTPUT_CONTRACT `skill_report` emitted top-level;
+SKILL_VERSION = "0.6.0"
 # axis ROLES consumed from synthesis.skill_reports (a gateless descriptive lens is no longer a data gap
 # and can no longer be named the limiting axis); certainty DISTRIBUTION alongside the weakest-link
 # scalar; independence discount made reachable (tagged substrates only + graded caps + tagging_sparse);

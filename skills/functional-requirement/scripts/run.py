@@ -34,11 +34,16 @@ from _skills_common.literature_synthesis import make_literature_fn
 from _skills_common.narrator_engine import make_synthesize_fn
 from _skills_common.narrator_lenses import FUNCTIONAL_REQUIREMENT as _FR_LENS
 from _skills_common.resolver import resolve_or_raise
+from _skills_common.signals_first import (
+    assemble_strength_certainty,
+    coverage_band,
+    weakest_link_level,
+)
 from _skills_common.skill_report import ROLE_GATING, build_skill_report
 from _skills_common.subgroup_derivation import _SUBGROUP_N_FLOOR, make_value_classifier
 
 SKILL_NAME = "functional-requirement"
-SKILL_VERSION = "1.11.0"  # 1.11.0 (2026-09-30, #2306 step 2 of epic SK#2210 / #1507 — reliability-facet EMIT on the landed L2a domain): each source_properties[*] entry now carries a typed, verdict-INERT (SK#2091) `reliability` object derived by the shared _skills_common/reliability.py _derive_reliability — n_effective projected from the property's own n-anchor (all six dependency properties carry one); powered='unmeasured' UNIFORMLY (no calibrated per-property-kind floor exists yet — a #2219-style calibration follow-on); confound_flags/artifact_flags=[] (microenvironment_weighted path implemented + synthetic-tested, does not fire on dependency anchors; floor_tie_percentile deferred); detection_strength OMITTED (no dependency property is detection-kind). The L2b crispr_rnai_essentiality_concordance island does NOT carry the facet (it reads only categorical per-assay direction tokens with no per-arm anchors to derive from → honestly omitted per the locked shape's derive-from-arm rule). Skills-only (the governed catalog derivation-declaration is a deferred #2306 follow-on). ADDITIVE — every other field stays byte-stable; feeds no rule, moves no verdict.   # 1.10.0 (2026-09-30, PR-1b of epic SK#2210 / #1507 — the DEPENDENCY generalisation of the tumor-presence L2a vertical, replicating the safety seed PR-1a): the per-source observational (L2a) properties, which existed only IMPLICITLY inside the four claim signal blocks, are lifted into a NAMED typed map `claim_vector.source_properties` (dependency_claims.py `_SOURCE_PROPERTY_RECIPES_DEPENDENCY`, 6 entries: crispr_essentiality / rnai_essentiality / dependency_lineage_selectivity / partner_conditional_dependency / chemical_genetic_engagement / paralog_buffering), each carrying its L1 card_id, the resolved observational class, the RETAINED quantitative anchors ({field, value, scale} + ledger-declared semantic_role / interpretation_reach, #1525) and comparability metadata; and under --emit-envelope evidence_package.json gains the NAMED top-level sections source_properties (L2a) / integrated_properties (L2b crispr_rnai_essentiality_concordance) / local_composites (the 4 axes DEP/SEL/COND/CHEM), built by _evidence_sections(headline) and threaded through run_wired_skill(evidence_sections_fn=...). No `l3d` section yet — the dependency within-domain story object is Wave-2a (PR-2a). Unlike the safety seed, dependency emits NO `comparability.valence` marker (this is the DEFAULT/efficacy frame — a strong dependency is the signal sought, so a generic higher-is-stronger read is correct; minting `valence: efficacy` would be an ungoverned second token) and NO `interpretation` provenance object (all six classes are verbatim card reads, no skills-side disjunction to name). Contracts governance: contracts/vocabularies/property_catalog/dependency.yaml (6 L2a props); claim_axis.enum.yaml 1.1.0→1.2.0 (SEL/COND/CHEM + safety PAN_ESSENTIAL now cite dependency.*; DEP additionally cites dependency.crispr_essentiality + dependency.rnai_essentiality alongside its l2b family). ADDITIVE / VERDICT-INERT: no axis renamed, no new L2b family, no token minted; `source_properties` omitted byte-stably when no source resolves; carries no `signal` key and read by no rule/verdict/ladder, so dependency_verdict + the resolver goldens + the KRAS replay are byte-stable.   # 1.9.0 (2026-09-04): verdict-INERT surfacing — indication_scope_note (target-grain positive enriched outside the queried indication) + partial-paralog caveat on absence verdicts.   # 1.8.0 (2026-09-03): --literature lane + verdict-INERT signal enrichment (measurement_caveat, concordance_scope_note, PRISM DEP-quorum, paralog caveat, polarity_note).   # 1.7.0 (2026-08-28): migrate narrator to generic capsule-driven engine. Verdict-INERT.   # 1.6.0 (2026-08-27): tuned signals-first sub-group reader (dependency-vocab
+SKILL_VERSION = "1.11.0"
 #        value→tier map + paralog-buffering confidence-only). Verdict-INERT.
 # 1.5.0 (2026-08-21): emit the existing per-question question_table into the headline
 # 1.4.0 (2026-08-13): production review — offline recorded-fixture replay drift
@@ -542,7 +547,6 @@ _DEP_INSUFF = {
     "insufficient_underpowered_in_indication",
     None,
 }
-_ORD = {"low": 0, "medium": 1, "high": 2}
 
 # The DECISION-RELEVANT dependency cards — the verdict-bearing set that bears on the dependency CALL.
 # unknown_mass is the fraction of THESE that came back blind this run (CERTAINTY_MODEL).
@@ -573,9 +577,7 @@ def _dependency_strength(verdict) -> str:
 
 
 def _coverage_from_n(n) -> str:
-    if not isinstance(n, (int, float)):
-        return "low"
-    return "high" if n >= 20 else ("medium" if n >= 5 else "low")
+    return coverage_band(n, high_n=20, med_n=5)
 
 
 def _corroboration_from_cross_consortium(cross_consortium_class) -> str:
@@ -638,34 +640,25 @@ def _dependency_strength_certainty(cards, verdict, cross_consortium_class) -> di
     frac = get_card_field(cards, "pan-cancer-crispr-dependency-distribution", "fraction_strongly_dependent")
     coverage = _coverage_from_n(n)
     corroboration = _corroboration_from_cross_consortium(cross_consortium_class)
-    components = [coverage] + ([corroboration] if corroboration != "unmeasured" else [])
-    level = min(components, key=lambda c: _ORD[c])  # weakest-link over MEASURED components
-    if verdict in _DEP_INSUFF:
-        level = "low"
-    from _skills_common.signals_first import certainty_composite
-
+    level = weakest_link_level(coverage, corroboration, force_low=(verdict in _DEP_INSUFF))
     strength = _dependency_strength(verdict)
-    return {
-        "strength": strength,
-        "certainty": {
-            "level": level,
-            "coverage": coverage,
-            "corroboration": corroboration,
-            "unknown_mass": _unknown_mass(cards),
-        },
-        # continuous portfolio-ranking primitive (verdict-inert; a NAMED projection, not canonical)
-        "composite": certainty_composite(strength, level),
-        "composite_basis": (
+    return assemble_strength_certainty(
+        strength,
+        coverage,
+        corroboration,
+        _unknown_mass(cards),
+        level=level,
+        composite_basis=(
             "certainty-discounted dependency strength = peak signal tier × weakest-link "
             "certainty; a NAMED [0,1] portfolio-ranking projection, not a canonical verdict"
         ),
-        "provenance": {
+        provenance={
             "n_cell_lines_evaluated": n,
             "fraction_strongly_dependent": frac,
             "cross_consortium_class": cross_consortium_class,
         },
-        "_model_ref": "CERTAINTY_MODEL.md#dependency",
-    }
+        model_ref="CERTAINTY_MODEL.md#dependency",
+    )
 
 
 def _strength_certainty(cards, fired=None, verdict_pair=None):
@@ -766,7 +759,7 @@ def _rnai_lof_dependency_support(cards) -> dict:
 
 
 # ── FACTORED-RECORD SHADOW (M1) — the DEPENDENCY per-axis builder. VERDICT-INERT: surfaced by the
-#    fan-out into decision.claim_record_shadow.dependency, consumed by NOTHING. Maps the dependency
+#    fan-out into decision.claim_record_shadow.dependency, consumed only by the composed report layer, verdict-inert. Maps the dependency
 #    verdict onto the record; reuses the reference _strength_certainty (guarded — it reads cards via
 #    get_card_field which raises on an absent card). Mirrors the other axes' hook. NOTE: pan_essential
 #    IS a genuine dependency (direction=supports, strong) — its non-selective TOXICITY downside is a

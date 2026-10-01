@@ -34,7 +34,7 @@ from _skills_common.translational_readiness_claims import (
 from _skills_common.translational_readiness_question_table import translational_readiness_question_table
 
 SKILL_NAME = "translational-readiness"
-SKILL_VERSION = "1.5.0"  # 1.5.0 (2026-09-05, literature-and-claims arc, 14th/FINAL skill): CREATE the
+SKILL_VERSION = "1.5.0"
 # TRANSLATIONAL_READINESS narrator lens (was NONE) + wire synthesize_fn + BAKE the
 # --literature lane; verdict-INERT preclinical-readiness confidence surface —
 # translational_readiness_confidence_caveat (3-tier: model_available_fidelity_

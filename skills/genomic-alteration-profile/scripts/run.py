@@ -127,10 +127,15 @@ _GENOMIC_VALUE_TIERS = {
     "no_exon_skip": "absent",
 }
 from _skills_common.headline_core import HeadlineSpec, build_headline, build_synthesis_facet
+from _skills_common.signals_first import (
+    assemble_strength_certainty,
+    coverage_band,
+    weakest_link_level,
+)
 from _skills_common.skill_report import ROLE_GATING, build_skill_report
 
 SKILL_NAME = "genomic-alteration-profile"
-SKILL_VERSION = "2.21.0"  # 2.21.0 (2026-10-01): + driver-pathway-position card (pathway-context epic SK#2314 P1), surfaced alongside the oncogenic-pathway-alteration facet — target+indication-conditioned POSITIONAL read (member/upstream/downstream of the indication's frequently-altered driver pathway); SOFT/VERDICT-INERT (fires no genomic rung → the multi-class genomic verdict spine + KRAS/BRAF replay goldens are byte-stable). HOMED in mechanism-and-pharmacology.   # 2.20.0 (2026-10-01, PR-1c of epic SK#2210 / #1507, #2212 — the GENOMIC generalisation of the tumor-presence L2a vertical, replicating the safety/dependency seeds): the per-source observational (L2a) properties for 7 sources (mutation_recurrence_exome/_panel, copy_number_recurrence_model, copy_number_focal_patient, fusion_recurrence, alteration_conferred_dependency, curated_driver_role) are lifted into a NAMED typed map `claim_vector.source_properties` (genomic_claims.py `_SOURCE_PROPERTY_RECIPES_GENOMIC`), each carrying its L1 card_id, the resolved observational class, the RETAINED quantitative anchors ({field, value, scale}) + comparability metadata, and the #2306 typed `reliability` facet (n_effective projected from each property's own n-anchor where the card carries one; powered='unmeasured' uniformly — no genomic property-kind has a calibrated floor yet; confound_flags/artifact_flags=[]; detection_strength OMITTED — genomic is mutation/CN/fusion, not detection-kind). Under --emit-envelope evidence_package.json gains the NAMED top-level sections source_properties (L2a) / integrated_properties (L2b recurrence_concordance) / local_composites (the six SNV/CN/FUS/SPL/DEP/ROLE axes), built by _evidence_sections(headline) and threaded through run_wired_skill(evidence_sections_fn=...). No `l3d` section yet. Like dependency (PR-1b), genomic emits NO `comparability.valence` marker (recurrence/CN/fusion is the default descriptive frame) and NO `interpretation` provenance object (every class below is a verbatim card read — the one skills-layer-adjacent disjunction, the fusion_class promiscuous-amplicon demotion #983, is baked into the card's own preprocessor output, not resolved here). Additive fix: the pre-existing L2b `recurrence_concordance` island's per-arm provenance now also carries `card_id` (mutation-hotspot-frequency), making it reconstructable downward to L1 per the evidence_package schema's own documented invariant (byte-stable for any existing reader keying on headline_field/cohort). Contracts governance: contracts/vocabularies/property_catalog/genomic.yaml (7 L2a props); claim_axis.enum.yaml cites genomic.* axes. ADDITIVE / VERDICT-INERT: no axis renamed, no new L2b family, no token minted; `source_properties` omitted byte-stably when no source resolves; carries no `signal` key and read by no rule/verdict/ladder, so the genomic resolver + the KRAS/BRAF replay goldens are byte-stable.     # 2.19.0 (2026-09-19): POWER-HONESTY on the read/projection surfaces, all VERDICT-INERT (sub_verdicts byte-stable). (a) _ga_coverage read the whole-cohort panel DENOMINATOR (n_cell_lines_evaluated ~1538, always >=20) so certainty.coverage SATURATED "high" for every measured verdict — a power claim that never varied; now it reads the DRIVING CLASS's altered ARM (_dep_arm_n over the stratified-dependency n_*_mutant/n_amplified/n_fusion_positive fields; mut_n_cell_lines_mutated for the SNV-spectrum family), banded at _COVERAGE_N_HIGH=30/_COVERAGE_N_MED=10 (restating subgroup_common/panorama.py's SUBGROUP_N_FLOOR per subgroup_derivation.py precedent); curated/landscape verdicts carry NO altered-arm count so stay "high" and defer to corroboration. (b) _panorama_axis conflated two absences: strata evaluated but < 2 measured (UNDERPOWERED — a contrast was attempted and could not be powered) vs nothing evaluated on the axis (NOT_INFORMATIVE — no contrast to attempt); now split. (c) NEUTRAL-FAMILY coherence: the spectrum-SHAPE tokens lof/missense_dominant_pattern (a variant-composition shape, NOT a driver call — missense_dominant fires for 62% of the review panel incl. both negative controls) were published weak_positive/supports/measured_positive via _GA_WEAK_POS while the verdict spine (_GENOMIC_POSITIVE_VERDICTS) and _ga_modality_scope (na) already treated them as non-driver; converged to neutral/neutral/insufficient (extending the 2.18.0 clause-(c) demotion-token precedent) and removed _GA_WEAK_POS. (d) ARCHITECTURAL: interpretation rules are equals-only (a rule matches a categorical CLASS token, carries no min_n) so the skill CANNOT consume a numeric cutoff from a contract — every cutoff is skill-owned policy declared at its use site; deleted the dead _SUBTYPE_DELTA_THRESHOLD (0 readers). (a) skill_report.subgroup_signals was computed into the headline and then dropped at the call site (None on 26/26 panel runs); now passed. (b) skill_report.modality_scope + claim_record_shadow.modality_scope were None on every run; now the FOR-WHAT projection _ga_modality_scope — allele-selectable GoF driver -> small_molecule favorable, GoF driver with no selectable allele -> conditional (amplicon/fusion/WT-binding: ERBB2, FGFR2, METex14), recurrent biallelic deletion -> unfavorable, else na; biologics always na (no localization read on an intracellular-intrinsic axis) and _refinements always omitted (MEASURED: 0/59 genomic-card rules diverge small_molecule vs degrader, so a rule-signal fold would be information-free). Reads the SHARED wt_loss_safety_conditioning.yaml allele-selectivity triple + requires POSITIVE selectable-allele evidence, without which OncoKB-list-only surface antigens (TACSTD2, FOLR1) read SM-favorable. (c) the two demotion tokens recurrent_snv_subclonal_uncertain + biomarker_dependency_unconfirmed were in NO _GA_* bucket, so they fell through _ga_availability to `measured_positive`; now NEUTRAL strength + `insufficient` availability. (d) the standalone _claim_record/_strength_certainty hooks scored the RAW ladder, so TP53/COADREAD published direction=supports/measured_positive against its own emitted biomarker_dependency_unconfirmed; both now score the reconciled word via reconciled_verdict_from_cards.   # 2.17.0 (2026-09-06): MIGRATED off the hand-rolled main() onto the shared run_wired_skill dispatcher (the last hand-rolled fan-out main) via 3 additive dispatcher hooks — preprocess_provenance→headline_fn, subtype_merge_fn, claim_record_fn. Verdict spine + headline byte-IDENTICAL on the whole-cohort path. Fleet-alignment deltas (all verdict-INERT): run_health adopts the fleet shape (+read/compute/total_secs, provenance_warnings, cards_skipped_a4) + a `consolidation` key is added; the headline-hero figure is now --figures-gated (fleet convention); on --subtypes the panorama cards get whole-cohort capsules (fleet convention) so their evidence_graph nodes render at base detail (panorama block itself byte-identical).   # 2.16.0 (2026-09-04, #983): COPY-NUMBER GATE completing the fusion over-read fix — a moderate_promiscuous recurrent_fusion_driver at a recurrently focally-AMPLIFIED locus (copy-number-distribution.patient_focal_cn_class == recurrent_focal_amplification) is demoted (card preprocessor, all paths) to promiscuous_amplicon_fusion → fires NO driver rung + drops out of the multi-class framing (amplicon passenger, ERBB2/STAD-class), while not-amplified promiscuous kinase fusions (ROS1/NTRK1/FGFR2) are SPARED. The v2.15.0 claim-vector downgrade now covers the not-focally-amplified half (MET/LUAD). VERDICT-MOVING only for the amplified amplicon-passenger subset (amplification-driver rung already carries their verdict).   # +SPLICE as a first-class alteration member of the signals-first layer: genomic_alteration_by_class['splice'], a SPL claim-vector axis (genomic_claims), a question-table row, key_signals driver-naming, and the GENOMIC_ALTERATION lens axis_labels — so a splice_exon_skip_driver (METex14) verdict is NAMED by the decomposition/narrator (was invisible → the layer led with SNV/fusion). + VERDICT-INERT confidence-aware FUS downgrade: a recurrent_fusion_driver flagged fusion_recurrence_confidence==moderate_promiscuous downgrades strong->weak in the claim vector (MET/LUAD promiscuous n=3, contradicted by literature) so the signals-first headline stops over-reading it — resolver rung untouched (#983). HeadlineSpec hero (SNV/CN/FUS/DEP) deliberately unchanged → headline_block/confidence byte-stable. Surfaced by the KRAS-vs-MET literature-benchmark review.   # 2.14.0: +OPTIONAL --literature lane (verdict-INERT LLM literature synthesis, Europe-PMC-grounded + PMID-verified, scoped to SNV/CN/FUS/DEP; reuses _skills_common.literature_synthesis) wired in the hand-rolled main(), mirroring tumor-presence #965 / tumor-selectivity #968. + VERDICT-INERT claim-vector enrichment: CIViC therapy-resistance actionability (variant-level-interpretation.civic_resistance_variants) folded into the DEP claim's rendered evidence + LensConfig thesis, so the narrator surfaces a negative-predictive-biomarker allele (e.g. KRAS→anti-EGFR in COADREAD) it previously missed (capsule projection never surfaced resistance_variants). Verdict spine byte-stable.   # 2.13.0: +splice-exon-skip-landscape (CASE-002): curated exon-skip DRIVER (METex14) oncogenic in-indication + live DepMap carriers fires splice_exon_skip_driver (genomic resolver 1.8.0), so MET/LUAD reads a splice-skipping driver not a neutral missense_dominant_pattern (signal-vector fidelity; veto already resolved).   # 2.12.0: +reconcile_genomic_verdict: EMITTED-verdict alignment with the signal package (biomarker-dependency demotes to biomarker_dependency_unconfirmed when BOTH KO-dependency confidence cards contradict). Verdict-INERT to nomination (gate reads raw ladder). Mirrors tumor-presence #860.   # 2.11.0: +recurrent_snv_subclonal_uncertain (backtest-gated subclonal-recurrence demotion; contracts genomic_alteration 1.7.0)   # 2.10.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 2.9.0 (2026-08-27): wire signals-first sub-group signals (hand-rolled main bypassed
+SKILL_VERSION = "2.21.0"
 #        the fleet wiring) + tuned alteration value→tier map. Verdict-INERT.
 
 # Whole-cohort cards read on every run. The verdict is driven by the resolver (see _verdict);
@@ -1077,7 +1082,6 @@ _SYNTHESIS_FACET_KEYS = (
 #    computed beside the genomic verdict; never alters it. corroboration = the VERDICT-DISJOINT CIViC
 #    per-variant oncogenicity (variant-level-interpretation.civic_variant_class — an independent curated
 #    source confirming the driver claim; fires no resolver rung). Reviewed per-axis design (4-agent panel).
-_GA_ORD = {"low": 0, "medium": 1, "high": 2}
 _CERTAINTY_CORROBORATION_CARDS = frozenset({"variant-level-interpretation"})
 _GA_STRONG_POS = {"biomarker_stratified_dependency", "multi_class_driver", "multi_class_lof_driver"}
 _GA_MOD_POS = {
@@ -1203,9 +1207,7 @@ def _dep_arm_n(cards, card_id: str):
 def _coverage_band(n) -> str:
     """Bucket an altered-arm sample count into a coverage band. A missing/non-numeric count is `low` —
     the conservative direction (no measured power basis)."""
-    if not isinstance(n, (int, float)) or isinstance(n, bool):
-        return "low"
-    return "high" if n >= _COVERAGE_N_HIGH else ("medium" if n >= _COVERAGE_N_MED else "low")
+    return coverage_band(n, high_n=_COVERAGE_N_HIGH, med_n=_COVERAGE_N_MED)
 
 
 def _ga_coverage(cards, verdict=None, driving_rule=None) -> str:
@@ -1268,34 +1270,25 @@ def _strength_certainty(cards, fired=None, verdict_pair=None) -> dict:
     # word but keeps the rung, so the arm that was powered is still the driving rule's arm)
     coverage = _ga_coverage(cards, verdict=v, driving_rule=driving)
     corroboration = _ga_corroboration(civic)
-    components = [coverage] + ([corroboration] if corroboration != "unmeasured" else [])
-    level = min(components, key=lambda c: _GA_ORD[c]) if components else "low"
-    if v in _GA_NONE:
-        level = "low"
-    from _skills_common.signals_first import certainty_composite
-
+    level = weakest_link_level(coverage, corroboration, force_low=(v in _GA_NONE))
     strength = _genomic_strength(v)
-    return {
-        "strength": strength,
-        "certainty": {
-            "level": level,
-            "coverage": coverage,
-            "corroboration": corroboration,
-            "unknown_mass": _ga_unknown_mass(cards),
-        },
-        # continuous portfolio-ranking primitive (verdict-inert; a NAMED projection, not canonical)
-        "composite": certainty_composite(strength, level),
-        "composite_basis": (
+    return assemble_strength_certainty(
+        strength,
+        coverage,
+        corroboration,
+        _ga_unknown_mass(cards),
+        level=level,
+        composite_basis=(
             "certainty-discounted genomic-alteration strength = peak signal tier × "
             "weakest-link certainty; a NAMED [0,1] portfolio-ranking projection, not a verdict"
         ),
-        "provenance": {"civic_variant_class": civic},
-        "_model_ref": "CERTAINTY_MODEL.md#genomic_alteration",
-    }
+        provenance={"civic_variant_class": civic},
+        model_ref="CERTAINTY_MODEL.md#genomic_alteration",
+    )
 
 
 # ── FACTORED-RECORD SHADOW (M1) — the genomic per-axis builder. VERDICT-INERT: emitted into
-#    decision.json.claim_record_shadow and consumed by NOTHING (goldens untouched). Maps the
+#    decision.json.claim_record_shadow and consumed only by the composed report layer, verdict-inert (goldens untouched). Maps the
 #    genomic_alteration verdict token onto the factored record's axis-specific coordinates; the
 #    shared assembler owns shape + the open-world invariant + provenance. Mirrors _strength_certainty.
 _GA_ROLE = {  # driver-role from the verdict (LoF-family verdicts carry loss-of-function role)

@@ -30,7 +30,7 @@ from _skills_common.narrator_lenses import LITERATURE_CONTEXT as _LENS
 from _skills_common.skill_report import ROLE_DESCRIPTIVE, build_skill_report
 
 SKILL_NAME = "literature-context"
-SKILL_VERSION = "1.1.0"  # 1.1.0 (2026-09-05, literature-and-claims arc, 2nd NON-standard skill after
+SKILL_VERSION = "1.1.0"
 # target-archetype #1052): CREATE the LITERATURE_CONTEXT narrator lens (was NONE)
 # + wire synthesize_fn. DELIBERATE DECISION: SKIP the LLM --literature lane as
 # REDUNDANT/CIRCULAR — the cited-literature-evidence card IS the Europe-PMC +

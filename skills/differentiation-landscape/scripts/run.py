@@ -57,7 +57,7 @@ from _skills_common.claim_record import assemble_claim_record
 from _skills_common.resolver import resolve_or_raise
 
 SKILL_NAME = "differentiation-landscape"
-SKILL_VERSION = "1.13.0"  # 1.13.0 (2026-09-28, #1815/#1816/#1820): wire mutational-signature-context
+SKILL_VERSION = "1.13.0"
 #        (#1815, TCGA MC3 per-indication mutational-process patient-selection facet) + oncogenic-pathway-
 #        alteration (#1816, Sanchez-Vega genomic pathway-alteration frequency lens) as ADDITIVE VERDICT-INERT
 #        render facets (headline + synthesis facet + question-table Q5/Q3), and surface emitted-but-unread
@@ -708,7 +708,6 @@ def _build_headline_block(headline: dict) -> dict:
 #    needs an analysis-methods field-emit + a field-granular disjointness validator (the corroborator
 #    shares the verdict card) — a data-ingest follow-on, not this additive slice. strength is a PATTERN
 #    magnitude (co-occurrence vs mutual-exclusivity is a pattern TYPE, not good/bad — informational).
-_DIFF_ORD = {"low": 0, "medium": 1, "high": 2}
 _DIFF_STRONG = {"strong_cooccurring", "strong_mutually_exclusive", "both_patterns_present"}
 _DIFF_MOD = {
     "modest_cooccurring",
@@ -762,7 +761,7 @@ def _strength_certainty(cards, fired=None, verdict_pair=None) -> dict:
 #    DESCRIPTIVE / non-gating axis: co-occurrence vs mutual-exclusivity is a pattern TYPE, not a
 #    good/bad valence, so finding.direction is ALWAYS neutral (the pattern informs, it does not push a
 #    nomination). VERDICT-INERT: surfaced by the fan-out into decision.claim_record_shadow.differentiation,
-#    consumed by NOTHING. Reuses _strength_certainty (coverage-only). Mirrors the other axes' hook.
+#    consumed only by the composed report layer, verdict-inert. Reuses _strength_certainty (coverage-only). Mirrors the other axes' hook.
 _DIFF_STRENGTH_TO_LEVEL = {"strong_pattern": "strong", "moderate_pattern": "moderate", "none": "none"}
 
 
