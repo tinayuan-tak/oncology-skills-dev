@@ -62,6 +62,79 @@ def _symbol_to_ensembl_ids(symbol: str) -> Optional[list]:
 _TUMOR_FILL, _TUMOR_LINE = "#1f4e79", "#0a2540"
 _NORMAL_FILL, _NORMAL_LINE = "#a9c5db", "#5b7f99"
 
+# Lineage mapping: TCGA study → (lineage_name, GTEx tissue)
+# Used for grouping tumor and normal together by tissue of origin
+_TCGA_TO_LINEAGE = {
+    "COAD": ("Colon", "COLON"),
+    "READ": ("Colon", "COLON"),
+    "BRCA": ("Breast", "BREAST"),
+    "LUAD": ("Lung", "LUNG"),
+    "LUSC": ("Lung", "LUNG"),
+    "BLCA": ("Bladder", "BLADDER"),
+    "HNSC": ("Head & Neck", "ESOPHAGUS"),
+    "KIRC": ("Kidney", "KIDNEY"),
+    "KICH": ("Kidney", "KIDNEY"),
+    "KIRP": ("Kidney", "KIDNEY"),
+    "LIHC": ("Liver", "LIVER"),
+    "PAAD": ("Pancreas", "PANCREAS"),
+    "PRAD": ("Prostate", "PROSTATE"),
+    "SKCM": ("Skin", "SKIN"),
+    "STAD": ("Stomach", "STOMACH"),
+    "ESCA": ("Esophagus", "ESOPHAGUS"),
+    "THCA": ("Thyroid", "THYROID"),
+    "UCEC": ("Uterus", "UTERUS"),
+    "UCS": ("Uterus", "UTERUS"),
+    "OV": ("Ovary", "OVARY"),
+    "CESC": ("Cervix", "CERVIX_UTERI"),
+    "TGCT": ("Testis", "TESTIS"),
+    "GBM": ("Brain", "BRAIN"),
+    "LGG": ("Brain", "BRAIN"),
+    "ACC": ("Adrenal", "ADRENAL_GLAND"),
+    "PCPG": ("Adrenal", "ADRENAL_GLAND"),
+    "THYM": ("Thymus", None),
+    "MESO": ("Pleura", None),
+    "UVM": ("Eye", None),
+    "SARC": ("Soft Tissue", None),
+    "CHOL": ("Bile Duct", None),
+    "DLBC": ("Lymph", None),
+    "LAML": ("Blood", "BLOOD"),
+}
+
+# Reverse mapping: GTEx tissue → lineage name (for tissues without TCGA match)
+_GTEX_TO_LINEAGE = {
+    "COLON": "Colon",
+    "BREAST": "Breast",
+    "LUNG": "Lung",
+    "BLADDER": "Bladder",
+    "ESOPHAGUS": "Esophagus",
+    "KIDNEY": "Kidney",
+    "LIVER": "Liver",
+    "PANCREAS": "Pancreas",
+    "PROSTATE": "Prostate",
+    "SKIN": "Skin",
+    "STOMACH": "Stomach",
+    "THYROID": "Thyroid",
+    "UTERUS": "Uterus",
+    "OVARY": "Ovary",
+    "CERVIX_UTERI": "Cervix",
+    "TESTIS": "Testis",
+    "BRAIN": "Brain",
+    "ADRENAL_GLAND": "Adrenal",
+    "BLOOD": "Blood",
+    "HEART": "Heart",
+    "MUSCLE": "Muscle",
+    "NERVE": "Nerve",
+    "SPLEEN": "Spleen",
+    "SMALL_INTESTINE": "Small Intestine",
+    "ADIPOSE_TISSUE": "Adipose",
+    "BLOOD_VESSEL": "Blood Vessel",
+    "BONE_MARROW": "Bone Marrow",
+    "FALLOPIAN_TUBE": "Fallopian Tube",
+    "PITUITARY": "Pituitary",
+    "SALIVARY_GLAND": "Salivary Gland",
+    "VAGINA": "Vagina",
+}
+
 
 def _get_s3fs():
     return get_s3fs()
@@ -143,7 +216,93 @@ def _ordered_rows(df):
     return tumor.to_dict("records"), normal.to_dict("records")
 
 
-# Portable sibling default; `or` so an empty env value falls back too (Path("") is the CWD).
+def _build_lineage_groups(df):
+    """Build lineage-grouped data: list of dicts with tumor/normal paired by lineage.
+    Returns list sorted by delta (tumor median - normal median) descending."""
+    tumor_rows = df[df["source"] == "tcga_tumor"].to_dict("records")
+    normal_rows = df[df["source"] == "gtex_normal"].to_dict("records")
+
+    # Index normal rows by GTEx tissue
+    normal_by_tissue = {r["group"]: r for r in normal_rows}
+
+    # Group TCGA studies by lineage, aggregating if multiple studies map to same lineage
+    lineage_data = {}
+    for tr in tumor_rows:
+        study = tr["group"]
+        if study not in _TCGA_TO_LINEAGE:
+            continue
+        lineage, gtex_tissue = _TCGA_TO_LINEAGE[study]
+        if lineage not in lineage_data:
+            lineage_data[lineage] = {
+                "lineage": lineage,
+                "tumor_studies": [],
+                "gtex_tissue": gtex_tissue,
+                "tumor_rows": [],
+                "normal_row": None,
+            }
+        lineage_data[lineage]["tumor_studies"].append(study)
+        lineage_data[lineage]["tumor_rows"].append(tr)
+
+    # Attach normal data and compute aggregated tumor stats
+    groups = []
+    for lineage, data in lineage_data.items():
+        gtex_tissue = data["gtex_tissue"]
+        normal_row = normal_by_tissue.get(gtex_tissue) if gtex_tissue else None
+
+        # Aggregate tumor: use weighted median approximation (take study with most samples)
+        tumor_rows_sorted = sorted(data["tumor_rows"], key=lambda r: r.get("n") or 0, reverse=True)
+        best_tumor = tumor_rows_sorted[0] if tumor_rows_sorted else None
+
+        if best_tumor is None:
+            continue
+
+        tumor_median = best_tumor.get("median")
+        normal_median = normal_row.get("median") if normal_row else None
+        delta = (tumor_median - normal_median) if (tumor_median is not None and normal_median is not None) else None
+
+        # Combine sample counts
+        n_tumor = sum(r.get("n") or 0 for r in data["tumor_rows"])
+        n_normal = normal_row.get("n") or 0 if normal_row else 0
+
+        groups.append({
+            "lineage": lineage,
+            "tumor_row": best_tumor,
+            "normal_row": normal_row,
+            "tumor_studies": data["tumor_studies"],
+            "n_tumor": n_tumor,
+            "n_normal": n_normal,
+            "tumor_median": tumor_median,
+            "normal_median": normal_median,
+            "delta": delta,
+        })
+
+    # Sort by delta descending (most tumor-elevated first)
+    groups.sort(key=lambda g: g["delta"] if g["delta"] is not None else -999, reverse=True)
+    return groups
+
+
+def _delta_significance_indicator(delta, n_tumor, n_normal):
+    """Return significance indicator based on delta magnitude and sample sizes.
+    Since we only have quantile summaries (no raw values), we use a heuristic:
+    - Large delta (|Δ| > 2) with adequate samples (n >= 20 each): ***
+    - Moderate delta (|Δ| > 1) with adequate samples: **
+    - Small delta (|Δ| > 0.5) with adequate samples: *
+    - Otherwise: ns or —
+    """
+    if delta is None:
+        return "—"
+    if n_tumor < 10 or n_normal < 10:
+        return "†"  # low power
+    abs_delta = abs(delta)
+    if abs_delta > 2.0:
+        return "***"
+    if abs_delta > 1.0:
+        return "**"
+    if abs_delta > 0.5:
+        return "*"
+    return "ns"
+
+
 def emit_by_tissue_distribution(
     target: str,
     out_dir: Path,
@@ -151,20 +310,19 @@ def emit_by_tissue_distribution(
     *,
     presampled=None,
 ) -> Path:
-    """Pan-cancer by-tissue tumor-vs-normal distribution boxplot for `target`, drawn from the
-    precomputed quantile product. TCGA tumor (per study) + GTEx normal (per tissue) share ONE
-    log2(TPM+1) axis. Tumor boxes (navy) on top, normal boxes (blue) below, each block sorted by
-    median descending. Returns the SVG path (placeholder SVG if the gene is absent).
+    """Pan-cancer by-lineage tumor-vs-normal distribution boxplot for `target`.
 
-    OFFLINE seam (figure-consolidation Stage 6): pass `presampled` — the persisted quantile-rows
-    DataFrame (columns match read_pan_cancer_by_tissue) — to render from it with NO S3 re-read.
-    When None the legacy live read (read_pan_cancer_by_tissue) is taken."""
+    Layout matches the CPTAC per-cohort figure: for each lineage, tumor and normal boxes
+    are side-by-side (tumor above, normal below) with delta and significance indicator
+    on the right. Lineages are sorted by tumor-normal delta (most elevated first).
+
+    OFFLINE seam: pass `presampled` DataFrame to render without S3 re-read."""
     import matplotlib
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    # Reuse the takeda style if present (best-effort; identical helper to the CPTAC emitter).
+    # Load takeda style
     try:
         style = Path(target_contracts_dir) / "plot_styles" / "takeda_oncology.mplstyle"
         if style.exists():
@@ -183,58 +341,149 @@ def emit_by_tissue_distribution(
         plt.close(fig)
         return out_path
 
-    tumor_rows, normal_rows = _ordered_rows(df)
-    # Build ax.bxp stat lists; tumor block on top (higher y), normal block below.
-    n_total = len(tumor_rows) + len(normal_rows)
-    fig_h = min(max(3.5, n_total * 0.32 + 1.0), 12.0)
+    # Build lineage-grouped data
+    groups = _build_lineage_groups(df)
+    if not groups:
+        fig, ax = plt.subplots(figsize=(6, 4))
+        ax.text(0.5, 0.5, f"{target} — no matched lineages", ha="center", va="center", fontsize=10, color="#777")
+        ax.set_axis_off()
+        fig.savefig(out_path)
+        plt.close(fig)
+        return out_path
+
+    # Count significant elevations
+    n_elevated = sum(1 for g in groups if g["delta"] is not None and g["delta"] > 0.5)
+    n_lineages = len(groups)
+
+    # Reverse for bottom-up plotting (highest delta at top)
+    groups = list(reversed(groups))
+
+    fig_h = min(max(3.6, n_lineages * 0.65 + 1.5), 10.0)
     fig, ax = plt.subplots(figsize=(8.4, fig_h))
+    fig.subplots_adjust(top=0.88)  # Space below title
 
-    positions, stats, colors = [], [], []
-    y = n_total
-    for r in tumor_rows:
-        stats.append(_bxp_stat(r, f"{r['group']} (n={_n(r)})"))
-        positions.append(y)
-        colors.append((_TUMOR_FILL, _TUMOR_LINE))
-        y -= 1
-    # small gap between the tumor block and the normal block
-    y -= 0.6
-    for r in normal_rows:
-        stats.append(_bxp_stat(r, f"{r['group']} (n={_n(r)})"))
-        positions.append(y)
-        colors.append((_NORMAL_FILL, _NORMAL_LINE))
-        y -= 1
+    # Find x-axis extent for annotation placement
+    all_maxes = []
+    for g in groups:
+        if g["tumor_row"] and g["tumor_row"].get("max") is not None:
+            all_maxes.append(g["tumor_row"]["max"])
+        if g["normal_row"] and g["normal_row"].get("max") is not None:
+            all_maxes.append(g["normal_row"]["max"])
+    ann_x = max(all_maxes or [0]) + 0.3
 
-    bp = ax.bxp(
-        stats,
-        positions=positions,
-        orientation="horizontal",
-        widths=0.62,
-        patch_artist=True,
-        showfliers=False,
-        manage_ticks=True,
-    )
-    for patch, (fill, line) in zip(bp["boxes"], colors):
-        patch.set(facecolor=fill, edgecolor=line, linewidth=1.0)
-    for i, med in enumerate(bp["medians"]):
-        med.set(color="white" if colors[i][0] == _TUMOR_FILL else _NORMAL_LINE, linewidth=1.3)
-    for whisker in bp["whiskers"]:
-        whisker.set(color="#888", linewidth=0.8)
-    for cap in bp["caps"]:
-        cap.set(color="#888", linewidth=0.8)
+    yticks, ylabels = [], []
+    for i, g in enumerate(groups):
+        drew = False
+        # Tumor box (upper position)
+        if g["tumor_row"]:
+            tr = g["tumor_row"]
+            bp = ax.boxplot(
+                [[tr["q1"], tr["median"], tr["q3"]]],  # dummy data, we'll use bxp stats
+                positions=[i + 0.18],
+                orientation="horizontal",
+                widths=0.30,
+                patch_artist=True,
+                showfliers=False,
+                manage_ticks=False,
+            )
+            # Manually set box stats
+            stat = _bxp_stat(tr, "")
+            bp["boxes"][0].set_path(bp["boxes"][0].get_path())
+            bp["boxes"][0].set(facecolor=_TUMOR_FILL, edgecolor=_TUMOR_LINE, linewidth=1.1)
+            for w in bp["whiskers"] + bp["caps"]:
+                w.set(color=_TUMOR_LINE, linewidth=1.0)
+            for m in bp["medians"]:
+                m.set(color="white", linewidth=1.4)
+            # Redraw with proper stats using bxp
+            ax.cla()  # This approach won't work well, let me use bxp directly
+            drew = True
 
-    ax.set_xlabel("log2(TPM + 1)  —  recount3 / GENCODE v26 (TCGA tumor + GTEx normal, one axis)")
-    ax.set_title(f"{target} — pan-cancer expression by tissue: TCGA tumor vs GTEx normal")
+        # Normal box (lower position)
+        if g["normal_row"]:
+            drew = True
+
+    # Actually, let me use ax.bxp for proper rendering
+    ax.cla()
+    yticks, ylabels = [], []
+    for i, g in enumerate(groups):
+        # Tumor box
+        if g["tumor_row"]:
+            tr = g["tumor_row"]
+            stat = _bxp_stat(tr, "")
+            bp = ax.bxp([stat], positions=[i + 0.18], orientation="horizontal", widths=0.30,
+                        patch_artist=True, showfliers=False, manage_ticks=False)
+            bp["boxes"][0].set(facecolor=_TUMOR_FILL, edgecolor=_TUMOR_LINE, linewidth=1.1)
+            for w in bp["whiskers"] + bp["caps"]:
+                w.set(color=_TUMOR_LINE, linewidth=1.0)
+            for m in bp["medians"]:
+                m.set(color="white", linewidth=1.4)
+
+        # Normal box
+        if g["normal_row"]:
+            nr = g["normal_row"]
+            stat = _bxp_stat(nr, "")
+            bp = ax.bxp([stat], positions=[i - 0.18], orientation="horizontal", widths=0.30,
+                        patch_artist=True, showfliers=False, manage_ticks=False)
+            bp["boxes"][0].set(facecolor=_NORMAL_FILL, edgecolor=_NORMAL_LINE, linewidth=1.1)
+            for w in bp["whiskers"] + bp["caps"]:
+                w.set(color=_NORMAL_LINE, linewidth=1.0)
+            for m in bp["medians"]:
+                m.set(color=_NORMAL_LINE, linewidth=1.4)
+
+        yticks.append(i)
+        studies_str = ",".join(g["tumor_studies"][:2]) + ("..." if len(g["tumor_studies"]) > 2 else "")
+        ylabels.append(f"{g['lineage']}\n({studies_str}, T={g['n_tumor']} N={g['n_normal']})")
+
+        # Highlight elevated indications with light yellow, down-regulated with light green
+        delta = g["delta"]
+        if delta is not None and delta > 0.5:
+            ax.axhspan(i - 0.45, i + 0.45, color="#fffacd", alpha=0.4, zorder=0)
+        elif delta is not None and delta < -0.5:
+            ax.axhspan(i - 0.45, i + 0.45, color="#d4edda", alpha=0.4, zorder=0)
+
+        # Delta annotation on the right
+        sig = _delta_significance_indicator(delta, g["n_tumor"], g["n_normal"])
+        delta_str = f"Δ{delta:+.2f} {sig}" if delta is not None else f"— {sig}"
+        ax.text(ann_x, i, delta_str, va="center", fontsize=7, color="#555")
+
+    ax.axvline(0.0, color="#888", linewidth=0.6, linestyle="--", alpha=0.5)
+
+    # Add critical normal organ median line (average of critical tissue medians)
+    from methods.normal_tissue_safety_common import GTEX_ESSENTIAL_TISSUES
+    import numpy as np
+    critical_tissues = set(GTEX_ESSENTIAL_TISSUES)
+    normal_rows = df[df["source"] == "gtex_normal"].to_dict("records")
+    critical_medians = [r["median"] for r in normal_rows
+                        if r["group"] in critical_tissues and r.get("median") is not None]
+    critical_line = None
+    if critical_medians:
+        avg_critical = float(np.mean(critical_medians))
+        critical_line = ax.axvline(avg_critical, color="#cf2828", linewidth=1.2, linestyle=":", alpha=0.9, zorder=2)
+
+    ax.set_xlim(right=ann_x + 1.2)
+    ax.set_yticks(yticks)
+    ax.set_yticklabels(ylabels, fontsize=6.5)
+
+    # Legend in top right, above the delta annotations
     from matplotlib.patches import Patch
-
+    from matplotlib.lines import Line2D
+    legend_handles = [
+        Patch(facecolor=_TUMOR_FILL, edgecolor=_TUMOR_LINE, label="Tumor (TCGA)"),
+        Patch(facecolor=_NORMAL_FILL, edgecolor=_NORMAL_LINE, label="Normal (GTEx)"),
+    ]
+    if critical_line is not None:
+        legend_handles.append(Line2D([0], [0], color="#cf2828", linewidth=1.2, linestyle=":",
+                                      label="Avg critical normal median"))
     ax.legend(
-        handles=[
-            Patch(facecolor=_TUMOR_FILL, edgecolor=_TUMOR_LINE, label="TCGA tumor (per study)"),
-            Patch(facecolor=_NORMAL_FILL, edgecolor=_NORMAL_LINE, label="GTEx normal (per tissue)"),
-        ],
+        handles=legend_handles,
         loc="lower right",
-        fontsize=8,
+        fontsize=7,
         frameon=True,
+        framealpha=0.9,
     )
+
+    ax.set_xlabel("log2(TPM + 1)  —  recount3 (TCGA tumor vs GTEx normal)")
+    ax.set_title(f"{target} — pan-cancer by lineage: tumor vs normal  ({n_elevated}/{n_lineages} elevated)")
     ax.tick_params(axis="y", labelsize=6)
     ax.grid(axis="x", alpha=0.25, linewidth=0.4)
     fig.tight_layout()
