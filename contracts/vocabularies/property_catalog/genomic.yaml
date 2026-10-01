@@ -8,7 +8,7 @@
 # PR-1b) for the genomic domain.
 catalog_id: genomic
 kind: l2a_property
-version: 1.0.0
+version: 1.0.1
 
 description: |
   Like dependency, this is a DEFAULT/descriptive-frame domain: a recurrent driver call, a focal
@@ -378,7 +378,15 @@ properties:
         unit: relative_copy_number
         source: methods/onc_methods/depmap_cn_distribution/cli.py:72
         rationale: |
-          UNKNOWN. The focal-amplification floor above the neutral band. Adjudicated by #2219.
+          UNKNOWN. The focal-amplification floor above the neutral band. #2219 sweep: the method's
+          own comment (methods/onc_methods/depmap_cn_distribution/cli.py:70-72) flags this as a
+          KNOWN, DELIBERATE divergence, not a bug — "this is a DIFFERENT threshold from the
+          stratification methods' FOCAL_AMP_HIGH (=2.0, the amplified-arm cutoff in
+          depmap_cn_dependency / depmap_amp_expr_dependency) — same 'focal amp' idea, different
+          value tuned per card." The amp-expr/CN-stratified-dependency siblings are not catalogued
+          here (see this file's description — follow-on roster expansion), so this is recorded as
+          context rather than a `divergent:` cross-reference between two catalogued entries; flagged
+          on #2219 for the record in case those siblings are catalogued later.
         calibration:
           controls: null
           flip_matrix: null
@@ -488,8 +496,14 @@ properties:
         source: methods/onc_methods/tcga_patient_cn/read.py:105
         rationale: |
           Below 20 GISTIC-covered tumours in-indication both the any-gain and focal classifiers emit
-          `underpowered` — mirrors MIN_COVERED_CN on the cell-line CN classifier. UNKNOWN as a
-          calibration; adjudicated by #2219.
+          `underpowered` — mirrors MIN_COVERED_CN on the cell-line CN classifier. #2219 sweep: the
+          source's own comment (methods/onc_methods/tcga_patient_cn/read.py:103-105) names the FULL
+          mirror set, wider than previously recorded here — "Mirrors _MIN_COVERED=20 in
+          genie_sv_recurrence / pooled_snv_recurrence and the cell-line reader's MIN_COVERED_CN":
+          FOUR sites share this exact 20-sample/line floor (this one, GENIE_SV_MIN_COVERED on
+          fusion_recurrence, GENIE_MIN_COVERED on mutation_recurrence_panel, and MIN_COVERED_CN on
+          copy_number_recurrence_model), all in this file. UNKNOWN as a calibration for the value
+          20 itself.
         calibration:
           controls: null
           flip_matrix: null

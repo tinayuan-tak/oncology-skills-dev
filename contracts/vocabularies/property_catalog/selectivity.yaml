@@ -8,7 +8,7 @@
 # the selectivity domain.
 catalog_id: selectivity
 kind: l2a_property
-version: 1.0.0
+version: 1.0.1
 
 description: |
   Like dependency/genomic, this is a DEFAULT/descriptive-frame domain: a tumor-vs-normal RNA or protein
@@ -530,7 +530,13 @@ properties:
         unit: log2_fold_change
         source: methods/onc_methods/cptac_protein_deg/steps/03_pool_and_write.py:13
         rationale: |
-          logFC > 1.5 AND q < 0.05 -> strong_up. UNKNOWN as a formal calibration; adjudicated by #2219.
+          logFC > 1.5 AND q < 0.05 -> strong_up. UNKNOWN as a formal calibration. #2219 sweep: NEW
+          DIVERGENCE FLAGGED, not yet reconciled — `protein_tvn_window_tphp`'s sibling cut
+          TPHP_STRONG_UP_ABS_LOG2FC is 1.0, not 1.5, on the SAME unit (log2_fold_change) and the
+          SAME class name (strong_up) for a SAME-dependence_group (`protein_ms`) sibling property.
+          Units are commensurable (both raw log2 protein fold-change), so this is a genuine, not a
+          units-mismatch, divergence — unlike the #2220 case this file's siblings warn about.
+          Flagged on #2219 for a follow-up flip-matrix issue (protocol #809); NOT harmonised here.
         calibration:
           controls: null
           flip_matrix: null
@@ -540,8 +546,11 @@ properties:
         unit: log2_fold_change
         source: methods/onc_methods/cptac_protein_deg/steps/03_pool_and_write.py:14
         rationale: |
-          logFC > 0.5 AND q < 0.05 (below the strong bar) -> modest_up. UNKNOWN as a calibration;
-          adjudicated by #2219.
+          logFC > 0.5 AND q < 0.05 (below the strong bar) -> modest_up. UNKNOWN as a calibration.
+          #2219 sweep: NEW DIVERGENCE FLAGGED (same pattern as CPTAC_STRONG_UP_EFFECT above) —
+          `protein_tvn_window_tphp`'s TPHP_MODEST_UP_ABS_LOG2FC is 0.585 (≈ log2(1.5)), not 0.5,
+          same unit/class/dependence_group. Flagged on #2219 for a follow-up flip-matrix issue
+          (protocol #809); NOT harmonised here.
         calibration:
           controls: null
           flip_matrix: null
@@ -642,7 +651,10 @@ properties:
           Applied in the DERIVED BUILD (parameters.effect_strong_abs_log2fc), not resolvable to a
           methods/ file — the card's own threshold_roles note is the nearest checkable anchor for a cutoff
           applied one step further upstream. |log2fc| >= 1.0 at q<0.05 -> strong_up/strong_down. UNKNOWN
-          as a calibration; adjudicated by #2219.
+          as a calibration. #2219 sweep: NEW DIVERGENCE FLAGGED — see
+          `protein_tvn_window_cptac.CPTAC_STRONG_UP_EFFECT` (1.5, not 1.0) for the paired entry
+          and the full note; same unit, same class name, same `protein_ms` dependence_group.
+          Flagged on #2219 for a follow-up flip-matrix issue (protocol #809); NOT harmonised here.
         calibration:
           controls: null
           flip_matrix: null
@@ -653,7 +665,10 @@ properties:
         source: contracts/cards/tumor-vs-normal-protein-abundance-tphp.card.yaml:163
         rationale: |
           Same derived-build provenance as TPHP_STRONG_UP_ABS_LOG2FC. 0.585 <= |log2fc| < 1.0 at q<0.05 ->
-          modest_up/modest_down. UNKNOWN as a calibration; adjudicated by #2219.
+          modest_up/modest_down. UNKNOWN as a calibration. #2219 sweep: NEW DIVERGENCE FLAGGED —
+          see `protein_tvn_window_cptac.CPTAC_MODEST_UP_EFFECT` (0.5, not 0.585) for the paired
+          entry. Flagged on #2219 for a follow-up flip-matrix issue (protocol #809); NOT
+          harmonised here.
         calibration:
           controls: null
           flip_matrix: null

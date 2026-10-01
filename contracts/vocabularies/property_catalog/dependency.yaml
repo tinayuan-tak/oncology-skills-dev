@@ -7,7 +7,7 @@
 # replicating the safety seed (safety.yaml, PR-1a) for the dependency domain.
 catalog_id: dependency
 kind: l2a_property
-version: 1.2.0
+version: 1.3.0
 
 description: |
   This is the DEFAULT-valence domain, and that framing is the single most important thing to carry from
@@ -141,14 +141,36 @@ properties:
           THE DENOMINATOR. A fraction and a percentile are uninterpretable without the panel size behind
           them, and it is the field the two _underpowered admissibility gaps are decided on.
     determinants:
+      - name: STRONG_CHRONOS
+        value: -1.0
+        unit: chronos_gene_effect
+        source: methods/onc_methods/depmap_chronos_distribution/cli.py:275
+        rationale: |
+          A per-line gene effect at or below -1.0 counts a cell line as "strongly dependent" — the
+          per-line event `fraction_strongly_dependent` is counted over. #2219 sweep: this cut was
+          MISSING from the catalog despite being load-bearing (every anchor on this entry depends
+          on it); the card's `thresholds:` block names it explicitly as the "'common essentials'
+          cutoff per DepMap" (pan-cancer-crispr-dependency-distribution.card.yaml
+          `strongly_dependent_threshold_chronos: -1.0`) — a real, named external convention,
+          unlike PAN_ESSENTIAL_FRACTION/SELECTIVE_MIN/SELECTIVE_MAX/MODERATE_CHRONOS below, whose
+          card comments restate the derivation rule but cite no external source.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: null
       - name: PAN_ESSENTIAL_FRACTION
         value: 0.85
         unit: fraction_of_panel_strongly_dependent
         source: methods/onc_methods/depmap_chronos_distribution/cli.py:277
         rationale: |
           At or above 85% of the panel strongly dependent classifies the gene as (candidate)
-          common/pan-essential rather than selective. UNKNOWN as a calibration — the sweep in #2219
-          documents whether 0.85 is a published DepMap convention or an in-repo choice.
+          common/pan-essential rather than selective. #2219 sweep: cross-checked against
+          pan-cancer-crispr-dependency-distribution.card.yaml's
+          `pan_essential_fraction_threshold: 0.85` — matches the code default (no override); the
+          card's comment ("≥85% strongly dependent → common_essential") restates the derivation
+          rule only, unlike STRONG_CHRONOS's sibling cut it names no external DepMap citation. So
+          the question is answered, not just restated: CONFIRMED an in-repo choice, not a
+          published DepMap convention — the exact value 0.85 remains UNKNOWN.
         calibration:
           controls: null
           flip_matrix: null
@@ -159,7 +181,9 @@ properties:
         source: methods/onc_methods/depmap_chronos_distribution/cli.py:278
         rationale: |
           UNKNOWN. The lower fraction bound of the strongly_selective band (a selective dependency needs
-          SOME dependent lines, but few enough not to be broad). Adjudicated by #2219.
+          SOME dependent lines, but few enough not to be broad). #2219 sweep: cross-checked against
+          the card's `selective_fraction_min: 0.05` — matches (no override), comment restates the
+          rule only, no citation found.
         calibration:
           controls: null
           flip_matrix: null
@@ -171,7 +195,9 @@ properties:
         rationale: |
           UNKNOWN. The upper fraction bound of the strongly_selective band; above it the gene reads
           broadly_dependent. The [0.60, 0.85) band between this and PAN_ESSENTIAL_FRACTION is
-          broadly_dependent, a residual rather than a separately-reasoned class. Adjudicated by #2219.
+          broadly_dependent, a residual rather than a separately-reasoned class. #2219 sweep:
+          cross-checked against the card's `selective_fraction_max: 0.60` — matches (no override),
+          no citation found.
         calibration:
           controls: null
           flip_matrix: null
@@ -182,7 +208,9 @@ properties:
         source: methods/onc_methods/depmap_chronos_distribution/cli.py:276
         rationale: |
           UNKNOWN as a calibration. The median-depth gate a dependency call must clear (median at or
-          below -0.5). Convention-inherited from the Chronos scale; adjudicated by #2219.
+          below -0.5). Convention-inherited from the Chronos scale. #2219 sweep: cross-checked
+          against the card's `moderately_dependent_threshold_chronos: -0.5` — matches (no
+          override), no comment/citation on this one at the card either.
         calibration:
           controls: null
           flip_matrix: null
@@ -295,8 +323,13 @@ properties:
         source: methods/onc_methods/depmap_demeter_distribution/cli.py:241
         rationale: |
           DEMETER2 strong-dependency cut (a line at or below -0.5 is strongly dependent). Distinct from
-          the Chronos strong cut (-1.0) BY DESIGN — the two scales are not comparable. UNKNOWN whether the
-          exact value is a published DEMETER2 convention; adjudicated by #2219.
+          the Chronos strong cut (-1.0) BY DESIGN — the two scales are not comparable. #2219 sweep: the
+          card (pan-cancer-rnai-dependency-distribution.card.yaml
+          `strongly_dependent_threshold_demeter: -0.5`) names it "DEMETER2 strong-dependency
+          cutoff" — read as inherited from the DEMETER2 scoring convention itself (the DEMETER2
+          analog of crispr_essentiality's STRONG_CHRONOS "per DepMap" citation), not an in-repo
+          tuning. Whether that is a formally published cut (vs an informally adopted one) remains
+          UNKNOWN.
         calibration:
           controls: null
           flip_matrix: null
@@ -410,19 +443,30 @@ properties:
         source: methods/onc_methods/depmap_chronos/cli.py:327
         rationale: |
           The strong-dependency depth an enriched lineage's median must clear (applied to the ENRICHED
-          lineage's depth, not the panel's — see the module comment). UNKNOWN as a calibration;
-          adjudicated by #2219.
+          lineage's depth, not the panel's — see the module comment). #2219 sweep: RESOLVED to a
+          named external source (previously flagged as unresolved) —
+          dependency-lineage-selectivity.card.yaml's `thresholds:` block names this
+          value explicitly as a "DepMap-published convention, shared with Card 1"
+          (`strong_dependency_chronos: -1.0`), i.e. the SAME external DepMap "common essentials"
+          convention as crispr_essentiality's STRONG_CHRONOS, not an independent in-repo choice —
+          the mirror is a genuine coupling, not a coincidence.
         calibration:
           controls: null
           flip_matrix: null
-          adjudication: "#2219"
+          adjudication: null
       - name: EFFECT_STRONG_FRAC
         value: 0.75
         unit: fraction_of_lineage_strongly_dependent
         source: methods/onc_methods/depmap_chronos/read.py:124
         rationale: |
           UNKNOWN. The within-lineage strongly-dependent fraction that marks a lineage enriched.
-          Adjudicated by #2219.
+          #2219 sweep: cross-checked against dependency-lineage-selectivity.card.yaml's
+          `thresholds:` block — this value does NOT appear there at all (the card documents
+          `min_cell_lines_in_lineage`, `strong_dependency_chronos`/`modest_dependency_chronos`,
+          `enrichment_significance_alpha`, `enrichment_effect_size_min`,
+          `lineage_selective_min_enriched`, `broadly_dependent_panel_median` — no 0.75 fraction
+          among them), so this is a code-only constant with no card corroboration. Confirmed
+          UNKNOWN, not merely unrecorded at this one site.
         calibration:
           controls: null
           flip_matrix: null
@@ -476,8 +520,13 @@ properties:
         source: methods/onc_methods/depmap_partner_conditional_dependency/cli.py:39
         rationale: |
           Partner-deficient median Chronos minus neutral at or below -0.5 → strongly partner-conditional.
-          Mirrored from the oncogene mutant-vs-WT stratified paths. UNKNOWN as a calibration; adjudicated
-          by #2219.
+          Mirrored from the oncogene mutant-vs-WT stratified paths. #2219 sweep: CONFIRMED, not
+          merely claimed — partner-conditional-dependency.card.yaml's `thresholds:` block
+          annotates this exact value "(identical to the siblings)", and genomic.yaml's
+          `alteration_conferred_dependency.STRONG_EFFECT_DELTA` (mutation-stratified-dependency
+          card, same -0.5 value) is that sibling: a genuine cross-FILE mirror, not a coincidence
+          — editing one without the other silently desyncs the pair. Why -0.5 itself was chosen
+          remains UNKNOWN.
         calibration:
           controls: null
           flip_matrix: null
@@ -489,7 +538,11 @@ properties:
         rationale: |
           The median-delta path to MODERATE. Documented at the site as the cut WRN×MSI (-0.41) clears but
           a modest-median SL like PRMT5×MTAP misses — which is why an effect-size path (MODERATE_EFFECT_RB)
-          was added alongside it. UNKNOWN as a formal calibration; adjudicated by #2219.
+          was added alongside it. #2219 sweep: same cross-file mirror as STRONG_EFFECT_DELTA — the
+          card marks it "identical to the siblings" and genomic.yaml's
+          `alteration_conferred_dependency.MODERATE_EFFECT_DELTA` carries the same -0.2 value from
+          mutation-stratified-dependency.card.yaml. UNKNOWN as a formal calibration for the value
+          itself.
         calibration:
           controls: null
           flip_matrix: null
@@ -511,8 +564,13 @@ properties:
         unit: bh_q_value
         source: methods/onc_methods/depmap_partner_conditional_dependency/cli.py:50
         rationale: |
-          Conventional BH-corrected significance floor for the deficient-vs-neutral contrast. Adjudicated
-          by #2219.
+          Conventional BH-corrected significance floor for the deficient-vs-neutral contrast. #2219
+          sweep: the card's `stratification_alpha: 0.05` is also marked "(identical to the
+          siblings)" — the third leg of the same cross-file mirror as STRONG_EFFECT_DELTA /
+          MODERATE_EFFECT_DELTA above, matching genomic.yaml's
+          `alteration_conferred_dependency.STRATIFICATION_ALPHA` (0.05, mutation-stratified-
+          dependency.card.yaml). The alpha=0.05 convention itself is well-established (BH-FDR
+          control), so this one is reasonably attributable to that convention rather than UNKNOWN.
         calibration:
           controls: null
           flip_matrix: null

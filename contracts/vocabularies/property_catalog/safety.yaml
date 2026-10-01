@@ -7,7 +7,7 @@
 # entry shape and the identifiability test that admits `role: estimator`.
 catalog_id: safety
 kind: l2a_property
-version: 1.0.0
+version: 1.0.1
 
 description: |
   This domain is INVERSE-VALENCE and that is the single most important thing about it: a STRONG
@@ -74,7 +74,9 @@ governance:
   ownership: |
     Epic #1507 (evidence-property architecture), arc #2210 Wave-1a (PR-1a, the safety
     generalisation of the tumour-presence L2a reference vertical SK#1941). Threshold rationales
-    marked UNKNOWN below are the Wave-3 docs sweep's subject (#2218), not this PR's.
+    marked UNKNOWN below were the Wave-3 docs sweep's subject — corrected by #2219 (the
+    safety/dependency/genomic/selectivity/surface sweep; #2218 covers expression/presence only,
+    a stale cross-reference left by the original PR-1a author fixed during the #2219 pass).
   change_discipline: |
     `property_id`s are published names referenced from outside this directory (the claim_axis
     registry's `resolves:` field, which uses the QUALIFIED `safety.<property_id>` form — the bare
@@ -183,21 +185,26 @@ properties:
         rationale: |
           UNKNOWN. The moderately_constrained floor. Why 0.5 rather than gnomAD's other
           conventional cuts is not recorded at the site, and unlike HIGH_PLI it does not
-          correspond to a published upstream convention.
+          correspond to a published upstream convention. #2219 sweep: cross-checked against
+          gnomad-lof-constraint.card.yaml's `moderate_pli: 0.5` — the card mirrors the code
+          default (no override) and carries no citation comment either, so the number remains
+          genuinely UNKNOWN rather than merely unrecorded at this one site.
         calibration:
           controls: null
           flip_matrix: null
-          adjudication: "#2218"
+          adjudication: "#2219"
       - name: MOD_LOEUF
         value: 0.6
         unit: obs_exp_lof_ratio_upper_bound
         source: methods/onc_methods/gnomad_constraint/cli.py:61
         rationale: |
-          UNKNOWN. LOEUF mirror of MOD_PLI; shares its adjudication.
+          UNKNOWN. LOEUF mirror of MOD_PLI; shares its adjudication. #2219 sweep: cross-checked
+          against gnomad-lof-constraint.card.yaml's `moderate_loeuf: 0.6` — matches the code
+          default (no override), no citation comment on either side.
         calibration:
           controls: null
           flip_matrix: null
-          adjudication: "#2218"
+          adjudication: "#2219"
     dependence_note: |
       Two independence caveats a downstream fold must respect, neither of which is expressible in
       `dependence_group` alone:
@@ -285,11 +292,14 @@ properties:
         rationale: |
           UNKNOWN as a calibration, though it is an order of magnitude below HIGH_INTOLERANCE and
           is stated as such in the card's class table. Whether the decade step is principled or
-          conventional is not recorded.
+          conventional is not recorded. #2219 sweep: cross-checked against
+          shet-lof-intolerance.card.yaml's `moderate_intolerance_shet: 0.01` — matches the code
+          default (no override); the card carries no citation for this one (unlike
+          HIGH_INTOLERANCE's Cassa 2017 / Zeng 2024 citation).
         calibration:
           controls: null
           flip_matrix: null
-          adjudication: "#2218"
+          adjudication: "#2219"
     note: |
       VERDICT-INERT at the card level (shet-lof-intolerance.card.yaml declares
       `interpretation: rules_pending` — it fires no interpretation rule and is not in the safety
@@ -701,11 +711,14 @@ properties:
           housekeeping-like (a narrow therapeutic window). Shares its VALUE with the expression
           catalog's `_BROAD_EXPRESSED_FRACTION` (0.70, same unit — fraction above the DETECTION
           floor), which is a genuine mirror rather than a coincidence; unlike the #2220 case, the
-          two really are the same bar on the same quantity in different sample contexts.
+          two really are the same bar on the same quantity in different sample contexts. #2219
+          sweep: cross-checked against normal-tissue-liability-gtex.card.yaml's
+          `broad_breadth_fraction: 0.7` — matches the code default (no override); the card
+          comment restates the derivation rule only, no external citation found.
         calibration:
           controls: null
           flip_matrix: null
-          adjudication: "#2218"
+          adjudication: "#2219"
       - name: RESTRICTED_NORMAL_BREADTH
         value: 0.3
         unit: fraction_of_normal_tissues_above_detection_floor
@@ -714,11 +727,13 @@ properties:
           UNKNOWN as a calibration. Below 30% of normal tissues reads as restricted (a favourable
           window). Note this is a STRICT inequality (< 0.3) while the broad cut is inclusive
           (>= 0.7), leaving [0.3, 0.7) as moderate_normal_breadth — the band is the residual, not
-          a separately-reasoned class.
+          a separately-reasoned class. #2219 sweep: cross-checked against
+          normal-tissue-liability-gtex.card.yaml's `restricted_breadth_fraction: 0.3` — matches
+          the code default (no override), no external citation found.
         calibration:
           controls: null
           flip_matrix: null
-          adjudication: "#2218"
+          adjudication: "#2219"
     dependence_note: |
       Shares NO dependence_group with `normal_tissue_protein_liability` even though both answer
       "is it in normal tissue": GTEx bulk RNA and HPA antibody IHC are independent measurements of
