@@ -21,8 +21,10 @@ core's signal_fn / corroboration_fn ClaimSpec contract directly. The per-class p
 the skill's own `genomic_alteration_by_class` breakdown (single source — cannot drift from the cards).
 
 Verdict-INERT: reads the ALREADY-computed headline; never feeds the genomic_alteration resolver. All
-inputs come from `headline` (its `genomic_alteration_by_class` block + the guard-covered _HEADLINE_FIELDS
-lifts); the `cards` param is accepted for contract-uniformity but unused.
+per-class claim signals come from `headline` (its `genomic_alteration_by_class` block + the guard-covered
+_HEADLINE_FIELDS lifts). The `cards` param additionally feeds the L2a `source_properties` map (PR-1c,
+#2212) via `_source_properties(cards_by_id(cards))` — a pure projection that reads card summaries
+directly (never the headline), still verdict-inert and read by no rule/ladder.
 """
 
 from __future__ import annotations
@@ -34,9 +36,11 @@ from _skills_common.claim_vector_core import (
     build_key_signals,
     bump_corroboration,
     cap_corroboration,
+    cards_by_id,
     corroboration_from_arms,
     sig_ge,
 )
+from _skills_common.reliability import _derive_reliability
 
 # ── enum → tier maps (grounded in the target-contracts card summary_fields_vocabulary) ────────────
 # driver_recurrence_class / pooled_driver_recurrence_class / genie_sv_recurrence_class (percentile bands)
@@ -890,6 +894,252 @@ _DISCLAIMER = (
 )
 
 
+# ── L2a: NAMED typed source_properties map (PR-1c of epic SK#2210 / #1507, replicating the dependency ──
+# seed PR-1b for the GENOMIC domain). See genomic.yaml (contracts/vocabularies/property_catalog/) for
+# the governance record this projection must stay coherent with.
+#
+# The scale/unit slot for each retained quantitative anchor (envelope-v0: a raw value + its declared
+# scale, never a `decision_weight`/`modality_relevance`). Absent → "raw".
+_GENOMIC_ANCHOR_SCALE = {
+    # MC3-exome + pooled mutation-frequency / recurrence-percentile pair (same card, two cohort cuts).
+    "overall_mutation_frequency": "fraction",
+    "pooled_mutation_frequency": "fraction",
+    "driver_recurrence_percentile": "percentile",
+    "pooled_driver_recurrence_percentile": "percentile",
+    "n_samples_in_indication": "sample_count",
+    "n_samples_mutated": "sample_count",
+    # GENIE targeted-panel (coverage-corrected) recurrence pair.
+    "genie_driver_recurrence_percentile": "percentile",
+    "genie_mutation_frequency": "fraction",
+    # Copy-number distribution (DepMap cell-line panel) — CN is a ploidy-relative ratio, not a fraction.
+    "cn_median_panel": "relative_copy_number",
+    "cn_p95_panel": "relative_copy_number",
+    "cn_fraction_deep_deletion": "fraction",
+    "cn_n_cell_lines_evaluated": "cell_line_count",
+    # Fusion/SV recurrence (TCGA consensus + GENIE-SV coverage-corrected comparator).
+    "n_samples_with_fusion": "sample_count",
+    "genie_sv_frequency": "fraction",
+    "genie_sv_recurrence_percentile": "percentile",
+    "n_sv_covered": "sample_count",
+    # Hotspot mutant-vs-WT CRISPR stratification (Chronos scale, matching dependency's own naming).
+    "delta_chronos_hotspot_mut_vs_wt": "chronos_gene_effect_delta",
+    "median_chronos_hotspot_mutant": "chronos_gene_effect",
+    "median_chronos_hotspot_wildtype": "chronos_gene_effect",
+    "hotspot_mannwhitney_q": "bh_q_value",
+    "n_hotspot_mutant": "cell_line_count",
+    "n_hotspot_wildtype": "cell_line_count",
+}
+
+# Data-driven recipe (keyed by the L2a property name from the architecture's source_properties shape).
+# `property_field` is the resolved observational class of that source; `anchors` are its retained
+# quantitative anchors, in reading order; `context` fields are retained categorical/label qualifiers.
+# Every `card_id`/`property_field`/anchor/context name below was verified against
+# `contracts/cards/<card_id>.card.yaml` `outputs.summary_fields` (#2212).
+#
+# `mutation_recurrence_exome` and `mutation_recurrence_panel` share ONE card_id and are DELIBERATELY two
+# entries — identity is property × GRAIN, and exome (TCGA-MC3 whole-exome) vs targeted panel (AACR GENIE,
+# coverage-corrected) is a genuine grain split (the F-inventory grain caveat; mirrors the L2b
+# `recurrence_concordance` claim's own two independent arms, which this L2a pair feeds). `pooled_*` is a
+# DECLARED DEPENDENT SUPERSET of the two (see `_recurrence_concordance_claim`'s dependence discipline) —
+# it is NOT minted as a third L2a entry (that would make one pooling look like a third independent
+# source); its anchors are instead carried AS CONTEXT on the exome entry, which is the cohort it is
+# weighted toward.
+#
+# Biallelic loss is OUT of this arc (no clean single-card field for it; #2212 flags this explicitly) —
+# no entry below attempts one.
+#
+# NO `comparability.valence` marker and NO `interpretation` provenance object anywhere, mirroring 1b's
+# dependency seed exactly and for the SAME reason: every genomic class below is a VERBATIM card read (the
+# one skills-layer disjunction in this domain — the fusion_class promiscuous-amplicon demotion, #983 — is
+# baked into the CARD's own preprocessor output, not resolved here), and recurrence/CN/fusion is the
+# DEFAULT/efficacy-adjacent descriptive frame (a recurrent driver call is the signal sought, not a
+# liability) — minting either token would be the exact ungoverned second-token drift the safety seed's
+# own comment warns 1c-1e against. Absence IS the declaration.
+#
+# RELIABILITY (#2306): each entry's own n-anchor (the resolved denominator behind its anchors) is wired
+# as `n_effective_anchor`. NO entry below names a `powered_floor` — unlike dependency's three calibrated
+# kinds (#2327), no genomic property-kind has a calibrated admissibility floor in
+# `onc_methods.reliability_calibration.powered_floors` yet, so `powered` reads 'unmeasured' uniformly
+# (honest degradation, not a hole: dependency's OWN three floors landed as a SEPARATE follow-on PR after
+# its L2a seed, not inside it). `floor_tie_anchor` / `purity_confound_anchor` / `detection_strength_*` are
+# named on NO entry — none of these seven properties resolves from `allgene_percentile`, carries a
+# purity-confound r, or is a detection/abundance-kind measurement (mutation/CN/fusion/role are called,
+# not detected) — so `artifact_flags`/`confound_flags` stay `[]` and `detection_strength` stays OMITTED
+# uniformly, exactly as the #2306 scope note on this issue anticipates.
+_SOURCE_PROPERTY_RECIPES_GENOMIC = (
+    {
+        "name": "mutation_recurrence_exome",
+        "card_id": "mutation-hotspot-frequency",
+        "property_field": "driver_recurrence_class",
+        "anchors": (
+            "overall_mutation_frequency",
+            "pooled_mutation_frequency",
+            "driver_recurrence_percentile",
+            "pooled_driver_recurrence_percentile",
+            "n_samples_in_indication",
+            "n_samples_mutated",
+        ),
+        "context": ("driver_recurrence_context",),
+        "comparability": {
+            "measurement_type": "mc3_exome_somatic_mutation_recurrence",
+            "sample_context": "tcga_mc3_whole_exome_cohort",
+            "grain": "target",
+        },
+        # n_effective = the TCGA-MC3 cohort size this recurrence percentile is ranked within.
+        "reliability": {"n_effective_anchor": "n_samples_in_indication"},
+    },
+    {
+        "name": "mutation_recurrence_panel",
+        "card_id": "mutation-hotspot-frequency",
+        "property_field": "genie_driver_recurrence_class",
+        "anchors": ("genie_driver_recurrence_percentile", "genie_mutation_frequency"),
+        "context": ("genie_recurrence_context",),
+        "comparability": {
+            "measurement_type": "genie_targeted_panel_mutation_recurrence",
+            "sample_context": "aacr_genie_panel_coverage_corrected_cohort",
+            "grain": "target",
+        },
+        # No panel-side sample-count field is a summary_field on this card (only the percentile/
+        # frequency pair + a prose context note) — n_effective is honestly OMITTED, not fabricated.
+        "reliability": {},
+    },
+    {
+        "name": "copy_number_recurrence_model",
+        "card_id": "copy-number-distribution",
+        "property_field": "copy_number_class",
+        "anchors": ("cn_median_panel", "cn_p95_panel", "cn_fraction_deep_deletion", "cn_n_cell_lines_evaluated"),
+        "context": ("cn_distribution_shape",),
+        "comparability": {
+            "measurement_type": "depmap_cell_line_copy_number_distribution",
+            "sample_context": "pan_cancer_cell_line_panel",
+            "grain": "target",
+        },
+        # n_effective = the CN-covered cell-line panel size (the denominator the recurrence fractions
+        # and the method's own MIN_COVERED_CN admissibility floor are decided on).
+        "reliability": {"n_effective_anchor": "cn_n_cell_lines_evaluated"},
+    },
+    {
+        "name": "copy_number_focal_patient",
+        "card_id": "copy-number-distribution",
+        "property_field": "patient_focal_cn_class",
+        # Categorical only (#2212's table): the GISTIC amp/del/homdel fractions behind this class are
+        # cohort-level prevalence rates, not a per-target quantitative anchor the way the cell-line CN
+        # median/tail are — carried as prose CONTEXT instead, mirroring dependency's curated_driver_role.
+        "anchors": (),
+        "context": ("patient_cn_context",),
+        "comparability": {
+            "measurement_type": "tcga_gistic_patient_focal_copy_number",
+            "sample_context": "tcga_patient_tumor_cohort",
+            "grain": "target",
+        },
+        # No per-target sample-N summary field on this card (the GISTIC cohort N is fixed, not a
+        # per-target denominator) — n_effective is honestly OMITTED.
+        "reliability": {},
+    },
+    {
+        "name": "fusion_recurrence",
+        "card_id": "fusion-rearrangement-landscape",
+        "property_field": "fusion_class",
+        "anchors": ("n_samples_with_fusion", "genie_sv_frequency", "genie_sv_recurrence_percentile", "n_sv_covered"),
+        "context": ("fusion_recurrence_confidence",),
+        "comparability": {
+            "measurement_type": "tcga_fusion_consensus_recurrence",
+            "sample_context": "pan_cancer_tcga_fusion_cohort",
+            "grain": "target",
+        },
+        # n_effective = the SV-covered sample count — the denominator genie_sv_frequency/percentile are
+        # ranked over, and the method's own admissibility floor (below it the class is `underpowered`).
+        "reliability": {"n_effective_anchor": "n_sv_covered"},
+    },
+    {
+        "name": "alteration_conferred_dependency",
+        "card_id": "mutation-stratified-dependency",
+        "property_field": "mutation_stratification_class",
+        "anchors": (
+            "delta_chronos_hotspot_mut_vs_wt",
+            "median_chronos_hotspot_mutant",
+            "median_chronos_hotspot_wildtype",
+            "hotspot_mannwhitney_q",
+            "n_hotspot_mutant",
+            "n_hotspot_wildtype",
+        ),
+        "context": ("evidence_scope",),
+        "comparability": {
+            "measurement_type": "crispr_chronos_hotspot_stratified_dependency",
+            "sample_context": "indication_scoped_depmap_cell_line_panel",
+            "grain": "target",
+        },
+        # n_effective = the hotspot-mutant stratum size — the limiting arm the mutant-vs-WT
+        # Mann-Whitney test rests on (mirrors dependency's `n_partner_deficient` role exactly). No
+        # `powered_floor` named here: the method DOES carry its own min-mutant admissibility floor
+        # (depmap_mutation_dependency/cli.py `min_mutant=5`), but calibrating it into
+        # onc_methods.reliability_calibration.powered_floors is a #2327-style follow-on, not this PR —
+        # minting an inline literal here would be a second, un-single-sourced copy of that constant.
+        "reliability": {"n_effective_anchor": "n_hotspot_mutant"},
+    },
+    {
+        "name": "curated_driver_role",
+        "card_id": "alteration-role",
+        "property_field": "alteration_role",
+        # Curated (OncoKB/IntOGen), not a cohort statistic — no quantitative anchor, mirroring
+        # dependency's paralog_buffering / safety's curated entries.
+        "anchors": (),
+        "context": ("functional_direction",),
+        "comparability": {
+            "measurement_type": "oncokb_intogen_curated_driver_role",
+            "sample_context": "curated_annotation_no_cohort",
+            "grain": "target",
+        },
+        # No cohort/sample-N behind a curated annotation call — n_effective is honestly OMITTED.
+        "reliability": {},
+    },
+)
+
+
+def _typed_genomic_anchor(field, value):
+    """One retained quantitative anchor: {field, value, scale}. genomic-alteration-profile carries no
+    field-disposition ledger (unlike safety/functional-requirement), so there is no semantic_role /
+    interpretation_reach source to project yet — the minimal envelope-v0 shape is the honest one."""
+    return {"field": field, "value": value, "scale": _GENOMIC_ANCHOR_SCALE.get(field, "raw")}
+
+
+def _source_properties(c: dict) -> "dict | None":
+    """The NAMED, typed L2a source_properties map for the GENOMIC domain (PR-1c, #2210/#2212): one entry
+    per source/grain, lifting the per-source observational properties out of the six claim signal blocks
+    into an explicit, recoverable object. Returns None when no source resolves (whole key omitted →
+    byte-stable), matching the dependency/safety atom discipline on this vector. Pure projection,
+    verdict-inert, carries no signal tier. Takes the cards-by-id map only: every genomic class is a
+    verbatim card read, so unlike presence/safety there is no headline-evaluated disjunction to report."""
+    out = {}
+    for recipe in _SOURCE_PROPERTY_RECIPES_GENOMIC:
+        summ = c.get(recipe["card_id"], {}) or {}
+        prop = summ.get(recipe["property_field"])
+        # A source with no card / no resolved observational class emits no entry (byte-stable).
+        if not prop or prop == "data_unavailable":
+            continue
+        entry = {
+            "card_id": recipe["card_id"],
+            # The L1 card field the class token was read from — NAMED on the entry (following the
+            # safety/dependency seeds) so every entry reconstructs to L1 as
+            # {card_id, property_field, property}.
+            "property_field": recipe["property_field"],
+            "property": prop,
+            "anchors": [_typed_genomic_anchor(f, summ[f]) for f in recipe["anchors"] if summ.get(f) is not None],
+            "comparability": dict(recipe["comparability"]),
+        }
+        # Retained categorical qualifiers that orient the anchors without being quantities themselves.
+        # OMITTED entirely when the card supplies none, keeping a partial-card run byte-stable.
+        context = {f: summ[f] for f in recipe["context"] if summ.get(f) is not None}
+        if context:
+            entry["context"] = context
+        # The typed `reliability` facet (#2306 step 2 / step 4 rollout): a PURE projection over the
+        # entry's OWN retained anchors + this recipe's n-anchor spec. Verdict-inert (SK#2091). Always
+        # present (powered is required); every OTHER field on the entry stays byte-identical.
+        entry["reliability"] = _derive_reliability(entry["anchors"], recipe["reliability"])
+        out[recipe["name"]] = entry
+    return out or None
+
+
 # ── L2b-5: MC3 × GENIE driver-recurrence concordance (SK#1629, evidence-property architecture #1507) ─
 # The 5th cross-source INTEGRATED claim (L2b) — and the FIRST conformance test of the extracted evidence
 # envelope (docs/EVIDENCE_PROPERTY_ENVELOPE_v0.md) from a FOREIGN modality: variant recurrence across
@@ -1078,7 +1328,15 @@ def _recurrence_concordance_claim(h: dict) -> "dict | None":
             "resolved": d is not None,
             "quality_eligible": d is not None,  # a resolved read is usable evidence, shown & preserved
             "corroboration_eligible": corroboration_eligible,  # eligible to count as INDEPENDENT replication?
-            "provenance": {"headline_field": _field[source], "cohort": _cohort[source]},
+            # card_id (PR-1c, #2212): all three arms (mc3_exome/genie_panel/pooled) are summary fields of
+            # the SAME card, so the island reconstructs downward to L1 per the evidence_package schema's
+            # own documented invariant (`provenance.sources[*].provenance.card_id`) — additive, byte-stable
+            # for any existing reader keying on headline_field/cohort.
+            "provenance": {
+                "headline_field": _field[source],
+                "cohort": _cohort[source],
+                "card_id": "mutation-hotspot-frequency",
+            },
             # retained_quantitative: the raw percentile anchor DEMOTED not deleted (fidelity/recoverability).
             "retained_quantitative": {"driver_recurrence_percentile": _pct[source]},
         }
@@ -1257,6 +1515,13 @@ def genomic_claim_vector(headline: dict, cards: list) -> dict:
     _rec = _recurrence_concordance_claim(headline)
     if _rec is not None:
         vec["recurrence_concordance"] = _rec
+    # L2a NAMED source_properties map (PR-1c, #2210/#2212): the per-source observational properties
+    # lifted out of the six claim signal blocks into a named, typed, L1-reconstructable object. Carries
+    # NO `signal` key on any entry → not a chip, not a tier, read by no rule/verdict/ladder. OMITTED
+    # entirely (byte-stable) when no source resolves, matching the concordance-claim discipline above.
+    _props = _source_properties(cards_by_id(cards))
+    if _props is not None:
+        vec["source_properties"] = _props
     return vec
 
 

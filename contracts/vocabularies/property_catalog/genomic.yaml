@@ -1,0 +1,802 @@
+# genomic.yaml — the genomic-alteration-profile GENOMIC source properties.
+#
+# Register (not engine) for the seven per-source observational properties the genomic-alteration-profile
+# skill resolves and exports as `claim_vector.source_properties` / `evidence_package.source_properties`
+# (skills/_skills_common/genomic_claims.py::_SOURCE_PROPERTY_RECIPES_GENOMIC). See README.md for the
+# entry shape and the identifiability test that admits `role: estimator`. PR-1c of epic SK#2210 (#1507,
+# issue #2212), replicating the safety seed (safety.yaml, PR-1a) and the dependency seed (dependency.yaml,
+# PR-1b) for the genomic domain.
+catalog_id: genomic
+kind: l2a_property
+version: 1.0.0
+
+description: |
+  Like dependency, this is a DEFAULT/descriptive-frame domain: a recurrent driver call, a focal
+  amplification, a biomarker-stratified dependency — these are the SIGNAL the domain is looking for, not
+  a liability. So NO entry carries a `comparability.valence` marker (mirrors dependency.yaml exactly, and
+  for the same reason: the property-catalog validator's closed ENTRY_KEYS cannot yet govern a second
+  token, so minting one would be ungoverned drift).
+
+  Likewise NO entry carries an `interpretation` provenance object: every genomic class below is a
+  VERBATIM read of a card summary field. The one skills-adjacent disjunction in this domain — the
+  `fusion_class` promiscuous-amplicon-fusion demotion (#983, a recurrent fusion at a recurrently
+  focally-amplified locus is downgraded from a competent driver call) — is baked into the
+  fusion-rearrangement-landscape CARD's own preprocessor output before this projection ever reads it, so
+  from here it is still a verbatim read, exactly like dependency's six classes.
+
+  SEVEN properties, not six, because `mutation_recurrence_exome` and `mutation_recurrence_panel` are
+  DELIBERATELY two entries sharing ONE card (`mutation-hotspot-frequency`) — identity is property ×
+  GRAIN, and TCGA-MC3 whole-exome vs AACR GENIE targeted-panel (coverage-corrected) is a genuine grain
+  split (the F-inventory grain caveat #2212 names explicitly). This is the SAME pair the L2b
+  `recurrence_concordance` island (genomic_claims.py::_recurrence_concordance_claim, already landed)
+  integrates as its two independent arms — this catalog is this domain's FIRST L2a file to feed an
+  ALREADY-LANDED L2b family rather than a new one.
+
+  What is NOT here, deliberately:
+    * NO `mutation_recurrence_pooled` entry. `pooled_driver_recurrence_class` is a DECLARED DEPENDENT
+      SUPERSET of the exome + panel arms (see `_recurrence_concordance_claim`'s own dependence
+      discipline) — minting a third L2a entry for it would make one pooling look like a third
+      independent source, exactly the double-count the dependence_group field exists to prevent. Its
+      anchors (`pooled_mutation_frequency`, `pooled_driver_recurrence_percentile`) are instead carried as
+      ADDITIONAL anchors on `mutation_recurrence_exome` (the cohort it is MC3-weighted toward).
+    * NO biallelic-loss-of-function property. #2212 flags this explicitly: there is no clean single-card
+      field for it (the deep-deletion fraction and the hotspot-vs-damaging stratification are each
+      partial views), so no entry here improvises one.
+    * NO separate "amp-expr-stratified-dependency" / "fusion-stratified-dependency" / "copy-number-
+      stratified-dependency" properties, even though genomic-alteration-profile's DEP axis maxes over
+      all four stratified-dependency classes (mutation/CN/fusion/amp-expr). Only the mutation arm
+      (`alteration_conferred_dependency`) is catalogued here; the CN/fusion/amp-expr siblings are a
+      follow-on roster expansion, not required for THIS issue's authoritative property table.
+
+  A domain-wide fact recorded once rather than seven times: every entry's `entity_grain` is `target`.
+  Each card emits a gene-level read (a recurrence class, a CN distribution statistic, a curated role),
+  never a per-sample read, so the seven are commensurable on GRAIN; what separates them is
+  `measurement_type` and `sample_context` (TCGA-MC3 exome cohort vs AACR GENIE panel vs DepMap cell-line
+  panel vs TCGA GISTIC patient cohort vs curated annotation — five genuinely distinct substrates, which
+  is why `dependence_group` is set per-property here rather than shared the way dependency's four
+  Chronos-screen properties share `depmap_crispr_chronos`).
+
+governance:
+  role: |
+    Authoritative for: what each genomic property MEANS, which observables estimate it, and which
+    numbers decide its value. NOT authoritative for the value vocabulary — each property's tokens are
+    owned by its own card's `summary_fields_vocabulary` in cards/, and the scalar genomic_alteration
+    VERDICT is owned by the target-contracts genomic_alteration resolver, never by this file or the
+    projection that reads it.
+  versioning: |
+    Semver. Adding a property or an observable is a MINOR bump. Correcting a rationale, a unit, or a
+    `source:` path is a PATCH bump. Removing a property, or changing an existing property's `grain`, is
+    BREAKING and requires a MAJOR bump plus coordination via the wip-registry —
+    `validate_property_catalog.py --additive-against <ref>` makes an un-bumped removal RED.
+  ownership: |
+    Epic #1507 (evidence-property architecture), arc #2210 Wave-1c (issue #2212, the genomic
+    generalisation of the tumour-presence L2a reference vertical SK#1941, replicating the safety seed
+    PR-1a and the dependency seed PR-1b). Threshold rationales marked UNKNOWN below are the re-sequenced
+    Wave-3 docs sweep's subject (#2219, which runs AFTER 1b-1e), not this PR's — this PR pins each
+    determinant's `source:` and value so the sweep has a verified anchor to document.
+  change_discipline: |
+    `property_id`s are published names referenced from outside this directory (the claim_axis registry's
+    `resolves:` field, which uses the QUALIFIED `genomic.<property_id>` form — the bare form is ambiguous
+    across catalogs and the validator rejects it). Migrate by add -> consume -> remove, never a bare
+    rename.
+
+properties:
+
+  mutation_recurrence_exome:
+    status: resolvable
+    definition: |
+      How recurrently is this gene somatically mutated in this indication, measured on the TCGA-MC3
+      whole-exome cohort — a cross-indication percentile rank of the gene's mutation frequency among all
+      genes mutated in-indication? The MC3 half of the two-cohort recurrence read; the GENIE panel sibling
+      (`mutation_recurrence_panel` below) is the coverage-corrected, higher-N comparator this L2b
+      `recurrence_concordance` island integrates it against.
+    grain:
+      measurement_type: mc3_exome_somatic_mutation_recurrence
+      sample_context: tcga_mc3_whole_exome_cohort
+      entity_grain: target
+    observables:
+      - card_id: mutation-hotspot-frequency
+        field: driver_recurrence_class
+        role: estimator
+        dependence_group: tcga_mc3_exome
+        emission: class_token
+        note: |
+          top_1pct / top_decile / mid / bottom_decile (+ data_unavailable) — the value carried in the
+          export's `property` slot. `bottom_decile` is the family's only MEASURED-NEGATIVE band.
+      - card_id: mutation-hotspot-frequency
+        field: overall_mutation_frequency
+        role: estimator
+        dependence_group: tcga_mc3_exome
+        emission: anchor
+        note: |
+          n_mutated / n_samples_in_indication on the MC3 aggregate — the raw frequency behind the
+          percentile rank.
+      - card_id: mutation-hotspot-frequency
+        field: driver_recurrence_percentile
+        role: estimator
+        dependence_group: tcga_mc3_exome
+        emission: anchor
+      - card_id: mutation-hotspot-frequency
+        field: n_samples_in_indication
+        role: estimator
+        dependence_group: tcga_mc3_exome
+        emission: anchor
+        note: |
+          THE DENOMINATOR the percentile rank + overall_mutation_frequency are computed over, and this
+          entry's `reliability.n_effective_anchor`.
+      - card_id: mutation-hotspot-frequency
+        field: n_samples_mutated
+        role: estimator
+        dependence_group: tcga_mc3_exome
+        emission: anchor
+      - card_id: mutation-hotspot-frequency
+        field: pooled_mutation_frequency
+        role: estimator
+        dependence_group: pooled_mc3_genie_msk
+        emission: anchor
+        note: |
+          The pooled (TCGA-MC3 + GENIE + MSK-CHORD) multi-cohort frequency — a DECLARED DEPENDENT
+          SUPERSET of this entry's own MC3 arm (and of `mutation_recurrence_panel`'s GENIE arm), carried
+          here as CONTEXT (it is MC3-weighted) rather than minted as a third L2a property — see the
+          catalog description. Its OWN `dependence_group` (distinct from the plain MC3 observables above)
+          names the pooled supply chain explicitly so a fold does not read it as a second independent
+          estimator of this property (see `dependence_note` below).
+      - card_id: mutation-hotspot-frequency
+        field: pooled_driver_recurrence_percentile
+        role: estimator
+        dependence_group: pooled_mc3_genie_msk
+        emission: anchor
+      - card_id: mutation-hotspot-frequency
+        field: driver_recurrence_context
+        role: estimator
+        dependence_group: tcga_mc3_exome
+        emission: anchor
+        note: prose anti-pooling audit note (null's reference frame + n_genes); carried as context, not a quantitative anchor.
+    determinants:
+      - name: TOP_1PCT_CUTOFF
+        value: 99.0
+        unit: percentile
+        source: methods/onc_methods/percentile_null/__init__.py:24
+        rationale: |
+          A gene at or above the 99th percentile of in-indication mutation frequency reads top_1pct.
+          Shared DEFAULT_CUTOFFS used by every pooled/MC3/GENIE/GENIE-SV percentile classifier in this
+          catalog (one constant, four consumers). UNKNOWN as a calibration — the sweep in #2219
+          documents whether 99.0/90.0/10.0 are a published convention or an in-repo choice.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+      - name: TOP_DECILE_CUTOFF
+        value: 90.0
+        unit: percentile
+        source: methods/onc_methods/percentile_null/__init__.py:24
+        rationale: |
+          UNKNOWN. The top_decile floor; [90.0, 99.0) is top_decile. Adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+      - name: BOTTOM_DECILE_CUTOFF
+        value: 10.0
+        unit: percentile
+        source: methods/onc_methods/percentile_null/__init__.py:24
+        rationale: |
+          UNKNOWN. At or below this percentile the gene reads bottom_decile — the family's only
+          MEASURED-NEGATIVE band. Adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+    reliability:
+      n_effective_anchor: n_samples_in_indication
+      # No `powered_floor` declared: unlike dependency's three calibrated kinds (#2327), no genomic
+      # property-kind has a calibrated admissibility floor in onc_methods.reliability_calibration yet —
+      # `reliability.powered` reads 'unmeasured' uniformly for this catalog. A future calibration PR
+      # (dependency's own floors landed as a SEPARATE follow-on after its L2a seed) would populate this.
+    dependence_note: |
+      `pooled_mutation_frequency`/`pooled_driver_recurrence_percentile` are a DEPENDENT superset of BOTH
+      this entry's MC3 arm and `mutation_recurrence_panel`'s GENIE arm — a fold must not read agreement
+      between the pooled anchors and either per-cohort arm as independent corroboration (one pooling
+      cannot corroborate the inputs it was pooled from). Genuine independent corroboration of the
+      recurrence call is exactly what the L2b `recurrence_concordance` island (MC3 × GENIE) measures.
+    consumers:
+      - skill: genomic-alteration-profile
+        axis_key: SNV
+        surface: source_properties.mutation_recurrence_exome
+        note: |
+          The primary exome-cohort substrate for the SNV axis; also feeds the L2b
+          `recurrence_concordance` island as its mc3_exome arm.
+
+  mutation_recurrence_panel:
+    status: resolvable
+    definition: |
+      The SAME recurrence question as `mutation_recurrence_exome`, answered on the AACR GENIE targeted-
+      panel cohort instead — ~35x the MC3 sample count for these indications, with a panel-coverage-
+      corrected denominator (samples whose panel covers the gene) so the frequency stays honest for
+      non-universally-covered genes. The higher-N comparator the L2b `recurrence_concordance` island
+      folds against the MC3 exome arm.
+    grain:
+      measurement_type: genie_targeted_panel_mutation_recurrence
+      sample_context: aacr_genie_panel_coverage_corrected_cohort
+      entity_grain: target
+    observables:
+      - card_id: mutation-hotspot-frequency
+        field: genie_driver_recurrence_class
+        role: estimator
+        dependence_group: genie_targeted_panel
+        emission: class_token
+        note: |
+          Same bins as driver_recurrence_class, computed on the GENIE panel-coverage-correct cohort.
+      - card_id: mutation-hotspot-frequency
+        field: genie_driver_recurrence_percentile
+        role: estimator
+        dependence_group: genie_targeted_panel
+        emission: anchor
+      - card_id: mutation-hotspot-frequency
+        field: genie_mutation_frequency
+        role: estimator
+        dependence_group: genie_targeted_panel
+        emission: anchor
+        note: |
+          n_mutated / n_covered on the GENIE panel — the coverage-corrected frequency, honest for genes
+          not universally covered by every panel version.
+      - card_id: mutation-hotspot-frequency
+        field: genie_recurrence_context
+        role: estimator
+        dependence_group: genie_targeted_panel
+        emission: anchor
+        note: prose n-covered-genes + coverage-corrected-denominator note; carried as context.
+    determinants:
+      - name: GENIE_TOP_1PCT_CUTOFF
+        value: 99.0
+        unit: percentile
+        source: methods/onc_methods/genie_panel_recurrence/read.py:73
+        rationale: |
+          Mirrors TOP_1PCT_CUTOFF (`mutation_recurrence_exome`) on the GENIE panel null. UNKNOWN as a
+          calibration; adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+      - name: GENIE_MIN_COVERED
+        value: 20
+        unit: samples
+        source: methods/onc_methods/genie_panel_recurrence/read.py:76
+        rationale: |
+          A gene covered on fewer than 20 GENIE panel-samples in-indication is excluded from the
+          percentile null (too thin to rank) — mirrors the pooled/GENIE-SV MIN_COVERED floors elsewhere
+          in this catalog. UNKNOWN as a calibration; adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+    reliability: {}
+    # No `n_effective_anchor`: this card declares no GENIE-side sample-count summary field (only the
+    # percentile/frequency pair + a prose context note) — n_effective is honestly OMITTED, not
+    # fabricated from a field that does not exist. See genomic_claims.py's recipe comment.
+    dependence_note: |
+      Shares NO dependence_group with `mutation_recurrence_exome` — and that is the entire point. TCGA-
+      MC3 (whole-exome) and AACR GENIE (targeted panel) are genuinely INDEPENDENT cohorts, so their
+      agreement is real cross-cohort corroboration (the L2b `recurrence_concordance` island) and their
+      disagreement is the panel-masks/exome-masks-recurrence read that island exists to surface. A
+      panel-restricted denominator is NOT exome-comparable at face value — a panel negative can reflect
+      coverage rather than biology (see that island's `independence_note`).
+    consumers:
+      - skill: genomic-alteration-profile
+        axis_key: SNV
+        surface: source_properties.mutation_recurrence_panel
+        note: |
+          The higher-N panel-cohort substrate for the SNV axis; also feeds the L2b
+          `recurrence_concordance` island as its genie_panel arm.
+
+  copy_number_recurrence_model:
+    status: resolvable
+    definition: |
+      How recurrently is this gene copy-number amplified or deleted across a pan-cancer DepMap cell-line
+      panel — a distribution summarised by its central tendency (median), its tail (95th percentile) and
+      the fraction of lines showing deep (homozygous-range) deletion? The cell-line CN read; the patient-
+      tumour cross-check (`copy_number_focal_patient` below) is a SEPARATE substrate, not a replication
+      arm of this one.
+    grain:
+      measurement_type: depmap_cell_line_copy_number_distribution
+      sample_context: pan_cancer_cell_line_panel
+      entity_grain: target
+    observables:
+      - card_id: copy-number-distribution
+        field: copy_number_class
+        role: estimator
+        dependence_group: depmap_cell_line_cn
+        emission: class_token
+        note: |
+          recurrently_amplified / recurrently_deleted / mixed / broadly_neutral (+ underpowered /
+          data_unavailable). `broadly_neutral` is a valid DESCRIPTIVE measured-negative, not a gap.
+      - card_id: copy-number-distribution
+        field: cn_median_panel
+        role: estimator
+        dependence_group: depmap_cell_line_cn
+        emission: anchor
+        note: |
+          Panel-median relative copy number (ploidy-normalised; ~1.0 = diploid-equivalent). NOT the
+          Chronos dependency scale — a `relative_copy_number` unit distinct from every Chronos/DEMETER2
+          anchor elsewhere in the sibling catalogs.
+      - card_id: copy-number-distribution
+        field: cn_p95_panel
+        role: estimator
+        dependence_group: depmap_cell_line_cn
+        emission: anchor
+        note: |
+          95th-percentile (amplification tail) relative CN, retained WITH the median because a gene can
+          have a neutral median and an amplified tail — the signature of a focal, non-pan-amplified event
+          the median alone hides.
+      - card_id: copy-number-distribution
+        field: cn_fraction_deep_deletion
+        role: estimator
+        dependence_group: depmap_cell_line_cn
+        emission: anchor
+        note: |
+          Fraction of the evaluated panel below DEEP_DEL (CN < 0.5) — the canonical biallelic-range
+          deletion read on the cell-line substrate (biallelic LOSS-OF-FUNCTION at the PATIENT grain is
+          explicitly out of this arc; see the catalog description).
+      - card_id: copy-number-distribution
+        field: cn_n_cell_lines_evaluated
+        role: estimator
+        dependence_group: depmap_cell_line_cn
+        emission: anchor
+        note: |
+          THE DENOMINATOR. A fraction is uninterpretable without the panel size behind it, and it is the
+          field the method's own MIN_COVERED_CN admissibility floor is decided on.
+      - card_id: copy-number-distribution
+        field: cn_distribution_shape
+        role: estimator
+        dependence_group: depmap_cell_line_cn
+        emission: anchor
+        note: carried as context — a descriptive shape label (e.g. bimodal_mixed), not a quantity.
+    determinants:
+      - name: DEEP_DEL
+        value: 0.5
+        unit: relative_copy_number
+        source: methods/onc_methods/depmap_cn_distribution/cli.py:66
+        rationale: |
+          Relative CN below 0.5 classifies deep (homozygous-range) deletion. UNKNOWN as a calibration;
+          adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+      - name: SHALLOW_DEL
+        value: 0.92
+        unit: relative_copy_number
+        source: methods/onc_methods/depmap_cn_distribution/cli.py:67
+        rationale: |
+          UNKNOWN. The shallow-deletion ceiling; [0.5, 0.92] is shallow deletion. Adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+      - name: FOCAL_AMP
+        value: 1.5
+        unit: relative_copy_number
+        source: methods/onc_methods/depmap_cn_distribution/cli.py:72
+        rationale: |
+          UNKNOWN. The focal-amplification floor above the neutral band. Adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+      - name: HIGH_AMP
+        value: 4.0
+        unit: relative_copy_number
+        source: methods/onc_methods/depmap_cn_distribution/cli.py:73
+        rationale: |
+          UNKNOWN. The high-amplification floor above focal amp. Adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+      - name: MIN_COVERED_CN
+        value: 20
+        unit: cell_lines
+        source: methods/onc_methods/depmap_cn_distribution/cli.py:241
+        rationale: |
+          Below 20 CN-covered cell lines the classifier reports `underpowered` (a coverage GAP, not a
+          measured negative) — mirrors MIN_COVERED=20 on the mutation/fusion recurrence classifiers
+          elsewhere in this catalog. UNKNOWN as a calibration; adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+      - name: RECURRENT_FRACTION_CN
+        value: 0.20
+        unit: fraction_of_panel
+        source: methods/onc_methods/depmap_cn_distribution/cli.py:248
+        rationale: |
+          At or above 20% of the evaluated panel showing amp (or del) classifies the gene as recurrently
+          amplified (or deleted). UNKNOWN as a calibration; adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+    reliability:
+      n_effective_anchor: cn_n_cell_lines_evaluated
+    dependence_note: |
+      Shares NO dependence_group with `copy_number_focal_patient`: cell-line DepMap CN and patient-tumour
+      GISTIC CN are measured on genuinely DIFFERENT substrates (an immortalised cell-line panel vs a
+      patient-tumour cohort), so agreement between them is a real cross-substrate cross-check, not one
+      measurement counted twice. No L2b island folds them today (verdict-inert / out of this PR's scope).
+    consumers:
+      - skill: genomic-alteration-profile
+        axis_key: CN
+        surface: source_properties.copy_number_recurrence_model
+
+  copy_number_focal_patient:
+    status: resolvable
+    definition: |
+      Is this gene recurrently focally amplified or deleted ACROSS PATIENT TUMOURS (TCGA GISTIC), gating
+      on HIGH-LEVEL (+2 amp / -2 homdel) focal events rather than any-gain arm-level noise? The patient-
+      tumour cross-check to the cell-line `copy_number_recurrence_model` above — a locus amplified in
+      patients but not the cell-line panel (or vice versa) is the decision-useful disagreement.
+    grain:
+      measurement_type: tcga_gistic_patient_focal_copy_number
+      sample_context: tcga_patient_tumor_cohort
+      entity_grain: target
+    observables:
+      - card_id: copy-number-distribution
+        field: patient_focal_cn_class
+        role: estimator
+        dependence_group: tcga_gistic_patient_focal
+        emission: class_token
+        note: |
+          recurrent_focal_amplification / recurrent_focal_deletion / focal_neutral. Categorical only — no
+          quantitative anchor is retained on this entry (see the catalog description and
+          genomic_claims.py's recipe comment); the GISTIC amp/del/homdel fractions behind the class are
+          cohort-level prevalence rates, carried as prose CONTEXT via patient_cn_context rather than a
+          per-target quantitative anchor.
+      - card_id: copy-number-distribution
+        field: patient_cn_context
+        role: estimator
+        dependence_group: tcga_gistic_patient_focal
+        emission: anchor
+        note: human-readable patient-CN summary; carried as context, not a quantitative anchor.
+    determinants:
+      - name: FOCAL_AMP_FRACTION
+        value: 0.10
+        unit: fraction_of_tumours
+        source: methods/onc_methods/tcga_patient_cn/read.py:99
+        rationale: |
+          High-level (+2) GISTIC amplification in >= 10% of tumours → recurrent_focal_amplification. A
+          LOWER recurrence bar than the any-gain patient_copy_number_class (not catalogued here — a
+          DISPLAY cross-check only) because a high-level focal event is a stronger signal at a lower
+          prevalence. UNKNOWN as a calibration; adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+      - name: FOCAL_HOMDEL_FRACTION
+        value: 0.10
+        unit: fraction_of_tumours
+        source: methods/onc_methods/tcga_patient_cn/read.py:100
+        rationale: |
+          Homozygous deletion (-2) in >= 10% of tumours → recurrent_focal_deletion — the TSG-focal analog
+          of FOCAL_AMP_FRACTION. UNKNOWN as a calibration; adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+      - name: PATIENT_CN_MIN_COVERED
+        value: 20
+        unit: tumours
+        source: methods/onc_methods/tcga_patient_cn/read.py:105
+        rationale: |
+          Below 20 GISTIC-covered tumours in-indication both the any-gain and focal classifiers emit
+          `underpowered` — mirrors MIN_COVERED_CN on the cell-line CN classifier. UNKNOWN as a
+          calibration; adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+    reliability: {}
+    # No `n_effective_anchor`: no per-target tumour-N summary field is declared on this card (the GISTIC
+    # cohort size is a near-fixed indication-level denominator, not a per-target count) — n_effective is
+    # honestly OMITTED.
+    dependence_note: |
+      See `copy_number_recurrence_model`'s dependence_note — the two properties share NO dependence_group
+      (cell-line panel vs patient-tumour cohort are different substrates).
+    consumers:
+      - skill: genomic-alteration-profile
+        axis_key: CN
+        surface: source_properties.copy_number_focal_patient
+        note: |
+          The patient-tumour cross-check surfaced ALONGSIDE copy_number_recurrence_model on the CN axis;
+          not a replication arm of it.
+
+  fusion_recurrence:
+    status: resolvable
+    definition: |
+      Does this gene recur in a gene fusion / structural rearrangement across TCGA tumours, and does the
+      SAME partner recur (a high-confidence fusion driver) or does the gene recur promiscuously with
+      multiple partners (a mixed, lower-confidence bucket)? The AACR GENIE-SV percentile is the coverage-
+      corrected, higher-N breadth comparator carried alongside it (DISPLAY only — it does not drive the
+      `fusion_class` call).
+    grain:
+      measurement_type: tcga_fusion_consensus_recurrence
+      sample_context: pan_cancer_tcga_fusion_cohort
+      entity_grain: target
+    observables:
+      - card_id: fusion-rearrangement-landscape
+        field: fusion_class
+        role: estimator
+        dependence_group: tcga_fusion_consensus
+        emission: class_token
+        note: |
+          recurrent_fusion_driver / promiscuous_amplicon_fusion (skill-layer demotion, #983) /
+          sporadic_fusion / no_recurrent_fusion (+ underpowered / data_unavailable).
+      - card_id: fusion-rearrangement-landscape
+        field: n_samples_with_fusion
+        role: estimator
+        dependence_group: tcga_fusion_consensus
+        emission: anchor
+      - card_id: fusion-rearrangement-landscape
+        field: genie_sv_frequency
+        role: estimator
+        dependence_group: genie_sv_panel
+        emission: anchor
+        note: |
+          Its OWN `dependence_group` (genie_sv_panel): GENIE-SV is a DIFFERENT cohort/substrate
+          (panel-based structural-variant calling) from the TCGA consensus fusion call this property's
+          class token resolves from — a DISPLAY breadth comparator, never the arm the class is
+          classified on (see `dependence_note` below).
+      - card_id: fusion-rearrangement-landscape
+        field: genie_sv_recurrence_percentile
+        role: estimator
+        dependence_group: genie_sv_panel
+        emission: anchor
+      - card_id: fusion-rearrangement-landscape
+        field: n_sv_covered
+        role: estimator
+        dependence_group: genie_sv_panel
+        emission: anchor
+        note: |
+          THE GENIE-SV DENOMINATOR, and this entry's `reliability.n_effective_anchor` — the TCGA
+          consensus card itself declares no comparable per-target covered-sample count, so the GENIE-SV
+          coverage count is the honest substitute (coupled, not an estimator, exactly like its sibling
+          GENIE-SV anchors).
+      - card_id: fusion-rearrangement-landscape
+        field: fusion_recurrence_confidence
+        role: estimator
+        dependence_group: tcga_fusion_consensus
+        emission: anchor
+        note: |
+          high_recurrent_partner / moderate_promiscuous — nullable VERDICT-BEARING tier gating the
+          resolver's top fusion rung; carried here as context on the class, not a separate quantity.
+    determinants:
+      - name: RECURRENT_MIN_SAMPLES
+        value: 3
+        unit: samples
+        source: methods/onc_methods/tcga_fusion_consensus/read.py:60
+        rationale: |
+          A fusion (or a specific partner) recurring across >= 3 samples classifies as a recurrent
+          driver / high_recurrent_partner. UNKNOWN as a calibration — the card documents this as the
+          validation-panel-precise cut for high_recurrent_partner, but whether 3 is itself a published
+          convention or an in-repo choice is adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+      - name: GENIE_SV_TOP_1PCT_CUTOFF
+        value: 99.0
+        unit: percentile
+        source: methods/onc_methods/genie_sv_recurrence/read.py:25
+        rationale: |
+          Mirrors TOP_1PCT_CUTOFF on the GENIE-SV coverage-corrected null. DISPLAY only (does not drive
+          fusion_class). UNKNOWN as a calibration; adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+      - name: GENIE_SV_MIN_COVERED
+        value: 20
+        unit: samples
+        source: methods/onc_methods/genie_sv_recurrence/read.py:28
+        rationale: |
+          A gene SV-covered on fewer than 20 GENIE samples in-indication is excluded from the percentile
+          null. Mirrors GENIE_MIN_COVERED (`mutation_recurrence_panel`). UNKNOWN as a calibration;
+          adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+    reliability:
+      n_effective_anchor: n_sv_covered
+    dependence_note: |
+      `genie_sv_frequency`/`genie_sv_recurrence_percentile`/`n_sv_covered` are COUPLED, not independent
+      estimators: they are a DISPLAY breadth comparator on a DIFFERENT cohort (GENIE-SV panel calling)
+      from the TCGA consensus arm the `fusion_class` token actually resolves from. A fold must not read
+      them as a second independent fusion-recurrence source.
+    consumers:
+      - skill: genomic-alteration-profile
+        axis_key: FUS
+        surface: source_properties.fusion_recurrence
+
+  alteration_conferred_dependency:
+    status: resolvable
+    definition: |
+      Does carrying this gene's HOTSPOT (activating) mutation confer a stronger CRISPR dependency on the
+      SAME gene than the wild-type population — the oncogene-addiction read, biomarker-stratified by
+      mutation status? Measured by stratifying the CRISPR Chronos dependency by hotspot-mutant vs
+      wild-type and testing significance with a BH-corrected Mann-Whitney U, run WITHIN the indication's
+      DepMap lineage when powered.
+    grain:
+      measurement_type: crispr_chronos_hotspot_stratified_dependency
+      sample_context: indication_scoped_depmap_cell_line_panel
+      entity_grain: target
+    observables:
+      - card_id: mutation-stratified-dependency
+        field: mutation_stratification_class
+        role: estimator
+        dependence_group: depmap_crispr_chronos_hotspot_stratified
+        emission: class_token
+        note: |
+          mutant_strongly_dependent / mutant_moderately_dependent / wt_strongly_dependent /
+          not_mutation_stratified / insufficient_mutation_rate / data_unavailable. HOTSPOT-GATED: a
+          directional "mutant more dependent" call may be set only from the hotspot (activating) tier,
+          never the pooled damaging/any tiers (depmap_mutation_dependency/cli.py T2.1 hotspot-gate).
+      - card_id: mutation-stratified-dependency
+        field: delta_chronos_hotspot_mut_vs_wt
+        role: estimator
+        dependence_group: depmap_crispr_chronos_hotspot_stratified
+        emission: anchor
+        note: mutant median Chronos minus WT median — negative means the mutant arm is more dependent.
+      - card_id: mutation-stratified-dependency
+        field: median_chronos_hotspot_mutant
+        role: estimator
+        dependence_group: depmap_crispr_chronos_hotspot_stratified
+        emission: anchor
+      - card_id: mutation-stratified-dependency
+        field: median_chronos_hotspot_wildtype
+        role: estimator
+        dependence_group: depmap_crispr_chronos_hotspot_stratified
+        emission: anchor
+      - card_id: mutation-stratified-dependency
+        field: hotspot_mannwhitney_q
+        role: estimator
+        dependence_group: depmap_crispr_chronos_hotspot_stratified
+        emission: anchor
+        note: BH-corrected (q, not p) significance of the mutant-vs-WT contrast, across the 3 stratification tiers.
+      - card_id: mutation-stratified-dependency
+        field: n_hotspot_mutant
+        role: estimator
+        dependence_group: depmap_crispr_chronos_hotspot_stratified
+        emission: anchor
+        note: |
+          The hotspot-mutant stratum size — the limiting arm the test's own `min_mutant` admissibility
+          floor is decided on, and this entry's `reliability.n_effective_anchor`.
+      - card_id: mutation-stratified-dependency
+        field: n_hotspot_wildtype
+        role: estimator
+        dependence_group: depmap_crispr_chronos_hotspot_stratified
+        emission: anchor
+      - card_id: mutation-stratified-dependency
+        field: evidence_scope
+        role: estimator
+        dependence_group: depmap_crispr_chronos_hotspot_stratified
+        emission: anchor
+        note: |
+          within_indication / within_indication_mut_vs_pan_wt / pan_lineage_evidence_only /
+          pan_no_indication — carried as context: at what scope the stratified test ran.
+    determinants:
+      - name: CHRONOS_STRONG_DEPENDENCY
+        value: -0.5
+        unit: chronos_gene_effect
+        source: methods/onc_methods/depmap_mutation_dependency/cli.py:328
+        rationale: |
+          The dependency phenotype threshold (Chronos <= -0.5) the hotspot-biomarker classifier
+          performance metrics (PPV/sensitivity/specificity) are computed against. UNKNOWN as a
+          calibration; adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+      - name: STRONG_EFFECT_DELTA
+        value: -0.5
+        unit: chronos_gene_effect_delta
+        source: methods/onc_methods/depmap_mutation_dependency/cli.py:377
+        rationale: |
+          A significant mutant-vs-WT delta at or below -0.5 Chronos -> mutant_strongly_dependent. Mirrors
+          dependency's own partner-conditional STRONG_EFFECT_DELTA exactly (same method family, same
+          threshold). UNKNOWN as a calibration; adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+      - name: MODERATE_EFFECT_DELTA
+        value: -0.2
+        unit: chronos_gene_effect_delta
+        source: methods/onc_methods/depmap_mutation_dependency/cli.py:378
+        rationale: |
+          The median-delta path to mutant_moderately_dependent; [-0.5, -0.2) is moderate. UNKNOWN as a
+          calibration; adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+      - name: STRATIFICATION_ALPHA
+        value: 0.05
+        unit: bh_q_value
+        source: methods/onc_methods/depmap_mutation_dependency/cli.py:379
+        rationale: |
+          Conventional BH-corrected significance floor for the mutant-vs-WT contrast — mirrors
+          dependency's partner_conditional_dependency STRATIFICATION_ALPHA exactly. Adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+      - name: MIN_HOTSPOT_MUTANT
+        value: 5
+        unit: cell_lines
+        source: methods/onc_methods/depmap_mutation_dependency/cli.py:225
+        rationale: |
+          Below 5 hotspot-mutant cell lines (or 30 wild-type) the Mann-Whitney test is not run and the
+          class falls to insufficient_mutation_rate — the stratum-size admissibility floor the test
+          itself rests on, directly mirroring dependency's MIN_PARTNER_DEFICIENT_CELLS. NOT yet declared
+          as a `reliability.powered_floor` here (unlike dependency's post-seed #2327 follow-on) — see the
+          genomic_claims.py recipe comment: calibrating a NEW powered_floor into
+          onc_methods.reliability_calibration.powered_floors is a dedicated follow-on, not this PR, so
+          `reliability.powered` stays 'unmeasured' for this property for now even though this constant
+          exists. UNKNOWN as a calibration (the value 5 itself); adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+    reliability:
+      n_effective_anchor: n_hotspot_mutant
+    consumers:
+      - skill: genomic-alteration-profile
+        axis_key: DEP
+        surface: source_properties.alteration_conferred_dependency
+        note: |
+          One of four stratified-dependency sources the DEP axis maxes over (mutation / CN / fusion /
+          amp-expr); only the mutation arm is catalogued here — the CN/fusion/amp-expr siblings are a
+          follow-on roster expansion, not required by #2212's authoritative property table.
+
+  curated_driver_role:
+    status: resolvable
+    definition: |
+      What is this gene's CURATED oncogenic role in this indication — a direct driver (gain- or
+      loss-of-function), a curated cancer gene with no patient-scale driver evidence yet, a predictive
+      biomarker, or a passenger — per OncoKB + IntOGen? A curation-sourced annotation, not a cohort
+      statistic: no quantitative anchor is retained on this entry (mirrors dependency's paralog_buffering
+      / safety's curated entries).
+    grain:
+      measurement_type: oncokb_intogen_curated_driver_role
+      sample_context: curated_annotation_no_cohort
+      entity_grain: target
+    observables:
+      - card_id: alteration-role
+        field: alteration_role
+        role: estimator
+        dependence_group: oncokb_intogen_curation
+        emission: class_token
+        note: |
+          direct_driver_gof / direct_driver_lof / curated_cancer_gene / predictive_biomarker / passenger
+          (+ data_unavailable). `curated_cancer_gene` deliberately withholds the "drives this indication"
+          claim the two direct_driver_* tokens make (see the card's own vocabulary note).
+      - card_id: alteration-role
+        field: functional_direction
+        role: estimator
+        dependence_group: oncokb_intogen_curation
+        emission: anchor
+        note: activating / loss_of_function / ambiguous — carried as context on the role class, not a quantity.
+    determinants: []
+    reliability: {}
+    # No `n_effective_anchor`: a curated annotation call has no cohort/sample-N behind it.
+    note: |
+      This is a CURATED (OncoKB/IntOGen), not a cohort-measured, property — mirrors dependency's
+      paralog_buffering determinants: [] precedent for an entry with no numeric classifier threshold.
+      `ROLE` is a `GENOMIC_CLAIM_SPEC` claim-vector axis but is NOT in the skill's `HeadlineSpec.axis_keys`
+      (genomic-alteration-profile/scripts/run.py `_GENOMIC_HEADLINE_SPEC` declares only SNV/CN/FUS/DEP),
+      so it is correctly ABSENT from claim_axis.enum.yaml (whose criterion is `HeadlineSpec.axis_keys`
+      membership) — the consumer below carries `surface:` only, mirroring paralog_buffering's own
+      axis-key-less consumer in dependency.yaml exactly, for the identical reason.
+    consumers:
+      - skill: genomic-alteration-profile
+        surface: source_properties.curated_driver_role

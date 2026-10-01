@@ -158,15 +158,16 @@ def test_the_owners_question_is_answered_by_the_property_index():
 
 def test_resolves_uses_the_qualified_form_because_the_catalog_namespace_COLLIDES():
     """Why `resolves:` is `<catalog_id>.<entry_id>` and not the bare id, driven rather than asserted from
-    prose: the catalog's 41 entries (Wave-1a added safety.yaml's 8, Wave-1b dependency.yaml's 6) have
-    only 39 distinct bare ids. `collect_entry_ids()` — the namespace `estimates_property` already
-    resolves against — flattens them, so 2 of 41 entries are genuinely ambiguous by bare name."""
+    prose: the catalog's 48 entries (Wave-1a added safety.yaml's 8, Wave-1b dependency.yaml's 6, Wave-1c
+    genomic.yaml's 7) have only 46 distinct bare ids. `collect_entry_ids()` — the namespace
+    `estimates_property` already resolves against — flattens them, so 2 of 48 entries are genuinely
+    ambiguous by bare name."""
     from validate_property_catalog import collect_entry_ids
 
     flat = collect_entry_ids(CATALOG)
     qualified = {f"{cid}.{eid}" for cid, eids in V._catalog_index(CATALOG)[1].items() for eid in eids}
-    assert len(qualified) == 41, len(qualified)
-    assert len(flat) == 39, (
+    assert len(qualified) == 48, len(qualified)
+    assert len(flat) == 46, (
         "the bare-id namespace is no longer ambiguous, so the qualified-form requirement has lost its "
         "measured justification — re-read the enum header before relaxing anything"
     )
@@ -176,15 +177,15 @@ def test_resolves_uses_the_qualified_form_because_the_catalog_namespace_COLLIDES
 
 
 def test_every_unresolved_axis_says_WHY_and_every_resolved_one_does_not():
-    """Clause 5 on the real population, both directions. 38 of 61 axes resolve nothing because three l2a
-    catalogs remain Wave-1 items (safety.yaml landed Wave-1a, dependency.yaml Wave-1b; genomic/
-    selectivity/surface = #2212-#2214 remain); each names the item that will fill it. PAN_ESSENTIAL — the
-    one safety axis empty at v1.1.0 — is now RESOLVED (Wave-1b catalogued the shared
-    dependency.crispr_essentiality it reads at liability valence)."""
+    """Clause 5 on the real population, both directions. 35 of 61 axes resolve nothing because two l2a
+    catalogs remain Wave-1 items (safety.yaml landed Wave-1a, dependency.yaml Wave-1b, genomic.yaml
+    Wave-1c; selectivity/surface = #2213-#2214 remain); each names the item that will fill it. CN/FUS/DEP
+    on genomic-alteration-profile — empty since v1.0.0 pending exactly this catalog — are now RESOLVED
+    (Wave-1c catalogued genomic.yaml)."""
     unresolved = [a for a in DOC["axes"] if not a["resolves"]]
     resolved = [a for a in DOC["axes"] if a["resolves"]]
-    assert len(unresolved) == 38, len(unresolved)
-    assert len(resolved) == 23, len(resolved)
+    assert len(unresolved) == 35, len(unresolved)
+    assert len(resolved) == 26, len(resolved)
     assert all(str(a.get("resolves_pending", "")).strip() for a in unresolved)
     assert not any("resolves_pending" in a for a in resolved)
 
@@ -520,10 +521,10 @@ def test_additivity_reds_on_an_unbumped_addition(tmp_path):
 # person to add an axis cannot tell a real violation from a validator that forbids all change.
 def test_adding_an_axis_with_a_version_bump_stays_green(tmp_path):
     def mutate(d):
-        # A version STRICTLY above the committed one (now 1.2.0 after Wave-1b): the additivity half of
+        # A version STRICTLY above the committed one (now 1.3.0 after Wave-1c): the additivity half of
         # this test compares the mutated working file against HEAD, so the bump must clear HEAD's version
         # or the addition reads as unbumped and this "stays green" control would red for the wrong reason.
-        d["version"] = "1.3.0"
+        d["version"] = "1.4.0"
         d["axes"].append(
             {
                 "skill": "immune-context",

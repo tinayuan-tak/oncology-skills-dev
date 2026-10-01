@@ -23,48 +23,96 @@
       "notes": null
     },
     "L2a": {
-      "built": null,
+      "built": true,
       "criteria": {
         "accuracy": {
-          "evidence": null,
+          "evidence": {
+            "null_reason": "PR-1c (epic SK#2210 / #1507) BUILT this layer for genomic-alteration-profile but did not build a measurement for it. The exemplar's machinery (skills/tumor-presence/scripts/scorecard_adapter.py envelope_rows/envelope_checks: --emit-envelope across the panel roster, then per-criterion checks over the emitted section bytes) has no genomic counterpart, so there is nothing to report here that would not be a claim about un-run checks. Left NULL rather than promoted on the strength of the layer existing. The structural pins that DO exist are cited in `structural_pins` below; they are correctness guards on the export, not a measurement of this criterion.",
+            "structural_pins": [
+              "skills/genomic-alteration-profile/tests/test_evidence_package_sections.py",
+              "contracts/tests/validators/test_property_catalog.py (sweeps genomic.yaml)",
+              "contracts/tests/validators/test_claim_axis_enum.py (genomic.* resolves reconciliation)"
+            ]
+          },
           "status": "NULL"
         },
         "fail_open": {
-          "evidence": null,
+          "evidence": {
+            "null_reason": "PR-1c (epic SK#2210 / #1507) BUILT this layer for genomic-alteration-profile but did not build a measurement for it. The exemplar's machinery (skills/tumor-presence/scripts/scorecard_adapter.py envelope_rows/envelope_checks: --emit-envelope across the panel roster, then per-criterion checks over the emitted section bytes) has no genomic counterpart, so there is nothing to report here that would not be a claim about un-run checks. Left NULL rather than promoted on the strength of the layer existing. The structural pins that DO exist are cited in `structural_pins` below; they are correctness guards on the export, not a measurement of this criterion.",
+            "structural_pins": [
+              "skills/genomic-alteration-profile/tests/test_evidence_package_sections.py",
+              "contracts/tests/validators/test_property_catalog.py (sweeps genomic.yaml)",
+              "contracts/tests/validators/test_claim_axis_enum.py (genomic.* resolves reconciliation)"
+            ]
+          },
           "status": "NULL"
         },
         "panel_consistency": {
-          "evidence": null,
+          "evidence": {
+            "null_reason": "PR-1c (epic SK#2210 / #1507) BUILT this layer for genomic-alteration-profile but did not build a measurement for it. The exemplar's machinery (skills/tumor-presence/scripts/scorecard_adapter.py envelope_rows/envelope_checks: --emit-envelope across the panel roster, then per-criterion checks over the emitted section bytes) has no genomic counterpart, so there is nothing to report here that would not be a claim about un-run checks. Left NULL rather than promoted on the strength of the layer existing. The structural pins that DO exist are cited in `structural_pins` below; they are correctness guards on the export, not a measurement of this criterion.",
+            "structural_pins": [
+              "skills/genomic-alteration-profile/tests/test_evidence_package_sections.py",
+              "contracts/tests/validators/test_property_catalog.py (sweeps genomic.yaml)",
+              "contracts/tests/validators/test_claim_axis_enum.py (genomic.* resolves reconciliation)"
+            ]
+          },
           "status": "NULL"
         },
         "utilization": {
-          "evidence": null,
+          "evidence": {
+            "null_reason": "PR-1c (epic SK#2210 / #1507) BUILT this layer for genomic-alteration-profile but did not build a measurement for it. The exemplar's machinery (skills/tumor-presence/scripts/scorecard_adapter.py envelope_rows/envelope_checks: --emit-envelope across the panel roster, then per-criterion checks over the emitted section bytes) has no genomic counterpart, so there is nothing to report here that would not be a claim about un-run checks. Left NULL rather than promoted on the strength of the layer existing. The structural pins that DO exist are cited in `structural_pins` below; they are correctness guards on the export, not a measurement of this criterion.",
+            "structural_pins": [
+              "skills/genomic-alteration-profile/tests/test_evidence_package_sections.py",
+              "contracts/tests/validators/test_property_catalog.py (sweeps genomic.yaml)",
+              "contracts/tests/validators/test_claim_axis_enum.py (genomic.* resolves reconciliation)"
+            ]
+          },
           "status": "NULL"
         }
       },
-      "notes": null
+      "notes": "L2a = source_properties (SK#1941-shape EXPORTED section, --emit-envelope), built by PR-1c of epic SK#2210 / #1507: 7 per-source observational properties (genomic_claims.py::_SOURCE_PROPERTY_RECIPES_GENOMIC), governed by contracts/vocabularies/property_catalog/genomic.yaml. BUILT, NOT MEASURED \u2014 every criterion NULL with its reason; see _L2_UNMEASURED_NULL_REASON."
     },
     "L2b": {
-      "built": null,
+      "built": true,
       "criteria": {
         "accuracy": {
-          "evidence": null,
+          "evidence": {
+            "null_reason": "PR-1c (epic SK#2210 / #1507) BUILT this layer for genomic-alteration-profile but did not build a measurement for it. The exemplar's machinery (skills/tumor-presence/scripts/scorecard_adapter.py envelope_rows/envelope_checks: --emit-envelope across the panel roster, then per-criterion checks over the emitted section bytes) has no genomic counterpart, so there is nothing to report here that would not be a claim about un-run checks. Left NULL rather than promoted on the strength of the layer existing. The structural pins that DO exist are cited in `structural_pins` below; they are correctness guards on the export, not a measurement of this criterion.",
+            "structural_pins": [
+              "skills/genomic-alteration-profile/tests/test_evidence_package_sections.py"
+            ]
+          },
           "status": "NULL"
         },
         "fail_open": {
-          "evidence": null,
+          "evidence": {
+            "null_reason": "PR-1c (epic SK#2210 / #1507) BUILT this layer for genomic-alteration-profile but did not build a measurement for it. The exemplar's machinery (skills/tumor-presence/scripts/scorecard_adapter.py envelope_rows/envelope_checks: --emit-envelope across the panel roster, then per-criterion checks over the emitted section bytes) has no genomic counterpart, so there is nothing to report here that would not be a claim about un-run checks. Left NULL rather than promoted on the strength of the layer existing. The structural pins that DO exist are cited in `structural_pins` below; they are correctness guards on the export, not a measurement of this criterion.",
+            "structural_pins": [
+              "skills/genomic-alteration-profile/tests/test_evidence_package_sections.py"
+            ]
+          },
           "status": "NULL"
         },
         "panel_consistency": {
-          "evidence": null,
+          "evidence": {
+            "null_reason": "PR-1c (epic SK#2210 / #1507) BUILT this layer for genomic-alteration-profile but did not build a measurement for it. The exemplar's machinery (skills/tumor-presence/scripts/scorecard_adapter.py envelope_rows/envelope_checks: --emit-envelope across the panel roster, then per-criterion checks over the emitted section bytes) has no genomic counterpart, so there is nothing to report here that would not be a claim about un-run checks. Left NULL rather than promoted on the strength of the layer existing. The structural pins that DO exist are cited in `structural_pins` below; they are correctness guards on the export, not a measurement of this criterion.",
+            "structural_pins": [
+              "skills/genomic-alteration-profile/tests/test_evidence_package_sections.py"
+            ]
+          },
           "status": "NULL"
         },
         "utilization": {
-          "evidence": null,
+          "evidence": {
+            "null_reason": "PR-1c (epic SK#2210 / #1507) BUILT this layer for genomic-alteration-profile but did not build a measurement for it. The exemplar's machinery (skills/tumor-presence/scripts/scorecard_adapter.py envelope_rows/envelope_checks: --emit-envelope across the panel roster, then per-criterion checks over the emitted section bytes) has no genomic counterpart, so there is nothing to report here that would not be a claim about un-run checks. Left NULL rather than promoted on the strength of the layer existing. The structural pins that DO exist are cited in `structural_pins` below; they are correctness guards on the export, not a measurement of this criterion.",
+            "structural_pins": [
+              "skills/genomic-alteration-profile/tests/test_evidence_package_sections.py"
+            ]
+          },
           "status": "NULL"
         }
       },
-      "notes": null
+      "notes": "L2b = integrated_properties (SK#1941-shape EXPORTED section), built by PR-1c of epic SK#2210 / #1507: the recurrence_concordance island (SK#1629, MC3 exome x GENIE panel). BUILT, NOT MEASURED \u2014 every criterion NULL with its reason."
     },
     "L3": {
       "built": null,

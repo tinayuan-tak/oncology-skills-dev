@@ -55,6 +55,19 @@
 # the skills' ASTs fail-loud and reconciles both directions.
 
 enum_id: claim_axis
+# 1.3.0 — arc #2210 Wave-1c (issue #2212, the genomic seed) landed
+# contracts/vocabularies/property_catalog/genomic.yaml (7 l2a properties), so genomic-alteration-profile's
+# SNV additionally cites genomic.mutation_recurrence_exome + genomic.mutation_recurrence_panel alongside
+# its already-landed l2b family (integrated_families.recurrence), and CN/FUS/DEP — empty since 1.0.0
+# pending exactly this catalog — now resolve genomic.copy_number_recurrence_model +
+# genomic.copy_number_focal_patient / genomic.fusion_recurrence / genomic.alteration_conferred_dependency
+# respectively. `genomic.curated_driver_role` is the seventh catalogued property but is resolved by NO
+# axis: `ROLE` is a GENOMIC_CLAIM_SPEC claim-vector axis absent from the skill's HeadlineSpec.axis_keys,
+# so per this registry's own criterion it correctly carries no entry here (its catalog consumer carries
+# `surface:` only, mirroring dependency.paralog_buffering's precedent). MINOR per `governance.versioning`:
+# `resolves:` entries added, none removed, no label/`critical` touched; resolved_axes 23->26,
+# resolved_properties 28->34, floors ratcheted to 24/29 (preserving the v1.0.0 margins of 2/5); the
+# landed-l2a-catalog coverage dimension moves 4/15 -> 5/15.
 # 1.2.0 — arc #2210 Wave-1b (issue #2211, the dependency seed) landed
 # contracts/vocabularies/property_catalog/dependency.yaml (6 l2a properties), so functional-requirement's
 # SEL/COND/CHEM now cite it, DEP additionally cites dependency.crispr_essentiality +
@@ -68,7 +81,7 @@ enum_id: claim_axis
 # the eight properties it declares. MINOR per `governance.versioning`: `resolves:` entries added, none
 # removed, no label or `critical` flag touched. PAN_ESSENTIAL is the one safety axis still empty, and
 # its `resolves_pending:` now says WHY rather than pointing at a wave that has already landed.
-version: 1.2.0
+version: 1.3.0
 
 description: |
   One governed entry per (skill, axis_key): the display label, the decision question the axis informs,
@@ -287,33 +300,33 @@ axes:
     critical: true
     resolves:
       - integrated_families.recurrence
+      - genomic.mutation_recurrence_exome
+      - genomic.mutation_recurrence_panel
   - skill: genomic-alteration-profile
     axis_key: CN
     label: "copy-number driver"
     informs: |
       Is the target recurrently amplified or deleted as a driver event?
     critical: true
-    resolves: []
-    resolves_pending: |
-      arc #2210 Wave-1c, issue #2212 (genomic l2a catalog)
+    resolves:
+      - genomic.copy_number_recurrence_model
+      - genomic.copy_number_focal_patient
   - skill: genomic-alteration-profile
     axis_key: FUS
     label: "fusion driver"
     informs: |
       Is the target recurrently involved in a driver fusion?
     critical: true
-    resolves: []
-    resolves_pending: |
-      arc #2210 Wave-1c, issue #2212 (genomic l2a catalog)
+    resolves:
+      - genomic.fusion_recurrence
   - skill: genomic-alteration-profile
     axis_key: DEP
     label: "alteration confers dependency"
     informs: |
       Does carrying the alteration make the tumour cell depend on the target?
     critical: true
-    resolves: []
-    resolves_pending: |
-      arc #2210 Wave-1c, issue #2212 (genomic l2a catalog)
+    resolves:
+      - genomic.alteration_conferred_dependency
     collides_with:
       - skill: functional-requirement
         axis_key: DEP
@@ -784,6 +797,42 @@ properties:
       corroboration arm. (dependency.paralog_buffering is a sixth dependency property but is resolved by
       NO axis — the FR skill reads it as a confidence-only veto-suppressor via a `surface:` consumer with
       no axis_key — so it correctly does not appear in this axis-keyed index.)
+  genomic.alteration_conferred_dependency:
+    resolved_by:
+      - skill: genomic-alteration-profile
+        axis_key: DEP
+  genomic.copy_number_focal_patient:
+    resolved_by:
+      - skill: genomic-alteration-profile
+        axis_key: CN
+    note: |
+      Resolved by the SAME axis (CN) as genomic.copy_number_recurrence_model: CN's decision question is
+      answered by both the DepMap cell-line CN distribution and the TCGA GISTIC patient-tumour focal
+      cross-check — two different substrates, never counted as independent replication of one another
+      (see genomic.yaml's dependence_note on each).
+  genomic.copy_number_recurrence_model:
+    resolved_by:
+      - skill: genomic-alteration-profile
+        axis_key: CN
+  genomic.fusion_recurrence:
+    resolved_by:
+      - skill: genomic-alteration-profile
+        axis_key: FUS
+  genomic.mutation_recurrence_exome:
+    resolved_by:
+      - skill: genomic-alteration-profile
+        axis_key: SNV
+    note: |
+      Resolved by the SAME axis (SNV) as genomic.mutation_recurrence_panel AND
+      integrated_families.recurrence: SNV's decision question is answered by the MC3-exome / GENIE-panel
+      l2a pair plus their l2b cross-cohort fold — the layer differs (l2a source vs l2b integration), not
+      the biology. (genomic.curated_driver_role is a seventh genomic property but is resolved by NO axis
+      — `ROLE` is a GENOMIC_CLAIM_SPEC claim-vector axis absent from the skill's HeadlineSpec.axis_keys,
+      so per this registry's criterion it correctly has no entry here; see genomic.yaml's consumer note.)
+  genomic.mutation_recurrence_panel:
+    resolved_by:
+      - skill: genomic-alteration-profile
+        axis_key: SNV
   integrated_families.abundance:
     resolved_by:
       - skill: tumor-presence
@@ -907,38 +956,38 @@ population_floors:
   skills: 15
   axes: 55
   distinct_axis_keys: 55
-  resolved_axes: 21
-  resolved_properties: 23
+  resolved_axes: 24
+  resolved_properties: 29
   note: |
-    Anti-vacuity, not decoration. Floors sit at or BELOW the measured population (measured at v1.2.0: 15 skills, 61 axes, 60 distinct axis_keys, 23 resolved axes, 28 resolved properties; at v1.1.0 the last two were 19 and 23; at v1.0.0 they were 14 and 15) so that legitimate additive growth never reds, while a discovery glob that silently matches nothing does. The two resolve-floors are RATCHETED with each wave that populates `resolves:`, preserving their v1.0.0 margin below measured (2 and 5): a floor left at the pre-wave number would still pass on a registry that had silently lost everything the wave added, which is precisely the shrink a floor exists to catch. `skills` is a FLOOR and not pinned to equality on purpose: contracts/ may not read skills' HeadlineSpecs (dependency direction), so the equality half lives in skills/_skills_common/tests/test_claim_axis_registry_coverage.py, which reds when a 16th skill declares axes with no entry here.
+    Anti-vacuity, not decoration. Floors sit at or BELOW the measured population (measured at v1.3.0: 15 skills, 61 axes, 60 distinct axis_keys, 26 resolved axes, 34 resolved properties; at v1.2.0 the last two were 23 and 28; at v1.1.0 they were 19 and 23; at v1.0.0 they were 14 and 15) so that legitimate additive growth never reds, while a discovery glob that silently matches nothing does. The two resolve-floors are RATCHETED with each wave that populates `resolves:`, preserving their v1.0.0 margin below measured (2 and 5): a floor left at the pre-wave number would still pass on a registry that had silently lost everything the wave added, which is precisely the shrink a floor exists to catch. `skills` is a FLOOR and not pinned to equality on purpose: contracts/ may not read skills' HeadlineSpecs (dependency direction), so the equality half lives in skills/_skills_common/tests/test_claim_axis_registry_coverage.py, which reds when a 16th skill declares axes with no entry here.
 
 coverage_dimensions:
   - dimension: axes_resolving_a_catalogued_property
-    measured: 23
+    measured: 26
     total: 61
     is_a_gate: false
     rationale: |
-      23 of 61 axes cite a property today (14 at v1.0.0, +5 from Wave-1a's safety.yaml, +4 from
-      Wave-1b's dependency.yaml: functional-requirement's SEL, COND, CHEM, and safety's PAN_ESSENTIAL
-      which now resolves the SHARED dependency.crispr_essentiality — FR's DEP already resolved its l2b
-      family, so it did not change this count even though it gained two l2a properties). They come from
-      the four landed l2a catalogs plus the l2b family catalog Wave-0a landed. The other 38 are not
-      defects and not holes in this file: the l2a catalogs for genomic, selectivity and surface are the
-      remaining Wave-1 items owned by #2212-#2214. A GATE on this number would either block the wave
-      behind its own successors or force catalog entries to be invented ahead of the measurement they
-      record. So it is REPORTED. Fail-open promotes; an unmeasured number would be worse than a small
-      one, which is why `measured` is required to be an int and `resolves_pending:` is required on every
-      one of the 38.
+      26 of 61 axes cite a property today (14 at v1.0.0, +5 from Wave-1a's safety.yaml, +4 from
+      Wave-1b's dependency.yaml, +3 from Wave-1c's genomic.yaml: genomic-alteration-profile's CN, FUS and
+      DEP — empty since v1.0.0 pending exactly this catalog — now resolve it; SNV already resolved its
+      l2b family, so it did not change this count even though it gained two l2a properties, mirroring
+      functional-requirement's DEP at the Wave-1b wave). They come from the five landed l2a catalogs plus
+      the l2b family catalog Wave-0a landed. The other 35 are not defects and not holes in this file: the
+      l2a catalogs for selectivity and surface are the remaining Wave-1 items owned by #2213-#2214. A
+      GATE on this number would either block the wave behind its own successors or force catalog entries
+      to be invented ahead of the measurement they record. So it is REPORTED. Fail-open promotes; an
+      unmeasured number would be worse than a small one, which is why `measured` is required to be an int
+      and `resolves_pending:` is required on every one of the 35.
   - dimension: domains_with_a_landed_l2a_property_catalog
-    measured: 4
+    measured: 5
     total: 15
     is_a_gate: false
     rationale: |
-      expression.yaml, tumor_presence.yaml, safety.yaml (Wave-1a) and — as of Wave-1b — dependency.yaml
-      are the four landed `l2a_property` files; the 13 entries in integrated_families.yaml are
-      `l2b_family` folds, not per-domain properties. This is the upstream cause of the dimension above,
-      recorded separately so a reader does not mistake sparse `resolves:` coverage for sloppy
-      registration here.
+      expression.yaml, tumor_presence.yaml, safety.yaml (Wave-1a), dependency.yaml (Wave-1b) and — as of
+      Wave-1c — genomic.yaml are the five landed `l2a_property` files; the 13 entries in
+      integrated_families.yaml are `l2b_family` folds, not per-domain properties. This is the upstream
+      cause of the dimension above, recorded separately so a reader does not mistake sparse `resolves:`
+      coverage for sloppy registration here.
   - dimension: skills_using_a_letter_axis_scheme
     measured: 1
     total: 15
