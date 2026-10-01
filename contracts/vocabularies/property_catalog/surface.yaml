@@ -1,0 +1,433 @@
+# surface.yaml — the surface-modality-fit SURFACE source properties.
+#
+# Register (not engine) for the five per-source observational properties the surface-modality-fit skill
+# resolves and exports as `claim_vector.source_properties` / `evidence_package.source_properties`
+# (skills/_skills_common/surface_claims.py::_SOURCE_PROPERTY_RECIPES_SURFACE). See README.md for the entry
+# shape and the identifiability test that admits `role: estimator`. PR-1e of epic SK#2210 (#1507, issue
+# #2214), replicating the safety (PR-1a), dependency (PR-1b), genomic (PR-1c) and selectivity (PR-1d)
+# seeds for the surface domain.
+catalog_id: surface
+kind: l2a_property
+version: 1.0.0
+
+description: |
+  Like dependency/genomic/selectivity, this is a DEFAULT/descriptive-frame domain: an accessible
+  extracellular domain, a surface antigen density, a normal-tissue window, membrane retention, and
+  validated pMHC epitope evidence are the SIGNAL this domain is looking for (is there a viable
+  surface-modality substrate), not a liability. So NO entry carries a `comparability.valence` marker
+  (mirrors dependency.yaml / genomic.yaml / selectivity.yaml exactly, and for the same reason: the
+  property-catalog validator's closed ENTRY_KEYS cannot yet govern a second token, so minting one would
+  be ungoverned drift).
+
+  Likewise NO entry carries an `interpretation` provenance object: every surface class below is a
+  VERBATIM read of a card summary field — there is no skills-layer disjunction deciding any of these five
+  classes (unlike tumor-presence's / safety's normal-tissue-safety disjunction).
+
+  FIVE properties, implementing issue #2214's authoritative property table verbatim:
+    * `surface_topology_engineerability` reads `surface-topology-and-ptm` — the accessible extracellular
+      domain SIZE as a biologics-binder substrate signal (TMbed sequence prediction).
+    * `surface_antigen_density` reads `surface-abundance-density` — the CPTAC-protein / HPA-IHC-anchored
+      copies-per-cell estimate (grade-D prior; distinct from the card's grade-A/B calibrated absolute
+      measurement, which this issue's authoritative anchor list does not name).
+    * `normal_tissue_surface_breadth` reads `normal-tissue-liability`, a card SHARED WITH the safety
+      domain (safety.yaml's `normal_tissue_protein_liability`, PR-1a). Both declare the SAME
+      `dependence_group` (`hpa_normal_tissue_ihc`) — load-bearing: a downstream integration must not read
+      the two domains' reads of this one HPA-IHC card as two independent arms. The two properties read
+      DIFFERENT primary fields (safety: `essential_tissue_flag`; surface: `normal_tissue_breadth_class`),
+      which is why they are two catalog entries rather than one shared with a second consumer.
+    * `ectodomain_shedding` reads `shed-ectodomain-liability` — curated clinical/secretome-proxy shedding
+      evidence, the membrane-retained-vs-shed-sink framing.
+    * `pmhc_epitope_evidence` reads `pmhc-epitope-evidence-iedb` — experimentally-validated pMHC epitope
+      ground truth (IEDB positive-assay evidence), the route a folded-surface-only ladder cannot see (an
+      INTRACELLULAR target can still be a TCR-mimetic TCE target).
+
+  What is NOT here, deliberately:
+    * NO `fit_class` entry (`adc-tce-modality-fit`). #1630 (closed-adjudicated) classifies `fit_class` as
+      L3 CONTEXT — the COMPOSED surface-modality call derived FROM the other properties below plus the
+      surfaceome-family/structure cards — not an L2a observational property in its own right. Minting an
+      entry for it would double-count the properties it is itself composed from.
+
+  A domain-wide fact recorded once rather than five times: every entry's `entity_grain` is `target`. Each
+  card emits a gene-level/protein-level read (a topology class, a density class, a breadth class, a
+  shedding class, an epitope-evidence class), never a per-sample read, so the five are commensurable on
+  GRAIN; what separates them is `measurement_type` and `sample_context` (TMbed sequence prediction vs
+  CPTAC/HPA-anchored density estimate vs HPA-IHC normal-tissue breadth vs curated/Olink shedding evidence
+  vs IEDB curated epitope corpus — five genuinely distinct substrates).
+
+governance:
+  role: |
+    Authoritative for: what each surface property MEANS, which observables estimate it, and which
+    numbers decide its value. NOT authoritative for the value vocabulary — each property's tokens are
+    owned by its own card's `summary_fields_vocabulary` in cards/, and the scalar fit_class/surface
+    verdicts are owned by the target-contracts surface_modality resolver + killer rungs, never by this
+    file or the projection that reads it.
+  versioning: |
+    Semver. Adding a property or an observable is a MINOR bump. Correcting a rationale, a unit, or a
+    `source:` path is a PATCH bump. Removing a property, or changing an existing property's `grain`, is
+    BREAKING and requires a MAJOR bump plus coordination via the wip-registry —
+    `validate_property_catalog.py --additive-against <ref>` makes an un-bumped removal RED.
+  ownership: |
+    Epic #1507 (evidence-property architecture), arc #2210 Wave-1e (issue #2214, the surface
+    generalisation of the tumour-presence L2a reference vertical SK#1941, replicating the safety seed
+    PR-1a, the dependency seed PR-1b, the genomic seed PR-1c, and the selectivity seed PR-1d). Threshold
+    rationales marked UNKNOWN below are the re-sequenced Wave-3 docs sweep's subject (#2219, which runs
+    AFTER 1b-1e), not this PR's — this PR pins each determinant's `source:` and value so the sweep has a
+    verified anchor to document.
+  change_discipline: |
+    `property_id`s are published names referenced from outside this directory (the claim_axis registry's
+    `resolves:` field, which uses the QUALIFIED `surface.<property_id>` form — the bare form is ambiguous
+    across catalogs and the validator rejects it). Migrate by add -> consume -> remove, never a bare
+    rename.
+
+properties:
+
+  surface_topology_engineerability:
+    status: resolvable
+    definition: |
+      Is there an accessible extracellular domain large enough to engineer a biologics binder against —
+      a sequence-based (TMbed) topology prediction classifying the longest outside-facing ECD run?
+    grain:
+      measurement_type: surface_protein_biophysics
+      sample_context: sequence_based_tmbed_topology_prediction
+      entity_grain: target
+    observables:
+      - card_id: surface-topology-and-ptm
+        field: ecd_engineerability_class
+        role: estimator
+        dependence_group: tmbed_topology_prediction
+        emission: class_token
+        note: large_ecd / moderate_ecd / minimal_ecd / no_extracellular_domain / data_unavailable.
+      - card_id: surface-topology-and-ptm
+        field: extracellular_residue_count
+        role: estimator
+        dependence_group: tmbed_topology_prediction
+        emission: anchor
+        note: length of the longest extracellular run — the class thresholds directly on this.
+      - card_id: surface-topology-and-ptm
+        field: tm_pass_count
+        role: estimator
+        dependence_group: tmbed_topology_prediction
+        emission: anchor
+        note: count of TM alpha-helical segments — orients single-pass vs multi-pass topology.
+      - card_id: surface-topology-and-ptm
+        field: topology_class
+        role: estimator
+        dependence_group: tmbed_topology_prediction
+        emission: anchor
+        note: |
+          single_pass_type_1 / single_pass_type_2 / single_pass_type_other / multi_pass /
+          gpi_anchored / beta_barrel / no_transmembrane / data_unavailable — carried as context.
+      - card_id: surface-topology-and-ptm
+        field: ecd_orientation
+        role: estimator
+        dependence_group: tmbed_topology_prediction
+        emission: anchor
+        note: outside / inside / unknown — carried as context; the class requires 'outside'.
+    determinants:
+      - name: ECD_ENGINEERABLE_FLOOR
+        value: 30
+        unit: residue_count
+        source: methods/onc_methods/topology_predictions_tmbed/classify.py:53
+        rationale: |
+          Below 30 extracellular residues the ECD is too small to raise a binder against regardless of
+          surface residency -> minimal_ecd. The biologics-target-discovery TopologyECDProvider bar.
+          UNKNOWN as a formal calibration; adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+      - name: ECD_AMPLE_EPITOPE_AREA
+        value: 200
+        unit: residue_count
+        source: methods/onc_methods/topology_predictions_tmbed/classify.py:54
+        rationale: |
+          >= 200 extracellular residues is ample epitope area -> large_ecd (mirrors the card's
+          min_ecd_length_adc_favorable threshold); [30, 200) -> moderate_ecd (engineerable, ADC
+          epitope-area constrained). UNKNOWN as a formal calibration; adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+    reliability: {}
+    # No `n_effective_anchor`: extracellular_residue_count / tm_pass_count are sequence-prediction
+    # outputs for ONE protein, not a cohort/sample size — n_effective is honestly OMITTED.
+    dependence_note: |
+      Shares NO dependence_group with any other entry in this catalog: TMbed sequence prediction is a
+      genuinely distinct substrate from the CPTAC/HPA density estimate, the HPA-IHC normal-tissue read,
+      the curated shedding evidence, or the IEDB epitope corpus.
+    consumers:
+      - skill: surface-modality-fit
+        axis_key: TOPOLOGY
+        surface: source_properties.surface_topology_engineerability
+        note: the primary substrate for the TOPOLOGY axis (surface topology / ECD engineerability).
+
+  surface_antigen_density:
+    status: resolvable
+    definition: |
+      Is the antigen abundant enough on tumour cells to clear a modality's payload/engagement floor — an
+      estimated copies-per-cell density derived from CPTAC tumour protein intensity anchored against HPA
+      IHC staining intensity in the tissue-of-origin (grade-D prior; distinct from the card's own
+      calibrated grade-A/B absolute measurement, which issue #2214's authoritative anchor list does not
+      name for this property).
+    grain:
+      measurement_type: surface_antigen_density_estimate
+      sample_context: cptac_protein_hpa_ihc_anchored
+      entity_grain: target
+    observables:
+      - card_id: surface-abundance-density
+        field: surface_density_class
+        role: estimator
+        dependence_group: cptac_hpa_density_estimate
+        emission: class_token
+        note: |
+          high / moderate / low / very_low / unmeasured /
+          not_surface_density_whole_cell_estimate.
+      - card_id: surface-abundance-density
+        field: estimated_copies_per_cell_median
+        role: estimator
+        dependence_group: cptac_hpa_density_estimate
+        emission: anchor
+        note: |
+          the anchored point estimate the class thresholds on — this entry's
+          `reliability.detection_strength_anchor` (the ONE detection/abundance-kind property in this
+          catalog; shares the calibrated surface_absolute_density scheme's copies/cell boundaries).
+      - card_id: surface-abundance-density
+        field: estimated_copies_per_cell_lower
+        role: estimator
+        dependence_group: cptac_hpa_density_estimate
+        emission: anchor
+        note: conservative lower bound of the estimate band.
+      - card_id: surface-abundance-density
+        field: estimated_copies_per_cell_upper
+        role: estimator
+        dependence_group: cptac_hpa_density_estimate
+        emission: anchor
+        note: optimistic upper bound of the estimate band.
+    determinants:
+      - name: TCE_VIABILITY_COPIES
+        value: 1000
+        unit: copies_per_cell
+        source: methods/onc_methods/cptac_protein_deg/read.py:1090
+        rationale: |
+          >= 1,000 copies/cell -> moderate (soluble-TCE viable, sub-ADC-high-payload). Slaga et al 2018
+          Sci Transl Med. UNKNOWN as a formal re-calibration against this specific median-estimate path;
+          adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+      - name: ADC_HIGH_PAYLOAD_COPIES
+        value: 10000
+        unit: copies_per_cell
+        source: methods/onc_methods/cptac_protein_deg/read.py:1091
+        rationale: |
+          > 10,000 copies/cell -> high (ADC high-payload viable); [100, 1,000) -> low (TCE-marginal,
+          low-payload ADC only); < 100 -> very_low. UNKNOWN as a formal calibration; adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+    reliability: {}
+    # No `n_effective_anchor`: the median/lower/upper copies-per-cell values are a per-gene point
+    # estimate + uncertainty band, not a cohort size — n_effective is honestly OMITTED. The catalog's
+    # `reliability:` block admits only VALUE/anchor-NAMING keys (n_effective_anchor / powered_floor); the
+    # `detection_strength_scheme` / `detection_strength_anchor` coupling is a CODE-side recipe field
+    # (surface_claims.py::_SOURCE_PROPERTY_RECIPES_SURFACE), not yet admitted here (#2330's catalog
+    # `RELIABILITY_KEYS` extension covers n_effective_anchor/powered_floor only) — the RICH field this
+    # domain fires is governed at the code layer today, like selectivity's analogous
+    # malignant_cell_intrinsicity entry.
+    dependence_note: |
+      Shares NO dependence_group with any other entry: the CPTAC/HPA density estimate is a genuinely
+      distinct substrate from the TMbed topology prediction, the HPA-IHC normal-tissue breadth read, the
+      curated shedding evidence, or the IEDB epitope corpus.
+    consumers:
+      - skill: surface-modality-fit
+        axis_key: DENSITY
+        surface: source_properties.surface_antigen_density
+        note: |
+          the primary substrate for the DENSITY axis (antigen abundance). DENSITY also resolves the
+          already-landed integrated_families.coverage / integrated_families.protein_presence L2b
+          families; this l2a property is additive to those, not a replacement.
+
+  normal_tissue_surface_breadth:
+    status: resolvable
+    definition: |
+      Is there a tumour-versus-normal window for a surface-directed agent — the breadth of normal-tissue
+      HPA-IHC protein staining, from "not detected" (neoantigen-like) to "broad" (high on-target-off-tumor
+      risk)? The THERAPEUTIC-WINDOW framing selectivity/surface-modality reads; SAFETY VERDICT is owned
+      by on-target-safety-liability's `normal_tissue_protein_liability` read of the SAME card.
+    grain:
+      measurement_type: normal_tissue_protein_breadth
+      sample_context: normal_tissue
+      entity_grain: target
+    observables:
+      - card_id: normal-tissue-liability
+        field: normal_tissue_breadth_class
+        role: estimator
+        dependence_group: hpa_normal_tissue_ihc
+        emission: class_token
+        note: |
+          broad_normal_expression / moderate_normal_expression / restricted_normal_expression /
+          not_detected_in_normal / data_unavailable — the card's PRIMARY categorical (a direct mapping
+          of HPA's own "Protein tissue distribution" field: detected in all/many -> broad, some ->
+          moderate, single -> restricted, not detected -> not_detected_in_normal; a curated 1:1
+          vocabulary lookup, not a numeric cut — see `determinants` note below).
+      - card_id: normal-tissue-liability
+        field: n_essential_tissues_with_expression
+        role: estimator
+        dependence_group: hpa_normal_tissue_ihc
+        emission: anchor
+        note: |
+          count of curated essential tissues with specific-intensity expression — this entry's
+          dependence_group SIBLING anchor to safety.yaml's `normal_tissue_protein_liability` entry on
+          this SAME card (see dependence_note).
+      - card_id: normal-tissue-liability
+        field: n_specific_tissues
+        role: estimator
+        dependence_group: hpa_normal_tissue_ihc
+        emission: anchor
+        note: denominator-in-spirit — how many tissues had a SPECIFIC-intensity call at all.
+    determinants: []
+    note: |
+      No numeric determinant: `normal_tissue_breadth_class` is a curated 1:1 lookup from HPA's own
+      5-level "Protein tissue distribution" vocabulary (`methods/onc_methods/hpa_normal_tissue_liability/
+      cli.py:80` `_DIST_TO_CLASS`), not a tuned numeric cut. The two anchors (n_essential_tissues_with_
+      expression / n_specific_tissues) are breadth COUNTS the class does not itself threshold on; they
+      orient it without deciding it.
+    reliability: {}
+    # No `n_effective_anchor`: n_essential_tissues_with_expression / n_specific_tissues are tissue-
+    # BREADTH counts (how many tissues stained), not a sample size — n_effective is honestly OMITTED,
+    # mirroring safety.yaml's `normal_tissue_protein_liability` entry on this SAME card.
+    dependence_note: |
+      `hpa_normal_tissue_ihc` is the SAME dependence_group safety.yaml declares for its own
+      `normal_tissue_protein_liability` entry on this card (normal-tissue-liability). A fold spanning
+      surface-modality-fit AND on-target-safety-liability must read agreement between the two domains'
+      reads of this one HPA-IHC card as ONE measurement, not two independent arms — even though the two
+      properties read DIFFERENT primary fields (safety: essential_tissue_flag; surface:
+      normal_tissue_breadth_class).
+    consumers:
+      - skill: surface-modality-fit
+        axis_key: SAFETY
+        surface: source_properties.normal_tissue_surface_breadth
+        note: |
+          the primary substrate for the SAFETY axis (normal-tissue window). SAFETY also resolves the
+          already-landed integrated_families.normal_liability L2b family; this l2a property is
+          additive to that, not a replacement.
+
+  ectodomain_shedding:
+    status: resolvable
+    definition: |
+      Does the ectodomain shed into circulation and act as a drug sink / decoy — curated clinical and
+      secretome-proxy evidence of soluble ectodomain release, plus the measured Olink conditioned-media
+      facet where available?
+    grain:
+      measurement_type: ectodomain_shedding_liability
+      sample_context: curated_clinical_and_secretome_evidence
+      entity_grain: target
+    observables:
+      - card_id: shed-ectodomain-liability
+        field: shed_liability_class
+        role: estimator
+        dependence_group: curated_shed_antigen_crosswalk
+        emission: class_token
+        note: clinically_shed / secretome_proxy_shed / not_shed_membrane_retained / indeterminate / data_unavailable.
+      - card_id: shed-ectodomain-liability
+        field: media_mean_npx
+        role: estimator
+        dependence_group: depmap_conditioned_media_olink
+        emission: anchor
+        note: |
+          mean Olink NPX in conditioned media across DepMap lines — a DIFFERENT dependence_group from
+          the curated class token (measured Olink proteomics vs curated clinical/UniProt-feature
+          evidence; see dependence_note). Carried as this entry's sole numeric anchor per issue #2214's
+          authoritative table.
+    determinants: []
+    note: |
+      No numeric determinant for `shed_liability_class`: it is a CURATED lookup over the target-contracts
+      shed-antigen serum-marker crosswalk (clinical assay anchors + UniProt secretome/feature evidence),
+      not a tuned numeric cut — `methods/onc_methods/shed_ectodomain_liability/read.py` resolves it
+      against the curated vocabulary. The parallel MEASURED `measured_shed_class` facet (media_mean_npx
+      vs a self-calibrated panel p75) exists on the card but is NOT the property_field issue #2214
+      declares authoritative for this entry — `media_mean_npx` is retained as this entry's anchor without
+      promoting the measured class to a second property.
+    reliability: {}
+    # No `n_effective_anchor`: media_mean_npx is a mean NPX level, not a sample count
+    # (media_n_lines_detected exists on the card but is NOT in issue #2214's authoritative anchor list
+    # for this property) — n_effective is honestly OMITTED rather than adding an anchor the table does
+    # not name.
+    dependence_note: |
+      `shed_liability_class` (curated clinical/UniProt evidence) and `media_mean_npx` (measured Olink
+      conditioned-media proteomics) are DIFFERENT dependence_groups — genuinely distinct substrates, so
+      this entry carries two groups across its two observables rather than one. Shares NO dependence_group
+      with any other entry in this catalog.
+    consumers:
+      - skill: surface-modality-fit
+        axis_key: SHED
+        surface: source_properties.ectodomain_shedding
+        note: the primary substrate for the SHED axis (ectodomain shedding).
+
+  pmhc_epitope_evidence:
+    status: resolvable
+    definition: |
+      Is there experimentally-validated pMHC epitope evidence for this antigen — a TCR-mimetic TCE route
+      a folded-surface-only ladder cannot see (an INTRACELLULAR target can still be a TCE target via a
+      presented, T-cell-recognised peptide)? Resolved from the per-protein IEDB positive-assay rollup.
+    grain:
+      measurement_type: iedb_positive_assay_epitope_evidence
+      sample_context: iedb_curated_assay_corpus
+      entity_grain: target
+    observables:
+      - card_id: pmhc-epitope-evidence-iedb
+        field: epitope_evidence_class
+        role: estimator
+        dependence_group: iedb_epitope_rollup
+        emission: class_token
+        note: |
+          tcell_validated / presented_not_tcell_confirmed / no_positive_epitopes / not_observed /
+          data_unavailable.
+      - card_id: pmhc-epitope-evidence-iedb
+        field: n_epitopes
+        role: estimator
+        dependence_group: iedb_epitope_rollup
+        emission: anchor
+        note: |
+          distinct positive-assay peptides mapping to the protein — the class thresholds directly on
+          this (<=0 -> no_positive_epitopes), and this entry's `reliability.n_effective_anchor` (more
+          epitopes = a better-powered read of this antigen's pMHC evidence).
+    determinants:
+      - name: MIN_POSITIVE_EPITOPES
+        value: 1
+        unit: positive_assay_epitope_count
+        source: methods/onc_methods/iedb_epitope/classify.py:47
+        rationale: |
+          n_epitopes <= 0 -> no_positive_epitopes (a WEAK negative — assay asymmetry, not a confirmed
+          non-epitope); n_epitopes >= 1 proceeds to the has_tcell_positive branch
+          (tcell_validated / presented_not_tcell_confirmed). Deliberately the weakest possible floor
+          (>= 1), mirroring safety.yaml's ESSENTIAL_TISSUE_EXPRESSION_MIN posture: a false negative here
+          (missing a real TCE route) is costlier than a false positive. UNKNOWN as a formal calibration;
+          adjudicated by #2219.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2219"
+    reliability:
+      n_effective_anchor: n_epitopes
+    dependence_note: |
+      Shares NO dependence_group with any other entry in this catalog: the IEDB curated epitope corpus is
+      a genuinely distinct substrate from the TMbed topology prediction, the CPTAC/HPA density estimate,
+      the HPA-IHC normal-tissue read, or the curated shedding evidence.
+    note: |
+      `pmhc_epitope_evidence` is resolved by NO axis in `claim_axis.enum.yaml`: `PMHC` is a
+      SURFACE_CLAIM_SPEC claim-vector axis absent from surface-modality-fit's registered
+      `HeadlineSpec.axis_keys` (run.py declares `("FIT", "TOPOLOGY", "DENSITY", "SAFETY", "SHED")` only),
+      so per the registry's own criterion this property correctly carries no entry in the properties
+      index there — mirroring genomic.curated_driver_role's precedent (ROLE, same gap) and
+      dependency.paralog_buffering's (a `surface:`-only consumer with no axis_key). See the `consumers`
+      entry below, which carries `surface:` without an `axis_key:` for exactly this reason.
+    consumers:
+      - skill: surface-modality-fit
+        surface: source_properties.pmhc_epitope_evidence
+        note: |
+          the pMHC-TCE route evidence the folded-surface ladder cannot see. Read by the skill's PMHC
+          claim axis (surface_claims.py SURFACE_CLAIM_SPEC), which is NOT registered in
+          claim_axis.enum.yaml's HeadlineSpec.axis_keys for this skill — no `axis_key:` here.

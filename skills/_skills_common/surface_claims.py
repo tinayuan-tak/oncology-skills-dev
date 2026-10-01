@@ -17,6 +17,11 @@ no_extracellular_domain / very_low density) is `absent`. `unmeasured` is a data 
 
 Verdict-INERT: reads the ALREADY-computed surface cards; the surface verdict is owned by the shared
 resolver and stays byte-stable with or without this projection.
+
+Axis signals/corroboration are read from `headline` (populated by run.py::_headline via
+card_summary/get_card_field); the `cards` param ADDITIONALLY feeds the L2a `source_properties` map
+(PR-1e, SK#2210 Wave-1e, #2214) via `_source_properties(cards_by_id(cards))` — a pure projection that
+reads card summaries directly (never the headline), still verdict-inert and read by no rule/ladder.
 """
 
 from __future__ import annotations
@@ -27,6 +32,7 @@ from _skills_common.claim_vector_core import (
     build_key_signals,
     bump_corroboration,
     cap_corroboration,
+    cards_by_id,
     sig_ge,
 )
 from _skills_common.claim_vector_core import (
@@ -35,6 +41,7 @@ from _skills_common.claim_vector_core import (
 from _skills_common.claim_vector_core import (
     signal_from_class as _sig,
 )
+from _skills_common.reliability import _derive_reliability
 
 # ── enum → substrate-strength tier maps (grounded in the target-contracts summary vocabularies) ──────
 _FIT_SIGNAL = {
@@ -165,6 +172,216 @@ def _pmhc_corr(h, c):
     return "high" if h.get("pmhc_presentation_class") in _PMHC_PRESENTED else "single_arm"
 
 
+# ── L2a: NAMED typed source_properties map (PR-1e of epic SK#2210 / #1507, replicating the safety/ ──
+# dependency/genomic/selectivity seeds for the SURFACE domain). See surface.yaml
+# (contracts/vocabularies/property_catalog/) for the governance record this projection must stay
+# coherent with. Property table is AUTHORITATIVE per issue #2214 — implemented verbatim, not re-derived.
+#
+# The scale/unit slot for each retained quantitative anchor (envelope-v0: a raw value + its declared
+# scale, never a `decision_weight`/`modality_relevance`). Absent → "raw".
+_SURFACE_ANCHOR_SCALE = {
+    # surface-topology-and-ptm (TMbed sequence-based ECD prediction).
+    "extracellular_residue_count": "residue_count",
+    "tm_pass_count": "segment_count",
+    # surface-abundance-density (CPTAC/HPA-anchored copies-per-cell estimate).
+    "estimated_copies_per_cell_median": "copies_per_cell",
+    "estimated_copies_per_cell_lower": "copies_per_cell",
+    "estimated_copies_per_cell_upper": "copies_per_cell",
+    # normal-tissue-liability (HPA IHC breadth).
+    "n_essential_tissues_with_expression": "tissue_count",
+    "n_specific_tissues": "tissue_count",
+    # shed-ectodomain-liability (Olink conditioned-media proteomics).
+    "media_mean_npx": "olink_npx",
+    # pmhc-epitope-evidence-iedb (IEDB positive-assay count).
+    "n_epitopes": "epitope_count",
+}
+
+# Data-driven recipe (keyed by the L2a property name from the architecture's source_properties shape).
+# `property_field` is the resolved observational class of that source; `anchors` are its retained
+# quantitative anchors, in reading order; `context` fields are retained categorical/label qualifiers.
+# Every `card_id`/`property_field`/anchor/context name below is taken VERBATIM from issue #2214's
+# authoritative property table and verified against `contracts/cards/<card_id>.card.yaml`
+# `outputs.summary_fields`.
+#
+# `fit_class` (adc-tce-modality-fit) is DELIBERATELY EXCLUDED — #1630 (closed-adjudicated) classifies it
+# as L3 CONTEXT (the composed modality call), not an L2a observational property. No entry for it here;
+# the FIT claim axis stays `resolves: []` in claim_axis.enum.yaml with a note explaining why it will
+# never resolve a surface l2a property.
+#
+# `normal_tissue_surface_breadth` reads `normal-tissue-liability`, a card SHARED with the safety domain
+# (safety.yaml's `normal_tissue_protein_liability`, PR-1a). Both entries declare the SAME
+# `dependence_group` (`hpa_normal_tissue_ihc`) so a downstream integration never double-counts the two
+# domains' reads of this one HPA-IHC card as independent arms — the two properties differ in WHICH field
+# is primary (safety reads `essential_tissue_flag`, surface reads `normal_tissue_breadth_class`) but
+# share the same underlying measurement.
+#
+# NO `comparability.valence` marker anywhere: surface topology/density/shedding/epitope-evidence are the
+# SIGNAL this domain is looking for (is there a viable surface-modality substrate), not a liability —
+# mirrors dependency/genomic/selectivity's default-frame call. NO `interpretation` provenance object
+# either: every property_field below is a VERBATIM card read (no skills-layer disjunction decides any of
+# these five classes).
+#
+# RELIABILITY (#2306): surface is the MOST detection/abundance-kind domain in the arc.
+# `surface_antigen_density` is a detection/abundance-kind property — its `detection_strength_scheme`
+# names the CALIBRATED `surface_absolute_density` scheme (#2329), which classifies a copies-per-cell
+# value via the surface_antigen_density_ladder method's OWN `_classify` boundaries (100/1,000/10,000),
+# imported never re-declared. `estimated_copies_per_cell_median` is the issue's authoritative anchor and
+# shares those exact boundaries with the calibrated absolute-density tier, so projecting it through the
+# scheme is honest (same cuts, not a second copy). No OTHER property in this table is detection/
+# abundance-kind, so no other entry names a scheme — `detection_strength` stays OMITTED on the other
+# four. `n_effective_anchor` is wired ONLY where the authoritative anchor list names a genuine
+# sample/measurement-count field; `surface_topology_engineerability` (a sequence-based structural
+# prediction), `normal_tissue_surface_breadth` (a tissue-BREADTH count, not a sample size) and
+# `surface_antigen_density` (a per-gene point/interval estimate, not a cohort size) all honestly OMIT it.
+# No anchor in this table carries a purity-confound r (the `expression-purity-confound` card is not
+# among the five source cards), so NO entry names a `purity_confound_anchor` and `confound_flags` stays
+# `[]` uniformly. No anchor in this table resolves from `allgene_percentile`, so NO entry names a
+# `floor_tie_anchor` and `artifact_flags` stays `[]` uniformly. `powered` reads 'unmeasured' uniformly —
+# no surface property-kind has a calibrated admissibility floor in
+# `onc_methods.reliability_calibration.powered_floors` yet.
+_SOURCE_PROPERTY_RECIPES_SURFACE = (
+    {
+        "name": "surface_topology_engineerability",
+        "card_id": "surface-topology-and-ptm",
+        "property_field": "ecd_engineerability_class",
+        "anchors": ("extracellular_residue_count", "tm_pass_count"),
+        "context": ("topology_class", "ecd_orientation"),
+        "comparability": {
+            "measurement_type": "surface_protein_biophysics",
+            "sample_context": "sequence_based_tmbed_topology_prediction",
+            "grain": "target",
+        },
+        # No genuine sample-N anchor: the ECD residue count and TM-pass count are sequence-prediction
+        # outputs for ONE protein, not a cohort/sample size — n_effective honestly OMITTED.
+        "reliability": {},
+    },
+    {
+        "name": "surface_antigen_density",
+        "card_id": "surface-abundance-density",
+        "property_field": "surface_density_class",
+        "anchors": (
+            "estimated_copies_per_cell_median",
+            "estimated_copies_per_cell_lower",
+            "estimated_copies_per_cell_upper",
+        ),
+        # NO `density_evidence_level` context field: although emitted at runtime (the method / summary
+        # schema carry it), the card's own `outputs.summary_fields:` list does NOT declare it — citing it
+        # as a catalog observable would fail the referential-integrity clause (the field cannot be
+        # traced to a DECLARED measurement). Honest omission rather than a fabricated citation; a card-doc
+        # fix (adding it to summary_fields) is a separate, out-of-scope follow-up.
+        "context": (),
+        "comparability": {
+            "measurement_type": "surface_antigen_density_estimate",
+            "sample_context": "cptac_protein_hpa_ihc_anchored",
+            "grain": "target",
+        },
+        # No genuine sample-N anchor in the authoritative table: the median/lower/upper copies-per-cell
+        # values are a per-gene point estimate + uncertainty band, not a cohort size — n_effective
+        # honestly OMITTED. detection_strength (#2329): the ONE detection/abundance-kind property in this
+        # catalog — the calibrated `surface_absolute_density` scheme classifies the SAME copies-per-cell
+        # boundaries (100/1,000/10,000) the median estimate is drawn on, so projecting
+        # estimated_copies_per_cell_median through it is honest. The RICH field this domain fires.
+        "reliability": {
+            "detection_strength_scheme": "surface_absolute_density",
+            "detection_strength_anchor": "estimated_copies_per_cell_median",
+        },
+    },
+    {
+        "name": "normal_tissue_surface_breadth",
+        "card_id": "normal-tissue-liability",
+        "property_field": "normal_tissue_breadth_class",
+        "anchors": ("n_essential_tissues_with_expression", "n_specific_tissues"),
+        "context": (),
+        "comparability": {
+            "measurement_type": "normal_tissue_protein_breadth",
+            "sample_context": "normal_tissue",
+            "grain": "target",
+        },
+        # No genuine sample-N anchor: n_essential_tissues_with_expression / n_specific_tissues are
+        # tissue-BREADTH counts (how many tissues stained), not a sample size — n_effective honestly
+        # OMITTED, mirroring safety.yaml's `normal_tissue_protein_liability` entry on this SAME card.
+        "reliability": {},
+    },
+    {
+        "name": "ectodomain_shedding",
+        "card_id": "shed-ectodomain-liability",
+        "property_field": "shed_liability_class",
+        "anchors": ("media_mean_npx",),
+        "context": ("shed_evidence_tier", "serum_marker", "shedding_protease"),
+        "comparability": {
+            "measurement_type": "ectodomain_shedding_liability",
+            "sample_context": "depmap_conditioned_media_olink",
+            "grain": "target",
+        },
+        # No genuine sample-N anchor in the authoritative table: media_mean_npx is a mean NPX level, not
+        # a sample count (media_n_lines_detected exists on the card but is NOT in issue #2214's
+        # authoritative anchor list for this property) — n_effective honestly OMITTED rather than adding
+        # an anchor the table does not name.
+        "reliability": {},
+    },
+    {
+        "name": "pmhc_epitope_evidence",
+        "card_id": "pmhc-epitope-evidence-iedb",
+        "property_field": "epitope_evidence_class",
+        "anchors": ("n_epitopes",),
+        "context": (),
+        "comparability": {
+            "measurement_type": "iedb_positive_assay_epitope_evidence",
+            "sample_context": "iedb_curated_assay_corpus",
+            "grain": "target",
+        },
+        # n_effective = n_epitopes — the positive-assay peptide count IS the sample size behind the
+        # epitope-evidence class (more epitopes = a better-powered read of this antigen's pMHC evidence).
+        "reliability": {"n_effective_anchor": "n_epitopes"},
+    },
+)
+
+
+def _typed_surface_anchor(field, value):
+    """One retained quantitative anchor: {field, value, scale}. surface carries no field-disposition
+    semantic_role / interpretation_reach source to project yet (unlike safety's `field_disposition.yaml`)
+    — the minimal envelope-v0 shape is the honest one."""
+    return {"field": field, "value": value, "scale": _SURFACE_ANCHOR_SCALE.get(field, "raw")}
+
+
+def _source_properties(c: dict) -> "dict | None":
+    """The NAMED, typed L2a source_properties map for the SURFACE domain (PR-1e, #2210/#2214): one
+    entry per source/grain, lifting the per-source observational properties out of the claim signal
+    blocks into an explicit, recoverable object. Returns None when no source resolves (whole key omitted
+    → byte-stable), matching the safety/dependency/genomic/selectivity atom discipline on this vector.
+    Pure projection, verdict-inert, carries no signal tier. Takes the cards-by-id map only: every
+    surface class below is a verbatim card read, so unlike presence/safety there is no headline-evaluated
+    disjunction to report."""
+    out = {}
+    for recipe in _SOURCE_PROPERTY_RECIPES_SURFACE:
+        summ = c.get(recipe["card_id"], {}) or {}
+        prop = summ.get(recipe["property_field"])
+        # A source with no card / no resolved observational class emits no entry (byte-stable).
+        if not prop or prop == "data_unavailable":
+            continue
+        entry = {
+            "card_id": recipe["card_id"],
+            # The L1 card field the class token was read from — NAMED on the entry (following the
+            # safety/dependency/genomic/selectivity seeds) so every entry reconstructs to L1 as
+            # {card_id, property_field, property}.
+            "property_field": recipe["property_field"],
+            "property": prop,
+            "anchors": [_typed_surface_anchor(f, summ[f]) for f in recipe["anchors"] if summ.get(f) is not None],
+            "comparability": dict(recipe["comparability"]),
+        }
+        # Retained categorical qualifiers that orient the anchors without being quantities themselves.
+        # OMITTED entirely when the card supplies none, keeping a partial-card run byte-stable.
+        context = {f: summ[f] for f in recipe["context"] if summ.get(f) is not None}
+        if context:
+            entry["context"] = context
+        # The typed `reliability` facet (#2306 rollout step 4): a PURE projection over the entry's OWN
+        # retained anchors + this recipe's n-anchor/detection-scheme spec. Verdict-inert (SK#2091).
+        # Always present (powered is required); every OTHER field on the entry stays byte-identical.
+        entry["reliability"] = _derive_reliability(entry["anchors"], recipe["reliability"])
+        out[recipe["name"]] = entry
+    return out or None
+
+
 SURFACE_CLAIM_SPEC = [
     ClaimSpec(
         "FIT",
@@ -283,9 +500,17 @@ _DISCLAIMER = (
 
 
 def surface_claim_vector(headline: dict, cards: list) -> dict:
-    """The verdict-INERT surface claim vector {FIT,TOPOLOGY,DENSITY,SAFETY,SHED:
+    """The verdict-INERT surface claim vector {FIT,TOPOLOGY,DENSITY,SAFETY,SHED,PMHC:
     {signal, corroboration, evidence, conflict, informs, evidence_atom?}, _disclaimer}."""
-    return build_claim_vector(SURFACE_CLAIM_SPEC, headline, cards, _DISCLAIMER)
+    vec = build_claim_vector(SURFACE_CLAIM_SPEC, headline, cards, _DISCLAIMER)
+    # L2a NAMED source_properties map (PR-1e, #2210/#2214): the per-source observational properties
+    # lifted out of the six claim signal blocks into a named, typed, L1-reconstructable object. Carries
+    # NO `signal` key on any entry → not a chip, not a tier, read by no rule/verdict/ladder. OMITTED
+    # entirely (byte-stable) when no source resolves, matching the concordance-claim discipline above.
+    _props = _source_properties(cards_by_id(cards))
+    if _props is not None:
+        vec["source_properties"] = _props
+    return vec
 
 
 def surface_key_signals(headline: dict, cards: list) -> dict:

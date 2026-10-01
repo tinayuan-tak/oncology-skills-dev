@@ -4,10 +4,11 @@ The same two halves as its 0a/0b/0c siblings, and the second is again the load-b
 
   * POPULATION — the committed vocabularies/claim_axis.enum.yaml passes every clause, and the facts it
     was built to record are pinned as FACTS rather than left in prose: 15 skills, 61 `(skill, axis_key)`
-    pairs over 60 distinct tokens, exactly ONE collision (`DEP`), 23 axes resolving 28 catalogued
+    pairs over 60 distinct tokens, exactly ONE collision (`DEP`), 30 axes resolving 44 catalogued
     properties (14/15 at v1.0.0, +5 axes / +8 properties from Wave-1a's safety.yaml, +4 axes /
-    +5 properties from Wave-1b's dependency.yaml), and `integrated_families.normal_liability` resolved
-    by THREE axes under three different display names.
+    +5 properties from Wave-1b's dependency.yaml, growing wave by wave through Wave-1e's surface.yaml),
+    and `integrated_families.normal_liability` resolved by THREE axes under three different display
+    names.
     contracts/tests/ is collected wholesale by the `contracts-pytest` job with no path
     filter, so a regression reds trunk here without needing a workflow edit.
 
@@ -158,16 +159,17 @@ def test_the_owners_question_is_answered_by_the_property_index():
 
 def test_resolves_uses_the_qualified_form_because_the_catalog_namespace_COLLIDES():
     """Why `resolves:` is `<catalog_id>.<entry_id>` and not the bare id, driven rather than asserted from
-    prose: the catalog's 54 entries (Wave-1a added safety.yaml's 8, Wave-1b dependency.yaml's 6, Wave-1c
-    genomic.yaml's 7, Wave-1d selectivity.yaml's 6) have only 52 distinct bare ids. `collect_entry_ids()`
-    — the namespace `estimates_property` already resolves against — flattens them, so 2 of 54 entries are
-    genuinely ambiguous by bare name."""
+    prose: the catalog's 59 entries (Wave-1a added safety.yaml's 8, Wave-1b dependency.yaml's 6, Wave-1c
+    genomic.yaml's 7, Wave-1d selectivity.yaml's 6, Wave-1e surface.yaml's 5) have only 57 distinct bare
+    ids. `collect_entry_ids()` — the namespace `estimates_property` already resolves against — flattens
+    them, so 2 of 59 entries are genuinely ambiguous by bare name (unchanged by Wave-1e: surface.yaml's
+    five bare ids collide with nothing else in the catalog)."""
     from validate_property_catalog import collect_entry_ids
 
     flat = collect_entry_ids(CATALOG)
     qualified = {f"{cid}.{eid}" for cid, eids in V._catalog_index(CATALOG)[1].items() for eid in eids}
-    assert len(qualified) == 54, len(qualified)
-    assert len(flat) == 52, (
+    assert len(qualified) == 59, len(qualified)
+    assert len(flat) == 57, (
         "the bare-id namespace is no longer ambiguous, so the qualified-form requirement has lost its "
         "measured justification — re-read the enum header before relaxing anything"
     )
@@ -177,22 +179,23 @@ def test_resolves_uses_the_qualified_form_because_the_catalog_namespace_COLLIDES
 
 
 def test_every_unresolved_axis_says_WHY_and_every_resolved_one_does_not():
-    """Clause 5 on the real population, both directions. 33 of 61 axes resolve nothing because one l2a
-    catalog remains a Wave-1 item (safety.yaml landed Wave-1a, dependency.yaml Wave-1b, genomic.yaml
-    Wave-1c, selectivity.yaml Wave-1d; surface = #2214 remains); each names the item that will fill it.
-    DIST/INT on tumor-selectivity — empty since v1.0.0 pending exactly this catalog — are now RESOLVED
-    (Wave-1d catalogued selectivity.yaml)."""
+    """Clause 5 on the real population, both directions. Wave 1 (#2210) is now COMPLETE — all five
+    domain l2a catalogs landed (safety Wave-1a, dependency Wave-1b, genomic Wave-1c, selectivity Wave-1d,
+    surface Wave-1e) — so 31 of 61 axes resolve nothing because they are either `FIT` (permanently empty:
+    #1630 classifies `fit_class` as L3 context, not an l2a property) or skills/axes this arc never
+    scoped; each still names WHY. TOPOLOGY/SHED on surface-modality-fit — empty since v1.0.0 pending
+    exactly this catalog — are now RESOLVED (Wave-1e catalogued surface.yaml)."""
     unresolved = [a for a in DOC["axes"] if not a["resolves"]]
     resolved = [a for a in DOC["axes"] if a["resolves"]]
-    assert len(unresolved) == 33, len(unresolved)
-    assert len(resolved) == 28, len(resolved)
+    assert len(unresolved) == 31, len(unresolved)
+    assert len(resolved) == 30, len(resolved)
     assert all(str(a.get("resolves_pending", "")).strip() for a in unresolved)
     assert not any("resolves_pending" in a for a in resolved)
 
 
 def test_no_coverage_dimension_claims_to_be_a_gate():
-    """Clause 9 on the real population. 38/61 is REPORTED; gating it would block this item behind its
-    peer l2a epics or force catalog entries invented ahead of their measurement."""
+    """Clause 9 on the real population. 31/61 is REPORTED; gating it would force catalog entries
+    invented ahead of their measurement."""
     dims = DOC["coverage_dimensions"]
     assert len(dims) >= 3, dims
     assert all(d["is_a_gate"] is False for d in dims)
@@ -521,10 +524,10 @@ def test_additivity_reds_on_an_unbumped_addition(tmp_path):
 # person to add an axis cannot tell a real violation from a validator that forbids all change.
 def test_adding_an_axis_with_a_version_bump_stays_green(tmp_path):
     def mutate(d):
-        # A version STRICTLY above the committed one (now 1.4.0 after Wave-1d): the additivity half of
+        # A version STRICTLY above the committed one (now 1.5.0 after Wave-1e): the additivity half of
         # this test compares the mutated working file against HEAD, so the bump must clear HEAD's version
         # or the addition reads as unbumped and this "stays green" control would red for the wrong reason.
-        d["version"] = "1.5.0"
+        d["version"] = "1.6.0"
         d["axes"].append(
             {
                 "skill": "immune-context",

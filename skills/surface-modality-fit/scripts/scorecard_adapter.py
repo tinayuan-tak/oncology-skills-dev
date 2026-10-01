@@ -6,18 +6,23 @@ it builds the shard in memory and calls ``write_skill_shard``, which touches exa
 
 ## Layer mapping
 
-surface-modality-fit has NOT built the SK#1941-style EXPORTED evidence-package sections
-(``source_properties`` / ``integrated_properties`` / ``l3d``) that tumor-presence's L2a/L2b/L3
-grain rests on — a repo-wide grep for those section names under ``skills/surface-modality-fit/``
-returns nothing. So here:
+PR-1e (epic SK#2210 Wave-1e, issue #2214) built the SK#1941-style EXPORTED ``source_properties``
+section (``--emit-envelope`` via ``run.py::_evidence_sections``), replicating the safety/dependency/
+genomic/selectivity seeds. So the L2a cell moves from NOT_BUILT to BUILT-but-UNMEASURED
+(``built=True``, every criterion NULL — being built is not being measured). L2b/L3/L4 stay NOT_BUILT
+(``built=False``): surface has no landed L2b concordance island (no ``integrated_properties`` section)
+and no l3d story object or synthesis/decision-view layer.
 
   L1  — the 9 cards (``run.py::CARDS``) + their disposition ledger (``field_disposition.yaml``,
         1489 rows, 79 role:signal, part of the fleet-wide floor enforced by
         ``skills/tests/test_field_disposition_ledgers.py``).
-  L2a/L2b/L3/L4 — NOT_BUILT (``built=False``): this skill has no exported source_properties /
-        integrated_properties / l3d sections, and no L4 synthesis/decision-view layer. An
-        architecture gap by design (mirrors tumor-presence's own L4), not a defect — no criterion
-        may be measured on an unbuilt layer.
+  L2a — BUILT-but-UNMEASURED (PR-1e, #2214): the 5-property source_properties map
+        (surface_claims.py::_SOURCE_PROPERTY_RECIPES_SURFACE), governed by
+        contracts/vocabularies/property_catalog/surface.yaml.
+  L2b — NOT_BUILT: no exported integrated_properties / concordance-island section exists for this
+        skill (a peer-epic #1730/#1732 concern, not this PR's).
+  L3/L4 — NOT_BUILT: no l3d domain-interpretation story, and no L4 synthesis/decision-view layer
+        (mirrors tumor-presence's own L4) — an architecture gap by design, not a defect.
 
 ## What "accuracy" means here (NULL by design, per the issue)
 
@@ -225,11 +230,45 @@ def _panel_consistency_criterion() -> cs.Criterion:
 
 
 _NOT_BUILT_NOTE = (
-    "not built for surface-modality-fit: this skill has no exported source_properties / "
-    "integrated_properties / l3d evidence-package sections (the SK#1941 grain tumor-presence's "
-    "L2a/L2b/L3 rests on) and no L4 synthesis/decision-view layer — an architecture gap by design, "
-    "not a defect. built=false; no criterion may be measured on an unbuilt layer."
+    "not built for surface-modality-fit: this skill has no exported integrated_properties / l3d "
+    "evidence-package section (the SK#1941 L2b/L3 grain tumor-presence rests on) and no L4 "
+    "synthesis/decision-view layer — an architecture gap by design, not a defect (L2a is now BUILT, "
+    "see _L2_UNMEASURED_NULL_REASON below). built=false; no criterion may be measured on an unbuilt "
+    "layer."
 )
+
+# ── L2a: BUILT by PR-1e (epic SK#2210 / #1507, #2214), UNMEASURED ───────────────────────────────────
+# The layer now exists, so built=None ("not assessed") would understate the artifact and built=False
+# ("architecture gap") would be a false statement about it. Every criterion stays NULL: the exemplar's
+# L2a measurement machinery (tumor-presence's envelope_rows / envelope_checks — --emit-envelope across
+# the panel roster, criteria computed from the emitted section bytes) has no surface-modality-fit
+# counterpart yet, and a criterion that reads GREEN because a layer merely exists is exactly the
+# fail-open promotion the rollup (any NULL blocks GREEN) is built to refuse. built=True + all-NULL
+# rolls up to NULL, the honest cell state: present, not yet measured.
+_L2A_UNMEASURED_NULL_REASON = (
+    "PR-1e (epic SK#2210 / #1507, #2214) BUILT this layer for surface-modality-fit but did not build a "
+    "measurement for it. The exemplar's machinery (skills/tumor-presence/scripts/scorecard_adapter.py "
+    "envelope_rows/envelope_checks: --emit-envelope across the panel roster, then per-criterion checks "
+    "over the emitted section bytes) has no surface-modality-fit counterpart, so there is nothing to "
+    "report here that would not be a claim about un-run checks. Left NULL rather than promoted on the "
+    "strength of the layer existing. The structural pins that DO exist are cited in `structural_pins` "
+    "below; they are correctness guards on the export, not a measurement of this criterion."
+)
+_L2A_STRUCTURAL_PINS = [
+    "skills/surface-modality-fit/tests/test_evidence_package_sections.py",
+    "contracts/tests/validators/test_property_catalog.py (sweeps surface.yaml)",
+    "contracts/tests/validators/test_claim_axis_enum.py (surface.* resolves reconciliation)",
+]
+
+
+def _l2a_unmeasured_criteria() -> dict:
+    return {
+        name: cs.Criterion(
+            status=cs.NULL,
+            evidence={"null_reason": _L2A_UNMEASURED_NULL_REASON, "structural_pins": list(_L2A_STRUCTURAL_PINS)},
+        )
+        for name in cs.CRITERIA
+    }
 
 
 def build_shard() -> cs.SkillShard:
@@ -256,7 +295,18 @@ def build_shard() -> cs.SkillShard:
         ),
     )
 
-    for layer in ("L2a", "L2b", "L3", "L4"):
+    shard.cells["L2a"] = cs.Cell(
+        built=True,
+        criteria=_l2a_unmeasured_criteria(),
+        notes=(
+            "L2a = source_properties (SK#1941-shape EXPORTED section, --emit-envelope), built by PR-1e "
+            "of epic SK#2210 / #1507: 5 per-source observational properties "
+            "(surface_claims.py::_SOURCE_PROPERTY_RECIPES_SURFACE), governed by "
+            "contracts/vocabularies/property_catalog/surface.yaml. BUILT, NOT MEASURED — every "
+            "criterion NULL with its reason; see _L2A_UNMEASURED_NULL_REASON."
+        ),
+    )
+    for layer in ("L2b", "L3", "L4"):
         shard.cells[layer] = cs.Cell(
             built=False,
             criteria={name: cs.Criterion(status=cs.NULL, evidence=None) for name in cs.CRITERIA},

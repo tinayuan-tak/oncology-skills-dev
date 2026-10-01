@@ -34,7 +34,7 @@ from _skills_common.reachability import verdict_relevant_cards
 from _skills_common.resolver import resolve_or_raise
 from _skills_common.skill_report import ROLE_GATING, build_skill_report
 from _skills_common.subgroup_derivation import make_value_classifier
-from _skills_common.surface_claims import surface_claim_vector, surface_key_signals
+from _skills_common.surface_claims import SURFACE_CLAIM_SPEC, surface_claim_vector, surface_key_signals
 from _skills_common.surface_modality_question_table import surface_modality_question_table
 
 # ─── Signals-first sub-group reader (verdict-INERT) ──────────────────────────────────────────────
@@ -364,7 +364,7 @@ def _build_headline_block(headline: dict) -> dict:
 
 
 SKILL_NAME = "surface-modality-fit"
-SKILL_VERSION = "1.12.0"  # 1.12.0 (2026-09-24, canon-17 F1): the sc-normal clamp's GATING FIELD is now PROJECTED (VERDICT-INERT). `sc-normal-high-liability-bite-killer` is a `dominant: true` BiTE/TCE killer (surface-intrinsic.rules.yaml) keyed on `sc_normal_essential_veto_grade` (`in: [accessible_high_severity, accessible_ungraded]`, repointed by TC#786), resolving through surface_modality.resolver.yaml to adc_preferred_tce_unsafe / tce_unsafe_normal_liability (priorities 4/6) — yet the skill lifted only `sc_normal_expression_class` + the generic max-detection fields, so a `tce_unsafe_normal_liability` headline carried NO field explaining its own downgrade (measured on DLL3-SCLC: the card read `accessible_high_severity`, the headline read nothing). `_headline` now projects the gating field + its named essential driver cell/tissue/detection-fraction (`sc_normal_essential_veto_grade` / `sc_normal_essential_max_cell_type` / `_max_tissue` / `_max_detection_fraction`). Also corrects the false block comment (it named `sc_normal_expression_class` as the gating field, claimed "no resolver rung", and "LIVE for colon+lung only" — all three measurably false against the killer rule + resolver + 19 wired tissue shards). Mirror of tumor-selectivity PR#1475. No rule/card/ledger/schema/golden reads the new keys; resolver/veto spine byte-stable.   # 1.11.0 (2026-09-15) DISPLAY-ONLY: the headline PHRASE no longer asserts an arm the resolver excluded. Measured 108 of 504 corpus rows (21.4%) rendering "ADC & TCE viable" / "TCE-favorable" for a token whose own arm projection carries an `unsafe` / `escape_risk` / `caveated` arm (fit_class is blind to the downgrade — it lives in surface_modality_verdict). When an arm is downgraded the phrase is rebuilt from the PINNED arm projection via headline_core's phrase_override (`TCE unsafe; ADC & mAb viable`); trigger derived from _VERDICT_ARMS, not the hand-maintained reason map. Also adds the 2 _SURFACE_DOWNGRADE_REASON rows missing since 1.3.0 (adc_preferred_tce_escape_risk / tce_escape_risk rendered with NO tension note). verdict.call / gate / polarity / claim_vector / resolver all byte-stable.   # 1.10.0 (2026-09-07, CASE-012) VERDICT-INERT: pmhc_presentation_caveat — a pmhc_tce_supported call whose epitope is presented on an INTERMEDIATE breadth of normal tissues (Q1–Q3, below the broadly_presented_normal veto) is flagged (NOX1/CRC: colon+small-intestine+marrow). Presentation-axis (modality-appropriate), not expression; names the on-target/off-tumor liability the binary veto misses, without foreclosing the route (NY-ESO-1/MAGE-A4 restricted → no caveat). Spine/resolver/replay byte-stable.   # 1.9.0 (2026-09-04) Phase-6 VERDICT-MOVING: consume the TC surface_annotation_only_unconfirmed verdict (resolver v1.7.0). Cross-card surface_confirmation_state derived by the NEW surface_modality card preprocessor (registered + run_wired_skill preprocess_gate); _compose_adc_tce_fit emits biologics_precedented (widened ADC/TCE/CAR crosswalk). A positive fit_class resting on family/predicted-topology annotation w/o confirmed protein or clinical precedent → NON-NOMINATING caveat. DLL3/CEACAM5 spared (clinically_precedented). Depends TC #631.   # 1.8.0 (2026-09-04): --literature lane + VERDICT-INERT surfacing (surface_confirmation_caveat = surfaceome-family/RNA/predicted-topology annotation-INFLATION flag when a positive fit_class lacks confirmed cell-surface protein; endocytosis-unmeasured ADC sub-note; shed_caveat soluble-antigen-sink arm; SURFACE_MODALITY_FIT thesis + polarity_note). Spine byte-stable (resolver keys only on fit_class + safety/density/shed rungs).   # 1.7.0 (2026-09-04, #979): consume the MIDDLE antigen-escape band (escape_risk_patient_variable) — VERDICT-MOVING: two positive-caveated verdicts (adc_preferred_tce_patient_variable / tce_patient_variable) temper the TCE arm without foreclosing it.   # 1.6.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 1.5.0 (2026-08-27): tuned signals-first sub-group reader (surface-modality vocab). Verdict-INERT.
+SKILL_VERSION = "1.13.0"  # 1.13.0 (2026-10-01, PR-1e of epic SK#2210 / #1507, #2214 — the SURFACE generalisation of the tumor-presence L2a vertical, replicating the safety/dependency/genomic/selectivity seeds): the per-source observational (L2a) properties for 5 sources (surface_topology_engineerability, surface_antigen_density, normal_tissue_surface_breadth, ectodomain_shedding, pmhc_epitope_evidence) are lifted into a NAMED typed map `claim_vector.source_properties` (surface_claims.py `_SOURCE_PROPERTY_RECIPES_SURFACE`), each carrying its L1 card_id, the resolved observational class, the RETAINED quantitative anchors ({field, value, scale}) + comparability metadata, and the #2306 typed `reliability` facet (n_effective projected from each property's own n-anchor where the authoritative table names a genuine sample/measurement-count anchor — only pmhc_epitope_evidence (n_epitopes) does; powered='unmeasured' uniformly — no surface property-kind has a calibrated floor yet; confound_flags/artifact_flags=[] — no anchor in this table carries a purity-confound r or an allgene-percentile floor-tie flag; detection_strength FIRES on surface_antigen_density via the calibrated `surface_absolute_density` scheme (#2329), OMITTED on the other four non-detection-kind properties — the RICH field this domain carries). `fit_class` is DELIBERATELY EXCLUDED (#1630, closed-adjudicated: L3 context, not a property). `normal_tissue_surface_breadth` reads `normal-tissue-liability`, a card SHARED with safety's `normal_tissue_protein_liability` (PR-1a) — both declare the SAME `dependence_group` (`hpa_normal_tissue_ihc`) so no downstream fold double-counts the two domains' reads of this one card. Under --emit-envelope evidence_package.json gains the NAMED top-level sections source_properties (L2a) / local_composites (the six FIT/TOPOLOGY/DENSITY/SAFETY/SHED/PMHC axes), built by _evidence_sections(headline) and threaded through run_wired_skill(evidence_sections_fn=...). NEITHER `integrated_properties` NOR `l3d` is emitted — surface has no landed L2b concordance island and no within-domain L3d story (peer-epic #1730/#1732 concerns, not this PR's). Like dependency/genomic/selectivity, surface emits NO `comparability.valence` marker (topology/density/shedding/epitope evidence are the SIGNAL this domain seeks, not a liability) and NO `interpretation` provenance object (every property_field below is a verbatim card read). Contracts governance: contracts/vocabularies/property_catalog/surface.yaml (5 L2a props); claim_axis.enum.yaml 1.4.0->1.5.0 (TOPOLOGY/DENSITY/SAFETY/SHED now cite surface.*; `pmhc_epitope_evidence` is resolved by NO axis — PMHC is a SURFACE_CLAIM_SPEC claim-vector axis absent from this skill's registered HeadlineSpec.axis_keys, mirroring genomic.curated_driver_role/dependency.paralog_buffering's precedent). ADDITIVE / VERDICT-INERT: no axis renamed, no new L2b family, no token minted; `source_properties` omitted byte-stably when no source resolves; carries no `signal` key and read by no rule/verdict/ladder, so fit_class + the CEACAM5/TACSTD2/ERBB2/WT1 replay goldens are byte-stable.   # 1.12.0 (2026-09-24, canon-17 F1): the sc-normal clamp's GATING FIELD is now PROJECTED (VERDICT-INERT). `sc-normal-high-liability-bite-killer` is a `dominant: true` BiTE/TCE killer (surface-intrinsic.rules.yaml) keyed on `sc_normal_essential_veto_grade` (`in: [accessible_high_severity, accessible_ungraded]`, repointed by TC#786), resolving through surface_modality.resolver.yaml to adc_preferred_tce_unsafe / tce_unsafe_normal_liability (priorities 4/6) — yet the skill lifted only `sc_normal_expression_class` + the generic max-detection fields, so a `tce_unsafe_normal_liability` headline carried NO field explaining its own downgrade (measured on DLL3-SCLC: the card read `accessible_high_severity`, the headline read nothing). `_headline` now projects the gating field + its named essential driver cell/tissue/detection-fraction (`sc_normal_essential_veto_grade` / `sc_normal_essential_max_cell_type` / `_max_tissue` / `_max_detection_fraction`). Also corrects the false block comment (it named `sc_normal_expression_class` as the gating field, claimed "no resolver rung", and "LIVE for colon+lung only" — all three measurably false against the killer rule + resolver + 19 wired tissue shards). Mirror of tumor-selectivity PR#1475. No rule/card/ledger/schema/golden reads the new keys; resolver/veto spine byte-stable.   # 1.11.0 (2026-09-15) DISPLAY-ONLY: the headline PHRASE no longer asserts an arm the resolver excluded. Measured 108 of 504 corpus rows (21.4%) rendering "ADC & TCE viable" / "TCE-favorable" for a token whose own arm projection carries an `unsafe` / `escape_risk` / `caveated` arm (fit_class is blind to the downgrade — it lives in surface_modality_verdict). When an arm is downgraded the phrase is rebuilt from the PINNED arm projection via headline_core's phrase_override (`TCE unsafe; ADC & mAb viable`); trigger derived from _VERDICT_ARMS, not the hand-maintained reason map. Also adds the 2 _SURFACE_DOWNGRADE_REASON rows missing since 1.3.0 (adc_preferred_tce_escape_risk / tce_escape_risk rendered with NO tension note). verdict.call / gate / polarity / claim_vector / resolver all byte-stable.   # 1.10.0 (2026-09-07, CASE-012) VERDICT-INERT: pmhc_presentation_caveat — a pmhc_tce_supported call whose epitope is presented on an INTERMEDIATE breadth of normal tissues (Q1–Q3, below the broadly_presented_normal veto) is flagged (NOX1/CRC: colon+small-intestine+marrow). Presentation-axis (modality-appropriate), not expression; names the on-target/off-tumor liability the binary veto misses, without foreclosing the route (NY-ESO-1/MAGE-A4 restricted → no caveat). Spine/resolver/replay byte-stable.   # 1.9.0 (2026-09-04) Phase-6 VERDICT-MOVING: consume the TC surface_annotation_only_unconfirmed verdict (resolver v1.7.0). Cross-card surface_confirmation_state derived by the NEW surface_modality card preprocessor (registered + run_wired_skill preprocess_gate); _compose_adc_tce_fit emits biologics_precedented (widened ADC/TCE/CAR crosswalk). A positive fit_class resting on family/predicted-topology annotation w/o confirmed protein or clinical precedent → NON-NOMINATING caveat. DLL3/CEACAM5 spared (clinically_precedented). Depends TC #631.   # 1.8.0 (2026-09-04): --literature lane + VERDICT-INERT surfacing (surface_confirmation_caveat = surfaceome-family/RNA/predicted-topology annotation-INFLATION flag when a positive fit_class lacks confirmed cell-surface protein; endocytosis-unmeasured ADC sub-note; shed_caveat soluble-antigen-sink arm; SURFACE_MODALITY_FIT thesis + polarity_note). Spine byte-stable (resolver keys only on fit_class + safety/density/shed rungs).   # 1.7.0 (2026-09-04, #979): consume the MIDDLE antigen-escape band (escape_risk_patient_variable) — VERDICT-MOVING: two positive-caveated verdicts (adc_preferred_tce_patient_variable / tce_patient_variable) temper the TCE arm without foreclosing it.   # 1.6.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 1.5.0 (2026-08-27): tuned signals-first sub-group reader (surface-modality vocab). Verdict-INERT.
 # 1.4.0 (2026-08-21): emit existing per-question question_table into the headline; 1.3.0 +sc-surface-normal-safety +sc-surface-rna-protein-concordance
 
 # VERDICT-RELEVANT vs ENRICHMENT: the surface_modality resolver (v1.1.0, 2026-08-09) keys on the
@@ -1512,6 +1512,58 @@ def _llm_synthesis(
     return make_synthesize_fn(_LENS)(decision, model_id, subtype)  # migrated to generic capsule-driven engine
 
 
+# ─── EXPORTED bounded evidence-package sections (PR-1e, epic #2210 Wave 1 / #1507, #2214) ────────────
+# The surface generalisation of the tumour-presence reference vertical
+# (`skills/tumor-presence/scripts/run.py::_evidence_sections`), replicating the safety (PR-1a),
+# dependency (PR-1b), genomic (PR-1c) and selectivity (PR-1d) seeds. Under `--emit-envelope` the emitted
+# evidence_package.json gains NAMED top-level sections so the L1→L2a layering is STRUCTURE rather than a
+# convention over `synthesis.headline.claim_vector`. The schema
+# (contracts/schemas/evidence_package.schema.json) ALREADY declares all four as optional — no schema
+# change, and a section this domain does not produce is OMITTED.
+
+# Surface has NO landed L2b concordance island (unlike dependency/genomic/selectivity) and NO within-
+# domain L3d story. So this domain exports exactly TWO of the schema's four optional sections:
+# `source_properties` (L2a) and `local_composites` (the six FIT/TOPOLOGY/DENSITY/SAFETY/SHED/PMHC
+# claim axes). `integrated_properties` and `l3d` are DELIBERATELY absent — building a family to fill
+# either hole is a peer-epic concern (#1730/#1732), not this PR's.
+_LOCAL_COMPOSITE_KEYS = tuple(spec.axis_key for spec in SURFACE_CLAIM_SPEC)
+
+
+def _evidence_sections(headline: dict) -> "dict | None":
+    """Build the NAMED, bounded top-level evidence-package sections from the rich decision headline.
+
+    Pure read-projection over the already-built `headline`: partitions content it ALREADY carries into
+    the doc's named sections (`source_properties` L2a, `local_composites`). Nothing is recomputed and
+    nothing is dropped that a consumer could not already read on the headline. Every emitted section
+    reconstructs downward to L1:
+      * source_properties[*].card_id (+ per-anchor {field, value} → the L1 card field)
+      * local_composites.claims.<AXIS>.evidence_atom.cite.card_id
+    Neither `integrated_properties` nor `l3d` is emitted: surface has no landed concordance island and
+    no within-domain L3d story object (a later wave, not this PR) — an empty section is worse than an
+    absent one, so this domain emits TWO of the schema's four optional sections. Returns None when no
+    claim_vector resolved, so the dispatcher passes `evidence_sections=None` and the emitted package is
+    byte-identical to the pre-PR-1e shape. VERDICT-INERT throughout."""
+    if not isinstance(headline, dict):
+        return None
+    cv = headline.get("claim_vector")
+    if not isinstance(cv, dict):
+        return None
+
+    sections: dict = {}
+
+    # L2a — per-source observational biological properties (each entry carries its L1 card_id).
+    sp = cv.get("source_properties")
+    if sp:
+        sections["source_properties"] = sp
+
+    # Local composites — carried inside the domain with the epistemic type declared.
+    carried = {k: cv[k] for k in _LOCAL_COMPOSITE_KEYS if cv.get(k) is not None}
+    if carried:
+        sections["local_composites"] = {"epistemic_type": "domain_local_composite", "claims": carried}
+
+    return sections or None
+
+
 if __name__ == "__main__":
     sys.exit(
         run_wired_skill(
@@ -1560,5 +1612,6 @@ if __name__ == "__main__":
                 "verdict is honest-insufficient until they land."
             ),
             isoform_check_target=True,  # surface-modality claims need isoform caveats
+            evidence_sections_fn=_evidence_sections,
         )
     )
