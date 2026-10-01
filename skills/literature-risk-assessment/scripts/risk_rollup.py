@@ -62,7 +62,29 @@ def _findings_of(block: dict) -> list:
     return g.get("findings") or g.get("liability_findings") or []  # tolerant of both field names
 
 
-def project(pkg: dict, modality: str, substrate: dict | None = None) -> dict:
+# (#2394) the independently LLM-graded `risk_level` (run.py DIMENSIONS: LOW/MEDIUM/HIGH/not_assessed)
+# uses its own vocabulary, distinct from the deterministic `bin` (LOW/MED/HIGH/ENGINE-BLIND) — same
+# RANK ladder, different spelling of MEDIUM. `not_assessed` has no rank (honest-absence: no comparison).
+_LLM_LEVEL_RANK = {"LOW": 0, "MEDIUM": 1, "HIGH": 2}
+
+
+def _levels_discordant(bin_value: str, risk_level: str) -> bool | None:
+    """Rank-compare the deterministic `bin` against the LLM `risk_level` for one dimension. Returns
+    None (no comparison made) when either side is absent/non-ranked — ENGINE-BLIND and not_assessed
+    both carry no rank, and honest-absence means NEVER fabricating agreement from a missing side."""
+    b_rank = RANK.get(bin_value)
+    l_rank = _LLM_LEVEL_RANK.get(risk_level)
+    if b_rank is None or l_rank is None:
+        return None
+    return b_rank != l_rank
+
+
+def project(
+    pkg: dict,
+    modality: str,
+    substrate: dict | None = None,
+    risk_assessment: dict | None = None,
+) -> dict:
     """Attach grounded literature to the deterministic bins as an ESCALATE-ONLY, CONFIDENCE-ONLY
     ANNOTATION. Grounding NEVER moves a bin (locked decision 2026-09-03: literature annotates confidence,
     never a risk_6dim bin). For engine-anchored AND engine-blind dims alike, the grounded findings + the
@@ -70,7 +92,16 @@ def project(pkg: dict, modality: str, substrate: dict | None = None) -> dict:
     engine leg STAYS ENGINE-BLIND (→ insufficient_evidence) rather than being handed a coarse,
     uncalibrated literature bin. The findings remain the reader-facing literature signal — they do not
     manufacture a governance-grade risk level. (Removed the former pseudo-card literature bin + the
-    _pseudo_literature_bin helper 2026-09-03; risk_6dim citability rests on the deterministic bin alone.)"""
+    _pseudo_literature_bin helper 2026-09-03; risk_6dim citability rests on the deterministic bin alone.)
+
+    (#2394) `risk_assessment`, when given, is the OTHER 6-dim read: literature-risk-assessment's own
+    `run.py` output keyed by the same dim names (biological/druggability/translational/clinical/safety/
+    commercial), each carrying an independently LLM-graded `risk_level`. The two reads share dimension
+    keys but were never cross-checked — a divergence (e.g. deterministic safety=LOW vs literature
+    safety=HIGH) rendered with no tension signal. This adds a VERDICT-INERT `levels_discordant` marker
+    (never moves the bin, mirroring the substrate discordance flag above) set True only when BOTH sides
+    carry a ranked value and the ranks differ. Honest-absence: no comparison, no key, when either side
+    is missing/unranked (ENGINE-BLIND bin or not_assessed risk_level) — never fabricate agreement."""
     dims = deterministic_bins(pkg, _mod(modality))
     for axis, block in (substrate or {}).items():
         dim = AXIS_TO_DIM.get(axis)
@@ -85,6 +116,12 @@ def project(pkg: dict, modality: str, substrate: dict | None = None) -> dict:
         # quarantined by containment rests on confabulated support — do not emit the flag then.
         if g.get("contradicts_deterministic") and findings:
             dims[dim]["engine_literature_discordance"] = True
+    for dim, entry in (risk_assessment or {}).items():
+        if dim not in dims or not isinstance(entry, dict):
+            continue
+        discordant = _levels_discordant(dims[dim].get("bin"), entry.get("risk_level"))
+        if discordant:
+            dims[dim]["levels_discordant"] = True
     return dims
 
 
@@ -96,13 +133,20 @@ if __name__ == "__main__":
     ap.add_argument("--evidence-package", required=True)
     ap.add_argument("--modality", required=True)
     ap.add_argument("--substrate", nargs="*", default=[], help="axis=path grounded substrate blocks")
+    ap.add_argument(
+        "--risk-assessment",
+        default=None,
+        help="path to literature-risk-assessment's run.py output (dim -> {risk_level, ...}), for the "
+        "#2394 bin-vs-level cross-check",
+    )
     ap.add_argument("--out", default=None)
     a = ap.parse_args()
     sub = {}
     for spec in a.substrate:
         ax, p = spec.split("=", 1)
         sub[ax] = json.loads(Path(p).read_text())
-    dims = project(json.loads(Path(a.evidence_package).read_text()), a.modality, sub)
+    ra = json.loads(Path(a.risk_assessment).read_text()) if a.risk_assessment else None
+    dims = project(json.loads(Path(a.evidence_package).read_text()), a.modality, sub, ra)
     if a.out:
         Path(a.out).write_text(json.dumps(dims, indent=2))
     print(json.dumps(dims, indent=2))

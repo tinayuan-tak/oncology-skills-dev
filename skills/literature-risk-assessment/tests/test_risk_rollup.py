@@ -277,6 +277,42 @@ def test_commercial_bin_from_competitor_card():
     )
 
 
+# ── bin-vs-level cross-check (#2394): deterministic bin vs the LLM risk_assessment risk_level ──
+def test_levels_discordant_set_when_bin_and_llm_level_diverge():
+    pkg = _pkg("wt_human_genetics_mechanism_mismatch", {"normal-tissue-liability-gtex": "critical_organ_liability"})
+    bin_ = rr.project(pkg, "adc")["safety"]["bin"]
+    assert bin_ == "HIGH"
+    # deterministic HIGH vs literature LOW -> discordant
+    risk_assessment = {"safety": {"risk_level": "LOW"}}
+    out = rr.project(pkg, "adc", risk_assessment=risk_assessment)["safety"]
+    assert out["levels_discordant"] is True
+    assert out["bin"] == bin_  # NEVER moves the bin
+
+
+def test_levels_discordant_absent_when_concordant():
+    pkg = _pkg("wt_human_genetics_mechanism_mismatch", {"normal-tissue-liability-gtex": "critical_organ_liability"})
+    # deterministic HIGH, literature also HIGH -> concordant, no marker
+    risk_assessment = {"safety": {"risk_level": "HIGH"}}
+    out = rr.project(pkg, "adc", risk_assessment=risk_assessment)["safety"]
+    assert "levels_discordant" not in out
+
+
+def test_levels_discordant_honest_absence_on_missing_side():
+    pkg = _pkg("tolerant_reduced_safety_risk", {})
+    # translational is ENGINE-BLIND (no bin rank) -> no comparison even with a ranked LLM level
+    risk_assessment = {"translational": {"risk_level": "HIGH"}}
+    out = rr.project(pkg, "small_molecule", risk_assessment=risk_assessment)["translational"]
+    assert "levels_discordant" not in out
+    # not_assessed LLM level -> no comparison against a ranked bin
+    pkg2 = _pkg("wt_human_genetics_mechanism_mismatch", {"normal-tissue-liability-gtex": "critical_organ_liability"})
+    risk_assessment2 = {"safety": {"risk_level": "not_assessed"}}
+    out2 = rr.project(pkg2, "adc", risk_assessment=risk_assessment2)["safety"]
+    assert "levels_discordant" not in out2
+    # no risk_assessment at all -> no comparison, no key, no crash
+    out3 = rr.project(pkg2, "adc")["safety"]
+    assert "levels_discordant" not in out3
+
+
 def test_clinical_commercial_engine_bins_not_clobbered_by_project():
     # a real engine bin must survive project() (deterministic wins; literature attaches, never overwrites)
     pkg = _pkg2(
