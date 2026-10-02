@@ -65,6 +65,21 @@ def test_facet_matches_headline_reconciliation_exactly():
         assert facet[k] == headline.get(k)
 
 
+def test_facet_carries_the_l3d_biology_story_key():
+    """#2450: `tumor_expression_biology_story` must be IN `_SYNTHESIS_FACET_KEYS` so the composed
+    target-profile lift (`_claim_vectors_from_sub_results`) can see it — before #2450 this key was set
+    on the headline but never entered the facet at all. Removing it from `_SYNTHESIS_FACET_KEYS`
+    (the mutation) reddens this test."""
+    assert "tumor_expression_biology_story" in tp._SYNTHESIS_FACET_KEYS
+    fired = [_fr("tumor-expression-broadly-high-supportive", "tumor-rna-distribution")]
+    verdict_pair = tp._verdict(fired)
+    headline = tp._headline(cards=_cards(), fired=fired, verdict_pair=verdict_pair)
+    facet = tp._synthesis_facet(cards=_cards(), fired=fired, verdict_pair=verdict_pair)
+    # whatever the headline computed (None on this thin fixture, or a dict on a richer one) the facet
+    # must mirror it exactly — the single-source-of-truth contract this facet exists to uphold.
+    assert facet["tumor_expression_biology_story"] == headline.get("tumor_expression_biology_story")
+
+
 def test_facet_on_empty_run_is_honest():
     verdict_pair = tp._verdict([])
     facet = tp._synthesis_facet(cards=_cards(), fired=[], verdict_pair=verdict_pair)

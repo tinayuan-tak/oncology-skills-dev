@@ -9,847 +9,1078 @@ _meta:
   reviewed: "true == a human read the field's producers and consumers and chose this role. Every row in this ledger is reviewed."
   waived_because: "only legal on role: signal. Records WHY a signal no declared reader reaches is left unwired; must name the missing consumer or owning repo. No row here needs one — every signal is reader-reached."
   reach_note: "Roles assigned via the #1540 skill-audit rubric + the tumor-presence sibling precedent, with reader reach measured BLIND to this ledger by _skills_common.field_disposition.census on main d42694cf. The four pan-cancer-rnai-dependency-distribution fields (rnai_fraction_strongly_dependent / rnai_distribution_shape / rnai_selectivity_index / rnai_pan_essential_score) are READ via _rnai_lof_dependency_support in scripts/run.py (#1892)."
+  interpretation_reach: "SECOND AXIS (added 2026-10-02, #2494 — thread A2 of epic #1937, on the
+    two-axis contract _skills_common/field_disposition_contract.py landed by SK#1525; the
+    tumor-presence ledger is the worked template). Orthogonal to `role`: role says WHAT the field is
+    (signal/context/provenance/display), interpretation_reach says HOW FAR its interpretation travels
+    — `unreached` (no declared reader: a candidate orphan, a REVIEW queue, never a delete list),
+    `skills_local` (read by a rule/capsule/salience/figure/code reader inside this repo), or
+    `cross_repo_resolver` (read by an analysis-methods property resolver under methods/onc_methods/,
+    e.g. the cellline-rna _heterogeneity inputs tumor-presence declares). Reach does NOT promote role:
+    a cross-repo resolver INPUT stays role:context, because the signal attaches to the RESOLVED
+    property, not to this raw measurement.
+
+    WHERE THE VALUES COME FROM — they are MACHINE-DERIVED, not judged: every value is
+    `field_disposition_contract.interpretation_reach_for()` applied to the reader set
+    `field_disposition.census()` measures for that (card, field), and the census reads NO
+    field_disposition.yaml, so no value here can be satisfied by editing this file. The derivation is
+    re-run and reconciled row-by-row by tests/test_field_disposition_reach.py — mutate a value here
+    and that test reds. ADDITIVE: `role` is untouched and remains the semantic axis (this repo has no
+    explicit `semantic_role` key); no row was renamed, retagged or deleted.
+
+    NO ROW CARRIES cross_repo_resolver, and that is a MEASUREMENT, not an omission: the only property
+    resolver that exists in methods/onc_methods/ is expression_properties/resolve.py, bound in
+    field_disposition.RESOLVER_INPUT_BINDINGS to the card `cellline-rna-distribution` only. There is no
+    dependency-property resolver, so no field of any card in THIS ledger is read across the seam.
+    Tagging one cross_repo_resolver would be a fabricated consumption edge."
 pan-cancer-crispr-dependency-distribution:
   chronos_iqr:
     role: context
+    interpretation_reach: unreached
     reason: "inter-quartile spread of the panel Chronos distribution; dispersion / power qualifier, not a call"
     reviewed: true
   dep_control_negatives:
     role: display
+    interpretation_reach: unreached
     reason: "human-facing container of the non-essential control genes; verdict-inert detail"
     reviewed: true
   dep_control_non_essential_floor:
     role: context
+    interpretation_reach: unreached
     reason: "non-essential reference-band floor the target Chronos is read against; reference qualifier behind dep_control_position_class"
     reviewed: true
   dep_control_pan_essential_ceiling:
     role: context
+    interpretation_reach: unreached
     reason: "pan-essential reference-band ceiling the target Chronos is read against; reference qualifier behind dep_control_position_class"
     reviewed: true
   dep_control_position:
     role: context
+    interpretation_reach: unreached
     reason: "the target's position within the non-essential..pan-essential control band; reference qualifier behind the READ dep_control_position_class; no exact reader"
     reviewed: true
   dep_control_position_class:
     role: signal
+    interpretation_reach: skills_local
     reason: "categorical call of the target's Chronos position vs the control band (mirrors tumor-presence control_position_class:signal); role:signal reach-confirmed via {capsule, question_table, salience}"
     reviewed: true
   dep_control_position_context:
     role: provenance
+    interpretation_reach: skills_local
     reason: "provenance/audit token describing the control-band basis; surfaced, never a signal"
     reviewed: true
   dep_control_positives:
     role: display
+    interpretation_reach: unreached
     reason: "human-facing container of the pan-essential control genes; verdict-inert detail"
     reviewed: true
   dep_control_target_chronos:
     role: context
+    interpretation_reach: unreached
     reason: "the target's raw Chronos value operand behind dep_control_position_class; magnitude behind the READ class, no exact reader"
     reviewed: true
   dependency_class:
     role: signal
+    interpretation_reach: skills_local
     reason: "headline pan-cancer CRISPR dependency call — the verdict-bearing killer the dependency resolver matches; role:signal reach-confirmed via {capsule, gating_rule, skill_code}"
     reviewed: true
   depmap_curated_common_essential:
     role: context
+    interpretation_reach: unreached
     reason: "DepMap AchillesCommonEssentialControls membership flag qualifying the pan-essential value of dependency_class; the verdict reads dependency_class, so this is a qualifier, not an independent signal; no exact reader"
     reviewed: true
   distribution_shape:
     role: context
+    interpretation_reach: skills_local
     reason: "shape of the Chronos distribution (uni/bimodal/long-tail); capsule-narrated qualifier behind dependency_class. Kept context on the tumor-presence cellline distribution_pattern precedent (capsule reach cannot separate a decisive call from a context input); NOTE the rnai twin rnai_distribution_shape gained a skill_code reader in #1892 and is signal — a display-vs-verdict asymmetry, not a re-read here"
     reviewed: true
   fraction_moderately_dependent:
     role: context
+    interpretation_reach: unreached
     reason: "within-panel breadth fraction at the moderate-dependency tier; magnitude behind the READ dependency_class"
     reviewed: true
   fraction_non_essential:
     role: context
+    interpretation_reach: unreached
     reason: "within-panel fraction below the dependency floor; breadth magnitude behind the READ dependency_class"
     reviewed: true
   fraction_strongly_dependent:
     role: signal
+    interpretation_reach: skills_local
     reason: "fraction of the CRISPR panel strongly dependent — the core dependency-breadth magnitude, read by _crispr_lof_dependency_support (modality twin of rnai_fraction_strongly_dependent); role:signal reach-confirmed via {skill_code}"
     reviewed: true
   median_chronos_panel:
     role: signal
+    interpretation_reach: skills_local
     reason: "panel-median Chronos magnitude behind the dependency call (mirrors tumor-presence median_log2tpm_panel:signal); role:signal reach-confirmed via {salience}"
     reviewed: true
   n_cell_lines_evaluated:
     role: context
+    interpretation_reach: skills_local
     reason: "count of cell lines screened; power / statistical qualifier"
     reviewed: true
   p25_chronos_panel:
     role: display
+    interpretation_reach: unreached
     reason: "lower-quartile of the panel Chronos distribution; verdict-inert distribution shape (tumor-presence p25 precedent)"
     reviewed: true
   p5_chronos_panel:
     role: display
+    interpretation_reach: unreached
     reason: "5th-percentile of the panel Chronos distribution; verdict-inert distribution shape (tumor-presence p5 precedent)"
     reviewed: true
   p75_chronos_panel:
     role: display
+    interpretation_reach: unreached
     reason: "upper-quartile of the panel Chronos distribution; verdict-inert distribution shape (tumor-presence p75 precedent)"
     reviewed: true
   p95_chronos_panel:
     role: context
+    interpretation_reach: unreached
     reason: "upper-tail Chronos dispersion around the READ median_chronos_panel; qualifier (tumor-presence p95 precedent)"
     reviewed: true
   pan_essential_fraction_call:
     role: context
+    interpretation_reach: unreached
     reason: "fraction-based pan-essential call feeding into dependency_class; the verdict reads dependency_class, so this is a qualifier input, not an independent signal; no exact reader"
     reviewed: true
   pan_essential_score:
     role: signal
+    interpretation_reach: skills_local
     reason: "pan-essentiality score (safety-liability axis) read by _crispr_lof_dependency_support (modality twin of rnai_pan_essential_score); role:signal reach-confirmed via {skill_code}"
     reviewed: true
   selectivity_index:
     role: signal
+    interpretation_reach: skills_local
     reason: "dependency selectivity index — how selective the killer is across the panel; role:signal reach-confirmed via {question_table, salience}"
     reviewed: true
   top_dependent_lineages:
     role: display
+    interpretation_reach: unreached
     reason: "human-facing named list of the most-dependent lineages; verdict-inert container"
     reviewed: true
 pan-cancer-rnai-dependency-distribution:
   rnai_dep_score_iqr:
     role: context
+    interpretation_reach: unreached
     reason: "inter-quartile spread of the RNAi dependency-score distribution; dispersion / power qualifier"
     reviewed: true
   rnai_dependency_class:
     role: signal
+    interpretation_reach: skills_local
     reason: "headline pan-cancer RNAi dependency call (orthogonal LoF modality); role:signal reach-confirmed via {display_rule, gating_rule, salience, skill_code}"
     reviewed: true
   rnai_distribution_shape:
     role: signal
+    interpretation_reach: skills_local
     reason: "shape of the RNAi dependency-score distribution; READ via _rnai_lof_dependency_support in scripts/run.py (#1892); role:signal reach-confirmed via {skill_code}"
     reviewed: true
   rnai_fraction_moderately_dependent:
     role: context
+    interpretation_reach: unreached
     reason: "within-panel RNAi breadth fraction at the moderate tier; magnitude behind the READ rnai_dependency_class"
     reviewed: true
   rnai_fraction_non_dependent:
     role: context
+    interpretation_reach: unreached
     reason: "within-panel RNAi fraction below the dependency floor; breadth magnitude behind the READ rnai_dependency_class"
     reviewed: true
   rnai_fraction_strongly_dependent:
     role: signal
+    interpretation_reach: skills_local
     reason: "fraction of the RNAi panel strongly dependent; READ via _rnai_lof_dependency_support (#1892); role:signal reach-confirmed via {skill_code}"
     reviewed: true
   rnai_median_dep_score:
     role: signal
+    interpretation_reach: skills_local
     reason: "panel-median RNAi dependency-score magnitude behind the call (modality twin of median_chronos_panel:signal); role:signal reach-confirmed via {salience}"
     reviewed: true
   rnai_n_cell_lines_evaluated:
     role: context
+    interpretation_reach: unreached
     reason: "count of RNAi-screened cell lines; power / statistical qualifier"
     reviewed: true
   rnai_p25_dep_score:
     role: display
+    interpretation_reach: unreached
     reason: "lower-quartile of the RNAi dependency-score distribution; verdict-inert distribution shape"
     reviewed: true
   rnai_p5_dep_score:
     role: display
+    interpretation_reach: unreached
     reason: "5th-percentile of the RNAi dependency-score distribution; verdict-inert distribution shape"
     reviewed: true
   rnai_p75_dep_score:
     role: display
+    interpretation_reach: unreached
     reason: "upper-quartile of the RNAi dependency-score distribution; verdict-inert distribution shape"
     reviewed: true
   rnai_p95_dep_score:
     role: context
+    interpretation_reach: unreached
     reason: "upper-tail RNAi dependency-score dispersion around the READ rnai_median_dep_score; qualifier"
     reviewed: true
   rnai_pan_essential_score:
     role: signal
+    interpretation_reach: skills_local
     reason: "RNAi pan-essentiality score (safety-liability axis); READ via _rnai_lof_dependency_support (#1892); role:signal reach-confirmed via {skill_code}"
     reviewed: true
   rnai_screens_contributing:
     role: context
+    interpretation_reach: unreached
     reason: "count of RNAi screens contributing to the aggregate; power / coverage qualifier"
     reviewed: true
   rnai_selectivity_index:
     role: signal
+    interpretation_reach: skills_local
     reason: "RNAi dependency selectivity index; READ via _rnai_lof_dependency_support (#1892); role:signal reach-confirmed via {skill_code}"
     reviewed: true
   rnai_top_dependent_lineages:
     role: display
+    interpretation_reach: unreached
     reason: "human-facing named list of the most RNAi-dependent lineages; verdict-inert container"
     reviewed: true
 crispr-rnai-dependency-concordance:
   concordance_class:
     role: signal
+    interpretation_reach: skills_local
     reason: "the CRISPR-vs-RNAi cross-modality concordance call; gates dependency interpretation; role:signal reach-confirmed via {display_rule, gating_rule, question_table, skill_code}"
     reviewed: true
   fraction_agree:
     role: signal
+    interpretation_reach: skills_local
     reason: "fraction of lines where the two modalities agree — the concordance magnitude the class keys on; role:signal reach-confirmed via {question_table, salience}"
     reviewed: true
   fraction_dependent_in_both:
     role: context
+    interpretation_reach: unreached
     reason: "fraction dependent under both modalities; magnitude behind the READ concordance_class; no exact reader"
     reviewed: true
   n_agree_dependent:
     role: context
+    interpretation_reach: unreached
     reason: "count of lines both modalities call dependent; power / cross-tab count"
     reviewed: true
   n_agree_non_dependent:
     role: context
+    interpretation_reach: unreached
     reason: "count of lines both modalities call non-dependent; power / cross-tab count"
     reviewed: true
   n_crispr_only:
     role: context
+    interpretation_reach: unreached
     reason: "count of CRISPR-only lines; power / coverage qualifier"
     reviewed: true
   n_crispr_only_dependent:
     role: context
+    interpretation_reach: unreached
     reason: "count of CRISPR-only lines called dependent; power / cross-tab count"
     reviewed: true
   n_crispr_only_non_dependent:
     role: context
+    interpretation_reach: unreached
     reason: "count of CRISPR-only lines called non-dependent; power / cross-tab count"
     reviewed: true
   n_disagree_crispr_dependent:
     role: context
+    interpretation_reach: unreached
     reason: "count of disagreements where CRISPR is dependent; power / cross-tab count"
     reviewed: true
   n_disagree_rnai_dependent:
     role: context
+    interpretation_reach: unreached
     reason: "count of disagreements where RNAi is dependent; power / cross-tab count"
     reviewed: true
   n_in_both:
     role: context
+    interpretation_reach: skills_local
     reason: "count of lines screened by both modalities (concordance denominator); power qualifier"
     reviewed: true
   n_rnai_only:
     role: context
+    interpretation_reach: unreached
     reason: "count of RNAi-only lines; power / coverage qualifier"
     reviewed: true
   n_rnai_only_dependent:
     role: context
+    interpretation_reach: unreached
     reason: "count of RNAi-only lines called dependent; power / cross-tab count"
     reviewed: true
   n_rnai_only_non_dependent:
     role: context
+    interpretation_reach: unreached
     reason: "count of RNAi-only lines called non-dependent; power / cross-tab count"
     reviewed: true
   n_total:
     role: context
+    interpretation_reach: unreached
     reason: "total lines considered across modalities; power denominator"
     reviewed: true
   per_line_concordance:
     role: display
+    interpretation_reach: unreached
     reason: "human-facing per-cell-line concordance container; verdict-inert detail"
     reviewed: true
 dependency-lineage-selectivity:
   enriched_lineages:
     role: display
+    interpretation_reach: skills_local
     reason: "human-facing named list of enriched lineages (salience-surfaced for display); verdict-inert container"
     reviewed: true
   enrichment_class:
     role: signal
+    interpretation_reach: skills_local
     reason: "the lineage-selectivity call (lineage_selective if ANY lineage is enriched); role:signal reach-confirmed via {display_rule, gating_rule, skill_code}"
     reviewed: true
   indication_dependency_class:
     role: signal
+    interpretation_reach: skills_local
     reason: "the queried indication's own dependency call within the lineage panel; role:signal reach-confirmed via {gating_rule}"
     reviewed: true
   lineage_omnibus_effect_size_class:
     role: context
+    interpretation_reach: unreached
     reason: "effect-size grade of the cross-lineage omnibus test; statistical qualifier grading enrichment_class, not an independent call; no exact reader"
     reviewed: true
   lineage_omnibus_kruskal_h:
     role: context
+    interpretation_reach: unreached
     reason: "Kruskal-Wallis omnibus H across lineages; statistical qualifier"
     reviewed: true
   lineage_omnibus_p:
     role: context
+    interpretation_reach: skills_local
     reason: "cross-lineage omnibus p-value; statistical qualifier (salience-surfaced)"
     reviewed: true
   lineage_variance_explained:
     role: context
+    interpretation_reach: unreached
     reason: "variance in Chronos explained by lineage; statistical qualifier behind enrichment_class"
     reviewed: true
   median_chronos_panel:
     role: signal
+    interpretation_reach: skills_local
     reason: "panel-median Chronos magnitude behind the lineage-selectivity call (mirrors the distribution card's median_chronos_panel); role:signal reach-confirmed via {salience}"
     reviewed: true
   n_cell_lines_panel:
     role: context
+    interpretation_reach: skills_local
     reason: "count of cell lines in the lineage panel; power / statistical qualifier"
     reviewed: true
   n_enriched_lineages:
     role: context
+    interpretation_reach: unreached
     reason: "count of enriched lineages; power qualifier behind enrichment_class"
     reviewed: true
   n_lineages_evaluated:
     role: context
+    interpretation_reach: skills_local
     reason: "count of lineages evaluated; power / coverage qualifier"
     reviewed: true
   n_lineages_omnibus_tested:
     role: context
+    interpretation_reach: unreached
     reason: "count of lineages entering the omnibus test; power qualifier"
     reviewed: true
   n_oncotree_codes_evaluated:
     role: context
+    interpretation_reach: unreached
     reason: "count of OncoTree codes evaluated; power / coverage qualifier"
     reviewed: true
   n_relative_only_enriched_lineages:
     role: context
+    interpretation_reach: unreached
     reason: "count of relative-only enriched lineages; power qualifier"
     reviewed: true
   per_lineage_stats:
     role: display
+    interpretation_reach: skills_local
     reason: "human-facing per-lineage statistics container; verdict-inert detail"
     reviewed: true
   per_oncotree_code_stats:
     role: display
+    interpretation_reach: unreached
     reason: "human-facing per-OncoTree-code statistics container; verdict-inert detail"
     reviewed: true
   relative_only_enriched_lineages:
     role: display
+    interpretation_reach: unreached
     reason: "human-facing named list of relative-only enriched lineages; verdict-inert container"
     reviewed: true
   which_lineages_separate:
     role: display
+    interpretation_reach: unreached
     reason: "human-facing named list naming which lineages separate; verdict-inert container"
     reviewed: true
 paralog-buffering:
   functional_paralogs:
     role: display
+    interpretation_reach: unreached
     reason: "human-facing named list of functional paralogs; verdict-inert container"
     reviewed: true
   method_version:
     role: provenance
+    interpretation_reach: skills_local
     reason: "method-version audit token; surfaced, never a signal"
     reviewed: true
   n_paralogs_annotated:
     role: context
+    interpretation_reach: skills_local
     reason: "count of paralogs annotated; power / coverage qualifier"
     reviewed: true
   n_paralogs_functionally_buffering:
     role: context
+    interpretation_reach: unreached
     reason: "count of functionally-buffering paralogs; power qualifier behind paralog_buffering_class"
     reviewed: true
   paralog_buffering_class:
     role: signal
+    interpretation_reach: skills_local
     reason: "the paralog-buffering call — degrader-preferred veto-suppressor that rescues a non-dependent veto via the when_all rung; role:signal reach-confirmed via {display_rule, gating_rule, salience, skill_code}"
     reviewed: true
   strongest_paralog_delta:
     role: context
+    interpretation_reach: skills_local
     reason: "buffering effect-size magnitude behind the READ paralog_buffering_class (salience-surfaced); qualifier, not an independent call"
     reviewed: true
   strongest_paralog_ohnolog:
     role: context
+    interpretation_reach: unreached
     reason: "whether the strongest paralog is an ohnolog; evolutionary-origin qualifier behind the buffering call"
     reviewed: true
   strongest_paralog_ohnolog_status:
     role: context
+    interpretation_reach: unreached
     reason: "ohnolog-status token qualifying the strongest paralog; qualifier behind the buffering call"
     reviewed: true
   strongest_paralog_symbol:
     role: display
+    interpretation_reach: skills_local
     reason: "named identity of the strongest buffering paralog (human-facing driver identity, cf. tumor-presence sc_normal_essential_max_cell_type:display)"
     reviewed: true
 partner-conditional-dependency:
   deficiency_type:
     role: provenance
+    interpretation_reach: unreached
     reason: "identity/scope key naming the partner-deficiency type (e.g. MSI, HRD); surfaced, never a signal"
     reviewed: true
   delta_chronos_deficient_vs_neutral:
     role: context
+    interpretation_reach: skills_local
     reason: "the partner-deficient-vs-neutral Chronos delta (rescue magnitude) behind the READ partner_stratification_class (salience-surfaced); qualifier, not an independent call"
     reviewed: true
   median_chronos_neutral:
     role: context
+    interpretation_reach: skills_local
     reason: "median Chronos in partner-neutral lines; operand behind partner_stratification_class"
     reviewed: true
   median_chronos_partner_deficient:
     role: context
+    interpretation_reach: unreached
     reason: "median Chronos in partner-deficient lines; operand behind partner_stratification_class"
     reviewed: true
   n_cell_lines_evaluated:
     role: context
+    interpretation_reach: skills_local
     reason: "count of cell lines evaluated; power / statistical qualifier"
     reviewed: true
   n_neutral:
     role: context
+    interpretation_reach: unreached
     reason: "count of partner-neutral lines; power qualifier"
     reviewed: true
   n_partner_deficient:
     role: context
+    interpretation_reach: skills_local
     reason: "count of partner-deficient lines; power / statistical qualifier"
     reviewed: true
   partner:
     role: provenance
+    interpretation_reach: unreached
     reason: "identity/scope key naming the partner gene defining the stratification axis (e.g. WRN, PARP1); surfaced, never a signal"
     reviewed: true
   partner_stratification_class:
     role: signal
+    interpretation_reach: skills_local
     reason: "the partner-conditional dependency call — synthetic-lethality rescue that fires partner_conditional_dependent in the resolver; role:signal reach-confirmed via {gating_rule, salience, skill_code}"
     reviewed: true
   partner_stratification_effect_size:
     role: context
+    interpretation_reach: unreached
     reason: "effect size of the partner stratification; magnitude behind the READ partner_stratification_class; no exact reader"
     reviewed: true
   partner_stratification_mannwhitney_p:
     role: context
+    interpretation_reach: unreached
     reason: "Mann-Whitney p-value for the partner stratification; statistical qualifier"
     reviewed: true
   partner_stratification_mannwhitney_q:
     role: context
+    interpretation_reach: skills_local
     reason: "multiple-testing-adjusted q-value for the partner stratification; statistical qualifier"
     reviewed: true
   partner_stratification_mannwhitney_q_reverse:
     role: context
+    interpretation_reach: unreached
     reason: "reverse-direction Mann-Whitney q-value; statistical qualifier guarding the stratification direction"
     reviewed: true
 prism-crispr-concordance:
   best_spearman_r_crispr:
     role: context
+    interpretation_reach: skills_local
     reason: "best CRISPR-vs-PRISM Spearman r; correlation magnitude behind the READ crispr_prism_concordance_class (salience-surfaced); qualifier"
     reviewed: true
   best_spearman_r_rnai:
     role: context
+    interpretation_reach: skills_local
     reason: "best RNAi-vs-PRISM Spearman r; correlation magnitude behind the READ concordance class; qualifier"
     reviewed: true
   crispr_prism_concordance_class:
     role: signal
+    interpretation_reach: skills_local
     reason: "the chemical-genetic confirmation call — fires triangulated-target-engaged which the resolver reads as chemical_genetic_confirmed_dependent; role:signal reach-confirmed via {display_rule, gating_rule, salience, skill_code}"
     reviewed: true
   dual_responders:
     role: display
+    interpretation_reach: unreached
     reason: "human-facing named list of dual-responder compounds; verdict-inert container"
     reviewed: true
   n_compounds_evaluated:
     role: context
+    interpretation_reach: skills_local
     reason: "count of PRISM compounds evaluated; power / coverage qualifier"
     reviewed: true
   n_dual_responders:
     role: context
+    interpretation_reach: unreached
     reason: "count of dual-responder compounds; power qualifier behind the concordance call"
     reviewed: true
   per_compound_concordance:
     role: display
+    interpretation_reach: skills_local
     reason: "human-facing per-compound concordance container (salience-surfaced); verdict-inert detail"
     reviewed: true
 cross-consortium-dependency:
   broad_frac_dependent:
     role: context
+    interpretation_reach: unreached
     reason: "Broad Achilles dependent fraction; per-consortium magnitude behind the READ cross_consortium_class"
     reviewed: true
   broad_median_chronos:
     role: context
+    interpretation_reach: unreached
     reason: "Broad Achilles median Chronos; per-consortium magnitude behind cross_consortium_class"
     reviewed: true
   broad_n_lines:
     role: context
+    interpretation_reach: skills_local
     reason: "count of Broad Achilles lines; power / statistical qualifier"
     reviewed: true
   cross_consortium_class:
     role: signal
+    interpretation_reach: skills_local
     reason: "the Broad-vs-Sanger cross-consortium agreement call — an ADDITIVE confidence corroboration feeding dependency_confidence certainty (verdict-token-inert, cf. tumor-presence rna_proxy_class_boundary_fragile:signal); role:signal reach-confirmed via {salience, skill_code}"
     reviewed: true
   dependency_cut:
     role: provenance
+    interpretation_reach: unreached
     reason: "the Chronos dependency-cut threshold used; method/parameter token, not a signal"
     reviewed: true
   sanger_frac_dependent:
     role: context
+    interpretation_reach: unreached
     reason: "Sanger Project Score dependent fraction; per-consortium magnitude behind cross_consortium_class"
     reviewed: true
   sanger_median_chronos:
     role: context
+    interpretation_reach: unreached
     reason: "Sanger Project Score median Chronos; per-consortium magnitude behind cross_consortium_class"
     reviewed: true
   sanger_n_lines:
     role: context
+    interpretation_reach: unreached
     reason: "count of Sanger Project Score lines; power / statistical qualifier"
     reviewed: true
 dependency-predictability:
   pearson_r_rf:
     role: context
+    interpretation_reach: unreached
     reason: "random-forest Pearson r of the predictability model; predictive-accuracy magnitude behind predictability_class; no exact reader"
     reviewed: true
   pearson_r_squared_rf:
     role: context
+    interpretation_reach: skills_local
     reason: "random-forest R^2 of the predictability model; predictive-accuracy magnitude behind the READ predictability_class (salience-surfaced); qualifier"
     reviewed: true
   pearson_r_squared_rf_ci_hi:
     role: context
+    interpretation_reach: unreached
     reason: "upper CI bound of the predictability R^2; statistical qualifier"
     reviewed: true
   pearson_r_squared_rf_ci_lo:
     role: context
+    interpretation_reach: unreached
     reason: "lower CI bound of the predictability R^2; statistical qualifier"
     reviewed: true
   per_lineage_predictability:
     role: display
+    interpretation_reach: skills_local
     reason: "human-facing per-lineage predictability container (salience-surfaced); verdict-inert detail"
     reviewed: true
   pred_dominant_feature:
     role: display
+    interpretation_reach: unreached
     reason: "named identity of the dominant predictive feature (human-facing driver identity); verdict-inert label"
     reviewed: true
   pred_dominant_feature_class:
     role: signal
+    interpretation_reach: skills_local
     reason: "the dominant-predictor-class call (which omics feature best predicts the dependency); feeds the dependency_confidence_note; role:signal reach-confirmed via {capsule, salience, skill_code}"
     reviewed: true
   pred_n_cell_lines_evaluated:
     role: context
+    interpretation_reach: unreached
     reason: "count of cell lines in the predictability model; power / statistical qualifier"
     reviewed: true
   pred_top_features_rf:
     role: display
+    interpretation_reach: skills_local
     reason: "human-facing named list of top predictive features; verdict-inert container"
     reviewed: true
   predictability_class:
     role: signal
+    interpretation_reach: skills_local
     reason: "the dependency-predictability meta-call feeding the dependency_confidence_note (never the verdict); role:signal reach-confirmed via {capsule, display_rule, salience, skill_code}"
     reviewed: true
 expression-dependency-correlation:
   chronos_at_high_expression:
     role: context
+    interpretation_reach: skills_local
     reason: "mean Chronos in high-expression lines; operand behind correlation_class (salience-surfaced); qualifier"
     reviewed: true
   chronos_at_low_expression:
     role: context
+    interpretation_reach: skills_local
     reason: "mean Chronos in low-expression lines; operand behind correlation_class (salience-surfaced); qualifier"
     reviewed: true
   chronos_iqr:
     role: context
+    interpretation_reach: unreached
     reason: "inter-quartile spread of Chronos; dispersion / power qualifier"
     reviewed: true
   correlation_class:
     role: signal
+    interpretation_reach: skills_local
     reason: "the expression-predicts-dependency biomarker call (patient-selection facet; render-only, verdict-inert); role:signal reach-confirmed via {display_rule, gating_rule, salience, skill_code}"
     reviewed: true
   delta_chronos_top_vs_bottom_quartile:
     role: context
+    interpretation_reach: skills_local
     reason: "top-vs-bottom expression-quartile Chronos delta; biomarker effect magnitude behind the READ correlation_class (salience-surfaced); qualifier"
     reviewed: true
   mean_chronos:
     role: context
+    interpretation_reach: unreached
     reason: "mean Chronos across the panel; magnitude behind correlation_class"
     reviewed: true
   mean_tpm_logp1:
     role: context
+    interpretation_reach: unreached
     reason: "mean log1p TPM across the panel; expression magnitude behind correlation_class"
     reviewed: true
   n_cell_lines_evaluated:
     role: context
+    interpretation_reach: skills_local
     reason: "count of cell lines in the correlation; power / statistical qualifier"
     reviewed: true
   pearson_p:
     role: context
+    interpretation_reach: skills_local
     reason: "Pearson correlation p-value; statistical qualifier behind correlation_class"
     reviewed: true
   pearson_r:
     role: context
+    interpretation_reach: skills_local
     reason: "expression-vs-dependency Pearson r; correlation coefficient behind the READ correlation_class (statistical qualifier, mirrors tumor-presence rna_protein_r:context despite reach)"
     reviewed: true
   spearman_p:
     role: context
+    interpretation_reach: skills_local
     reason: "Spearman correlation p-value; statistical qualifier behind correlation_class"
     reviewed: true
   spearman_r:
     role: context
+    interpretation_reach: skills_local
     reason: "expression-vs-dependency Spearman r; alternative correlation coefficient behind correlation_class; qualifier"
     reviewed: true
   top_lineages_by_dependence_high_expression:
     role: display
+    interpretation_reach: unreached
     reason: "human-facing named list of lineages most dependent at high expression; verdict-inert container"
     reviewed: true
   tpm_iqr:
     role: context
+    interpretation_reach: unreached
     reason: "inter-quartile spread of TPM; dispersion / power qualifier"
     reviewed: true
 abundance-dependency:
   abundance_dependency_class:
     role: signal
+    interpretation_reach: skills_local
     reason: "the protein-abundance-predicts-dependency biomarker call (Q7 protein arm; render-only, verdict-inert); role:signal reach-confirmed via {display_rule, figure, salience, skill_code}"
     reviewed: true
   abundance_layer:
     role: provenance
+    interpretation_reach: unreached
     reason: "names the protein-abundance layer/assay used; method/provenance token, not a signal"
     reviewed: true
   n_dependent_models:
     role: context
+    interpretation_reach: skills_local
     reason: "count of dependent models; power qualifier behind abundance_dependency_class"
     reviewed: true
   n_paired_models:
     role: context
+    interpretation_reach: skills_local
     reason: "count of protein-and-dependency paired models; power / statistical qualifier"
     reviewed: true
   n_protein_detected_models:
     role: context
+    interpretation_reach: unreached
     reason: "count of models with protein detected; power / coverage qualifier"
     reviewed: true
   protein_dependency_pearson_p:
     role: context
+    interpretation_reach: skills_local
     reason: "protein-abundance-vs-dependency Pearson p-value; statistical qualifier"
     reviewed: true
   protein_dependency_pearson_r:
     role: context
+    interpretation_reach: skills_local
     reason: "protein-abundance-vs-dependency Pearson r; correlation coefficient behind the READ abundance_dependency_class (statistical qualifier, mirrors tumor-presence rna_protein_r:context despite figure/skill_code reach)"
     reviewed: true
   protein_dependency_spearman_r:
     role: context
+    interpretation_reach: skills_local
     reason: "protein-abundance-vs-dependency Spearman r; alternative correlation coefficient behind the class; qualifier"
     reviewed: true
   protein_panel_size:
     role: context
+    interpretation_reach: unreached
     reason: "size of the protein panel; power / coverage qualifier"
     reviewed: true
   release_pin:
     role: provenance
+    interpretation_reach: skills_local
     reason: "data-release pin; provenance/audit token"
     reviewed: true
   rna_arm_card:
     role: provenance
+    interpretation_reach: unreached
     reason: "cross-axis pointer naming the RNA-arm sibling card (expression-dependency-correlation); identity/scope key, not a signal"
     reviewed: true
 recommended-models:
   correspondence_class:
     role: signal
+    interpretation_reach: skills_local
     reason: "the patient-to-model correspondence call routed to Gate C as model-backed-dependency corroboration; role:signal reach-confirmed via {display_rule, figure, salience, skill_code}"
     reviewed: true
   depmap_lineage:
     role: provenance
+    interpretation_reach: skills_local
     reason: "DepMap lineage identity for the model set; identity/scope key, not a signal"
     reviewed: true
   indication:
     role: provenance
+    interpretation_reach: skills_local
     reason: "the queried indication; identity/scope key, not a signal"
     reviewed: true
   n_lineage_models:
     role: context
+    interpretation_reach: unreached
     reason: "count of models in the indication lineage; power / coverage qualifier"
     reviewed: true
   n_models_considered:
     role: context
+    interpretation_reach: skills_local
     reason: "count of models considered; power / coverage qualifier"
     reviewed: true
   n_positive_models:
     role: context
+    interpretation_reach: skills_local
     reason: "count of expression-positive models; power qualifier behind correspondence_class"
     reviewed: true
   n_positive_models_in_lineage:
     role: context
+    interpretation_reach: skills_local
     reason: "count of expression-positive models within the lineage; power qualifier behind correspondence_class"
     reviewed: true
   patient_iqr:
     role: context
+    interpretation_reach: unreached
     reason: "inter-quartile spread of patient expression; dispersion / power qualifier"
     reviewed: true
   patient_median_log2tpm:
     role: context
+    interpretation_reach: unreached
     reason: "patient-cohort median log2 TPM; expression magnitude behind correspondence_class"
     reviewed: true
   recommended_models:
     role: display
+    interpretation_reach: unreached
     reason: "human-facing named list of recommended screening models; verdict-inert container"
     reviewed: true
   release_pin:
     role: provenance
+    interpretation_reach: skills_local
     reason: "data-release pin; provenance/audit token"
     reviewed: true
 genomic-event-model-match:
   dependency_available:
     role: context
+    interpretation_reach: unreached
     reason: "whether dependency data is available for the matched models; availability qualifier on event_correspondence_class"
     reviewed: true
   depmap_lineage:
     role: provenance
+    interpretation_reach: skills_local
     reason: "DepMap lineage identity for the matched models; identity/scope key, not a signal"
     reviewed: true
   event_correspondence_class:
     role: signal
+    interpretation_reach: skills_local
     reason: "the genotype-matched patient-to-model correspondence call (genomic-rule facet, verdict-INERT in FR but a claim-bearing display/confidence call); role:signal reach-confirmed via {figure, salience, skill_code}"
     reviewed: true
   indication:
     role: provenance
+    interpretation_reach: skills_local
     reason: "the queried indication; identity/scope key, not a signal"
     reviewed: true
   matched_models:
     role: display
+    interpretation_reach: skills_local
     reason: "human-facing named list/container of genotype-matched models; verdict-inert detail"
     reviewed: true
   n_event_matched:
     role: context
+    interpretation_reach: unreached
     reason: "count of event-matched models; power qualifier behind event_correspondence_class"
     reviewed: true
   n_event_matched_in_lineage:
     role: context
+    interpretation_reach: unreached
     reason: "count of event-matched models within the lineage; power qualifier"
     reviewed: true
   n_matched_dependent:
     role: context
+    interpretation_reach: unreached
     reason: "count of matched models that are dependent; power qualifier"
     reviewed: true
   n_matched_dependent_in_lineage:
     role: context
+    interpretation_reach: unreached
     reason: "count of matched dependent models within the lineage; power qualifier"
     reviewed: true
   n_models_considered:
     role: context
+    interpretation_reach: skills_local
     reason: "count of models considered; power / coverage qualifier"
     reviewed: true
   n_patient_samples:
     role: context
+    interpretation_reach: unreached
     reason: "count of patient samples carrying the event; power / statistical qualifier"
     reviewed: true
   patient_event_fraction:
     role: context
+    interpretation_reach: unreached
     reason: "fraction of patient tumors carrying the functional event; prevalence magnitude behind event_correspondence_class"
     reviewed: true
   patient_event_state:
     role: context
+    interpretation_reach: skills_local
     reason: "categorical patient-side event state (present/absent); cross-axis qualifier on event_correspondence_class (salience-surfaced)"
     reviewed: true
   patient_functional_state_class:
     role: context
+    interpretation_reach: unreached
     reason: "the patient-side functional-state call qualifying the event correspondence; the correspondence class integrates it, no exact reader; qualifier not an independent signal"
     reviewed: true
   release_pin:
     role: provenance
+    interpretation_reach: skills_local
     reason: "data-release pin; provenance/audit token"
     reviewed: true
 organoid-crispr-dependency:
   frac_dependent:
     role: context
+    interpretation_reach: skills_local
     reason: "organoid-cohort dependent fraction; breadth magnitude behind the READ organoid_dependency_class (figure-reached for plotting)"
     reviewed: true
   frac_strongly_dependent:
     role: context
+    interpretation_reach: unreached
     reason: "organoid-cohort strongly-dependent fraction; breadth magnitude behind organoid_dependency_class"
     reviewed: true
   mean_gene_effect:
     role: context
+    interpretation_reach: unreached
     reason: "mean organoid gene-effect; magnitude behind organoid_dependency_class"
     reviewed: true
   median_gene_effect:
     role: context
+    interpretation_reach: unreached
     reason: "median organoid gene-effect; magnitude behind organoid_dependency_class"
     reviewed: true
   method_version:
     role: provenance
+    interpretation_reach: skills_local
     reason: "method-version audit token; surfaced, never a signal"
     reviewed: true
   min_gene_effect:
     role: context
+    interpretation_reach: unreached
     reason: "minimum organoid gene-effect (strongest dependency); tail magnitude behind organoid_dependency_class"
     reviewed: true
   n_dependent:
     role: context
+    interpretation_reach: unreached
     reason: "count of dependent organoid models; power qualifier"
     reviewed: true
   n_lineages_evaluated:
     role: context
+    interpretation_reach: skills_local
     reason: "count of organoid lineages evaluated; power / coverage qualifier"
     reviewed: true
   n_models_screened:
     role: context
+    interpretation_reach: skills_local
     reason: "count of organoid models screened; power / coverage qualifier"
     reviewed: true
   n_models_total:
     role: context
+    interpretation_reach: unreached
     reason: "total organoid models available; power / coverage qualifier"
     reviewed: true
   n_strongly_dependent:
     role: context
+    interpretation_reach: unreached
     reason: "count of strongly-dependent organoid models; power qualifier"
     reviewed: true
   organoid_dependency_class:
     role: signal
+    interpretation_reach: skills_local
     reason: "the organoid-native Chronos dependency call — ADDITIVE SM/degrader-supportive corroboration (never a trusted veto); role:signal reach-confirmed via {display_rule}"
     reviewed: true
   organoid_dependency_context:
     role: provenance
+    interpretation_reach: unreached
     reason: "provenance/audit token describing the organoid-dependency basis; surfaced, never a signal"
     reviewed: true
   organoid_dependency_percentile:
     role: context
+    interpretation_reach: unreached
     reason: "organoid dependency percentile; magnitude behind organoid_dependency_class; no exact reader"
     reviewed: true
   organoid_lineage:
     role: provenance
+    interpretation_reach: skills_local
     reason: "identity/scope key naming the organoid lineage (figure-labelled); not a signal"
     reviewed: true
   organoid_lineage_class:
     role: context
+    interpretation_reach: skills_local
     reason: "secondary organoid lineage-selectivity call qualifying organoid_dependency_class; verdict-inert (organoid never vetoes), no exact reader; qualifier not an independent signal"
     reviewed: true
   organoid_lineage_frac_dependent:
     role: context
+    interpretation_reach: skills_local
     reason: "organoid within-lineage dependent fraction; magnitude behind organoid_lineage_class"
     reviewed: true
   organoid_lineage_n_screened:
     role: context
+    interpretation_reach: skills_local
     reason: "count of organoid models screened within the lineage; power / coverage qualifier"
     reviewed: true
   per_lineage_stats:
     role: display
+    interpretation_reach: skills_local
     reason: "human-facing per-lineage organoid statistics container; verdict-inert detail"
     reviewed: true
 coessential-module:
   coessential_module_class:
     role: signal
+    interpretation_reach: skills_local
     reason: "the co-essential-module coherence call (module-anchored vs isolated dependency) feeding the dependency_confidence_note; role:signal reach-confirmed via {salience, skill_code}"
     reviewed: true
   n_anti_correlated:
     role: context
+    interpretation_reach: unreached
     reason: "count of anti-correlated genes; power qualifier behind coessential_module_class"
     reviewed: true
   n_cell_lines:
     role: context
+    interpretation_reach: unreached
     reason: "count of cell lines in the co-essentiality computation; power / statistical qualifier"
     reviewed: true
   n_coessential:
     role: context
+    interpretation_reach: unreached
     reason: "count of co-essential partners; power qualifier behind coessential_module_class"
     reviewed: true
   n_partners:
     role: context
+    interpretation_reach: skills_local
     reason: "count of candidate partners evaluated; power / coverage qualifier"
     reviewed: true
   n_strong_partners:
     role: context
+    interpretation_reach: skills_local
     reason: "count of strong co-essential partners; power qualifier behind coessential_module_class"
     reviewed: true
   strong_r_threshold:
     role: provenance
+    interpretation_reach: unreached
     reason: "the correlation threshold defining a strong partner; method/parameter token, not a signal"
     reviewed: true
   strongest_partner_r:
     role: context
+    interpretation_reach: unreached
     reason: "correlation of the strongest co-essential partner; magnitude behind coessential_module_class"
     reviewed: true
   strongest_partner_symbol:
     role: display
+    interpretation_reach: skills_local
     reason: "named identity of the strongest co-essential partner (human-facing driver identity); verdict-inert label"
     reviewed: true
   top_partners:
     role: display
+    interpretation_reach: unreached
     reason: "human-facing named list of top co-essential partners; verdict-inert container"
     reviewed: true
 subgroup-stratified-dependency:
   cross_subgroup_delta_dependency:
     role: context
+    interpretation_reach: skills_local
     reason: "max cross-subgroup dependency delta on the DESCRIPTIVE --subtypes panorama path; verdict-inert magnitude (touches no rung), no exact reader"
     reviewed: true
   max_subgroup_dependency:
     role: context
+    interpretation_reach: skills_local
     reason: "highest per-subgroup dependency on the panorama path; verdict-inert magnitude, no exact reader"
     reviewed: true
   min_subgroup_dependency:
     role: context
+    interpretation_reach: skills_local
     reason: "lowest per-subgroup dependency on the panorama path; verdict-inert magnitude, no exact reader"
     reviewed: true
   n_subgroups_with_data:
     role: context
+    interpretation_reach: skills_local
     reason: "count of subgroups with data; power / coverage qualifier on the panorama path"
     reviewed: true
   per_subgroup_metrics:
     role: display
+    interpretation_reach: skills_local
     reason: "human-facing per-subgroup metrics container rendered by a display rule on the --subtypes panorama path; verdict-inert detail"
     reviewed: true

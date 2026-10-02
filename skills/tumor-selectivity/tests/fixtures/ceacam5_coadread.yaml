@@ -301,7 +301,6 @@ tumor-vs-normal-selectivity:
   discordant: true
   dominant_direction: up
   log2fc_cell_a: -0.29638171269474695
-  log2fc_cell_b: -0.4947547724126842
   log2fc_cell_c: 2.93726285793988
   log2fc_cell_d: null
   max_abs_log2fc: 2.93726285793988
@@ -309,11 +308,9 @@ tumor-vs-normal-selectivity:
   n_gtex_normal: null
   n_tumor: null
   q_value_cell_a: 0.04949321888028871
-  q_value_cell_b: 0.00248713998138326
   q_value_cell_c: 1.2519221015702286e-110
   q_value_cell_d: null
   selectivity_allgene_percentile: 26.71842614929836
-  selectivity_allgene_percentile_cell_b: 22.811819912948856
   selectivity_allgene_percentile_cell_c: 93.12785993766165
   selectivity_allgene_percentile_class: mid
   selectivity_allgene_percentile_context: coadread-dge-tumor-vs-normal-sensitivity-v1

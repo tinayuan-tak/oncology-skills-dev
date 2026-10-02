@@ -50,6 +50,14 @@ bridge cannot silently diverge from the anchor's own re-derivation.
      protein_high_abundance_class_cutoff, #2261). EVERY numeric field the class is derived from
      (median/p5/p25/p75/p95/IQR/fraction_detected/allgene_percentile) is byte-exact — a pure
      classifier evolution over identical substrate, cross-linked #2061.
+  7. CPTAC-protein pooled_cohort_median_log2_ratio -0.0352 → 0.0706 (cross-linked #2180 F3): UNLIKE
+     drifts 1–6 this is a DELIBERATE BASELINE CORRECTION, not a verdict-inert emission. The golden's
+     baseline pooled the FULL unstratified cohort (incl. the ~43% is_member=null aliquots that belong
+     to no stratum); AM#2180 F3 repools over the UNION of CLASSIFIED strata members (mirroring the
+     cell-line arm), so each stratum is contrasted against a baseline it is a member of. The non-member
+     aliquots sat systematically lower, so the corrected baseline rises. The verdict-bearing
+     subtype_stratification_class / n_subtypes_* are byte-stable (the baseline shift stays within the
+     0.25 cut on this single-measured-stratum shard).
 
 OFFLINE — reads only committed fixtures (this repo's golden + analysis-methods' committed anchors +
 their frozen raw-substrate). No S3, no creds. Skips (not fails) if the analysis-methods sibling
@@ -293,7 +301,9 @@ _CPTAC_STABLE = (
     "n_subtypes_enriched",
     "n_subtypes_depleted",
     "subtype_stratification_class",
-    "pooled_cohort_median_log2_ratio",
+    # pooled_cohort_median_log2_ratio is NO LONGER byte-stable vs the golden: AM#2180 F3 moved the
+    # enrichment baseline from the full unstratified cohort to the classified-strata UNION. Pinned as
+    # an honest drift below (drift 7) rather than asserted stable here.
 )
 _CPTAC_PSM_STABLE = (
     "stratum",
@@ -343,6 +353,27 @@ def test_cptac_protein_drift_is_grade_and_emission_and_stamp_pinned_2061():
     assert g["MSI_H"]["evidence_state"] == "underpowered" and r["MSI_H"]["evidence_state"] == "exploratory"
     assert g["MSS"].get("subtype_enrich_log2_delta") is None and r["MSS"].get("subtype_enrich_log2_delta") == 0.25
     assert "assignment_manifest" not in golden and reder.get("assignment_manifest") == _load(CPTAC_ANCHOR)["manifest"]
+
+
+def test_cptac_protein_pooled_baseline_drift_is_the_f3_classified_union_correction_2180():
+    """Drift 7 (pinned, cross-linked #2180 F3) — a DELIBERATE BASELINE CORRECTION, not inert.
+
+    The golden's ``pooled_cohort_median_log2_ratio`` (-0.0352) was pooled over the FULL unstratified
+    cohort — every tumor aliquot, including the ~43% is_member=null aliquots that MMR-IHC never
+    classified into any stratum. AM#2180 F3 repools over the UNION of CLASSIFIED strata members
+    (resolve_subgroup_cohort, is_member=True), mirroring the cell-line arm's _pooled_lineage_median,
+    so each stratum is enriched/depleted vs a baseline it is a member of. On the EPCAM/COADREAD frozen
+    substrate the non-member aliquots sat systematically LOWER, so excluding them raises the baseline
+    -0.0352 → 0.0706 (verified by hand against the anchor fixture: 97 full-cohort finite aliquots vs
+    54 classified-union members). This is the fix's intended output, NOT a verdict-inert emission:
+    hence pinned explicitly rather than silenced. The verdict-bearing subtype_stratification_class /
+    n_subtypes_* stay byte-stable (asserted in the stable-subset test) — on this single-measured-
+    stratum shard the baseline shift does not cross the 0.25 enrichment cut.
+    """
+    reder = _rederive_cptac(_load(CPTAC_ANCHOR))
+    golden = _golden_card("tumor-protein-distribution-by-subtype")
+    assert golden["pooled_cohort_median_log2_ratio"] == -0.0352  # full-cohort baseline (pre-F3)
+    assert reder["pooled_cohort_median_log2_ratio"] == 0.0706  # classified-union baseline (F3)
 
 
 def test_cptac_protein_teeth_emptying_samples_breaks_the_golden_axis_match():

@@ -3,9 +3,9 @@
 Mirror of `skills/on-target-safety-liability/tests/test_evidence_package_sections.py` (the PR-1a seed),
 with the divergences THIS domain forces (each one is asserted, not assumed):
 
-  * THREE sections, not four. The dependency within-domain L3d story object is Wave-2a (PR-2a), not built
-    yet, so `l3d` is ABSENT — the pin below asserts its absence rather than silently omitting it from the
-    expected set, so the day PR-2a adds it that is a deliberate decision, not an unnoticed schema drift.
+  * FOUR sections (SK#2488 / PR-2a landed the dependency within-domain L3d "dependency biology story"):
+    `l3d` is now emitted whenever the `crispr_rnai_essentiality_concordance` island resolves (both this
+    module's fixtures resolve it). See `skills/functional-requirement/scripts/dependency_l3d_story.py`.
   * DEFAULT valence — NO `valence` marker. Safety is inverse-valence and had to mint `valence: liability`;
     dependency is the default frame (a strong dependency is the signal sought), so every entry's
     `comparability` carries NO `valence` key. The pin below asserts that absence, because a future
@@ -31,7 +31,7 @@ The four clauses of the presence template, kept in order:
   2. SCHEMA — a package assembled WITH the sections validates against
      contracts/schemas/evidence_package.schema.json (whose unevaluatedProperties:false would else reject).
   3. ADDITIVITY — assembling with evidence_sections=None yields EXACTLY the base top-level key set, and
-     assembling WITH the sections adds ONLY the three section keys while every shared key stays identical.
+     assembling WITH the sections adds ONLY the named section keys while every shared key stays identical.
   4. CONTRACT COHERENCE — contracts/vocabularies/property_catalog/dependency.yaml declares exactly the
      properties the producer emits.
 """
@@ -75,9 +75,9 @@ CONTRACTS = Path(os.environ.get("TARGET_CONTRACTS_ROOT", TARGET_CONTRACTS_ROOT_D
 PKG_SCHEMA = json.loads((CONTRACTS / "schemas" / "evidence_package.schema.json").read_text())
 DEPENDENCY_CATALOG = CONTRACTS / "vocabularies" / "property_catalog" / "dependency.yaml"
 
-# Dependency exports THREE of the schema's four named sections. `l3d` is deliberately not one of them.
-_SECTION_NAMES = ("source_properties", "integrated_properties", "local_composites")
-_ABSENT_SECTIONS = ("l3d",)
+# Dependency exports all FOUR of the schema's named sections (SK#2488 landed `l3d`).
+_SECTION_NAMES = ("source_properties", "integrated_properties", "local_composites", "l3d")
+_ABSENT_SECTIONS = ()
 # The base top-level key set of an assembled evidence package (pre-SK#1941 shape).
 _BASE_KEYS = {
     "package_id",
@@ -218,14 +218,16 @@ def _assemble(evidence_sections):
 def test_sections_are_named_and_reconstruct_downward_to_l1(pair):
     sections = _evidence_sections(_headline(pair))
     assert sections is not None
-    # Checked BEFORE the exact-set assert below (which would subsume it): an `l3d` on dependency before
-    # Wave-2a builds one is the one drift worth naming in its own words.
     for absent in _ABSENT_SECTIONS:
-        assert absent not in sections, (
-            f"dependency emitted a {absent!r} section — the within-domain story object is Wave-2a (PR-2a); "
-            f"adding one is a deliberate decision that must update this pin and the wiring."
-        )
+        assert absent not in sections, f"dependency emitted an unexpectedly-absent section {absent!r}"
     assert set(sections) == set(_SECTION_NAMES), f"expected exactly {_SECTION_NAMES}, got {sorted(sections)}"
+    # l3d — the SK#2488 within-domain dependency biology story; claim-ID traceable back to the
+    # integrated_properties island(s) this fixture resolved.
+    l3d = sections["l3d"]
+    assert l3d["layer"] == "L3d" and l3d["domain"] == "dependency"
+    assert l3d["cross_domain_claims"] == []
+    for cid in {c["claim_id"] for c in l3d["provenance"]["claim_ids"]}:
+        assert cid in sections["integrated_properties"], f"l3d cites claim_id {cid!r} absent from integrated_properties"
 
     # L2a: every emitted source property is a DECLARED recipe (subset — a source with no card is omitted
     # byte-stably), names the L1 card it resolved from, and that card is one this skill actually reads.

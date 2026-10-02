@@ -15,6 +15,9 @@ Calls the shared run_wired_skill dispatcher (2026-07-09).
 from __future__ import annotations
 
 import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # local sibling: dependency_l3d_story
 
 from _skills_common import _summary_is_unavailable, get_card_field, resolve_cards
 from _skills_common.claim_record import assemble_claim_record, magnitude_for_card
@@ -41,9 +44,10 @@ from _skills_common.signals_first import (
 )
 from _skills_common.skill_report import ROLE_GATING, build_skill_report
 from _skills_common.subgroup_derivation import _SUBGROUP_N_FLOOR, make_value_classifier
+from dependency_l3d_story import build_dependency_biology_story
 
 SKILL_NAME = "functional-requirement"
-SKILL_VERSION = "1.11.0"
+SKILL_VERSION = "1.12.0"
 #        value→tier map + paralog-buffering confidence-only). Verdict-INERT.
 # 1.5.0 (2026-08-21): emit the existing per-question question_table into the headline
 # 1.4.0 (2026-08-13): production review — offline recorded-fixture replay drift
@@ -1280,6 +1284,19 @@ def _headline(cards, fired, verdict_pair):
     # _skills_common/dependency_claims.py + claim_vector_core.py.
     hl["claim_vector"] = dependency_claim_vector(hl, cards)
     hl["key_signals"] = dependency_key_signals(hl, cards)
+    # L3d WITHIN-DOMAIN "dependency biology story" (SK#2488): a DETERMINISTIC template/traversal
+    # synthesis over the L2b concordance islands already on the claim vector (today:
+    # crispr_rnai_essentiality_concordance). Every chapter cites the L2b claim ID it rests on
+    # (reconstructable downward), and the story stays STRICTLY inside the dependency domain — no
+    # cross-domain (selectivity/safety) conclusion. Runs AFTER the claim_vector (it reads it).
+    # VERDICT-INERT / additive: no LLM, feeds no rule, never moves dependency_verdict /
+    # dependency_verdict_by_scope / any resolver golden; the key is OMITTED (byte-stable) when no island
+    # resolves. The opt-in --synthesize LLM narration is a SEPARATE view ABOVE this layer.
+    try:
+        hl["dependency_biology_story"] = build_dependency_biology_story(hl.get("claim_vector"))
+    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
+        hl.setdefault("_enrichment_errors", {})["dependency_biology_story"] = f"{type(exc).__name__}: {exc}"
+        hl["dependency_biology_story"] = None
     # Phase 3 (2026-08-19): scope-parameterized read {pan_cancer, indication, subtype}. ADDITIVE +
     # verdict-INERT — the pooled dependency_verdict above is untouched (byte-stable, KRAS/COADREAD replay
     # guard). Makes the SEL claim honest about the QUERIED indication's lineage (vs "selective to SOME
@@ -1396,6 +1413,11 @@ _SYNTHESIS_FACET_KEYS = (
     # indication-scope divergence flag (2026-09-04): a positive pooled verdict enriched OUTSIDE the
     # queried indication (target-grain vs indication-lineage). Verdict-inert.
     "indication_scope_note",
+    # L3d — the within-domain dependency biology story (SK#2488/#2450). Omitted when the headline omits
+    # it (no island resolved); carried so the composed `synthesis.claim_vectors` lift (a DIFFERENT
+    # consumer surface than `evidence_sections.<short>.l3d`, read by cross-evidence-hypothesis) does not
+    # silently drop it (the #2450 drop class).
+    "dependency_biology_story",
 )
 
 
@@ -1526,16 +1548,17 @@ def _evidence_sections(headline: dict) -> "dict | None":
     """Build the NAMED, bounded top-level evidence-package sections from the rich decision headline.
 
     Pure read-projection over the already-built `headline`: partitions content it ALREADY carries into the
-    doc's named sections (`source_properties` L2a, `integrated_properties` L2b, `local_composites`).
+    doc's named sections (`source_properties` L2a, `integrated_properties` L2b, `local_composites`, `l3d`).
     Nothing is recomputed and nothing is dropped that a consumer could not already read on the headline.
     Every emitted section reconstructs downward to L1:
       * source_properties[*].card_id (+ per-anchor {field, value} → the L1 card field)
       * integrated_properties[*].provenance.sources[*].card_id (or .provenance.card_id)
       * local_composites.claims.<AXIS>.evidence_atom.cite.card_id
-    `l3d` is NOT emitted: the dependency within-domain L3d story object is Wave-2a (PR-2a), not built yet,
-    and an empty section is worse than an absent one — so this domain emits THREE of the schema's four
-    optional sections. Returns None when no claim_vector resolved, so the dispatcher passes
-    `evidence_sections=None` and the emitted package is byte-identical to the pre-PR-1b shape.
+      * l3d.provenance.claim_ids → the integrated_properties islands
+    `l3d` (SK#2488) is the dependency within-domain "dependency biology story" over the L2b islands above;
+    OMITTED when no island resolved (mirrors the headline key's own byte-stable omission — an empty
+    section is worse than an absent one). Returns None when no claim_vector resolved, so the dispatcher
+    passes `evidence_sections=None` and the emitted package is byte-identical to the pre-PR-1b shape.
     VERDICT-INERT throughout."""
     if not isinstance(headline, dict):
         return None
@@ -1554,6 +1577,12 @@ def _evidence_sections(headline: dict) -> "dict | None":
     integrated = {k: cv[k] for k in _INTEGRATED_ISLAND_KEYS if cv.get(k) is not None}
     if integrated:
         sections["integrated_properties"] = integrated
+
+    # L3d — the within-domain dependency biology story (SK#2488); OMITTED when no island resolved
+    # (mirrors the headline key's own byte-stable omission).
+    story = headline.get("dependency_biology_story")
+    if story is not None:
+        sections["l3d"] = story
 
     # Local composites — carried inside the domain with the epistemic type declared.
     carried = {k: cv[k] for k in _LOCAL_COMPOSITE_KEYS if cv.get(k) is not None}

@@ -16,882 +16,1102 @@ _meta:
   reviewed: true == a human read the field's producers and consumers and chose this role.
   waived_because: only legal on role:signal. Records WHY a signal no declared reader reaches is left unwired
     (the Track-B wiring queue). Must name the missing consumer or owning repo.
+  interpretation_reach: "SECOND AXIS (added 2026-10-02, #2498 — epic #1937 thread A2, on the two-axis
+    contract _skills_common/field_disposition_contract.py landed by SK#1525; tumor-presence is the worked
+    template). Orthogonal to `role`: role says WHAT the field is (signal/context/provenance/display),
+    interpretation_reach says HOW FAR its interpretation travels — `unreached` (no declared reader: a
+    candidate orphan, a REVIEW queue, never a delete list), `skills_local` (read by a rule/capsule/
+    salience/figure/code reader inside this repo), or `cross_repo_resolver` (read by an analysis-methods
+    property resolver under methods/onc_methods/). Reach does NOT promote role: a cross-repo resolver INPUT
+    stays role:context, because the signal attaches to the RESOLVED property, not to this raw measurement.
+
+    WHERE THE VALUES COME FROM — they are MACHINE-DERIVED, not judged: every value is
+    field_disposition_contract.interpretation_reach_for() applied to the reader set
+    field_disposition.census() measures for that (card, field), and the census reads NO
+    field_disposition.yaml, so no value here can be satisfied by editing this file. The derivation is
+    re-run and reconciled row-by-row by tests/test_interpretation_reach_axis.py — mutate a value here and
+    that test reds. ADDITIVE: `role` is untouched and remains the semantic axis (this repo has no explicit
+    `semantic_role` key); no row was renamed, retagged or deleted.
+
+    MEASURED 2026-10-02 over 228 rows: 157 skills_local, 71 unreached, 0 cross_repo_resolver. ZERO
+    cross_repo_resolver is a MEASUREMENT, not an omission: the resolver_input census kind reaches 10 pairs
+    fleet-wide and all 10 sit on cellline-rna-distribution, which is not one of this skill's 13 cards — no
+    onc_methods resolver reads a tumor-selectivity field today, so tagging one cross_repo_resolver would be
+    a fabricated consumption edge. tumor-selectivity reads expression/abundance data, but the only property
+    resolver under methods/onc_methods/ (expression_properties/resolve.py) is bound in
+    field_disposition.RESOLVER_INPUT_BINDINGS to cellline-rna-distribution alone."
 tumor-vs-normal-selectivity:
   cells_ran:
     role: context
+    interpretation_reach: skills_local
     reason: count of comparator cell contexts evaluated; power/denominator for the aggregate call
     reviewed: true
   cells_supporting:
     role: context
+    interpretation_reach: skills_local
     reason: count of cells supporting the aggregate direction; support-fraction qualifier
     reviewed: true
   dominant_direction:
     role: signal
+    interpretation_reach: skills_local
     reason: up/down polarity of the selectivity claim (tumor-selective-high vs -low); part of the verdict,
       reach=exact
     reviewed: true
   sig_all_cells:
     role: context
+    interpretation_reach: skills_local
     reason: whether the effect is significant across all cells; statistical qualifier on the aggregate
     reviewed: true
   discordant:
     role: context
+    interpretation_reach: skills_local
     reason: cells-disagree flag; qualifies aggregate confidence
     reviewed: true
   max_abs_log2fc:
     role: signal
+    interpretation_reach: skills_local
     reason: peak tumor-vs-normal effect magnitude behind selectivity_class; read in _claim_record knife-edge
       distance, reach=exact
     reviewed: true
   log2fc_cell_a:
     role: context
+    interpretation_reach: skills_local
     reason: per-cell effect measurement (primary comparator) behind the aggregate; reach=exact
     reviewed: true
   q_value_cell_a:
     role: context
+    interpretation_reach: skills_local
     reason: per-cell BH q-value (primary comparator); statistical qualifier
-    reviewed: true
-  log2fc_cell_b:
-    role: context
-    reason: per-cell effect (2nd comparator); reach=name_only
-    reviewed: true
-  q_value_cell_b:
-    role: context
-    reason: per-cell q-value (2nd comparator); reach=orphan
     reviewed: true
   log2fc_cell_c:
     role: context
+    interpretation_reach: skills_local
     reason: per-cell effect (3rd comparator); reach=name_only
     reviewed: true
   q_value_cell_c:
     role: context
+    interpretation_reach: skills_local
     reason: per-cell q-value (3rd comparator); reach=name_only
     reviewed: true
   n_tumor:
     role: context
+    interpretation_reach: skills_local
     reason: tumor sample denominator; power qualifier; reach=name_only
     reviewed: true
   n_adjacent:
     role: context
+    interpretation_reach: unreached
     reason: adjacent-normal sample denominator; power qualifier; reach=orphan
     reviewed: true
   n_gtex_normal:
     role: context
+    interpretation_reach: unreached
     reason: GTEx-normal sample denominator; power qualifier; reach=orphan
     reviewed: true
   selectivity_class:
     role: signal
+    interpretation_reach: skills_local
     reason: THE aggregate axis-A verdict spine; resolver-keyed, reach=exact
     reviewed: true
   comparator_concordance:
     role: signal
+    interpretation_reach: skills_local
     reason: cross-comparator agreement corroboration call; feeds claim vector, reach=exact
     reviewed: true
   selectivity_allgene_percentile:
     role: signal
+    interpretation_reach: skills_local
     reason: continuous pan-gene selectivity percentile behind the class; sibling of cptac allgene_percentile
       (signal), reach=exact
     reviewed: true
   selectivity_allgene_percentile_class:
     role: signal
+    interpretation_reach: skills_local
     reason: categorical pan-gene selectivity percentile call; sibling of cptac allgene_percentile_class
       (signal), reach=exact
     reviewed: true
   selectivity_allgene_percentile_context:
     role: provenance
+    interpretation_reach: unreached
     reason: audit/context token for the percentile basis; reach=orphan
-    reviewed: true
-  selectivity_allgene_percentile_cell_b:
-    role: context
-    reason: per-cell (2nd comparator) selectivity percentile; qualifier; reach=orphan
     reviewed: true
   selectivity_allgene_percentile_cell_c:
     role: context
+    interpretation_reach: unreached
     reason: per-cell (3rd comparator) selectivity percentile; qualifier; reach=orphan
     reviewed: true
   comparator_families_ran:
     role: context
+    interpretation_reach: skills_local
     reason: count of normal comparator families evaluated; denominator/breadth qualifier
     reviewed: true
   comparator_families_supporting:
     role: context
+    interpretation_reach: skills_local
     reason: count of comparator families supporting the call; corroboration-breadth qualifier
     reviewed: true
   adjacent_arm_measured:
     role: context
+    interpretation_reach: skills_local
     reason: whether the adjacent-normal arm was measured; coverage qualifier on the verdict
     reviewed: true
   selectivity_evidence_independence:
     role: context
+    interpretation_reach: skills_local
     reason: independence grade of the supporting evidence; qualifies corroboration strength, reach=exact
     reviewed: true
   selectivity_substrate_basis:
     role: provenance
+    interpretation_reach: skills_local
     reason: which substrate/basis the selectivity call rests on; method/identity token, reach=exact
     reviewed: true
   selectivity_substrate_caveat:
     role: context
+    interpretation_reach: unreached
     reason: caveat qualifying the substrate basis; reach=orphan
     reviewed: true
   per_subgroup_metrics:
     role: display
+    interpretation_reach: skills_local
     reason: large per-subgroup metrics container; human-facing detail, reach=exact
     reviewed: true
   subgroup_axis:
     role: provenance
+    interpretation_reach: unreached
     reason: which axis the subgroups split on; identity/method token; reach=orphan
     reviewed: true
   n_subgroups_with_data:
     role: context
+    interpretation_reach: skills_local
     reason: count of subgroups with data; denominator for the subtype panorama; reach=name_only
     reviewed: true
   max_subgroup_log2fc:
     role: context
+    interpretation_reach: unreached
     reason: max per-subgroup effect magnitude; reconciliation qualifier; reach=orphan
     reviewed: true
   min_subgroup_log2fc:
     role: context
+    interpretation_reach: unreached
     reason: min per-subgroup effect magnitude; reconciliation qualifier; reach=orphan
     reviewed: true
   cross_subgroup_delta_log2fc:
     role: context
+    interpretation_reach: skills_local
     reason: cross-subgroup effect spread; divergence qualifier; reach=name_only
     reviewed: true
   selectivity_class_by_subgroup:
     role: context
+    interpretation_reach: skills_local
     reason: 'per-subgroup selectivity calls; verdict-INERT subtype reconciliation by design (run.py 1.26.0:
       reconciled against pooled crossing, no rule/golden reads it); reach=name_only'
     reviewed: true
   cross_subgroup_selectivity_divergence:
     role: context
+    interpretation_reach: skills_local
     reason: whether subgroups diverge from pooled selectivity; verdict-inert reconciliation qualifier;
       reach=name_only
     reviewed: true
   any_subgroup_strong_selective:
     role: context
+    interpretation_reach: skills_local
     reason: 'flag: any subgroup strongly selective; verdict-inert reconciliation qualifier; reach=name_only'
     reviewed: true
 tumor-vs-normal-percentile-crossing:
   selectivity_class:
     role: signal
+    interpretation_reach: skills_local
     reason: per-sample percentile-crossing corroboration verdict; feeds the corroboration arm, reach=exact
     reviewed: true
   fraction_tumor_above_normal_p95:
     role: signal
+    interpretation_reach: skills_local
     reason: fraction of tumor samples above the normal P95 threshold; primary crossing magnitude, reach=exact
     reviewed: true
   fraction_tumor_above_normal_p99:
     role: context
+    interpretation_reach: unreached
     reason: fraction above the stricter P99 threshold; alternate-threshold qualifier; reach=orphan
     reviewed: true
   normal_p95_log2tpm:
     role: context
+    interpretation_reach: skills_local
     reason: normal P95 reference level (threshold basis); qualifier, reach=exact
     reviewed: true
   normal_p99_log2tpm:
     role: context
+    interpretation_reach: unreached
     reason: normal P99 reference level; threshold-basis qualifier; reach=orphan
     reviewed: true
   distribution_overlap_tumor_normal:
     role: signal
+    interpretation_reach: skills_local
     reason: tumor-vs-normal distribution overlap; separation corroboration signal, reach=exact
     reviewed: true
   matched_normal_tissue:
     role: provenance
+    interpretation_reach: skills_local
     reason: identity of the matched normal tissue used; provenance; reach=name_only
     reviewed: true
   n_tumor_samples:
     role: context
+    interpretation_reach: skills_local
     reason: tumor sample denominator; power qualifier; reach=name_only
     reviewed: true
   n_normal_samples:
     role: context
+    interpretation_reach: unreached
     reason: normal sample denominator; power qualifier; reach=orphan
     reviewed: true
   studies:
     role: provenance
+    interpretation_reach: unreached
     reason: source studies contributing the crossing evidence; provenance; reach=orphan
     reviewed: true
 modality-therapeutic-window:
   window_class:
     role: signal
+    interpretation_reach: skills_local
     reason: therapeutic-window veto-instrument verdict; feeds the _verdict clamp, reach=exact
     reviewed: true
   therapeutic_window_class:
     role: signal
+    interpretation_reach: skills_local
     reason: no_therapeutic_window gating field of the normal-breadth veto (essential-organ arm), reach=exact
     reviewed: true
   full_normal_window_class:
     role: signal
+    interpretation_reach: skills_local
     reason: full-normal-tissue window veto arm gating field, reach=exact
     reviewed: true
   tumor_tpm:
     role: context
+    interpretation_reach: unreached
     reason: tumor expression level (window numerator); magnitude qualifier; reach=orphan
     reviewed: true
   max_essential_normal_tpm:
     role: context
+    interpretation_reach: skills_local
     reason: peak essential-normal expression (window denominator/driver value); qualifier, reach=exact
     reviewed: true
   max_essential_normal_organ:
     role: context
+    interpretation_reach: skills_local
     reason: names the essential organ driving the window; cross-pointer qualifier surfaced in headline,
       reach=exact
     reviewed: true
   max_full_normal_tpm:
     role: context
+    interpretation_reach: skills_local
     reason: peak full-normal expression (full-normal window driver value); qualifier, reach=exact
     reviewed: true
   max_full_normal_organ:
     role: context
+    interpretation_reach: skills_local
     reason: names the full-normal organ driving the window; surfaced in headline + de-anonymizes the
       selective_but_broadly_normal tension when tvn-no-full-normal-window-veto fires (#1669), reach=exact
     reviewed: true
   window_ratio_essential:
     role: signal
+    interpretation_reach: skills_local
     reason: tumor/essential-normal ratio behind therapeutic_window_class; magnitude driving the veto,
       reach=exact
     reviewed: true
   window_ratio_full_normal:
     role: signal
+    interpretation_reach: skills_local
     reason: tumor/full-normal ratio behind full_normal_window_class; magnitude driving the veto, reach=exact
     reviewed: true
   modality_tier_threshold_tpm:
     role: provenance
+    interpretation_reach: unreached
     reason: modality-tier TPM cutpoint the method owns; method threshold token; reach=orphan
     reviewed: true
   tumor_studies:
     role: provenance
+    interpretation_reach: skills_local
     reason: source tumor studies for the window numerator; provenance; reach=name_only
     reviewed: true
   modality:
     role: provenance
+    interpretation_reach: skills_local
     reason: the modality lens identity threaded through the window; input identity token, reach=exact
     reviewed: true
   method_version:
     role: provenance
+    interpretation_reach: skills_local
     reason: method version token; provenance; reach=name_only
     reviewed: true
 sc-normal-celltype-expression:
   sc_normal_expression_class:
     role: signal
+    interpretation_reach: skills_local
     reason: sc-normal expression call; input to the sc-normal critical-organ veto arm, reach=exact
     reviewed: true
   sc_normal_safety_essential_class:
     role: signal
+    interpretation_reach: skills_local
     reason: sc-normal essential-organ safety class; veto-relevant call (sibling tumor-presence signal),
       reach=exact
     reviewed: true
   max_detection_cell_type:
     role: context
+    interpretation_reach: skills_local
     reason: cell type with peak normal detection; cross-pointer qualifier (sibling tumor-presence context),
       reach=exact
     reviewed: true
   max_detection_fraction:
     role: signal
+    interpretation_reach: skills_local
     reason: peak normal detection fraction; magnitude behind the sc-normal call (sibling tumor-presence
       signal), reach=exact
     reviewed: true
   expressing_donor_fraction_max:
     role: context
+    interpretation_reach: skills_local
     reason: max donor-level expressing fraction; consistency qualifier
     reviewed: true
   safety_essential_flags:
     role: display
+    interpretation_reach: skills_local
     reason: per-flag essential-cell-type container; human-facing detail (sibling tumor-presence display)
     reviewed: true
   n_cell_types_above_20pct:
     role: context
+    interpretation_reach: skills_local
     reason: count of normal cell types above 20% detection; breadth qualifier
     reviewed: true
   sc_normal_abundance_class:
     role: signal
+    interpretation_reach: skills_local
     reason: sc-normal abundance call (sibling tumor-presence signal), reach=exact
     reviewed: true
   sc_normal_peak_median_abund:
     role: context
+    interpretation_reach: skills_local
     reason: peak median normal abundance; magnitude qualifier
     reviewed: true
   sc_normal_essential_max_cell_type:
     role: display
+    interpretation_reach: skills_local
     reason: named essential cell type driving liability; human-facing detail (sibling tumor-presence display)
     reviewed: true
   sc_normal_essential_max_tissue:
     role: display
+    interpretation_reach: skills_local
     reason: named essential tissue driving liability; human-facing detail (sibling tumor-presence display)
     reviewed: true
   sc_normal_essential_max_detection_fraction:
     role: context
+    interpretation_reach: skills_local
     reason: essential-cell detection fraction; magnitude behind the veto grade
     reviewed: true
   sc_normal_essential_donor_fraction:
     role: context
+    interpretation_reach: skills_local
     reason: essential-cell donor fraction; consistency input to the severity re-derivation; reach=name_only
     reviewed: true
   sc_normal_essential_n_datasets_reliable:
     role: context
+    interpretation_reach: skills_local
     reason: reliable dataset count for the essential arm; replication qualifier, reach=exact
     reviewed: true
   sc_normal_essential_median_abund:
     role: context
+    interpretation_reach: unreached
     reason: essential-cell median abundance; magnitude qualifier; reach=orphan
     reviewed: true
   sc_normal_essential_veto_grade:
     role: signal
+    interpretation_reach: skills_local
     reason: gating field of tvn-sc-normal-critical-organ-veto (repointed here in v1.27.0); verdict-driving,
       reach=exact
     reviewed: true
   sc_normal_ceiling_detection_fraction:
     role: context
+    interpretation_reach: skills_local
     reason: ceiling detection fraction; magnitude qualifier, reach=exact
     reviewed: true
   n_reliable_cell_types:
     role: context
+    interpretation_reach: unreached
     reason: count of reliable cell types; power qualifier; reach=orphan
     reviewed: true
   per_cell_type_top:
     role: display
+    interpretation_reach: unreached
     reason: per-cell-type top-expression container; human-facing detail (sibling tumor-presence display);
       reach=orphan
     reviewed: true
   tissues_queried:
     role: provenance
+    interpretation_reach: skills_local
     reason: tissues queried; audit/coverage token, reach=exact
     reviewed: true
   origin_tissues:
     role: provenance
+    interpretation_reach: skills_local
     reason: origin tissues for the indication; identity token, reach=exact
     reviewed: true
   indication:
     role: provenance
+    interpretation_reach: skills_local
     reason: indication identity token, reach=exact
     reviewed: true
   method_version:
     role: provenance
+    interpretation_reach: skills_local
     reason: method version token; provenance; reach=name_only
     reviewed: true
 expression-purity-confound:
   purity_confound_class:
     role: signal
+    interpretation_reach: skills_local
     reason: purity-confound call; additive caveat that flags stroma-driven false selectivity (sibling
       tumor-presence signal), reach=exact
     reviewed: true
   expression_purity_pearson_r:
     role: context
+    interpretation_reach: skills_local
     reason: expression-vs-purity Pearson r; magnitude behind the confound call; reach=exact
     reviewed: true
   expression_purity_pearson_p:
     role: context
+    interpretation_reach: unreached
     reason: Pearson p-value; statistical qualifier; reach=orphan
     reviewed: true
   expression_purity_spearman_r:
     role: context
+    interpretation_reach: skills_local
     reason: expression-vs-purity Spearman r; robustness qualifier, reach=exact
     reviewed: true
   n_paired_samples:
     role: context
+    interpretation_reach: skills_local
     reason: paired-sample denominator; power qualifier, reach=exact
     reviewed: true
   n_expr_samples:
     role: context
+    interpretation_reach: unreached
     reason: expression-sample denominator; power qualifier; reach=orphan
     reviewed: true
   median_purity:
     role: context
+    interpretation_reach: skills_local
     reason: median tumor purity; qualifier on the correlation, reach=exact
     reviewed: true
   cellular_source:
     role: provenance
+    interpretation_reach: unreached
     reason: cellular-source annotation; provenance; reach=orphan
     reviewed: true
   purity_source:
     role: provenance
+    interpretation_reach: unreached
     reason: purity-estimate source; provenance; reach=orphan
     reviewed: true
 surface-abundance-density:
   surface_density_class:
     role: signal
+    interpretation_reach: skills_local
     reason: surface density call; modality-fit-bearing (read exact by surface-modality-fit), reach=exact
     reviewed: true
   estimated_copies_per_cell_median:
     role: context
+    interpretation_reach: unreached
     reason: estimated copies/cell (median); magnitude qualifier with CI; reach=orphan
     reviewed: true
   estimated_copies_per_cell_lower:
     role: context
+    interpretation_reach: unreached
     reason: estimated copies/cell lower CI bound; qualifier; reach=orphan
     reviewed: true
   estimated_copies_per_cell_upper:
     role: context
+    interpretation_reach: unreached
     reason: estimated copies/cell upper CI bound; qualifier; reach=orphan
     reviewed: true
   hpa_ihc_anchor_used:
     role: provenance
+    interpretation_reach: unreached
     reason: which HPA IHC anchor was used to calibrate density; method/identity token; reach=orphan
     reviewed: true
   hpa_ihc_intensity_class:
     role: signal
+    interpretation_reach: skills_local
     reason: HPA IHC intensity call; categorical density-anchor signal, reach=exact
     reviewed: true
   is_tce_viable:
     role: signal
+    interpretation_reach: skills_local
     reason: TCE viability call from surface density; modality-fit signal, reach=exact
     reviewed: true
   is_adc_high_payload_viable:
     role: signal
+    interpretation_reach: skills_local
     reason: ADC high-payload viability call from surface density; modality-fit signal, reach=exact
     reviewed: true
   absolute_density_class:
     role: signal
+    interpretation_reach: skills_local
     reason: absolute surface density call, reach=exact
     reviewed: true
   absolute_copies_per_cell:
     role: signal
+    interpretation_reach: skills_local
     reason: absolute copies/cell; primary absolute density magnitude, reach=exact
     reviewed: true
   absolute_density_grade:
     role: signal
+    interpretation_reach: skills_local
     reason: graded absolute density verdict token, reach=exact
     reviewed: true
   absolute_measurement_semantics:
     role: provenance
+    interpretation_reach: unreached
     reason: semantics of the absolute measurement; method token; reach=orphan
     reviewed: true
   absolute_n_measurements:
     role: context
+    interpretation_reach: unreached
     reason: count of absolute measurements; power qualifier; reach=orphan
     reviewed: true
   absolute_abundance_proxy_class:
     role: context
+    interpretation_reach: skills_local
     reason: proxy-fallback abundance call used when direct measurement absent; qualifier to absolute_density_class;
       reach=name_only
     reviewed: true
   absolute_abundance_proxy_percentile:
     role: context
+    interpretation_reach: skills_local
     reason: proxy abundance percentile; qualifier; reach=name_only
     reviewed: true
   absolute_abundance_proxy_source:
     role: provenance
+    interpretation_reach: skills_local
     reason: source of the proxy abundance estimate; provenance; reach=name_only
     reviewed: true
   absolute_abundance_proxy_note:
     role: display
+    interpretation_reach: skills_local
     reason: proxy-abundance note text; human-facing detail; reach=name_only
     reviewed: true
   density_floor_verdict:
     role: signal
+    interpretation_reach: skills_local
     reason: surface-density floor verdict; modality-fit gate signal, reach=exact
     reviewed: true
   method_version:
     role: provenance
+    interpretation_reach: skills_local
     reason: method version token; provenance; reach=name_only
     reviewed: true
 tumor-protein-abundance-cptac:
   protein_expression_class:
     role: signal
+    interpretation_reach: skills_local
     reason: CPTAC tumor-vs-normal protein call; RNA->protein corroboration verdict (sibling tumor-presence
       signal), reach=exact
     reviewed: true
   protein_median_log2_tumor:
     role: context
+    interpretation_reach: skills_local
     reason: median log2 tumor protein abundance; magnitude qualifier (sibling tumor-presence context),
       reach=exact
     reviewed: true
   protein_median_log2_normal:
     role: context
+    interpretation_reach: unreached
     reason: median log2 normal protein abundance; magnitude qualifier, reach=exact
     reviewed: true
   protein_effect_size:
     role: signal
+    interpretation_reach: skills_local
     reason: tumor-vs-normal protein effect size; corroboration magnitude (sibling tumor-presence signal),
       reach=exact
     reviewed: true
   protein_p_value:
     role: context
+    interpretation_reach: unreached
     reason: protein contrast p-value; statistical qualifier
     reviewed: true
   protein_bh_q_value:
     role: context
+    interpretation_reach: skills_local
     reason: protein BH q-value; statistical qualifier, reach=exact
     reviewed: true
   n_tumor_samples:
     role: context
+    interpretation_reach: skills_local
     reason: tumor sample denominator; power qualifier; reach=name_only
     reviewed: true
   n_normal_samples:
     role: context
+    interpretation_reach: unreached
     reason: normal sample denominator; power qualifier; reach=orphan
     reviewed: true
   protein_effect_size_se:
     role: context
+    interpretation_reach: unreached
     reason: effect-size standard error; precision qualifier; reach=orphan
     reviewed: true
   protein_effect_standardized_t:
     role: signal
+    interpretation_reach: skills_local
     reason: standardized t of the protein effect; corroboration signal (sibling tumor-presence signal),
       reach=exact
     reviewed: true
   protein_effect_cohens_d:
     role: signal
+    interpretation_reach: skills_local
     reason: Cohen's d of the protein effect; standardized corroboration signal, reach=exact
     reviewed: true
   protein_effect_standardized_class:
     role: signal
+    interpretation_reach: skills_local
     reason: standardized protein-effect call; corroboration signal, reach=exact
     reviewed: true
   protein_effect_standardized_method:
     role: provenance
+    interpretation_reach: skills_local
     reason: standardization method token; provenance, reach=exact
     reviewed: true
   stat_test_used:
     role: provenance
+    interpretation_reach: skills_local
     reason: statistical test used; method token, reach=exact
     reviewed: true
   method_version:
     role: provenance
+    interpretation_reach: skills_local
     reason: method version token; provenance; reach=name_only
     reviewed: true
   allgene_percentile:
     role: signal
+    interpretation_reach: skills_local
     reason: pan-gene protein-abundance percentile; corroboration signal (sibling tumor-presence signal),
       reach=exact
     reviewed: true
   allgene_percentile_class:
     role: signal
+    interpretation_reach: skills_local
     reason: pan-gene protein-abundance percentile call; corroboration signal, reach=exact
     reviewed: true
   allgene_percentile_context:
     role: provenance
+    interpretation_reach: unreached
     reason: percentile-basis audit token; provenance; reach=orphan
     reviewed: true
 normal-tissue-protein-abundance-tphp:
   normal_protein_breadth_class:
     role: signal
+    interpretation_reach: skills_local
     reason: normal-tissue protein breadth call; input to the TPHP normal-protein veto arm, reach=exact
     reviewed: true
   tphp_normal_protein_liability_class:
     role: signal
+    interpretation_reach: skills_local
     reason: gating field of tvn-tphp-broad-abundant-normal-protein-veto (4th normal-breadth arm); verdict-driving,
       reach=exact
     reviewed: true
   n_adult_tissues_above_abundance_floor:
     role: context
+    interpretation_reach: skills_local
     reason: count of adult tissues above the abundance floor; breadth magnitude behind the class, reach=exact
     reviewed: true
   abundance_floor_log2:
     role: provenance
+    interpretation_reach: unreached
     reason: log2 abundance floor threshold the method owns; method token; reach=orphan
     reviewed: true
   tphp_vital_organ_liability_class:
     role: signal
+    interpretation_reach: skills_local
     reason: vital-organ normal-protein liability call; safety-liability verdict token, reach=exact
     reviewed: true
   n_vital_organs_above_abundance_floor:
     role: context
+    interpretation_reach: skills_local
     reason: count of vital organs above the floor; magnitude behind the vital-organ class, reach=exact
     reviewed: true
   n_vital_organs_measurable:
     role: context
+    interpretation_reach: unreached
     reason: count of measurable vital organs; coverage qualifier; reach=orphan
     reviewed: true
   n_vital_organs_unmeasurable:
     role: context
+    interpretation_reach: unreached
     reason: count of unmeasurable vital organs; coverage-gap qualifier; reach=orphan
     reviewed: true
   vital_organ_min_samples:
     role: context
+    interpretation_reach: unreached
     reason: minimum per-vital-organ sample count; power qualifier; reach=orphan
     reviewed: true
   tphp_vital_organ_abundance:
     role: context
+    interpretation_reach: skills_local
     reason: peak vital-organ protein abundance; magnitude qualifier, reach=exact
     reviewed: true
   n_tissues_detected:
     role: context
+    interpretation_reach: unreached
     reason: count of tissues with detection; breadth qualifier; reach=orphan
     reviewed: true
   n_adult_tissues_detected:
     role: context
+    interpretation_reach: skills_local
     reason: count of adult tissues with detection; breadth qualifier, reach=exact
     reviewed: true
   n_adult_tissues_detected_low_support:
     role: context
+    interpretation_reach: unreached
     reason: count of low-support adult detections; coverage qualifier; reach=orphan
     reviewed: true
   n_solid_adult_tissues_detected:
     role: context
+    interpretation_reach: unreached
     reason: count of solid adult tissues detected; breadth qualifier; reach=orphan
     reviewed: true
   n_solid_adult_tissues_above_abundance_floor:
     role: context
+    interpretation_reach: unreached
     reason: count of solid adult tissues above floor; breadth magnitude; reach=orphan
     reviewed: true
   n_solid_adult_tissues_total:
     role: context
+    interpretation_reach: unreached
     reason: total solid adult tissues; denominator; reach=orphan
     reviewed: true
   n_fetal_groups_detected:
     role: context
+    interpretation_reach: unreached
     reason: count of fetal groups with detection; breadth qualifier; reach=orphan
     reviewed: true
   n_adult_tissues_total:
     role: context
+    interpretation_reach: unreached
     reason: total adult tissues assayed; denominator; reach=orphan
     reviewed: true
   n_fetal_groups_total:
     role: context
+    interpretation_reach: unreached
     reason: total fetal groups assayed; denominator; reach=orphan
     reviewed: true
   max_median_log2_abundance:
     role: context
+    interpretation_reach: skills_local
     reason: peak median log2 abundance across tissues; magnitude behind the breadth/liability class, reach=exact
     reviewed: true
   median_across_tissues_log2_abundance:
     role: context
+    interpretation_reach: unreached
     reason: median log2 abundance across tissues; central-tendency qualifier; reach=orphan
     reviewed: true
   highest_abundance_tissue:
     role: context
+    interpretation_reach: skills_local
     reason: names the highest-abundance normal tissue; cross-pointer surfaced in headline, reach=exact
     reviewed: true
   highest_abundance_tissue_class:
     role: signal
+    interpretation_reach: skills_local
     reason: class of the highest-abundance normal tissue; liability-relevant call, reach=exact
     reviewed: true
   fetal_vs_adult_flag:
     role: context
+    interpretation_reach: skills_local
     reason: fetal-vs-adult restriction flag; qualifies the liability interpretation, reach=exact
     reviewed: true
   max_detection_rate:
     role: context
+    interpretation_reach: unreached
     reason: peak per-tissue detection rate; magnitude qualifier; reach=orphan
     reviewed: true
   uniprot_ac:
     role: provenance
+    interpretation_reach: unreached
     reason: UniProt accession; identity token; reach=orphan
     reviewed: true
   per_tissue_abundance:
     role: display
+    interpretation_reach: unreached
     reason: per-tissue abundance container; human-facing detail; reach=orphan
     reviewed: true
   method_version:
     role: provenance
+    interpretation_reach: skills_local
     reason: method version token; provenance; reach=name_only
     reviewed: true
 tumor-vs-normal-protein-abundance-tphp:
   protein_expression_class:
     role: signal
+    interpretation_reach: skills_local
     reason: TPHP tumor-vs-adjacent-normal protein call; RNA->protein corroboration verdict (parallel to
       cptac signal), reach=exact
     reviewed: true
   protein_effect_size:
     role: signal
+    interpretation_reach: skills_local
     reason: tumor-vs-normal protein effect size (TPHP DIA-MS); corroboration magnitude, reach=exact
     reviewed: true
   protein_median_log2_tumor:
     role: context
+    interpretation_reach: skills_local
     reason: median log2 tumor protein abundance; magnitude qualifier; reach=orphan
     reviewed: true
   protein_median_log2_normal:
     role: context
+    interpretation_reach: unreached
     reason: median log2 normal protein abundance; magnitude qualifier; reach=orphan
     reviewed: true
   protein_p_value:
     role: context
+    interpretation_reach: unreached
     reason: protein contrast p-value; statistical qualifier; reach=orphan
     reviewed: true
   protein_bh_q_value:
     role: context
+    interpretation_reach: skills_local
     reason: protein BH q-value; statistical qualifier, reach=exact
     reviewed: true
   n_tumor_samples:
     role: context
+    interpretation_reach: skills_local
     reason: tumor sample denominator; power qualifier, reach=exact
     reviewed: true
   n_normal_samples:
     role: context
+    interpretation_reach: unreached
     reason: normal sample denominator; power qualifier; reach=orphan
     reviewed: true
   n_tumor_samples_total:
     role: context
+    interpretation_reach: skills_local
     reason: total tumor samples before filtering; denominator; reach=orphan
     reviewed: true
   n_normal_samples_total:
     role: context
+    interpretation_reach: unreached
     reason: total normal samples before filtering; denominator; reach=orphan
     reviewed: true
   protein_detection_rate_tumor:
     role: context
+    interpretation_reach: skills_local
     reason: tumor protein detection rate; coverage qualifier; reach=orphan
     reviewed: true
   protein_detection_rate_normal:
     role: context
+    interpretation_reach: unreached
     reason: normal protein detection rate; coverage qualifier; reach=orphan
     reviewed: true
   protein_detection_complete:
     role: context
+    interpretation_reach: skills_local
     reason: detection-completeness flag; coverage qualifier; reach=name_only
     reviewed: true
   normal_arm_source:
     role: provenance
+    interpretation_reach: skills_local
     reason: source of the normal comparator arm; provenance; reach=orphan
     reviewed: true
   cohort_pick_basis:
     role: provenance
+    interpretation_reach: skills_local
     reason: basis for the cohort selection; method token; reach=name_only
     reviewed: true
   cohort:
     role: provenance
+    interpretation_reach: skills_local
     reason: cohort identity token, reach=exact
     reviewed: true
   tissue:
     role: provenance
+    interpretation_reach: unreached
     reason: tissue identity token; provenance; reach=orphan
     reviewed: true
   uniprot_ac:
     role: provenance
+    interpretation_reach: unreached
     reason: UniProt accession; identity token; reach=orphan
     reviewed: true
   stat_test_used:
     role: provenance
+    interpretation_reach: unreached
     reason: statistical test used; method token; reach=orphan
     reviewed: true
   method_version:
     role: provenance
+    interpretation_reach: skills_local
     reason: method version token; provenance; reach=name_only
     reviewed: true
 tumor-scrna-celltype-expression:
   sc_expression_class:
     role: signal
+    interpretation_reach: skills_local
     reason: single-cell tumor expression call (sibling tumor-presence signal), reach=exact
     reviewed: true
   tce_homogeneity_class:
     role: signal
+    interpretation_reach: skills_local
     reason: TCE homogeneity call; antigen-uniformity signal, reach=exact
     reviewed: true
   malignant_detection_fraction:
     role: signal
+    interpretation_reach: skills_local
     reason: malignant-cell detection fraction; core single-cell magnitude, reach=exact
     reviewed: true
   malignant_abundance_log1p_cp10k:
     role: signal
+    interpretation_reach: skills_local
     reason: malignant-cell abundance (log1p CP10K); magnitude signal, reach=exact
     reviewed: true
   malignant_compartment_available:
     role: context
+    interpretation_reach: skills_local
     reason: whether the malignant compartment was available; coverage qualifier, reach=exact
     reviewed: true
   malignant_n_donors:
     role: context
+    interpretation_reach: skills_local
     reason: malignant-compartment donor count; power qualifier
     reviewed: true
   malignant_n_cells:
     role: context
+    interpretation_reach: skills_local
     reason: malignant-compartment cell count; power qualifier
     reviewed: true
   top_microenvironment_compartment:
     role: context
+    interpretation_reach: skills_local
     reason: named top TME compartment; cross-pointer qualifier, reach=exact
     reviewed: true
   top_microenvironment_detection_fraction:
     role: signal
+    interpretation_reach: skills_local
     reason: top-TME-compartment detection fraction; stromal-confound-relevant magnitude, reach=exact
     reviewed: true
   n_compartments_measured:
     role: context
+    interpretation_reach: skills_local
     reason: count of compartments measured; coverage qualifier
     reviewed: true
   n_donor_groups:
     role: context
+    interpretation_reach: skills_local
     reason: count of donor groups; power qualifier
     reviewed: true
   n_datasets:
     role: context
+    interpretation_reach: skills_local
     reason: count of single-cell datasets; power qualifier
     reviewed: true
   compartment_detection:
     role: display
+    interpretation_reach: skills_local
     reason: per-compartment detection container; human-facing detail (sibling tumor-presence display)
     reviewed: true
   per_compartment:
     role: display
+    interpretation_reach: skills_local
     reason: per-compartment metrics container; human-facing detail (sibling tumor-presence display)
     reviewed: true
   caf_vs_malignant_class:
     role: signal
+    interpretation_reach: skills_local
     reason: CAF-vs-malignant call; stromal-confound signal, reach=exact
     reviewed: true
   caf_detection_fraction:
     role: signal
+    interpretation_reach: skills_local
     reason: CAF detection fraction; stromal-confound magnitude, reach=exact
     reviewed: true
   caf_abundance_log1p_cp10k:
     role: signal
+    interpretation_reach: skills_local
     reason: CAF abundance (log1p CP10K); stromal-confound magnitude, reach=exact
     reviewed: true
   caf_compartment_available:
     role: context
+    interpretation_reach: skills_local
     reason: whether the CAF compartment was available; coverage qualifier, reach=exact
     reviewed: true
   stromal_confound_class:
     role: signal
+    interpretation_reach: skills_local
     reason: gating field of tvn-stromal-confound-veto (INT axis); verdict-driving, reach=exact
     reviewed: true
   within_tumor_coverage_class:
     role: signal
+    interpretation_reach: skills_local
     reason: within-tumor coverage call; heterogeneity signal, reach=exact
     reviewed: true
   inter_donor_consistency_class:
     role: signal
+    interpretation_reach: skills_local
     reason: inter-donor consistency call; replication signal, reach=exact
     reviewed: true
   tce_antigen_escape_class:
     role: signal
+    interpretation_reach: skills_local
     reason: TCE antigen-escape call; modality-risk signal, reach=exact
     reviewed: true
   malignant_detection_donor_iqr:
     role: context
+    interpretation_reach: skills_local
     reason: inter-donor IQR of malignant detection; dispersion qualifier
     reviewed: true
   fraction_donors_broadly_detecting:
     role: signal
+    interpretation_reach: skills_local
     reason: fraction of donors broadly detecting; homogeneity signal, reach=exact
     reviewed: true
   ambient_contamination_risk:
     role: signal
+    interpretation_reach: skills_local
     reason: ambient-contamination risk call; single-cell quality signal, reach=exact
     reviewed: true
   malignant_annotation_method:
     role: provenance
+    interpretation_reach: skills_local
     reason: malignant-cell annotation method; method token; provenance
     reviewed: true
   entity_purity:
     role: provenance
+    interpretation_reach: skills_local
     reason: entity-purity annotation; provenance
     reviewed: true
   indication:
     role: provenance
+    interpretation_reach: skills_local
     reason: indication identity token; provenance; reach=name_only
     reviewed: true
   product_id:
     role: provenance
+    interpretation_reach: skills_local
     reason: product identity token; provenance; reach=name_only
     reviewed: true
 spatial-region-rna-expression:
   spatial_rna_class:
     role: signal
+    interpretation_reach: skills_local
     reason: in-situ spatial RNA tumour-vs-TME selectivity call, reach=exact
     reviewed: true
   tumour_abundance_lcpm:
     role: context
+    interpretation_reach: unreached
     reason: tumour-region RNA abundance (lcpm); magnitude behind the delta; reach=orphan
     reviewed: true
   tme_abundance_lcpm:
     role: context
+    interpretation_reach: unreached
     reason: TME-region RNA abundance (lcpm); magnitude behind the delta; reach=orphan
     reviewed: true
   tumour_vs_tme_delta:
     role: signal
+    interpretation_reach: unreached
     reason: tumour-vs-TME RNA enrichment delta; core spatial selectivity magnitude
     reviewed: true
     waived_because: 'no exact reader binds spatial_tumour_vs_tme_delta as of #1778 — the field was
@@ -900,64 +1120,79 @@ spatial-region-rna-expression:
       (a spatial-corroboration claim/tile) if this magnitude should gate something.'
   detected_tumour:
     role: context
+    interpretation_reach: unreached
     reason: tumour-region detection flag; coverage qualifier; reach=orphan
     reviewed: true
   n_donors:
     role: context
+    interpretation_reach: skills_local
     reason: spatial donor count; power qualifier, reach=exact
     reviewed: true
 spatial-tumor-normal-colocalization:
   spatial_coloc_class:
     role: signal
+    interpretation_reach: skills_local
     reason: in-situ spatial colocalization call; normal-epithelium bystander-adjacency signal, reach=exact
     reviewed: true
   top_enriched_compartment:
     role: context
+    interpretation_reach: unreached
     reason: named top enriched compartment; cross-pointer qualifier; reach=orphan
     reviewed: true
   top_enriched_value:
     role: context
+    interpretation_reach: unreached
     reason: top enriched-compartment value; magnitude qualifier; reach=orphan
     reviewed: true
   immune_adjacency_fraction:
     role: context
+    interpretation_reach: unreached
     reason: immune-compartment adjacency fraction; adjacency qualifier; reach=orphan
     reviewed: true
   stromal_adjacency_fraction:
     role: context
+    interpretation_reach: unreached
     reason: stromal-compartment adjacency fraction; adjacency qualifier; reach=orphan
     reviewed: true
   normal_epithelium_adjacency_fraction:
     role: signal
+    interpretation_reach: skills_local
     reason: normal-epithelium adjacency fraction; bystander-safety magnitude, reach=exact
     reviewed: true
   target_pos_fraction_median:
     role: context
+    interpretation_reach: unreached
     reason: median target-positive fraction; positivity qualifier; reach=orphan
     reviewed: true
   n_donors:
     role: context
+    interpretation_reach: skills_local
     reason: spatial donor count; power qualifier, reach=exact
     reviewed: true
   n_datasets:
     role: context
+    interpretation_reach: skills_local
     reason: spatial dataset count; power qualifier; reach=name_only
     reviewed: true
 spatial-surface-protein-abundance:
   spatial_protein_class:
     role: signal
+    interpretation_reach: skills_local
     reason: in-situ spatial surface-protein tumour-vs-TME call (GeoMx DSP), reach=exact
     reviewed: true
   tumour_abundance_lcpm:
     role: context
+    interpretation_reach: unreached
     reason: tumour-region protein abundance (lcpm); magnitude behind the delta; reach=orphan
     reviewed: true
   tme_abundance_lcpm:
     role: context
+    interpretation_reach: unreached
     reason: TME-region protein abundance (lcpm); magnitude behind the delta; reach=orphan
     reviewed: true
   tumour_vs_tme_delta:
     role: signal
+    interpretation_reach: unreached
     reason: tumour-vs-TME surface-protein enrichment delta; twin of spatial-region-rna-expression.tumour_vs_tme_delta
       (signal, exact-read) but here NO exact reader binds the protein-panel copy
     reviewed: true
@@ -967,9 +1202,11 @@ spatial-surface-protein-abundance:
       mirroring the spatial_rna delta read'
   detected_tumour:
     role: context
+    interpretation_reach: unreached
     reason: tumour-region detection flag; coverage qualifier; reach=orphan
     reviewed: true
   n_donors:
     role: context
+    interpretation_reach: skills_local
     reason: spatial donor count; power qualifier, reach=exact
     reviewed: true

@@ -22,116 +22,152 @@ _meta:
     context classes (genomic-instability / mutational-signature / ddr / oncogenic-pathway) are role:context
     by judgment — they frame the indication cohort, not the target's own alteration call. The three subgroup-stratified-*
     cards emit NO verdict per SKILL.md, so they carry no signal rows.
+  interpretation_reach: 'SECOND AXIS (SK#1525, two-axis field-disposition contract
+    _skills_common/field_disposition_contract.py; thread A2/A4 of #1937). Orthogonal to role: role says
+    WHAT the field is (signal/context/provenance/display), interpretation_reach says HOW FAR its
+    interpretation travels — unreached (no declared reader: a candidate orphan, a review queue, never a
+    delete list), skills_local (read by a rule/capsule/salience/code/figure/gloss inside this repo), or
+    cross_repo_resolver (read by the analysis-methods property resolver). MACHINE-DERIVED per
+    (card_id, field) from _skills_common.field_disposition.census via
+    field_disposition_contract.interpretation_reach_for (blind to this ledger), captured 2026-10-02;
+    genomic resolves no analysis-methods resolver input, so no row is cross_repo_resolver. ADDITIVE
+    beside role (nothing renamed/deleted); reach does not promote role (SK#2091, verdict-inert).'
 tumor-splice-dysregulation:
   dominant_event_splice_type:
     role: display
+    interpretation_reach: skills_local
     reason: human-facing detail, large container, or named-entity list; verdict-inert by design
     reviewed: true
   max_event_psi_std:
     role: context
+    interpretation_reach: skills_local
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   median_event_psi_std:
     role: context
+    interpretation_reach: skills_local
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   n_splice_events:
     role: context
+    interpretation_reach: skills_local
     reason: power / sample-size qualifier
     reviewed: true
   n_tumor_shifted_events:
     role: context
+    interpretation_reach: skills_local
     reason: power / sample-size qualifier
     reviewed: true
   n_variable_events:
     role: context
+    interpretation_reach: skills_local
     reason: power / sample-size qualifier
     reviewed: true
   splicing_context:
     role: provenance
+    interpretation_reach: skills_local
     reason: audit/context provenance token — surfaced, never a signal
     reviewed: true
   splicing_dysregulation_class:
     role: signal
+    interpretation_reach: skills_local
     reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal
       reach-confirmed via {salience} (census 2026-09-27, blind to ledger)
     reviewed: true
 mutation-type-counts:
   mut_dominant_mutation_class:
     role: signal
+    interpretation_reach: skills_local
     reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal
       reach-confirmed via {capsule,salience} (census 2026-09-27, blind to ledger)
     reviewed: true
   mut_fraction_inframe_indel:
     role: context
+    interpretation_reach: skills_local
     reason: qualifier / cross-axis pointer behind a signal (secondary arm, availability or comparator
       measurement)
     reviewed: true
   mut_fraction_lof:
     role: context
+    interpretation_reach: skills_local
     reason: qualifier / cross-axis pointer behind a signal (secondary arm, availability or comparator
       measurement)
     reviewed: true
   mut_fraction_missense:
     role: context
+    interpretation_reach: skills_local
     reason: qualifier / cross-axis pointer behind a signal (secondary arm, availability or comparator
       measurement)
     reviewed: true
   mut_mutation_rate:
     role: context
+    interpretation_reach: skills_local
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   mut_n_cell_lines_mutated:
     role: context
+    interpretation_reach: skills_local
     reason: power / sample-size qualifier
     reviewed: true
   mut_n_cell_lines_total:
     role: context
+    interpretation_reach: skills_local
     reason: power / sample-size qualifier
     reviewed: true
   mut_n_frameshift:
     role: context
+    interpretation_reach: unreached
     reason: power / sample-size qualifier
     reviewed: true
   mut_n_inframe_indel:
     role: context
+    interpretation_reach: unreached
     reason: power / sample-size qualifier
     reviewed: true
   mut_n_missense:
     role: context
+    interpretation_reach: unreached
     reason: power / sample-size qualifier
     reviewed: true
   mut_n_nonsense:
     role: context
+    interpretation_reach: unreached
     reason: power / sample-size qualifier
     reviewed: true
   mut_n_other:
     role: context
+    interpretation_reach: unreached
     reason: power / sample-size qualifier
     reviewed: true
   mut_n_splice:
     role: context
+    interpretation_reach: unreached
     reason: power / sample-size qualifier
     reviewed: true
   mut_n_synonymous:
     role: context
+    interpretation_reach: unreached
     reason: power / sample-size qualifier
     reviewed: true
   mut_per_class_counts:
     role: display
+    interpretation_reach: unreached
     reason: human-facing detail, large container, or named-entity list; verdict-inert by design
     reviewed: true
   mut_top_mutated_lineages:
     role: display
+    interpretation_reach: unreached
     reason: human-facing detail, large container, or named-entity list; verdict-inert by design
     reviewed: true
   mut_total_mutations:
     role: context
+    interpretation_reach: skills_local
     reason: qualifier / cross-axis pointer behind a signal (secondary arm, availability or comparator
       measurement)
     reviewed: true
   mutation_landscape_class:
     role: signal
+    interpretation_reach: skills_local
     reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal
       reach-confirmed via {capsule,display_rule,figure,gating_rule,salience} (census 2026-09-27, blind
       to ledger)
@@ -139,930 +175,1142 @@ mutation-type-counts:
 mutation-stratified-dependency:
   any_mannwhitney_q:
     role: context
+    interpretation_reach: unreached
     reason: statistical-significance qualifier (p/q) behind the driving class
     reviewed: true
   damaging_effect_size:
     role: context
+    interpretation_reach: skills_local
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   damaging_mannwhitney_p:
     role: context
+    interpretation_reach: unreached
     reason: statistical-significance qualifier (p/q) behind the driving class
     reviewed: true
   damaging_mannwhitney_q:
     role: context
+    interpretation_reach: unreached
     reason: statistical-significance qualifier (p/q) behind the driving class
     reviewed: true
   delta_chronos_any_mut_vs_wt:
     role: context
+    interpretation_reach: unreached
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   delta_chronos_damaging_mut_vs_wt:
     role: signal
+    interpretation_reach: skills_local
     reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal
       reach-confirmed via {capsule} (census 2026-09-27, blind to ledger)
     reviewed: true
   delta_chronos_hotspot_mut_vs_wt:
     role: signal
+    interpretation_reach: skills_local
     reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal
       reach-confirmed via {capsule} (census 2026-09-27, blind to ledger)
     reviewed: true
   evidence_scope:
     role: context
+    interpretation_reach: skills_local
     reason: qualifier / cross-axis pointer behind a signal (secondary arm, availability or comparator
       measurement)
     reviewed: true
   hotspot_dependency_base_rate:
     role: context
+    interpretation_reach: skills_local
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   hotspot_dependency_ppv:
     role: context
+    interpretation_reach: skills_local
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   hotspot_dependency_ppv_lift:
     role: context
+    interpretation_reach: skills_local
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   hotspot_dependency_sensitivity:
     role: context
+    interpretation_reach: skills_local
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   hotspot_dependency_specificity:
     role: context
+    interpretation_reach: skills_local
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   hotspot_effect_size:
     role: context
+    interpretation_reach: skills_local
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   hotspot_mannwhitney_p:
     role: context
+    interpretation_reach: unreached
     reason: statistical-significance qualifier (p/q) behind the driving class
     reviewed: true
   hotspot_mannwhitney_q:
     role: context
+    interpretation_reach: skills_local
     reason: statistical-significance qualifier (p/q) behind the driving class
     reviewed: true
   indication_lineage:
     role: context
+    interpretation_reach: unreached
     reason: qualifier / cross-axis pointer behind a signal (secondary arm, availability or comparator
       measurement)
     reviewed: true
   lineage_context_divergent:
     role: context
+    interpretation_reach: skills_local
     reason: qualifier / cross-axis pointer behind a signal (secondary arm, availability or comparator
       measurement)
     reviewed: true
   median_chronos_damaging_mutant:
     role: context
+    interpretation_reach: unreached
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   median_chronos_damaging_wildtype:
     role: context
+    interpretation_reach: unreached
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   median_chronos_hotspot_mutant:
     role: context
+    interpretation_reach: skills_local
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   median_chronos_hotspot_wildtype:
     role: context
+    interpretation_reach: skills_local
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   mutation_stratification_class:
     role: signal
+    interpretation_reach: skills_local
     reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal
       reach-confirmed via {capsule,display_rule,gating_rule,salience} (census 2026-09-27, blind to ledger)
     reviewed: true
   n_any_mutant:
     role: context
+    interpretation_reach: unreached
     reason: power / sample-size qualifier
     reviewed: true
   n_any_wildtype:
     role: context
+    interpretation_reach: unreached
     reason: power / sample-size qualifier
     reviewed: true
   n_cell_lines_evaluated:
     role: context
+    interpretation_reach: skills_local
     reason: power / sample-size qualifier
     reviewed: true
   n_damaging_mutant:
     role: context
+    interpretation_reach: unreached
     reason: power / sample-size qualifier
     reviewed: true
   n_damaging_wildtype:
     role: context
+    interpretation_reach: unreached
     reason: power / sample-size qualifier
     reviewed: true
   n_hotspot_mutant:
     role: context
+    interpretation_reach: skills_local
     reason: power / sample-size qualifier
     reviewed: true
   n_hotspot_wildtype:
     role: context
+    interpretation_reach: unreached
     reason: power / sample-size qualifier
     reviewed: true
   pan_fallback_strong_capped_to_moderate:
     role: context
+    interpretation_reach: unreached
     reason: qualifier / cross-axis pointer behind a signal (secondary arm, availability or comparator
       measurement)
     reviewed: true
   pan_lineage_mutation_stratification_class:
     role: signal
+    interpretation_reach: skills_local
     reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal
       reach-confirmed via {capsule} (census 2026-09-27, blind to ledger)
     reviewed: true
   per_hotspot_stats:
     role: display
+    interpretation_reach: skills_local
     reason: human-facing detail, large container, or named-entity list; verdict-inert by design
     reviewed: true
 copy-number-distribution:
   cn_assay_used:
     role: provenance
+    interpretation_reach: skills_local
     reason: method / dataset / version provenance token
     reviewed: true
   cn_distribution_shape:
     role: context
+    interpretation_reach: skills_local
     reason: secondary/comparator categorical call; qualifies the primary target-alteration signal, not
       itself the reconciled verdict
     reviewed: true
   cn_fraction_deep_deletion:
     role: context
+    interpretation_reach: skills_local
     reason: qualifier / cross-axis pointer behind a signal (secondary arm, availability or comparator
       measurement)
     reviewed: true
   cn_fraction_focal_amplification:
     role: context
+    interpretation_reach: unreached
     reason: qualifier / cross-axis pointer behind a signal (secondary arm, availability or comparator
       measurement)
     reviewed: true
   cn_fraction_high_amplification:
     role: context
+    interpretation_reach: skills_local
     reason: qualifier / cross-axis pointer behind a signal (secondary arm, availability or comparator
       measurement)
     reviewed: true
   cn_fraction_neutral:
     role: context
+    interpretation_reach: unreached
     reason: qualifier / cross-axis pointer behind a signal (secondary arm, availability or comparator
       measurement)
     reviewed: true
   cn_fraction_shallow_amplification:
     role: context
+    interpretation_reach: unreached
     reason: qualifier / cross-axis pointer behind a signal (secondary arm, availability or comparator
       measurement)
     reviewed: true
   cn_fraction_shallow_deletion:
     role: context
+    interpretation_reach: unreached
     reason: qualifier / cross-axis pointer behind a signal (secondary arm, availability or comparator
       measurement)
     reviewed: true
   cn_homozygous_deletion_recurrent:
     role: signal
+    interpretation_reach: skills_local
     reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal
       reach-confirmed via {capsule,gating_rule,salience} (census 2026-09-27, blind to ledger)
     reviewed: true
   cn_iqr:
     role: context
+    interpretation_reach: unreached
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   cn_median_panel:
     role: context
+    interpretation_reach: skills_local
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   cn_n_cell_lines_evaluated:
     role: context
+    interpretation_reach: skills_local
     reason: power / sample-size qualifier
     reviewed: true
   cn_p25_panel:
     role: context
+    interpretation_reach: unreached
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   cn_p5_panel:
     role: context
+    interpretation_reach: unreached
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   cn_p75_panel:
     role: context
+    interpretation_reach: unreached
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   cn_p95_panel:
     role: context
+    interpretation_reach: unreached
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   cn_recurrent_amplification_score:
     role: context
+    interpretation_reach: skills_local
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   cn_recurrent_deletion_score:
     role: context
+    interpretation_reach: skills_local
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   cn_top_amplified_lineages:
     role: display
+    interpretation_reach: unreached
     reason: human-facing detail, large container, or named-entity list; verdict-inert by design
     reviewed: true
   cn_top_deleted_lineages:
     role: display
+    interpretation_reach: unreached
     reason: human-facing detail, large container, or named-entity list; verdict-inert by design
     reviewed: true
   copy_number_class:
     role: signal
+    interpretation_reach: skills_local
     reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal
       reach-confirmed via {capsule,display_rule,gating_rule,salience} (census 2026-09-27, blind to ledger)
     reviewed: true
   patient_amplified_fraction:
     role: context
+    interpretation_reach: unreached
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   patient_cn_context:
     role: provenance
+    interpretation_reach: unreached
     reason: audit/context provenance token — surfaced, never a signal
     reviewed: true
   patient_copy_number_class:
     role: signal
+    interpretation_reach: skills_local
     reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal
       reach-confirmed via {capsule,salience} (census 2026-09-27, blind to ledger)
     reviewed: true
   patient_deleted_fraction:
     role: context
+    interpretation_reach: unreached
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   patient_focal_cn_class:
     role: signal
+    interpretation_reach: skills_local
     reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal
       reach-confirmed via {capsule,display_rule,gating_rule,salience} (census 2026-09-27, blind to ledger)
     reviewed: true
   patient_high_amp_fraction:
     role: context
+    interpretation_reach: skills_local
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   patient_homdel_fraction:
     role: context
+    interpretation_reach: skills_local
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
 copy-number-stratified-dependency:
   amplification_threshold_relative_cn:
     role: context
+    interpretation_reach: unreached
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   cn_stratification_class:
     role: signal
+    interpretation_reach: skills_local
     reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal
       reach-confirmed via {capsule,gating_rule,salience} (census 2026-09-27, blind to ledger)
     reviewed: true
   cn_stratification_effect_size:
     role: signal
+    interpretation_reach: skills_local
     reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal
       reach-confirmed via {capsule,salience} (census 2026-09-27, blind to ledger)
     reviewed: true
   cn_stratification_mannwhitney_p:
     role: context
+    interpretation_reach: unreached
     reason: statistical-significance qualifier (p/q) behind the driving class
     reviewed: true
   cn_stratification_mannwhitney_q:
     role: context
+    interpretation_reach: skills_local
     reason: statistical-significance qualifier (p/q) behind the driving class
     reviewed: true
   delta_chronos_amplified_vs_neutral:
     role: signal
+    interpretation_reach: skills_local
     reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal
       reach-confirmed via {capsule,salience} (census 2026-09-27, blind to ledger)
     reviewed: true
   evidence_scope:
     role: context
+    interpretation_reach: skills_local
     reason: qualifier / cross-axis pointer behind a signal (secondary arm, availability or comparator
       measurement)
     reviewed: true
   lineage_context_divergent:
     role: context
+    interpretation_reach: skills_local
     reason: qualifier / cross-axis pointer behind a signal (secondary arm, availability or comparator
       measurement)
     reviewed: true
   median_chronos_amplified:
     role: context
+    interpretation_reach: skills_local
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   median_chronos_neutral:
     role: context
+    interpretation_reach: skills_local
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   n_amplified:
     role: context
+    interpretation_reach: skills_local
     reason: power / sample-size qualifier
     reviewed: true
   n_cell_lines_evaluated:
     role: context
+    interpretation_reach: skills_local
     reason: power / sample-size qualifier
     reviewed: true
   n_neutral:
     role: context
+    interpretation_reach: unreached
     reason: power / sample-size qualifier
     reviewed: true
   pan_lineage_cn_stratification_class:
     role: signal
+    interpretation_reach: skills_local
     reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal
       reach-confirmed via {capsule} (census 2026-09-27, blind to ledger)
     reviewed: true
 fusion-stratified-dependency:
   delta_chronos_fusion_positive_vs_negative:
     role: signal
+    interpretation_reach: skills_local
     reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal
       reach-confirmed via {capsule,salience} (census 2026-09-27, blind to ledger)
     reviewed: true
   evidence_scope:
     role: context
+    interpretation_reach: skills_local
     reason: qualifier / cross-axis pointer behind a signal (secondary arm, availability or comparator
       measurement)
     reviewed: true
   fusion_positive_altered_overlap_fraction:
     role: context
+    interpretation_reach: unreached
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   fusion_stratification_class:
     role: signal
+    interpretation_reach: skills_local
     reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal
       reach-confirmed via {capsule,gating_rule,salience} (census 2026-09-27, blind to ledger)
     reviewed: true
   fusion_stratification_confound:
     role: context
+    interpretation_reach: skills_local
     reason: lineage-confound qualifier on the READ fusion_stratification_class
     reviewed: true
   fusion_stratification_effect_size:
     role: signal
+    interpretation_reach: skills_local
     reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal
       reach-confirmed via {capsule} (census 2026-09-27, blind to ledger)
     reviewed: true
   fusion_stratification_mannwhitney_p:
     role: context
+    interpretation_reach: unreached
     reason: statistical-significance qualifier (p/q) behind the driving class
     reviewed: true
   fusion_stratification_mannwhitney_q:
     role: context
+    interpretation_reach: skills_local
     reason: statistical-significance qualifier (p/q) behind the driving class
     reviewed: true
   lineage_context_divergent:
     role: context
+    interpretation_reach: unreached
     reason: qualifier / cross-axis pointer behind a signal (secondary arm, availability or comparator
       measurement)
     reviewed: true
   median_chronos_fusion_negative:
     role: context
+    interpretation_reach: skills_local
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   median_chronos_fusion_positive:
     role: context
+    interpretation_reach: skills_local
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   n_cell_lines_evaluated:
     role: context
+    interpretation_reach: skills_local
     reason: power / sample-size qualifier
     reviewed: true
   n_fusion_negative:
     role: context
+    interpretation_reach: unreached
     reason: power / sample-size qualifier
     reviewed: true
   n_fusion_positive:
     role: context
+    interpretation_reach: skills_local
     reason: power / sample-size qualifier
     reviewed: true
   n_fusion_positive_altered:
     role: context
+    interpretation_reach: unreached
     reason: power / sample-size qualifier
     reviewed: true
   pan_lineage_fusion_stratification_class:
     role: signal
+    interpretation_reach: skills_local
     reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal
       reach-confirmed via {capsule} (census 2026-09-27, blind to ledger)
     reviewed: true
 amp-expr-stratified-dependency:
   amp_expr_effect_size:
     role: signal
+    interpretation_reach: skills_local
     reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal
       reach-confirmed via {capsule,salience} (census 2026-09-27, blind to ledger)
     reviewed: true
   amp_expr_mannwhitney_p:
     role: context
+    interpretation_reach: unreached
     reason: statistical-significance qualifier (p/q) behind the driving class
     reviewed: true
   amp_expr_mannwhitney_q:
     role: context
+    interpretation_reach: skills_local
     reason: statistical-significance qualifier (p/q) behind the driving class
     reviewed: true
   amp_expr_stratification_class:
     role: signal
+    interpretation_reach: skills_local
     reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal
       reach-confirmed via {capsule,gating_rule,salience,skill_code} (census 2026-09-27, blind to ledger)
     reviewed: true
   amplification_threshold_relative_cn:
     role: context
+    interpretation_reach: unreached
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   delta_chronos_amp_expr_vs_rest:
     role: signal
+    interpretation_reach: skills_local
     reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal
       reach-confirmed via {capsule,salience,skill_code} (census 2026-09-27, blind to ledger)
     reviewed: true
   evidence_scope:
     role: context
+    interpretation_reach: skills_local
     reason: qualifier / cross-axis pointer behind a signal (secondary arm, availability or comparator
       measurement)
     reviewed: true
   high_expression_log2tpm_threshold:
     role: context
+    interpretation_reach: unreached
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   lineage_context_divergent:
     role: context
+    interpretation_reach: skills_local
     reason: qualifier / cross-axis pointer behind a signal (secondary arm, availability or comparator
       measurement)
     reviewed: true
   median_chronos_amp_expr:
     role: context
+    interpretation_reach: skills_local
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   median_chronos_comparator:
     role: context
+    interpretation_reach: skills_local
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   n_amplified_overexpressed:
     role: context
+    interpretation_reach: skills_local
     reason: power / sample-size qualifier
     reviewed: true
   n_cell_lines_evaluated:
     role: context
+    interpretation_reach: skills_local
     reason: power / sample-size qualifier
     reviewed: true
   n_comparator:
     role: context
+    interpretation_reach: unreached
     reason: power / sample-size qualifier
     reviewed: true
   pan_lineage_amp_expr_stratification_class:
     role: signal
+    interpretation_reach: skills_local
     reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal
       reach-confirmed via {capsule} (census 2026-09-27, blind to ledger)
     reviewed: true
 alteration-role:
   alteration_role:
     role: signal
+    interpretation_reach: skills_local
     reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal
       reach-confirmed via {capsule,display_rule,figure,gating_rule,salience} (census 2026-09-27, blind
       to ledger)
     reviewed: true
   functional_direction:
     role: signal
+    interpretation_reach: skills_local
     reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal
       reach-confirmed via {capsule,display_rule,salience,skill_code} (census 2026-09-27, blind to ledger)
     reviewed: true
   intogen_cancer_types:
     role: display
+    interpretation_reach: unreached
     reason: human-facing detail, large container, or named-entity list; verdict-inert by design
     reviewed: true
   intogen_max_pct_samples:
     role: context
+    interpretation_reach: skills_local
     reason: qualifier / cross-axis pointer behind a signal (secondary arm, availability or comparator
       measurement)
     reviewed: true
   intogen_min_qvalue:
     role: context
+    interpretation_reach: skills_local
     reason: qualifier / cross-axis pointer behind a signal (secondary arm, availability or comparator
       measurement)
     reviewed: true
   intogen_role:
     role: signal
+    interpretation_reach: skills_local
     reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal
       reach-confirmed via {capsule} (census 2026-09-27, blind to ledger)
     reviewed: true
   intogen_scope:
     role: provenance
+    interpretation_reach: skills_local
     reason: method / dataset / version provenance token
     reviewed: true
   oncokb_gene_type:
     role: signal
+    interpretation_reach: skills_local
     reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal
       reach-confirmed via {capsule,display_rule,salience} (census 2026-09-27, blind to ledger)
     reviewed: true
   sources:
     role: provenance
+    interpretation_reach: skills_local
     reason: method / dataset / version provenance token
     reviewed: true
 fusion-rearrangement-landscape:
   fusion_class:
     role: signal
+    interpretation_reach: skills_local
     reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal
       reach-confirmed via {capsule,display_rule,gating_rule,salience,skill_code} (census 2026-09-27, blind
       to ledger)
     reviewed: true
   fusion_frequency:
     role: context
+    interpretation_reach: skills_local
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   fusion_recurrence_confidence:
     role: signal
+    interpretation_reach: skills_local
     reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal
       reach-confirmed via {capsule,gating_rule,salience,skill_code} (census 2026-09-27, blind to ledger)
     reviewed: true
   genie_sv_frequency:
     role: context
+    interpretation_reach: skills_local
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   genie_sv_recurrence_class:
     role: signal
+    interpretation_reach: skills_local
     reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal
       reach-confirmed via {capsule,salience} (census 2026-09-27, blind to ledger)
     reviewed: true
   genie_sv_recurrence_percentile:
     role: context
+    interpretation_reach: skills_local
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   genie_sv_recurrent_partners:
     role: display
+    interpretation_reach: skills_local
     reason: human-facing detail, large container, or named-entity list; verdict-inert by design
     reviewed: true
   n_samples_with_fusion:
     role: context
+    interpretation_reach: skills_local
     reason: power / sample-size qualifier
     reviewed: true
   n_sv_covered:
     role: context
+    interpretation_reach: unreached
     reason: power / sample-size qualifier
     reviewed: true
   n_sv_samples:
     role: context
+    interpretation_reach: skills_local
     reason: power / sample-size qualifier
     reviewed: true
   recurrent_partners:
     role: display
+    interpretation_reach: unreached
     reason: human-facing detail, large container, or named-entity list; verdict-inert by design
     reviewed: true
 splice-exon-skip-landscape:
   depmap_carrier_samples:
     role: display
+    interpretation_reach: unreached
     reason: human-facing detail, large container, or named-entity list; verdict-inert by design
     reviewed: true
   driver_direction:
     role: signal
+    interpretation_reach: skills_local
     reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal
       reach-confirmed via {capsule,salience} (census 2026-09-27, blind to ledger)
     reviewed: true
   event_id:
     role: provenance
+    interpretation_reach: skills_local
     reason: identity / scope key naming the entity the measurement is keyed to
     reviewed: true
   n_depmap_carriers:
     role: context
+    interpretation_reach: skills_local
     reason: power / sample-size qualifier
     reviewed: true
   oncogenic_indications:
     role: display
+    interpretation_reach: skills_local
     reason: human-facing detail, large container, or named-entity list; verdict-inert by design
     reviewed: true
   splice_context:
     role: provenance
+    interpretation_reach: skills_local
     reason: audit/context provenance token — surfaced, never a signal
     reviewed: true
   splice_exon_skip_class:
     role: signal
+    interpretation_reach: skills_local
     reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal
       reach-confirmed via {capsule,gating_rule,salience} (census 2026-09-27, blind to ledger)
     reviewed: true
 mutation-drug-response:
   delta_log2auc_mut_vs_wt:
     role: signal
+    interpretation_reach: skills_local
     reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal
       reach-confirmed via {capsule,salience} (census 2026-09-27, blind to ledger)
     reviewed: true
   drug_response_base_rate:
     role: context
+    interpretation_reach: skills_local
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   drug_response_effect_size:
     role: signal
+    interpretation_reach: skills_local
     reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal
       reach-confirmed via {capsule,salience} (census 2026-09-27, blind to ledger)
     reviewed: true
   drug_response_mannwhitney_p:
     role: context
+    interpretation_reach: unreached
     reason: statistical-significance qualifier (p/q) behind the driving class
     reviewed: true
   drug_response_mannwhitney_q:
     role: context
+    interpretation_reach: skills_local
     reason: statistical-significance qualifier (p/q) behind the driving class
     reviewed: true
   drug_response_mannwhitney_q_reverse:
     role: context
+    interpretation_reach: unreached
     reason: statistical-significance qualifier (p/q) behind the driving class
     reviewed: true
   drug_response_ppv:
     role: context
+    interpretation_reach: skills_local
     reason: performance/precision (PPV) qualifier on the READ drug_response_stratification_class
     reviewed: true
   drug_response_ppv_lift:
     role: context
+    interpretation_reach: unreached
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   drug_response_sensitivity:
     role: context
+    interpretation_reach: unreached
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   drug_response_specificity:
     role: context
+    interpretation_reach: unreached
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   drug_response_stratification_class:
     role: signal
+    interpretation_reach: skills_local
     reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal
       reach-confirmed via {capsule,display_rule,gating_rule,salience} (census 2026-09-27, blind to ledger)
     reviewed: true
   median_log2auc_mutant:
     role: context
+    interpretation_reach: skills_local
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   median_log2auc_wildtype:
     role: context
+    interpretation_reach: skills_local
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   n_mutant:
     role: context
+    interpretation_reach: skills_local
     reason: power / sample-size qualifier
     reviewed: true
   n_on_target_compounds:
     role: context
+    interpretation_reach: unreached
     reason: power / sample-size qualifier
     reviewed: true
   n_wildtype:
     role: context
+    interpretation_reach: unreached
     reason: power / sample-size qualifier
     reviewed: true
   on_target_compounds:
     role: display
+    interpretation_reach: skills_local
     reason: human-facing detail, large container, or named-entity list; verdict-inert by design
     reviewed: true
 mutation-hotspot-frequency:
   cohorts_contributing:
     role: provenance
+    interpretation_reach: unreached
     reason: method / dataset / version provenance token
     reviewed: true
   driver_recurrence_class:
     role: signal
+    interpretation_reach: skills_local
     reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal
       reach-confirmed via {capsule,salience} (census 2026-09-27, blind to ledger)
     reviewed: true
   driver_recurrence_context:
     role: provenance
+    interpretation_reach: unreached
     reason: audit/context provenance token — surfaced, never a signal
     reviewed: true
   driver_recurrence_percentile:
     role: context
+    interpretation_reach: skills_local
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   genie_driver_recurrence_class:
     role: signal
+    interpretation_reach: skills_local
     reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal
       reach-confirmed via {capsule,salience} (census 2026-09-27, blind to ledger)
     reviewed: true
   genie_driver_recurrence_percentile:
     role: context
+    interpretation_reach: skills_local
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   genie_mutation_frequency:
     role: context
+    interpretation_reach: skills_local
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   genie_recurrence_context:
     role: provenance
+    interpretation_reach: unreached
     reason: audit/context provenance token — surfaced, never a signal
     reviewed: true
   hotspot_frequencies:
     role: display
+    interpretation_reach: skills_local
     reason: human-facing detail, large container, or named-entity list; verdict-inert by design
     reviewed: true
   n_covered_pooled:
     role: context
+    interpretation_reach: skills_local
     reason: power / sample-size qualifier
     reviewed: true
   n_mutated_pooled:
     role: context
+    interpretation_reach: skills_local
     reason: power / sample-size qualifier
     reviewed: true
   n_samples_in_indication:
     role: context
+    interpretation_reach: skills_local
     reason: power / sample-size qualifier
     reviewed: true
   n_samples_mutated:
     role: context
+    interpretation_reach: unreached
     reason: power / sample-size qualifier
     reviewed: true
   overall_mutation_frequency:
     role: context
+    interpretation_reach: skills_local
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   pooled_driver_recurrence_class:
     role: signal
+    interpretation_reach: skills_local
     reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal
       reach-confirmed via {capsule,gating_rule,salience} (census 2026-09-27, blind to ledger)
     reviewed: true
   pooled_driver_recurrence_percentile:
     role: context
+    interpretation_reach: skills_local
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   pooled_mutation_frequency:
     role: context
+    interpretation_reach: skills_local
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   pooled_recurrence_context:
     role: provenance
+    interpretation_reach: unreached
     reason: audit/context provenance token — surfaced, never a signal
     reviewed: true
   top_cooccurring_genes:
     role: display
+    interpretation_reach: unreached
     reason: human-facing detail, large container, or named-entity list; verdict-inert by design
     reviewed: true
   top_mutually_exclusive_genes:
     role: display
+    interpretation_reach: unreached
     reason: human-facing detail, large container, or named-entity list; verdict-inert by design
     reviewed: true
 variant-level-interpretation:
   civic_interpretation_context:
     role: provenance
+    interpretation_reach: unreached
     reason: audit/context provenance token — surfaced, never a signal
     reviewed: true
   civic_variant_class:
     role: signal
+    interpretation_reach: skills_local
     reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal
       reach-confirmed via {capsule,salience} (census 2026-09-27, blind to ledger)
     reviewed: true
   has_oncogenic_variant:
     role: signal
+    interpretation_reach: skills_local
     reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal
       reach-confirmed via {capsule} (census 2026-09-27, blind to ledger)
     reviewed: true
   n_interpreted_variants:
     role: context
+    interpretation_reach: skills_local
     reason: power / sample-size qualifier
     reviewed: true
   oncogenic_variants:
     role: display
+    interpretation_reach: unreached
     reason: human-facing detail, large container, or named-entity list; verdict-inert by design
     reviewed: true
   resistance_variant_count:
     role: context
+    interpretation_reach: unreached
     reason: qualifier / cross-axis pointer behind a signal (secondary arm, availability or comparator
       measurement)
     reviewed: true
   resistance_variants:
     role: signal
+    interpretation_reach: skills_local
     reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal
       reach-confirmed via {salience} (census 2026-09-27, blind to ledger)
     reviewed: true
 variant-effect-mave-mavedb:
   has_hgnc_mapping:
     role: provenance
+    interpretation_reach: unreached
     reason: method / dataset / version provenance token
     reviewed: true
   mave_context:
     role: provenance
+    interpretation_reach: unreached
     reason: audit/context provenance token — surfaced, never a signal
     reviewed: true
   mave_evidence_class:
     role: signal
+    interpretation_reach: skills_local
     reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal
       reach-confirmed via {salience} (census 2026-09-27, blind to ledger)
     reviewed: true
   method_version:
     role: provenance
+    interpretation_reach: skills_local
     reason: method / dataset / version provenance token
     reviewed: true
   n_score_sets:
     role: context
+    interpretation_reach: skills_local
     reason: power / sample-size qualifier
     reviewed: true
   n_variants_assayed:
     role: context
+    interpretation_reach: skills_local
     reason: power / sample-size qualifier
     reviewed: true
   n_variants_scored:
     role: context
+    interpretation_reach: unreached
     reason: power / sample-size qualifier
     reviewed: true
   score_max:
     role: display
+    interpretation_reach: unreached
     reason: human-facing detail, large container, or named-entity list; verdict-inert by design
     reviewed: true
   score_median:
     role: display
+    interpretation_reach: unreached
     reason: human-facing detail, large container, or named-entity list; verdict-inert by design
     reviewed: true
   score_min:
     role: display
+    interpretation_reach: unreached
     reason: human-facing detail, large container, or named-entity list; verdict-inert by design
     reviewed: true
   target_categories:
     role: display
+    interpretation_reach: unreached
     reason: human-facing detail, large container, or named-entity list; verdict-inert by design
     reviewed: true
   urns:
     role: provenance
+    interpretation_reach: unreached
     reason: method / dataset / version provenance token
     reviewed: true
 target-clonality:
   clonal_fraction:
     role: context
+    interpretation_reach: skills_local
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   clonality_class:
     role: signal
+    interpretation_reach: skills_local
     reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal
       reach-confirmed via {capsule,gating_rule,salience} (census 2026-09-27, blind to ledger)
     reviewed: true
   evidence_tier:
     role: provenance
+    interpretation_reach: skills_local
     reason: method / dataset / version provenance token
     reviewed: true
   median_ccf:
     role: context
+    interpretation_reach: skills_local
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   n_mutant_samples:
     role: context
+    interpretation_reach: skills_local
     reason: power / sample-size qualifier
     reviewed: true
 functional-gene-state:
   functional_state_class:
     role: signal
+    interpretation_reach: skills_local
     reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal
       reach-confirmed via {display_rule,salience} (census 2026-09-27, blind to ledger)
     reviewed: true
   model:
     role: provenance
+    interpretation_reach: skills_local
     reason: identity / scope key naming the entity the measurement is keyed to
     reviewed: true
   patient:
     role: provenance
+    interpretation_reach: skills_local
     reason: identity / scope key naming the entity the measurement is keyed to
     reviewed: true
   vocabulary_phase:
     role: provenance
+    interpretation_reach: unreached
     reason: method / dataset / version provenance token
     reviewed: true
 genomic-event-model-match:
   dependency_available:
     role: context
+    interpretation_reach: unreached
     reason: qualifier / cross-axis pointer behind a signal (secondary arm, availability or comparator
       measurement)
     reviewed: true
   depmap_lineage:
     role: provenance
+    interpretation_reach: skills_local
     reason: identity / scope key naming the entity the measurement is keyed to
     reviewed: true
   event_correspondence_class:
     role: signal
+    interpretation_reach: skills_local
     reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal
       reach-confirmed via {figure,salience,skill_code} (census 2026-09-27, blind to ledger)
     reviewed: true
   indication:
     role: provenance
+    interpretation_reach: skills_local
     reason: identity / scope key naming the entity the measurement is keyed to
     reviewed: true
   matched_models:
     role: display
+    interpretation_reach: skills_local
     reason: human-facing detail, large container, or named-entity list; verdict-inert by design
     reviewed: true
   n_event_matched:
     role: context
+    interpretation_reach: unreached
     reason: power / sample-size qualifier
     reviewed: true
   n_event_matched_in_lineage:
     role: context
+    interpretation_reach: unreached
     reason: power / sample-size qualifier
     reviewed: true
   n_matched_dependent:
     role: context
+    interpretation_reach: unreached
     reason: power / sample-size qualifier
     reviewed: true
   n_matched_dependent_in_lineage:
     role: context
+    interpretation_reach: unreached
     reason: power / sample-size qualifier
     reviewed: true
   n_models_considered:
     role: context
+    interpretation_reach: skills_local
     reason: power / sample-size qualifier
     reviewed: true
   n_patient_samples:
     role: context
+    interpretation_reach: unreached
     reason: power / sample-size qualifier
     reviewed: true
   patient_event_fraction:
     role: context
+    interpretation_reach: unreached
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   patient_event_state:
     role: signal
+    interpretation_reach: skills_local
     reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal
       reach-confirmed via {salience} (census 2026-09-27, blind to ledger)
     reviewed: true
   patient_functional_state_class:
     role: signal
+    interpretation_reach: unreached
     reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); NO
       exact skills-side reader (census 2026-09-27 reach=orphan) — see waived_because
     reviewed: true
@@ -1071,400 +1319,492 @@ genomic-event-model-match:
       scripts/run.py); genomic-event-model-match::patient_functional_state_class
   release_pin:
     role: provenance
+    interpretation_reach: skills_local
     reason: method / dataset / version provenance token
     reviewed: true
 genomic-instability-state:
   aneuploidy_burden_class:
     role: context
+    interpretation_reach: skills_local
     reason: indication-level cohort-context call (frames the tumour cohort's genomic background, not the
       target's own alteration signal); qualifies interpretation, gates no target verdict
     reviewed: true
   aneuploidy_burden_context:
     role: provenance
+    interpretation_reach: unreached
     reason: audit/context provenance token — surfaced, never a signal
     reviewed: true
   frac_hrd_scar_high:
     role: context
+    interpretation_reach: skills_local
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   hrd_scar_class:
     role: context
+    interpretation_reach: skills_local
     reason: indication-level cohort-context call (frames the tumour cohort's genomic background, not the
       target's own alteration signal); qualifies interpretation, gates no target verdict
     reviewed: true
   hrd_scar_context:
     role: provenance
+    interpretation_reach: unreached
     reason: audit/context provenance token — surfaced, never a signal
     reviewed: true
   median_fraction_genome_altered:
     role: context
+    interpretation_reach: skills_local
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   median_hrd_scar_score:
     role: context
+    interpretation_reach: unreached
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   median_ploidy:
     role: context
+    interpretation_reach: skills_local
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   median_purity:
     role: context
+    interpretation_reach: skills_local
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   model_hrd_signature_present_fraction:
     role: context
+    interpretation_reach: unreached
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   model_mmr_signature_class:
     role: context
+    interpretation_reach: skills_local
     reason: indication-level cohort-context call (frames the tumour cohort's genomic background, not the
       target's own alteration signal); qualifies interpretation, gates no target verdict
     reviewed: true
   model_mmr_signature_high_fraction:
     role: context
+    interpretation_reach: skills_local
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   model_msi_class:
     role: context
+    interpretation_reach: skills_local
     reason: indication-level cohort-context call (frames the tumour cohort's genomic background, not the
       target's own alteration signal); qualifies interpretation, gates no target verdict
     reviewed: true
   model_msi_context:
     role: provenance
+    interpretation_reach: unreached
     reason: audit/context provenance token — surfaced, never a signal
     reviewed: true
   model_msi_high_fraction:
     role: context
+    interpretation_reach: skills_local
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   model_signature_context:
     role: provenance
+    interpretation_reach: unreached
     reason: audit/context provenance token — surfaced, never a signal
     reviewed: true
   msi_class:
     role: context
+    interpretation_reach: skills_local
     reason: indication-level cohort-context call (frames the tumour cohort's genomic background, not the
       target's own alteration signal); qualifies interpretation, gates no target verdict
     reviewed: true
   msi_context:
     role: provenance
+    interpretation_reach: unreached
     reason: audit/context provenance token — surfaced, never a signal
     reviewed: true
   msi_high_fraction:
     role: context
+    interpretation_reach: skills_local
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   n_hrd_scar_high:
     role: context
+    interpretation_reach: unreached
     reason: power / sample-size qualifier
     reviewed: true
   n_model_msi_high:
     role: context
+    interpretation_reach: unreached
     reason: power / sample-size qualifier
     reviewed: true
   n_msi_high:
     role: context
+    interpretation_reach: unreached
     reason: power / sample-size qualifier
     reviewed: true
   n_samples:
     role: context
+    interpretation_reach: skills_local
     reason: power / sample-size qualifier
     reviewed: true
   p25_fraction_genome_altered:
     role: context
+    interpretation_reach: unreached
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   p75_fraction_genome_altered:
     role: context
+    interpretation_reach: unreached
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   wgd_class:
     role: context
+    interpretation_reach: skills_local
     reason: indication-level cohort-context call (frames the tumour cohort's genomic background, not the
       target's own alteration signal); qualifies interpretation, gates no target verdict
     reviewed: true
   wgd_context:
     role: provenance
+    interpretation_reach: unreached
     reason: audit/context provenance token — surfaced, never a signal
     reviewed: true
   wgd_fraction:
     role: context
+    interpretation_reach: skills_local
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
 mutational-signature-context:
   apobec_class:
     role: context
+    interpretation_reach: skills_local
     reason: indication-level cohort-context call (frames the tumour cohort's genomic background, not the
       target's own alteration signal); qualifies interpretation, gates no target verdict
     reviewed: true
   clock_class:
     role: context
+    interpretation_reach: unreached
     reason: indication-level cohort-context call (frames the tumour cohort's genomic background, not the
       target's own alteration signal); qualifies interpretation, gates no target verdict
     reviewed: true
   dominant_process:
     role: display
+    interpretation_reach: skills_local
     reason: human-facing detail, large container, or named-entity list; verdict-inert by design
     reviewed: true
   enriched_processes:
     role: display
+    interpretation_reach: skills_local
     reason: human-facing detail, large container, or named-entity list; verdict-inert by design
     reviewed: true
   frac_apobec_high:
     role: context
+    interpretation_reach: unreached
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   frac_hrd_high:
     role: context
+    interpretation_reach: unreached
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   frac_mmr_deficiency_high:
     role: context
+    interpretation_reach: unreached
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   frac_pole_high:
     role: context
+    interpretation_reach: unreached
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   frac_tobacco_high:
     role: context
+    interpretation_reach: unreached
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   frac_uv_high:
     role: context
+    interpretation_reach: unreached
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   hrd_class:
     role: context
+    interpretation_reach: skills_local
     reason: indication-level cohort-context call (frames the tumour cohort's genomic background, not the
       target's own alteration signal); qualifies interpretation, gates no target verdict
     reviewed: true
   mmr_deficiency_class:
     role: context
+    interpretation_reach: skills_local
     reason: indication-level cohort-context call (frames the tumour cohort's genomic background, not the
       target's own alteration signal); qualifies interpretation, gates no target verdict
     reviewed: true
   n_samples:
     role: context
+    interpretation_reach: skills_local
     reason: power / sample-size qualifier
     reviewed: true
   pole_class:
     role: context
+    interpretation_reach: skills_local
     reason: indication-level cohort-context call (frames the tumour cohort's genomic background, not the
       target's own alteration signal); qualifies interpretation, gates no target verdict
     reviewed: true
   tobacco_class:
     role: context
+    interpretation_reach: unreached
     reason: indication-level cohort-context call (frames the tumour cohort's genomic background, not the
       target's own alteration signal); qualifies interpretation, gates no target verdict
     reviewed: true
   uv_class:
     role: context
+    interpretation_reach: unreached
     reason: indication-level cohort-context call (frames the tumour cohort's genomic background, not the
       target's own alteration signal); qualifies interpretation, gates no target verdict
     reviewed: true
 ddr-deficiency-context:
   ddr_context_class:
     role: context
+    interpretation_reach: skills_local
     reason: indication-level cohort-context call (frames the tumour cohort's genomic background, not the
       target's own alteration signal); qualifies interpretation, gates no target verdict
     reviewed: true
   frac_hrd_high:
     role: context
+    interpretation_reach: unreached
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   hrd_high_cut:
     role: context
+    interpretation_reach: unreached
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   median_hrd_score:
     role: context
+    interpretation_reach: skills_local
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   median_mutsig3:
     role: context
+    interpretation_reach: unreached
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   n_samples:
     role: context
+    interpretation_reach: skills_local
     reason: power / sample-size qualifier
     reviewed: true
   pooled_from:
     role: provenance
+    interpretation_reach: unreached
     reason: method / dataset / version provenance token
     reviewed: true
 oncogenic-pathway-alteration:
   frequently_altered_pathways:
     role: display
+    interpretation_reach: skills_local
     reason: human-facing detail, large container, or named-entity list; verdict-inert by design
     reviewed: true
   n_pathways_profiled:
     role: context
+    interpretation_reach: skills_local
     reason: power / sample-size qualifier
     reviewed: true
   oncogenic_pathway_class:
     role: context
+    interpretation_reach: skills_local
     reason: indication-level cohort-context call (frames the tumour cohort's genomic background, not the
       target's own alteration signal); qualifies interpretation, gates no target verdict
     reviewed: true
   per_pathway:
     role: display
+    interpretation_reach: unreached
     reason: human-facing detail, large container, or named-entity list; verdict-inert by design
     reviewed: true
   pooled_from:
     role: provenance
+    interpretation_reach: unreached
     reason: method / dataset / version provenance token
     reviewed: true
   target_pathway_alteration:
     role: context
+    interpretation_reach: skills_local
     reason: qualifier / cross-axis pointer behind a signal (secondary arm, availability or comparator
       measurement)
     reviewed: true
   target_pathway_membership:
     role: context
+    interpretation_reach: skills_local
     reason: qualifier / cross-axis pointer behind a signal (secondary arm, availability or comparator
       measurement)
     reviewed: true
 cross-consortium-dependency:
   broad_frac_dependent:
     role: context
+    interpretation_reach: unreached
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   broad_median_chronos:
     role: context
+    interpretation_reach: unreached
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   broad_n_lines:
     role: context
+    interpretation_reach: skills_local
     reason: power / sample-size qualifier
     reviewed: true
   cross_consortium_class:
     role: signal
+    interpretation_reach: skills_local
     reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal
       reach-confirmed via {salience,skill_code} (census 2026-09-27, blind to ledger)
     reviewed: true
   dependency_cut:
     role: context
+    interpretation_reach: unreached
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   sanger_frac_dependent:
     role: context
+    interpretation_reach: unreached
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   sanger_median_chronos:
     role: context
+    interpretation_reach: unreached
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   sanger_n_lines:
     role: context
+    interpretation_reach: unreached
     reason: power / sample-size qualifier
     reviewed: true
 dependency-predictability:
   pearson_r_rf:
     role: context
+    interpretation_reach: unreached
     reason: qualifier / cross-axis pointer behind a signal (secondary arm, availability or comparator
       measurement)
     reviewed: true
   pearson_r_squared_rf:
     role: context
+    interpretation_reach: skills_local
     reason: qualifier / cross-axis pointer behind a signal (secondary arm, availability or comparator
       measurement)
     reviewed: true
   pearson_r_squared_rf_ci_hi:
     role: context
+    interpretation_reach: unreached
     reason: confidence-interval bound; statistical qualifier
     reviewed: true
   pearson_r_squared_rf_ci_lo:
     role: context
+    interpretation_reach: unreached
     reason: confidence-interval bound; statistical qualifier
     reviewed: true
   per_lineage_predictability:
     role: display
+    interpretation_reach: skills_local
     reason: human-facing detail, large container, or named-entity list; verdict-inert by design
     reviewed: true
   pred_dominant_feature:
     role: display
+    interpretation_reach: unreached
     reason: human-facing detail, large container, or named-entity list; verdict-inert by design
     reviewed: true
   pred_dominant_feature_class:
     role: signal
+    interpretation_reach: skills_local
     reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal
       reach-confirmed via {capsule,salience,skill_code} (census 2026-09-27, blind to ledger)
     reviewed: true
   pred_n_cell_lines_evaluated:
     role: provenance
+    interpretation_reach: unreached
     reason: provenance / audit / identity token — surfaced, never a signal
     reviewed: true
   pred_top_features_rf:
     role: display
+    interpretation_reach: skills_local
     reason: human-facing detail, large container, or named-entity list; verdict-inert by design
     reviewed: true
   predictability_class:
     role: signal
+    interpretation_reach: skills_local
     reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal
       reach-confirmed via {capsule,display_rule,salience,skill_code} (census 2026-09-27, blind to ledger)
     reviewed: true
 subgroup-stratified-mutation-frequency:
   cross_subgroup_delta_frequency:
     role: context
+    interpretation_reach: skills_local
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   max_subgroup_frequency:
     role: context
+    interpretation_reach: unreached
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   min_subgroup_frequency:
     role: context
+    interpretation_reach: unreached
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   n_subgroups_with_data:
     role: context
+    interpretation_reach: skills_local
     reason: power / sample-size qualifier
     reviewed: true
   per_subgroup_metrics:
     role: display
+    interpretation_reach: skills_local
     reason: human-facing detail, large container, or named-entity list; verdict-inert by design
     reviewed: true
 subgroup-stratified-copy-number:
   cross_subgroup_delta_high_amp_fraction:
     role: context
+    interpretation_reach: unreached
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   max_subgroup_high_amp_fraction:
     role: context
+    interpretation_reach: unreached
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   min_subgroup_high_amp_fraction:
     role: context
+    interpretation_reach: unreached
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   n_subgroups_with_data:
     role: context
+    interpretation_reach: skills_local
     reason: power / sample-size qualifier
     reviewed: true
   per_subgroup_metrics:
     role: display
+    interpretation_reach: skills_local
     reason: human-facing detail, large container, or named-entity list; verdict-inert by design
     reviewed: true
 subgroup-stratified-fusion:
   cross_subgroup_delta_fusion_frequency:
     role: context
+    interpretation_reach: unreached
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   max_subgroup_fusion_frequency:
     role: context
+    interpretation_reach: unreached
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   min_subgroup_fusion_frequency:
     role: context
+    interpretation_reach: unreached
     reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
     reviewed: true
   n_subgroups_with_data:
     role: context
+    interpretation_reach: skills_local
     reason: power / sample-size qualifier
     reviewed: true
   per_subgroup_metrics:
     role: display
+    interpretation_reach: skills_local
     reason: human-facing detail, large container, or named-entity list; verdict-inert by design
     reviewed: true

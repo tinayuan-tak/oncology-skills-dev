@@ -3102,6 +3102,11 @@ _SYNTHESIS_FACET_KEYS = (
     # the UNIFIED cross-skill output object (docs/UNIFIED_OUTPUT_CONTRACT.md) — Wave-3 skill_report
     # adoption (descriptive-role reference impl)
     "skill_report",
+    # L3d — the within-domain tumor-expression biology story (#1940/#2450). Omitted when the headline
+    # omits it (no island resolved); carried so the composed `synthesis.claim_vectors` lift (a DIFFERENT
+    # consumer surface than `evidence_sections.<short>.l3d`, read by cross-evidence-hypothesis) does not
+    # silently drop it the way it did before #2450.
+    "tumor_expression_biology_story",
 )
 
 

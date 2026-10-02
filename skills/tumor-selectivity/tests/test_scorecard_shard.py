@@ -86,6 +86,15 @@ def test_committed_shard_equals_the_adapter_output():
     )
 
 
+def test_build_shard_is_deterministic():
+    """TEETH against a volatile field re-entering the EQUALITY-CHECKED shard. `status_as_of` was stamped
+    with time.gmtime() (#2385), so build_shard() drifted every day and red-failed the merge queue for the
+    whole shard; it is now a pinned literal. Two builds in the same process MUST be byte-identical — this
+    reds if any run-time/non-deterministic value (date, uuid, …) is reintroduced into the shard."""
+    ad = _load_adapter()
+    assert ad.build_shard().to_dict() == ad.build_shard().to_dict()
+
+
 def test_l2_layers_are_built_but_unmeasured():
     """PR-1d (#2213) BUILT L2a/L2b, so NOT_BUILT (built=False) would understate the artifact — but
     building a layer is not measuring it, so every criterion stays NULL with a reason and the cell rolls

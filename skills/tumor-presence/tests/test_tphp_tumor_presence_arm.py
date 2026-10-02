@@ -4,7 +4,7 @@ The deliverable of this file is MUTATION TEETH, not a test count. Three things c
 second arm, and each gets a tooth that reds on the specific mutation:
 
   T1  THE ARM IS NOT ACTUALLY WIRED. Dropping the card from run.py CARDS / CARD_CONTEXT, or from
-      presence_claims._MS_PRESENCE_SOURCES, must red — not silently degrade to "CPTAC-only, same as
+      presence_concordance_claims._MS_PRESENCE_SOURCES, must red — not silently degrade to "CPTAC-only, same as
       before". `test_tooth_dropping_the_tphp_arm_reds_*` fail on exactly that removal, and
       `test_tooth_a_tphp_only_target_loses_its_ms_read_without_the_arm` proves the wiring is what
       BUYS the read (the counterfactual, not just the presence of a string in a list).
@@ -103,7 +103,11 @@ def _empty_tphp_row(**over):
 
 @pytest.fixture(scope="module")
 def pc():
-    import _skills_common.presence_claims as m
+    # SK#2379: the TPHP arm roster/eligibility/floor constants and the protein-presence concordance builder
+    # moved from presence_claims.py to presence_concordance_claims.py (the L2b corroboration subsystem).
+    # They are re-exported from presence_claims, but their home — and the single source of truth this test
+    # pins — is presence_concordance_claims.
+    import _skills_common.presence_concordance_claims as m
 
     return m
 

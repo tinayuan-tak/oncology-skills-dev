@@ -84,7 +84,6 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
-import time
 from pathlib import Path
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
@@ -94,6 +93,12 @@ REPO_ROOT = SKILLS_ROOT.parent
 from _skills_common import component_scorecard as cs  # noqa: E402
 
 SKILL = "tumor-selectivity"
+
+# The scorecard shard is committed and equality-checked against build_shard() (test_scorecard_shard.py).
+# `status_as_of` must therefore be a PINNED date, not time.gmtime() — a run-date stamp drifts the snapshot
+# every day and red-fails the merge queue for the whole shard (fixed 2026-10-02; #2385 regressed this).
+# Bump this literal by hand on a deliberate re-render, exactly like the per-criterion as_of dates below.
+_STATUS_AS_OF = "2026-10-02"
 
 # ── L1 evidence: accuracy / utilization / fail_open (test-backed, static evidence dicts) ──────────
 
@@ -312,7 +317,7 @@ def _panel_consistency_criterion() -> cs.Criterion:
         ),
         "rows": rows,
         "checks": checks,
-        "status_as_of": time.strftime("%Y-%m-%d", time.gmtime()),
+        "status_as_of": _STATUS_AS_OF,
     }
     if not all_present:
         missing = [f"{r['target']}/{r['indication']}" for r in rows if r["status"] == "PACKAGE_MISSING"]
@@ -367,42 +372,38 @@ def _panel_consistency_criterion() -> cs.Criterion:
     return cs.Criterion(status=cs.NULL, evidence=evidence)
 
 
-# ── L2a / L2b: BUILT by PR-1d (epic SK#2210 / #1507, #2213), UNMEASURED ──────────────────────────────
+# ── L2a / L2b: BUILT by PR-1d (epic SK#2210 / #1507, #2213), UNMEASURED — the shared L2-seed factory (#2435) ─
 # The layers now exist, so built=None ("not assessed") would understate the artifact and built=False
 # ("architecture gap") would be a false statement about it. Every criterion stays NULL: the exemplar's
 # L2a/L2b measurement machinery (tumor-presence's envelope_rows / envelope_checks — --emit-envelope
 # across the panel roster, criteria computed from the emitted section bytes) has no tumor-selectivity
 # counterpart yet, and a criterion that reads GREEN because a layer merely exists is exactly the fail-open
 # promotion the rollup (any NULL blocks GREEN) is built to refuse. built=True + all-NULL rolls up to
-# NULL, the honest cell state: present, not yet measured.
-_L2_UNMEASURED_NULL_REASON = (
-    "PR-1d (epic SK#2210 / #1507, #2213) BUILT this layer for tumor-selectivity but did not build a "
-    "measurement for it. The exemplar's machinery (skills/tumor-presence/scripts/scorecard_adapter.py "
-    "envelope_rows/envelope_checks: --emit-envelope across the panel roster, then per-criterion checks "
-    "over the emitted section bytes) has no tumor-selectivity counterpart, so there is nothing to report "
-    "here that would not be a claim about un-run checks. Left NULL rather than promoted on the strength "
-    "of the layer existing. The structural pins that DO exist are cited in `structural_pins` below; they "
-    "are correctness guards on the export, not a measurement of this criterion."
+# NULL, the honest cell state: present, not yet measured. This is the shared cs.build_l2_seed_shard
+# shape; this file supplies only the per-skill descriptions + the per-layer structural pins (correctness
+# guards on the export, not a measurement — the NULL reason is the shared cs.l2_seed_null_reason).
+_L2A_DESC = (
+    "L2a = source_properties (SK#1941-shape EXPORTED section, --emit-envelope), built by PR-1d "
+    "of epic SK#2210 / #1507: 6 per-source observational properties "
+    "(selectivity_claims.py::_SOURCE_PROPERTY_RECIPES_SELECTIVITY), governed by "
+    "contracts/vocabularies/property_catalog/selectivity.yaml. BUILT, NOT MEASURED — every "
+    "criterion NULL with its reason (see cs.l2_seed_null_reason)."
 )
-_L2A_STRUCTURAL_PINS = [
-    "skills/tumor-selectivity/tests/test_evidence_package_sections.py",
-    "contracts/tests/validators/test_property_catalog.py (sweeps selectivity.yaml)",
-    "contracts/tests/validators/test_claim_axis_enum.py (selectivity.* resolves reconciliation)",
-]
-_L2B_STRUCTURAL_PINS = [
-    "skills/tumor-selectivity/tests/test_evidence_package_sections.py",
-]
-
-
-def _l2_unmeasured_criteria(structural_pins: list[str]) -> dict:
-    """The four criteria for a layer PR-1d built but did not measure — NULL with the reason named."""
-    return {
-        name: cs.Criterion(
-            status=cs.NULL,
-            evidence={"null_reason": _L2_UNMEASURED_NULL_REASON, "structural_pins": list(structural_pins)},
-        )
-        for name in cs.CRITERIA
-    }
+_L2B_DESC = (
+    "L2b = integrated_properties (SK#1941-shape EXPORTED section), built by PR-1d of epic "
+    "SK#2210 / #1507: the selectivity_concordance island (SK#1752, bulk-RNA x protein-MS "
+    "tumor-vs-normal window concordance). BUILT, NOT MEASURED — every criterion NULL with its reason."
+)
+_STRUCTURAL_PINS = {
+    "L2a": [
+        "skills/tumor-selectivity/tests/test_evidence_package_sections.py",
+        "contracts/tests/validators/test_property_catalog.py (sweeps selectivity.yaml)",
+        "contracts/tests/validators/test_claim_axis_enum.py (selectivity.* resolves reconciliation)",
+    ],
+    "L2b": [
+        "skills/tumor-selectivity/tests/test_evidence_package_sections.py",
+    ],
+}
 
 
 # ── L3 / L4: NOT_BUILT for this skill ───────────────────────────────────────────────────────────────
@@ -417,10 +418,11 @@ _NOT_BUILT_NOTES = {
 
 
 def build_shard() -> cs.SkillShard:
-    """Build the tumor-selectivity scorecard shard in memory. Calls `collect_panel_rows()` live (via
-    `_panel_consistency_criterion`), so re-running this script re-derives the panel evidence rather
-    than replaying a stale table."""
-    shard = cs.baseline_shard(SKILL)
+    """Build the tumor-selectivity scorecard shard in memory. The L2a/L2b BUILT-but-UNMEASURED seed is
+    the shared `cs.build_l2_seed_shard` factory (DETERMINISTIC); this adapter then OVERRIDES the layers
+    it owns: the live L1 panel (via `_panel_consistency_criterion`, which calls `collect_panel_rows()`
+    so re-running re-derives the panel rather than replaying a stale table) and L3/L4 NOT_BUILT."""
+    shard = cs.build_l2_seed_shard(SKILL, _L2A_DESC, _L2B_DESC, _STRUCTURAL_PINS)
 
     shard.cells["L1"] = cs.Cell(
         built=True,
@@ -438,27 +440,6 @@ def build_shard() -> cs.SkillShard:
         ),
     )
 
-    shard.cells["L2a"] = cs.Cell(
-        built=True,
-        criteria=_l2_unmeasured_criteria(_L2A_STRUCTURAL_PINS),
-        notes=(
-            "L2a = source_properties (SK#1941-shape EXPORTED section, --emit-envelope), built by PR-1d "
-            "of epic SK#2210 / #1507: 6 per-source observational properties "
-            "(selectivity_claims.py::_SOURCE_PROPERTY_RECIPES_SELECTIVITY), governed by "
-            "contracts/vocabularies/property_catalog/selectivity.yaml. BUILT, NOT MEASURED — every "
-            "criterion NULL with its reason; see _L2_UNMEASURED_NULL_REASON."
-        ),
-    )
-    shard.cells["L2b"] = cs.Cell(
-        built=True,
-        criteria=_l2_unmeasured_criteria(_L2B_STRUCTURAL_PINS),
-        notes=(
-            "L2b = integrated_properties (SK#1941-shape EXPORTED section), built by PR-1d of epic "
-            "SK#2210 / #1507: the selectivity_concordance island (SK#1752, bulk-RNA x protein-MS "
-            "tumor-vs-normal window concordance). BUILT, NOT MEASURED — every criterion NULL with its "
-            "reason."
-        ),
-    )
     for layer in ("L3", "L4"):
         shard.cells[layer] = cs.Cell(
             built=False,

@@ -725,10 +725,6 @@
               "value": -0.6398
             },
             {
-              "metric": "log2fc_cell_b",
-              "value": -0.5809
-            },
-            {
               "metric": "log2fc_cell_c",
               "value": 0.1525
             },
