@@ -46,6 +46,37 @@ def _shard_dict() -> dict:
     return json.loads(SHARD_PATH.read_text())
 
 
+def test_roundtrip_deterministic_surface_equals_the_adapter_output(monkeypatch):
+    """ROUND-TRIP TEETH on the DETERMINISTIC surface of the shard (#2435): the committed file must equal
+    what `build_shard()` produces for every cell the adapter builds deterministically — the shared
+    L2-seed factory output (L2a/L2b), the NOT_BUILT L3/L4, and the static L1 criteria
+    (accuracy / utilization / fail_open) plus L1's built flag and notes. A drift between the adapter's
+    data literal and the committed artifact (in either direction — a hand-edit, or an adapter change not
+    re-materialised) reds here, which is what makes the committed JSON a live function of this code
+    rather than a hand-typed fixture.
+
+    The live L1 `panel_consistency` criterion (and its `status_as_of` date) is NON-DETERMINISTIC and
+    credential-bound — it is regenerated faithfully with creds and guarded by the panel-specific tests
+    below — so it is excluded from this byte comparison; `_load_package` is stubbed to absent so the
+    comparison never fires the (slow, creds-needing) 5x live panel."""
+    ad = _load_adapter()
+    # Exclude the live panel from the round-trip: no creds in CI, and it is guarded separately below.
+    monkeypatch.setattr(ad, "_load_package", lambda *a, **k: (None, None))
+    built = ad.build_shard().to_dict()
+    committed = _shard_dict()
+    for layer in ("L2a", "L2b", "L3", "L4"):
+        assert built["cells"][layer] == committed["cells"][layer], (
+            f"{layer} has drifted between scorecard_adapter.build_shard() and the committed "
+            "scorecard/on-target-safety-liability.json — re-run the adapter and re-render."
+        )
+    for key in ("built", "notes"):
+        assert built["cells"]["L1"][key] == committed["cells"]["L1"][key], f"L1 {key} drifted from the adapter"
+    for crit in ("accuracy", "utilization", "fail_open"):
+        assert built["cells"]["L1"]["criteria"][crit] == committed["cells"]["L1"]["criteria"][crit], (
+            f"L1/{crit} (a deterministic criterion) drifted between the adapter and the committed shard"
+        )
+
+
 def test_shard_validates_and_upper_layers_are_not_built():
     shard = cs.shard_from_dict(_shard_dict(), expected_skill="on-target-safety-liability")
     # PR-1a (epic SK#2210 / #1507) BUILT L2a/L2b for this skill, so NOT_BUILT would now be a false
