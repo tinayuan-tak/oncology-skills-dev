@@ -823,6 +823,198 @@ def emit_hotspot_lollipop(
 
 
 
+def emit_hotspot_pie(
+    hotspot_frequencies_indication: list[dict],
+    hotspot_frequencies_pancancer: list[dict],
+    overall_freq_indication: float,
+    overall_freq_pancancer: float,
+    target: str,
+    indication: str,
+    out_path: Path,
+    contracts_root: Path = DEFAULT_TARGET_CONTRACTS,
+    *,
+    top_n: int = 5,
+) -> Optional[Path]:
+    """Emit dual pie charts showing hotspot mutation distribution in indication vs pan-cancer.
+
+    Two donut-style pie charts side by side: indication on left, pan-cancer on right.
+    Each shows the top N hotspots as slices with an "Other mutations" category for the rest.
+    Uses consistent color coding across both pies.
+
+    Args:
+        hotspot_frequencies_indication: list of {protein_change, frequency, n_samples} for indication
+        hotspot_frequencies_pancancer: list of {protein_change, frequency, n_samples} for pan-cancer
+        target: gene symbol
+        indication: indication code (e.g., COADREAD)
+        out_path: directory to write figure_hotspot_pie.svg
+        contracts_root: path to target-contracts repo (for styling)
+        top_n: max number of hotspots to show as individual slices (default 5)
+    """
+    if not hotspot_frequencies_indication and not hotspot_frequencies_pancancer:
+        return None
+
+    sys.path.insert(0, str(contracts_root / "plot_styles"))
+    try:
+        from takeda_palette import (
+            OKABE_ITO,
+            figure_title,
+            provenance_tag,
+            takeaway,
+        )
+    except ImportError:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        fig, ax = plt.subplots(figsize=(7.0, 4.5))
+        ax.text(0.5, 0.5, "takeda_palette not available", ha="center", va="center", transform=ax.transAxes)
+        svg_path = out_path / "figure_hotspot_pie.svg"
+        fig.savefig(svg_path, bbox_inches="tight")
+        plt.close(fig)
+        return svg_path
+
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    style_path = contracts_root / "plot_styles" / "takeda_oncology.mplstyle"
+    if style_path.exists():
+        plt.style.use(str(style_path))
+
+    def prepare_pie_data(hotspots, overall_freq, top_n):
+        """Prepare pie chart data showing distribution among mutated samples (adds to 100%)."""
+        if not hotspots or not overall_freq:
+            return [], [], 0.0
+        sorted_hs = sorted(hotspots, key=lambda h: h.get("frequency", 0) or 0, reverse=True)
+        top_hs = sorted_hs[:top_n]
+
+        labels = [h.get("protein_change", "?") for h in top_hs]
+        values = [(h.get("frequency", 0) or 0) / overall_freq * 100 for h in top_hs]
+
+        top_total = sum(values)
+        other_pct = 100.0 - top_total
+        if other_pct > 0.5:
+            labels.append("Other")
+            values.append(other_pct)
+
+        return labels, values, overall_freq * 100
+
+    labels_ind, values_ind, total_ind = prepare_pie_data(hotspot_frequencies_indication, overall_freq_indication, top_n)
+    labels_pan, values_pan, total_pan = prepare_pie_data(hotspot_frequencies_pancancer, overall_freq_pancancer, top_n)
+
+    all_hotspots = []
+    for label in labels_ind:
+        if label != "Other" and label not in all_hotspots:
+            all_hotspots.append(label)
+    for label in labels_pan:
+        if label != "Other" and label not in all_hotspots:
+            all_hotspots.append(label)
+
+    color_map = {hs: OKABE_ITO[i % len(OKABE_ITO)] for i, hs in enumerate(all_hotspots)}
+    color_map["Other"] = "#CCCCCC"
+
+    fig = plt.figure(figsize=(7.0, 4.5))
+    fig.subplots_adjust(top=0.82, bottom=0.18, left=0.08, right=0.92)
+
+    ax_ind = fig.add_axes([0.05, 0.25, 0.42, 0.55])
+    ax_pan = fig.add_axes([0.53, 0.25, 0.42, 0.55])
+
+    def draw_pie(ax, labels, values, title, total_freq, color_map):
+        import numpy as np
+
+        if not values:
+            ax.text(0.5, 0.5, "No data", ha="center", va="center",
+                    transform=ax.transAxes, fontsize=10, color="#666666")
+            ax.set_title(title, fontsize=10, fontweight="bold", loc="center", color="#33383D")
+            ax.axis("off")
+            return
+
+        pie_colors = [color_map.get(label, "#CCCCCC") for label in labels]
+
+        wedges, texts = ax.pie(
+            values,
+            colors=pie_colors,
+            startangle=90,
+            wedgeprops=dict(edgecolor="white", linewidth=1.5),
+        )
+
+        for i, (wedge, label, val) in enumerate(zip(wedges, labels, values)):
+            ang = (wedge.theta2 + wedge.theta1) / 2
+            ang_rad = np.deg2rad(ang)
+
+            pct = val / sum(values) * 100 if sum(values) > 0 else 0
+            label_text = f"{label}\n{val:.1f}%"
+
+            if pct >= 12:
+                r = 0.55
+                x = r * np.cos(ang_rad)
+                y = r * np.sin(ang_rad)
+                ax.text(x, y, label_text, ha="center", va="center",
+                        fontsize=7, fontweight="bold", color="white")
+            else:
+                r_inner = 1.02
+                r_outer = 1.12
+                x1 = r_inner * np.cos(ang_rad)
+                y1 = r_inner * np.sin(ang_rad)
+                x2 = r_outer * np.cos(ang_rad)
+                y2 = r_outer * np.sin(ang_rad)
+
+                ax.annotate(
+                    label_text,
+                    xy=(x1, y1),
+                    xytext=(x2, y2),
+                    fontsize=6,
+                    ha="center" if abs(np.cos(ang_rad)) < 0.3 else ("left" if np.cos(ang_rad) > 0 else "right"),
+                    va="center",
+                    color="#333333",
+                    arrowprops=dict(arrowstyle="-", color="#999999", lw=0.5),
+                )
+
+        ax.set_title(title, fontsize=10, fontweight="bold", loc="center", color="#33383D", pad=10)
+        ax.set_aspect("equal")
+
+    draw_pie(ax_ind, labels_ind, values_ind, indication, total_ind, color_map)
+    draw_pie(ax_pan, labels_pan, values_pan, "Pan-Cancer", total_pan, color_map)
+
+    legend_labels = all_hotspots[:top_n]
+    if "Other" in labels_ind or "Other" in labels_pan:
+        legend_labels.append("Other")
+
+    legend_colors = [color_map.get(label, "#CCCCCC") for label in legend_labels]
+    legend_handles = [plt.Rectangle((0, 0), 1, 1, fc=c, ec="white") for c in legend_colors]
+    fig.legend(legend_handles, legend_labels, loc="lower center", ncol=min(6, len(legend_labels)),
+               fontsize=8, frameon=True, fancybox=False, edgecolor="#CCCCCC",
+               bbox_to_anchor=(0.5, 0.14))
+
+    figure_title(fig, target, None, "hotspot distribution", y=0.94)
+    provenance_tag(fig, f"TCGA MC3 v0.2.8 · top {top_n} hotspots (% of mutated samples)", y=0.08)
+
+    top_ind = hotspot_frequencies_indication[0] if hotspot_frequencies_indication else None
+    top_pan = hotspot_frequencies_pancancer[0] if hotspot_frequencies_pancancer else None
+    if top_ind:
+        top_ind = max(hotspot_frequencies_indication, key=lambda h: h.get("frequency", 0) or 0)
+    if top_pan:
+        top_pan = max(hotspot_frequencies_pancancer, key=lambda h: h.get("frequency", 0) or 0)
+
+    if top_ind and top_pan:
+        take_text = (f"Top hotspot in {indication}: {top_ind.get('protein_change', '?')} "
+                     f"({(top_ind.get('frequency', 0) or 0)*100:.1f}%); "
+                     f"pan-cancer: {top_pan.get('protein_change', '?')} "
+                     f"({(top_pan.get('frequency', 0) or 0)*100:.1f}%).")
+    elif top_ind:
+        take_text = f"Top hotspot in {indication}: {top_ind.get('protein_change', '?')} ({(top_ind.get('frequency', 0) or 0)*100:.1f}%)."
+    elif top_pan:
+        take_text = f"Top hotspot pan-cancer: {top_pan.get('protein_change', '?')} ({(top_pan.get('frequency', 0) or 0)*100:.1f}%)."
+    else:
+        take_text = f"No hotspots detected for {target}."
+
+    takeaway(fig, take_text, y=0.01)
+
+    svg_path = out_path / "figure_hotspot_pie.svg"
+    fig.savefig(svg_path)
+    plt.close(fig)
+    return svg_path
+
+
 def emit_mutation_frequency_stacked(
     target: str,
     indication: str,

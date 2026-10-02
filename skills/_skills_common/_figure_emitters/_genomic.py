@@ -72,9 +72,11 @@ def _emit_mutation_hotspot_frequency(
     target: str,
     indication: str,
 ) -> list[dict]:
-    """Emit the mutation hotspot frequency figures (pie, stacked, lollipop): MC3 somatic
-    mutation frequency with hotspot breakdown. Gated on having hotspot data
-    (data_unavailable / no mutations → []). On _live_read_error → []."""
+    """Emit the mutation hotspot frequency figures: MC3 somatic mutation frequency
+    with hotspot breakdown. Primary figure is the hotspot distribution pie chart
+    (indication vs pan-cancer). Secondary figures include mutation frequency pie
+    and stacked bar charts. Gated on having hotspot data (data_unavailable /
+    no mutations → []). On _live_read_error → []."""
     if _has_live_read_error(summary):
         return []
     if not summary:
@@ -101,21 +103,52 @@ def _emit_mutation_hotspot_frequency(
     out_dir.mkdir(parents=True, exist_ok=True)
     figures = []
 
-    # Emit lollipop if hotspot data exists
-    hotspots = summary.get("hotspot_frequencies") or []
-    if hotspots:
-        svg = hotspot_cli.emit_hotspot_lollipop(
-            hotspots, target, indication, out_dir, TARGET_CONTRACTS
-        )
-        if svg:
-            figures.append({
-                "id": "hotspot_lollipop",
-                "path": "figure_hotspot_lollipop.svg",
-                "type": "mutation_hotspot_lollipop",
-                "primary": True,
-            })
+    # Emit hotspot pie chart (indication vs pan-cancer) if hotspot data exists
+    hotspots_ind = summary.get("hotspot_frequencies") or []
+    overall_freq_ind = summary.get("overall_mutation_frequency") or 0
+    if hotspots_ind and overall_freq_ind > 0:
+        try:
+            import pyarrow.parquet as pq
 
-    # Try to emit pie and stacked figures by loading context data from MC3 aggregate
+            aggregate_path = _download_hotspot_aggregate_if_missing(indication)
+            if aggregate_path and aggregate_path.exists():
+                df = pq.read_table(aggregate_path).to_pandas()
+                target_pan = df[df["gene_symbol"] == target]
+
+                summary_rows = target_pan[target_pan["hotspot_protein_change"].isna()]
+                total_samples = summary_rows["n_samples_in_indication"].sum()
+                total_mutated = summary_rows["n_samples_mutated"].sum()
+                overall_freq_pan = total_mutated / total_samples if total_samples > 0 else 0
+
+                hotspot_rows = target_pan[target_pan["hotspot_protein_change"].notna()]
+                hotspot_agg = hotspot_rows.groupby("hotspot_protein_change").agg({
+                    "hotspot_n_samples": "sum"
+                }).reset_index()
+                hotspot_agg["frequency"] = hotspot_agg["hotspot_n_samples"] / total_samples if total_samples > 0 else 0
+                hotspots_pan = [
+                    {"protein_change": row["hotspot_protein_change"],
+                     "frequency": row["frequency"],
+                     "n_samples": row["hotspot_n_samples"]}
+                    for _, row in hotspot_agg.iterrows()
+                ]
+
+                svg = hotspot_cli.emit_hotspot_pie(
+                    hotspots_ind, hotspots_pan,
+                    overall_freq_ind, overall_freq_pan,
+                    target, indication, out_dir, TARGET_CONTRACTS
+                )
+                if svg:
+                    figures.append({
+                        "id": "hotspot_pie",
+                        "path": "figure_hotspot_pie.svg",
+                        "type": "hotspot_distribution_pie",
+                        "primary": True,
+                    })
+        except Exception as e:
+            import sys
+            print(f"[figures] hotspot pie failed: {e}", file=sys.stderr)
+
+    # Try to emit mutation frequency pie and stacked figures by loading context data from MC3 aggregate
     try:
         import pyarrow.parquet as pq
 

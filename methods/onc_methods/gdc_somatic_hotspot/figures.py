@@ -137,6 +137,51 @@ def render_mutation_frequency_stacked_from_plot_data(
     ]
 
 
+def render_hotspot_pie_from_plot_data(
+    plot_data_indication: Union[str, Path, object],
+    plot_data_pancancer: Union[str, Path, object],
+    summary: dict,
+    out_dir: Union[str, Path],
+    target: str,
+    indication: Optional[str] = None,
+    *,
+    target_contracts_dir: Optional[Union[str, Path]] = None,
+) -> list[dict]:
+    """Render the hotspot pie chart OFFLINE from persisted plot_data. NO live read."""
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    tcd = Path(target_contracts_dir) if target_contracts_dir else _cli.DEFAULT_TARGET_CONTRACTS
+
+    hotspots_ind, overall_freq_ind, _, data_target, data_indication = _reconstruct_data(plot_data_indication)
+    hotspots_pan, overall_freq_pan, _, _, _ = _reconstruct_data(plot_data_pancancer)
+
+    target = target or data_target
+    indication = indication or data_indication
+
+    svg_path = _cli.emit_hotspot_pie(
+        hotspots_ind,
+        hotspots_pan,
+        overall_freq_ind,
+        overall_freq_pan,
+        target,
+        indication,
+        out_dir,
+        tcd,
+    )
+
+    if svg_path is None:
+        return []
+
+    return [
+        {
+            "id": "hotspot_pie",
+            "path": "figure_hotspot_pie.svg",
+            "type": "hotspot_distribution_pie",
+            "primary": True,
+        },
+    ]
+
+
 def render_mutation_frequency_pie_from_plot_data(
     plot_data_indication: Union[str, Path, object],
     plot_data_pancancer: Union[str, Path, object],
@@ -177,7 +222,7 @@ def render_mutation_frequency_pie_from_plot_data(
             "id": "mutation_frequency_pie",
             "path": "figure_mutation_frequency_pie.svg",
             "type": "mutation_frequency_pie",
-            "primary": True,
+            "primary": False,
         },
     ]
 
@@ -209,15 +254,15 @@ def render_from_plot_data(
     """
     specs = []
 
-    # Always render lollipop (only needs indication data)
-    specs.extend(
-        render_hotspot_lollipop_from_plot_data(
-            plot_data, summary, out_dir, target, indication, target_contracts_dir=target_contracts_dir
-        )
-    )
-
-    # Render pie and stacked if pan-cancer data is available
+    # Render hotspot pie (primary) and other figures if pan-cancer data is available
     if plot_data_pancancer is not None:
+        # Hotspot pie is the primary figure (replaces lollipop)
+        specs.extend(
+            render_hotspot_pie_from_plot_data(
+                plot_data, plot_data_pancancer, summary, out_dir, target, indication,
+                target_contracts_dir=target_contracts_dir
+            )
+        )
         specs.extend(
             render_mutation_frequency_pie_from_plot_data(
                 plot_data, plot_data_pancancer, summary, out_dir, target, indication,
