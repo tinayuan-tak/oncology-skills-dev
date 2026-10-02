@@ -91,14 +91,14 @@ def _emit_mutation_hotspot_frequency(
     pd_path = out_dir / "plot_data.parquet"
     if pd_path.exists():
         try:
-            from methods.gdc_somatic_hotspot.figures import render_from_plot_data
+            from onc_methods.gdc_somatic_hotspot.figures import render_from_plot_data
 
             return render_from_plot_data(pd_path, summary, out_dir, target, indication)
         except Exception:
             pass  # fall through to legacy
 
     # Legacy live path (no plot_data persisted)
-    from methods.gdc_somatic_hotspot import cli as hotspot_cli
+    from onc_methods.gdc_somatic_hotspot import cli as hotspot_cli
 
     out_dir.mkdir(parents=True, exist_ok=True)
     figures = []
@@ -270,7 +270,7 @@ def _emit_fusion_rearrangement_landscape(
     pd_path = out_dir / "plot_data_fusion.parquet"
     if pd_path.exists():
         try:
-            from methods.tcga_fusion_consensus.figures import render_from_plot_data
+            from onc_methods.tcga_fusion_consensus.figures import render_from_plot_data
 
             return render_from_plot_data(pd_path, summary, out_dir, target, indication)
         except Exception:
@@ -279,14 +279,14 @@ def _emit_fusion_rearrangement_landscape(
     # Legacy path: load from aggregate and emit figures
     try:
         import pyarrow.parquet as pq
-        from methods.tcga_fusion_consensus.figures import (
+        from onc_methods.tcga_fusion_consensus.figures import (
             emit_fusion_frequency_pie,
             emit_fusion_frequency_stacked,
         )
 
         # Load OncoKB driver genes for filtering (oncogenes for fusions - typically the activated partner)
         try:
-            from methods.driver_role_overlay.read import _load_oncokb_roles
+            from onc_methods.driver_role_overlay.read import _load_oncokb_roles
             roles = _load_oncokb_roles()
             driver_genes = {gene for gene, role in roles.items() if role in ("ONCOGENE", "TSG", "BOTH")}
         except Exception:
@@ -443,7 +443,7 @@ def _emit_tumor_splice_dysregulation(
     pd_path = out_dir / "plot_data_splicing.parquet"
     if pd_path.exists():
         try:
-            from methods.tcga_spliceseq_psi.figures import render_from_plot_data
+            from onc_methods.tcga_spliceseq_psi.figures import render_from_plot_data
 
             return render_from_plot_data(pd_path, summary, out_dir, target, indication)
         except Exception:
@@ -452,14 +452,14 @@ def _emit_tumor_splice_dysregulation(
     # Legacy path: load from aggregate and emit figures
     try:
         import pyarrow.parquet as pq
-        from methods.tcga_spliceseq_psi.figures import (
+        from onc_methods.tcga_spliceseq_psi.figures import (
             emit_splicing_variability_pie,
             emit_splicing_variability_stacked,
         )
 
         # Load OncoKB driver genes for filtering (both oncogenes and TSGs for splice)
         try:
-            from methods.driver_role_overlay.read import _load_oncokb_roles
+            from onc_methods.driver_role_overlay.read import _load_oncokb_roles
             roles = _load_oncokb_roles()
             driver_genes = {gene for gene, role in roles.items() if role in ("ONCOGENE", "TSG", "BOTH")}
         except Exception:
