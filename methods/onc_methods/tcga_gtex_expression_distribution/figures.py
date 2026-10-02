@@ -99,7 +99,7 @@ def render_liability_from_plot_data(
         raise ValueError(f"plot_data missing required columns {missing}; got {list(df.columns)}")
     atlas = {str(t): sub["log2_tpm"].astype(float).tolist() for t, sub in df.groupby("tissue")}
 
-    _cli.emit_liability_svg(target, out_dir, tcd, presampled=atlas)
+    _cli.emit_liability_svg(target, out_dir, tcd, presampled=atlas, indication=indication)
     static = [
         {
             "id": "normal_tissue_liability_atlas",

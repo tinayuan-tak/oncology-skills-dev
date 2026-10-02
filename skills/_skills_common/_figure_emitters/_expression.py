@@ -590,7 +590,7 @@ def _emit_normal_tissue_liability_gtex(
     # LEGACY fallback: re-execute the method against live data (pre-migration behavior).
     from onc_methods.tcga_gtex_expression_distribution import cli as exprdist
 
-    svg = exprdist.emit_liability_svg(target, out_dir, TARGET_CONTRACTS)
+    svg = exprdist.emit_liability_svg(target, out_dir, TARGET_CONTRACTS, indication=indication)
     if svg is None:
         return []
     figures = [
