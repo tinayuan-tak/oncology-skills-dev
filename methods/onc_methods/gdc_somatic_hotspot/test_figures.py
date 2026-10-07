@@ -79,7 +79,7 @@ PAN_CANCER_GENES += [(f"GENE_{i}", random.uniform(0.01, 0.049)) for i in range(5
 
 
 def main():
-    from methods.gdc_somatic_hotspot.cli import (
+    from onc_methods.gdc_somatic_hotspot.cli import (
         emit_hotspot_lollipop,
         emit_mutation_frequency_stacked,
         emit_mutation_frequency_pie,

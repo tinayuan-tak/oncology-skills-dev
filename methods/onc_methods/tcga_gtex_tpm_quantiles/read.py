@@ -449,7 +449,7 @@ def emit_by_tissue_distribution(
     ax.axvline(0.0, color="#888", linewidth=0.6, linestyle="--", alpha=0.5)
 
     # Add critical normal organ median line (average of critical tissue medians)
-    from methods.normal_tissue_safety_common import GTEX_ESSENTIAL_TISSUES
+    from onc_methods.normal_tissue_safety_common import GTEX_ESSENTIAL_TISSUES
     import numpy as np
     critical_tissues = set(GTEX_ESSENTIAL_TISSUES)
     normal_rows = df[df["source"] == "gtex_normal"].to_dict("records")

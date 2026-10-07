@@ -55,7 +55,7 @@ def _load_oncokb_driver_genes() -> tuple[set, set]:
     TSGs are genes where deletion is likely causal.
     """
     try:
-        from methods.driver_role_overlay.read import _load_oncokb_roles
+        from onc_methods.driver_role_overlay.read import _load_oncokb_roles
         roles = _load_oncokb_roles()
         oncogenes = {gene for gene, role in roles.items() if role in ("ONCOGENE", "BOTH")}
         tsgs = {gene for gene, role in roles.items() if role in ("TSG", "BOTH")}
@@ -67,7 +67,7 @@ def _load_oncokb_driver_genes() -> tuple[set, set]:
 def _emit_patient_cn_from_aggregate(summary: dict, out_dir: Path, target: str, indication: str) -> list:
     """Emit patient CN figures from the TCGA aggregate (legacy path when no plot_data)."""
     import pyarrow.parquet as pq
-    from methods.tcga_patient_cn.figures import render_from_plot_data
+    from onc_methods.tcga_patient_cn.figures import render_from_plot_data
 
     # Try SageMaker path first, then download
     aggregate_path = Path("/home/sagemaker-user/data-products-cache/tcga_patient_cn/patient_cn_per_gene.parquet")
@@ -320,7 +320,7 @@ def _emit_cn_distribution(
     pd_patient_path = out_dir / "plot_data_patient_cn.parquet"
     if pd_patient_path.exists():
         try:
-            from methods.tcga_patient_cn.figures import render_from_plot_data as render_patient_cn
+            from onc_methods.tcga_patient_cn.figures import render_from_plot_data as render_patient_cn
 
             patient_figs = render_patient_cn(pd_patient_path, summary, out_dir, target, indication)
             figures.extend(patient_figs)

@@ -745,9 +745,9 @@ def _emit_cn_stratified_dependency(
     _ensure_methods_path()
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    from methods.depmap_chronos_distribution import cli as c1cli
-    from methods.depmap_cn_dependency import cli as cncli
-    from methods.depmap_cn_distribution import cli as cn_dist_cli
+    from onc_methods.depmap_chronos_distribution import cli as c1cli
+    from onc_methods.depmap_cn_dependency import cli as cncli
+    from onc_methods.depmap_cn_distribution import cli as cn_dist_cli
 
     chronos_by_model, model_metadata, load_errors = c1cli.load_depmap_files(release_pin="26q1", target_symbol=target)
     if load_errors or not chronos_by_model:
@@ -802,9 +802,9 @@ def _emit_fusion_stratified_dependency(
     _ensure_methods_path()
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    from methods.depmap_chronos_distribution import cli as c1cli
-    from methods.depmap_fusion_dependency import cli as fuscli
-    from methods.depmap_fusion_dependency.read import _load_fusion_involvement
+    from onc_methods.depmap_chronos_distribution import cli as c1cli
+    from onc_methods.depmap_fusion_dependency import cli as fuscli
+    from onc_methods.depmap_fusion_dependency.read import _load_fusion_involvement
 
     chronos_by_model, model_metadata, load_errors = c1cli.load_depmap_files(release_pin="26q1", target_symbol=target)
     if load_errors or not chronos_by_model:

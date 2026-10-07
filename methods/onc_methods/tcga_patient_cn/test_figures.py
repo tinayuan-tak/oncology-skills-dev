@@ -154,7 +154,7 @@ PANCANCER_DEL_FOCAL_GENES += [(f"GENE_{i}", random.uniform(0.002, 0.015)) for i 
 
 
 def main():
-    from methods.tcga_patient_cn.cli import (
+    from onc_methods.tcga_patient_cn.cli import (
         emit_cn_frequency_pie,
         emit_cn_frequency_stacked,
         emit_plot_data,
