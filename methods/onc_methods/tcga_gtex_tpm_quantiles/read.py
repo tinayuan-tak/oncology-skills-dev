@@ -438,10 +438,14 @@ def emit_by_tissue_distribution(
         delta = g["delta"]
         sig = _delta_significance_indicator(delta, g["n_tumor"], g["n_normal"])
 
-        # Highlight elevated/down-regulated indications only if significant
-        if sig and delta is not None and delta > 0:
+        # Highlight elevated/down-regulated indications only if significant.
+        # `sig` is a label string ("***"/"**"/"*" significant; "ns"/"†"/"—" NOT), so the
+        # box must gate on the asterisk tier — a bare `if sig` is always truthy and would
+        # highlight non-significant rows too (parity with cptac_protein_deg's is_sig gate).
+        is_sig = sig.startswith("*")
+        if is_sig and delta is not None and delta > 0:
             ax.axhspan(i - 0.45, i + 0.45, color="#fffacd", alpha=0.4, zorder=0)
-        elif sig and delta is not None and delta < 0:
+        elif is_sig and delta is not None and delta < 0:
             ax.axhspan(i - 0.45, i + 0.45, color="#d4edda", alpha=0.4, zorder=0)
         delta_str = f"Δ{delta:+.2f} {sig}" if delta is not None else f"— {sig}"
         ax.text(ann_x, i, delta_str, va="center", fontsize=7, color="#555")

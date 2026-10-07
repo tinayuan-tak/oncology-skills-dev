@@ -143,3 +143,47 @@ def test_absent_gene_degrades(monkeypatch):
         p = r.emit_by_tissue_distribution("GHOST", out)  # placeholder SVG, no crash
         assert p.exists()
         assert r.emit_plotly_specs("GHOST", out) == []
+
+
+# Four lineages spanning every significance tier, built so the delta sign + sample
+# counts land each in a known tier of _delta_significance_indicator:
+#   BRCA  Δ=+8 (n 100/100) -> "***"  SIGNIFICANT up   -> yellow #fffacd box
+#   KIRC  Δ=-8 (n 100/100) -> "***"  SIGNIFICANT down -> green  #d4edda box
+#   LUAD  Δ=+0.2            -> "ns"   NOT significant  -> NO box
+#   PAAD  Δ=+9  but n_tumor=5 (<10)  -> "†" low power  -> NO box
+def _tn(gene, study, gtex, tmed, tn, nmed, nn):
+    base = {"gene_symbol": gene, "ensembl_gene_id": "ENSG_" + gene, "q1": 0.0, "q3": 0.0}
+    return [
+        {**base, "source": "tcga_tumor", "group": study, "n": tn,
+         "min": tmed, "median": tmed, "max": tmed, "mean": tmed},
+        {**base, "source": "gtex_normal", "group": gtex, "n": nn,
+         "min": nmed, "median": nmed, "max": nmed, "mean": nmed},
+    ]
+
+
+_SIG_RECS = (
+    _tn("GENEB", "BRCA", "BREAST", 10.0, 100, 2.0, 100)   # *** up   -> yellow
+    + _tn("GENEB", "KIRC", "KIDNEY", 1.0, 100, 9.0, 100)  # *** down -> green
+    + _tn("GENEB", "LUAD", "LUNG", 5.2, 100, 5.0, 100)    # ns       -> none
+    + _tn("GENEB", "PAAD", "PANCREAS", 10.0, 5, 1.0, 100) # † power  -> none
+)
+
+
+def test_elevation_boxes_only_on_significant_rows(monkeypatch):
+    """Regression: the yellow/green highlight boxes gate on the asterisk tier, NOT on
+    the (always-truthy) `sig` label string — so "ns"/"†" rows get NO box. Guards against
+    reintroducing `if sig and ...`, under which all four lineages here would be boxed."""
+    # Pin the tier assumptions this test is built on (self-documenting + fails loudly if the
+    # heuristic thresholds move).
+    assert r._delta_significance_indicator(8.0, 100, 100) == "***"
+    assert r._delta_significance_indicator(0.2, 100, 100) == "ns"
+    assert r._delta_significance_indicator(9.0, 5, 100) == "†"
+
+    _patch(monkeypatch, _SIG_RECS)
+    with tempfile.TemporaryDirectory() as d:
+        out = Path(d)
+        svg = r.emit_by_tissue_distribution("GENEB", out).read_text()
+    n_yellow = svg.count("fill: #fffacd")  # one per drawn axhspan (fill directive)
+    n_green = svg.count("fill: #d4edda")
+    assert n_yellow == 1, f"expected 1 significant-up box, got {n_yellow} (ns/† rows leaked a box?)"
+    assert n_green == 1, f"expected 1 significant-down box, got {n_green}"
