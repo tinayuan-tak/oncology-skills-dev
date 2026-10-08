@@ -399,8 +399,8 @@ dependency-lineage-selectivity:
     reviewed: true
   per_oncotree_code_stats:
     role: display
-    interpretation_reach: unreached
-    reason: "human-facing per-OncoTree-code statistics container; verdict-inert detail"
+    interpretation_reach: skills_local
+    reason: "per-OncoTree-code Chronos stats; now consumed by the dependency-lineage-selectivity oncotree forest figure (figure_oncotree_forest_plot) — reach-confirmed via the figure layer; verdict-inert"
     reviewed: true
   relative_only_enriched_lineages:
     role: display

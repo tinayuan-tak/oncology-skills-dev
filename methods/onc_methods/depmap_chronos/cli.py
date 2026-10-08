@@ -1557,6 +1557,9 @@ def emit_plot_data(
                 "cell_line_name": meta.get("CellLineName", mid),
                 "chronos_score": float(c),
                 "lineage": str(lineage),
+                # Sublineage code — the substrate the offline per-OncotreeCode forest needs
+                # (without it render_from_plot_data recomputes empty per_oncotree_code_stats).
+                "oncotree_code": str(meta.get("OncotreeCode") or "unknown"),
                 "is_target_lineage": bool(lineage == target_lineage),
                 "is_strongly_dependent": bool(c <= strong_threshold),
                 # Alias used by the strip plotter

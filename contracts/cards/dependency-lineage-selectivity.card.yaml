@@ -159,6 +159,10 @@ outputs:
       type: lineage_strip_plot
       description: "Per-lineage strip plot of individual cell-line Chronos points. Distribution within each lineage visible (informs IQR confidence)."
       preferred_surfaces: [html, markdown_alt]
+    - id: oncotree_forest_plot
+      type: oncotree_forest_plot
+      description: "Per-OncotreeCode Chronos median (point) + IQR (bar), grouped by parent lineage with separators and a right-side lineage summary (name, median, n). Finer-grained than the per-lineage forest: surfaces sublineage-restricted dependencies a lineage median dilutes. Omitted when no OncotreeCode reaches min n."
+      preferred_surfaces: [html, markdown_alt]
   plot_data: per_cell_line_chronos_with_lineage_tags
 
 thresholds:

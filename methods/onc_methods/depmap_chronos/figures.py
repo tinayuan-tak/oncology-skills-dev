@@ -40,6 +40,9 @@ def _reconstruct_frame(plot_data: "Union[str, Path, object]") -> tuple[dict, dic
             "ModelID": mid,
             "CellLineName": getattr(row, "cell_line_name", None),
             "OncotreeLineage": getattr(row, "lineage", None),
+            # Optional: restored only when the parquet carries it (new emit_plot_data). Older
+            # parquets lack the column → None → "unknown" downstream → oncotree forest omitted.
+            "OncotreeCode": getattr(row, "oncotree_code", None),
         }
     return chronos_by_model, model_metadata
 
@@ -84,6 +87,15 @@ def render_from_plot_data(
         out_dir,
         tcd,
     )
+    # Finer-grained per-OncotreeCode forest (returns None → no file when no code reaches min n).
+    oncotree_forest_path = _cli.emit_oncotree_forest_plot(
+        lineage_summary.get("per_oncotree_code_stats", []),
+        target_lineage,
+        target,
+        indication,
+        out_dir,
+        tcd,
+    )
     _cli.emit_lineage_strip(
         merged_data,
         target_lineage,
@@ -97,6 +109,11 @@ def render_from_plot_data(
         {"id": "forest_plot", "path": "figure_forest_plot.svg", "type": "lineage_forest_plot", "primary": True},
         {"id": "lineage_strip", "path": "figure_lineage_strip.svg", "type": "lineage_strip_plot", "primary": False},
     ]
+    if oncotree_forest_path is not None:
+        static.append(
+            {"id": "oncotree_forest_plot", "path": "figure_oncotree_forest_plot.svg",
+             "type": "oncotree_forest_plot", "primary": False}
+        )
     # Interactive plotly twin from the SAME reconstructed records — RETURNED (dynamic: True) so this is
     # an EXACT drop-in for the registry emitter (which appends _plotly_from today). Best-effort.
     dynamic: list[dict] = []

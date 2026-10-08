@@ -147,6 +147,15 @@ def _emit_card2_dependency_lineage_selectivity(
         out_dir,
         TARGET_CONTRACTS,
     )
+    # Finer-grained per-OncotreeCode forest (returns None → no file when no code reaches min n).
+    oncotree_forest_path = c2cli.emit_oncotree_forest_plot(
+        lineage_summary.get("per_oncotree_code_stats", []),
+        target_lineage,
+        target,
+        indication,
+        out_dir,
+        TARGET_CONTRACTS,
+    )
     c2cli.emit_lineage_strip(
         merged_data,
         target_lineage,
@@ -161,6 +170,11 @@ def _emit_card2_dependency_lineage_selectivity(
         {"id": "forest_plot", "path": "figure_forest_plot.svg", "type": "lineage_forest_plot", "primary": True},
         {"id": "lineage_strip", "path": "figure_lineage_strip.svg", "type": "lineage_strip_plot", "primary": False},
     ]
+    if oncotree_forest_path is not None:
+        figures.append(
+            {"id": "oncotree_forest_plot", "path": "figure_oncotree_forest_plot.svg",
+             "type": "oncotree_forest_plot", "primary": False}
+        )
     # Interactive twin — per-lineage forest from the SAME _per_lineage_records the SVG used (no drift).
     figures += _plotly_from(
         c2cli,
